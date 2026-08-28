@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>对译 Duiyi · 界面原型</title>
+  <style>
+    :root {
+      --paper: #f6f3ee;
+      --ink: #1c1915;
+      --muted: #6b645c;
+      --line: #e2dbd2;
+      --bg-canvas: #12141a;
+      --bg-user: #161920;
+      --bg-peer: #1a1714;
+      --text: #f4efe6;
+      --text-dim: rgba(244, 239, 230, 0.58);
+      --listen: #e8b86d;
+      --en: #7ec8c3;
+      --zh: #e8b86d;
+      --danger: #e07070;
+      --card: #fffdf9;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--paper); color: var(--ink); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      line-height: 1.5;
+    }
+
+    header.top {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 14px 28px;
+      background: rgba(246, 243, 238, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand strong { font-size: 18px; letter-spacing: 0.04em; }
+    .brand span { color: var(--muted); font-size: 13px; }
+    nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    nav a {
+      color: var(--muted); text-decoration: none; font-size: 13px;
+      padding: 6px 10px; border-radius: 999px;
+    }
+    nav a:hover { background: #ece6dc; color: var(--ink); }
+
+    main { max-width: 1180px; margin: 0 auto; padding: 36px 24px 80px; }
+    section { margin-bottom: 72px; }
+    h1 { font-size: 40px; letter-spacing: -0.03em; margin: 0 0 8px; font-weight: 640; }
+    .lede { font-size: 18px; color: var(--muted); max-width: 640px; margin: 0 0 28px; }
+    h2 { font-size: 22px; margin: 0 0 8px; letter-spacing: -0.02em; }
+    h3 { font-size: 15px; margin: 0 0 8px; }
+    p.note { color: var(--muted); margin: 0 0 20px; max-width: 640px; }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 28px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .hero-grid, .play-grid, .flow-row, .token-grid, .spec-grid { grid-template-columns: 1fr !important; }
+    }
+
+    .scene {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px;
+    }
+    .table {
+      position: relative;
+      height: 340px;
+      background: #d9cfc2;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .person {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      color: #5c564e; font-size: 13px; text-align: center;
+    }
+    .person.peer { top: 14px; }
+    .person.user { bottom: 14px; }
+    .mini-phone {
+      position: absolute; left: 50%; top: 50%;
+      width: 132px; height: 210px;
+      transform: translate(-50%, -50%);
+      background: var(--bg-canvas);
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(28, 25, 21, 0.18);
+      overflow: hidden;
+      border: 3px solid #2a2e38;
+    }
+    .mini-phone .peer, .mini-phone .user {
+      height: 46%; padding: 10px 8px; color: var(--text); font-size: 9px;
+    }
+    .mini-phone .peer { background: var(--bg-peer); transform: rotate(180deg); }
+    .mini-phone .user { background: var(--bg-user); }
+    .mini-phone .mid {
+      height: 8%; display: flex; align-items: center; justify-content: center;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--listen); }
+
+    .rules { display: grid; gap: 10px; }
+    .rule {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+    .rule b { font-size: 13px; }
+    .rule span { color: var(--muted); font-size: 13px; }
+
+    .play-grid {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .device {
+      width: 360px; height: 740px;
+      background: #0b0c10;
+      border-radius: 44px;
+      padding: 12px;
+      box-shadow: 0 30px 70px rgba(28, 25, 21, 0.22);
+    }
+    .screen {
+      height: 100%;
+      border-radius: 34px;
+      overflow: hidden;
+      background: var(--bg-canvas);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      color: var(--text);
+    }
+    .status-bar {
+      height: 44px; display: flex; align-items: flex-end; justify-content: space-between;
+      padding: 0 22px 8px; font-size: 12px; color: var(--text-dim);
+      position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+    }
+    .home-ind {
+      position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+      width: 120px; height: 5px; border-radius: 99px; background: #fff; opacity: 0.18; z-index: 5;
+    }
+
+    .pane {
+      flex: 1;
+      padding: 56px 22px 28px;
+      display: flex;
+      flex-direction: column;
+    }
+    .pane.peer { background: var(--bg-peer); transform: rotate(180deg); padding-top: 48px; }
+    .pane.user { background: var(--bg-user); padding-bottom: 36px; }
+
+    .badge {
+      align-self: flex-start;
+      font-size: 11px; letter-spacing: 0.08em; font-weight: 650;
+      padding: 4px 8px; border-radius: 99px;
+      border: 1px solid currentColor; opacity: 0.9;
+    }
+    .badge.en { color: var(--en); }
+    .badge.zh { color: var(--zh); }
+
+    .live {
+      margin-top: 18px;
+      font-size: 28px;
+      font-weight: 600;
+      line-height: 1.28;
+      letter-spacing: -0.02em;
+      min-height: 2.5em;
+    }
+    .prev {
+      margin-top: auto;
+      font-size: 16px;
+      color: var(--text-dim);
+      min-height: 1.4em;
+    }
+    .hint {
+      margin-top: 18px;
+      color: var(--text-dim);
+      font-size: 15px;
+    }
+
+    .midbar {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-canvas);
+      position: relative;
+      z-index: 3;
+    }
+    .mic {
+      width: 64px; height: 64px; border-radius: 50%;
+      border: 0; cursor: pointer;
+      background: var(--listen); color: #1c1915;
+      display: grid; place-items: center;
+      box-shadow: 0 0 0 8px rgba(232, 184, 109, 0.16);
+    }
+    .mic.idle { background: #2a2e38; color: var(--text); box-shadow: none; }
+    .mic svg { width: 22px; height: 22px; fill: currentColor; }
+    .mic-label {
+      position: absolute; right: 28px; font-size: 12px; color: var(--text-dim); letter-spacing: 0.04em;
+    }
+
+    .sheet {
+      position: absolute; left: 12px; right: 12px; bottom: 28px;
+      background: #23262f; color: var(--text);
+      border-radius: 22px; padding: 18px 18px 16px;
+      z-index: 8;
+    }
+    .sheet h4 { margin: 0 0 12px; font-size: 15px; }
+    .seg { display: flex; gap: 8px; margin-bottom: 12px; }
+    .seg button, .sheet .ghost {
+      flex: 1; border: 0; border-radius: 12px; padding: 10px 8px;
+      background: #2f3340; color: var(--text); cursor: pointer; font-size: 13px;
+    }
+    .seg button.on { background: var(--listen); color: #1c1915; font-weight: 650; }
+
+    .onboard {
+      padding: 72px 28px 40px;
+      height: 100%;
+      display: flex; flex-direction: column;
+      background: var(--bg-canvas);
+    }
+    .onboard h2 { color: var(--text); font-size: 28px; }
+    .onboard p { color: var(--text-dim); }
+    .onboard .cta {
+      margin-top: auto;
+      width: 100%; border: 0; border-radius: 16px;
+      padding: 16px; background: var(--listen); color: #1c1915;
+      font-size: 16px; font-weight: 650; cursor: pointer;
+    }
+    .choice { display: grid; gap: 10px; margin-top: 24px; }
+    .choice button {
+      text-align: left; padding: 16px; border-radius: 16px;
+      border: 1px solid #2f3340; background: #1c1f27; color: var(--text);
+      font-size: 17px; cursor: pointer;
+    }
+    .choice button.on { border-color: var(--listen); }
+    .progress { height: 6px; background: #2a2e38; border-radius: 99px; overflow: hidden; margin: 8px 0 18px; }
+    .progress > i { display: block; height: 100%; width: 72%; background: var(--listen); }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    .controls button, .chip {
+      border: 1px solid var(--line); background: var(--card); color: var(--ink);
+      border-radius: 999px; padding: 8px 12px; font-size: 13px; cursor: pointer;
+    }
+    .controls button.active, .chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .legend { margin-top: 16px; color: var(--muted); font-size: 13px; }
+
+    .flow-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .step {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+      min-height: 148px;
+    }
+    .step small { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .step p { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+
+    table.route {
+      width: 100%; border-collapse: collapse; background: var(--card);
+      border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+      font-size: 14px;
+    }
+    table.route th, table.route td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+    table.route th { color: var(--muted); font-weight: 550; font-size: 12px; }
+    table.route tr:last-child td { border-bottom: 0; }
+
+    .token-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .swatch { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--card); }
+    .swatch .c { height: 64px; }
+    .swatch figcaption { padding: 10px 12px; font-size: 12px; color: var(--muted); }
+    .swatch strong { display: block; color: var(--ink); font-size: 13px; }
+
+    .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .spec {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px;
+    }
+    .spec ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+
+    .arch {
+      display: grid; gap: 8px;
+    }
+    .layer {
+      border-radius: 14px; padding: 14px 16px; color: var(--text);
+    }
+    .layer b { display: block; font-size: 12px; opacity: 0.7; margin-bottom: 4px; }
+    .weeks { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .week {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px;
+      min-height: 120px;
+    }
+    .week b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+    footer {
+      color: var(--muted); font-size: 13px; padding-top: 8px;
+    }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <strong>对译</strong>
+      <span>Duiyi · 面对面离线字幕原型</span>
+    </div>
+    <nav>
+      <a href="#scene">场景</a>
+      <a href="#ui">主界面</a>
+      <a href="#onboarding">引导</a>
+      <a href="#route">路由</a>
+      <a href="#visual">视觉</a>
+      <a href="#arch">架构</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="scene">
+      <h1>把手机平放在中间。</h1>
+      <p class="lede">只懂中文的人和只懂英文的人相对而坐。下半屏正字给用户，上半屏倒字给对方。谁说话，对面就读到自己的语言。</p>
+      <div class="hero-grid">
+        <div class="scene">
+          <div class="table" aria-hidden="true">
+            <div class="person peer">对方<br />低头看倒过来的字 → 正字</div>
+            <div class="mini-phone">
+              <div class="peer">I'd like a coffee.</div>
+              <div class="mid"><span class="dot"></span></div>
+              <div class="user">我想点一杯咖啡。</div>
+            </div>
+            <div class="person user">用户<br />正对屏幕，字是正的</div>
+          </div>
+        </div>
+        <div class="rules">
+          <div class="rule"><b>对方说英文</b><span>用户下半屏出现中文</span></div>
+          <div class="rule"><b>对方说中文</b><span>用户下半屏出现英文</span></div>
+          <div class="rule"><b>用户说英文</b><span>对方上半屏出现中文</span></div>
+          <div class="rule"><b>用户说中文</b><span>对方上半屏出现英文</span></div>
+          <p class="note" style="margin:8px 2px 0">单麦克风不分说话人。用「我看的语言」+ 识别语种，决定字幕打在哪一侧。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="ui">
+      <h2>对话主界面</h2>
+      <p class="note">主路径只有一个按钮。点按开始 / 暂停，长按打开设置。下面可以演练一轮中英对话。</p>
+      <div class="play-grid">
+        <div class="phone-wrap">
+          <div class="device" id="device">
+            <div class="screen" id="screen"></div>
+          </div>
+        </div>
+        <div>
+          <h3>屏幕状态</h3>
+          <div class="controls" id="state-btns"></div>
+          <h3 style="margin-top:22px">我看的语言</h3>
+          <div class="controls">
+            <button class="active" id="lang-zh" type="button">我看中文</button>
+            <button id="lang-en" type="button">I read English</button>
+          </div>
+          <p class="legend" id="explain"></p>
+          <div class="spec" style="margin-top:22px">
+            <h3>交互备忘</h3>
+            <ul>
+              <li>引导完成后自动进入聆听，减少桌上操作。</li>
+              <li>字幕区不响应点按，避免平放误触。</li>
+              <li>每侧只保留当前句 + 上一句，字号默认「更大」34pt。</li>
+              <li>错误只出现在用户侧正字，对方侧保持干净。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="onboarding">
+      <h2>首次引导 · 四步</h2>
+      <p class="note">再次打开直接进对话。模型只在第一次（或系统清理后）下载。</p>
+      <div class="flow-row">
+        <article class="step"><small>01 欢迎</small><h3>对译</h3><p>把手机平放在中间，对面就能看懂你说的话。</p></article>
+        <article class="step"><small>02 语言</small><h3>你看哪种语言？</h3><p>中文 / English。另一侧自动是另一种。</p></article>
+        <article class="step"><small>03 权限</small><h3>麦克风与识别</h3><p>只在本机转写。拒绝时给「去设置」。</p></article>
+        <article class="step"><small>04 模型</small><h3>下载一次</h3><p>中英语音包 + 中英翻译包，之后可离线。</p></article>
+      </div>
+    </section>
+
+    <section id="route">
+      <h2>语种路由</h2>
+      <p class="note">detected == 用户语言 → 用户在说 → 译文给对方（上屏）。否则是对方在说 → 译文给用户（下屏）。</p>
+      <table class="route">
+        <thead>
+          <tr><th>我看的语言</th><th>识别到</th><th>判定谁在说</th><th>用户屏</th><th>对方屏</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>中文</td><td>英文</td><td>对方</td><td>中文译文</td><td>正在说…</td></tr>
+          <tr><td>中文</td><td>中文</td><td>用户</td><td>正在说…</td><td>英文译文</td></tr>
+          <tr><td>英文</td><td>中文</td><td>对方</td><td>英文译文</td><td>正在说…</td></tr>
+          <tr><td>英文</td><td>英文</td><td>用户</td><td>正在说…</td><td>中文译文</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="visual">
+      <h2>视觉规范</h2>
+      <p class="note">桌面有反光，用深色暖白，不用霓虹。中英徽章靠色相区分，倒正方向才是主识别。</p>
+      <div class="token-grid">
+        <figure class="swatch"><div class="c" style="background:#12141a"></div><figcaption><strong>Canvas</strong>#12141A</figcaption></figure>
+        <figure class="swatch"><div class="c" style="background:#1a1714"></div><figcaption><strong>Peer pane</strong>#1A1714</figcaption></figure>
+        <figure class="swatch"><div class="c" style="background:#161920"></div><figcaption><strong>User pane</strong>#161920</figcaption></figure>
+        <figure class="swatch"><div class="c" style="background:#e8b86d"></div><figcaption><strong>Listen / ZH</strong>#E8B86D</figcaption></figure>
+        <figure class="swatch"><div class="c" style="background:#7ec8c3"></div><figcaption><strong>EN</strong>#7EC8C3</figcaption></figure>
+        <figure class="swatch"><div class="c" style="background:#f4efe6"></div><figcaption><strong>Caption</strong>#F4EFE6</figcaption></figure>
+        <figure class="swatch"><div class="c" style="background:#e07070"></div><figcaption><strong>Danger</strong>#E07070</figcaption></figure>
+        <figure class="swatch"><div class="c" style="background:#f6f3ee"></div><figcaption><strong>Spec paper</strong>#F6F3EE</figcaption></figure>
+      </div>
+      <div class="spec-grid" style="margin-top:20px">
+        <div class="spec">
+          <h3>字号</h3>
+          <ul>
+            <li>当前句默认 34pt Semibold（档位：标准 28 / 更大 34 / 最大 44）</li>
+            <li>上一句 20pt Regular，对比 58%</li>
+            <li>行距 1.25，左右 22pt</li>
+          </ul>
+        </div>
+        <div class="spec">
+          <h3>动效</h3>
+          <ul>
+            <li>新句：180ms 淡入 + 4pt 位移</li>
+            <li>中间结果只改文字，不跳布局</li>
+            <li>跟随系统「减弱动态效果」</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="arch">
+      <h2>架构与落地（摘要）</h2>
+      <p class="note">完整说明见 <code>docs/02-architecture.md</code>、<code>docs/03-tech-choices.md</code>、<code>docs/04-roadmap.md</code>。</p>
+      <div class="arch">
+        <div class="layer" style="background:#12141a"><b>App</b>DuiyiApp · Environment · 竖屏锁定</div>
+        <div class="layer" style="background:#1c1f27"><b>Features</b>Onboarding · Conversation · TranslationHostView · Settings</div>
+        <div class="layer" style="background:#24302c"><b>Domain</b>LanguageRouter · Utterance · CaptionLine · 状态机</div>
+        <div class="layer" style="background:#2a2420"><b>Services</b>Audio actor · 双 SpeechTranscriber · TranslationSession · AssetInventory</div>
+      </div>
+      <div class="weeks" style="margin-top:20px">
+        <div class="week"><b>W1 M1</b>字幕板倒字壳</div>
+        <div class="week"><b>W2 M2</b>单路离线听写</div>
+        <div class="week"><b>W3 M3</b>双路融合与路由</div>
+        <div class="week"><b>W4 M4</b>双向离线翻译</div>
+        <div class="week"><b>W5 M5</b>引导、降级、验收</div>
+      </div>
+    </section>
+
+    <footer>对译 Duiyi · realtimeTranslator-ox 设计包 · 打开本文件即可演示界面。实现从 M1 建 Xcode 工程开始。</footer>
+  </main>
+
+  <script>
+    const micIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"/></svg>`;
+
+    const states = [
+      { id: "welcome", label: "欢迎" },
+      { id: "language", label: "选语言" },
+      { id: "permission", label: "权限" },
+      { id: "download", label: "下载模型" },
+      { id: "idle", label: "空闲" },
+      { id: "peer", label: "对方在说" },
+      { id: "user", label: "用户在说" },
+      { id: "paused", label: "暂停" },
+      { id: "settings", label: "设置" }
+    ];
+
+    let uiState = "peer";
+    let userLang = "zh";
+
+    const copy = {
+      zh: {
+        idleLiveUser: "轻点中间，开始听对面说话。",
+        idleLivePeer: "Place the phone between us.",
+        speaking: "正在说…",
+        wait: "聆听中",
+        pause: "已暂停",
+        start: "轻点开始",
+        peerLine: "我想点一杯咖啡。",
+        peerPrev: "三点在酒店大堂见。",
+        userLine: "I'd like a cup of coffee.",
+        userPrev: "See you in the lobby at 3."
+      },
+      en: {
+        idleLiveUser: "Tap the center to start listening.",
+        idleLivePeer: "把手机放在我们中间。",
+        speaking: "Speaking…",
+        wait: "Listening",
+        pause: "Paused",
+        start: "Tap to start",
+        peerLine: "I'd like a cup of coffee.",
+        peerPrev: "See you in the lobby at 3.",
+        userLine: "我想点一杯咖啡。",
+        userPrev: "三点在酒店大堂见。"
+      }
+    };
+
+    function render() {
+      const screen = document.getElementById("screen");
+      const t = copy[userLang];
+      const userBadge = userLang === "zh" ? "ZH" : "EN";
+      const peerBadge = userLang === "zh" ? "EN" : "ZH";
+      const userBadgeClass = userLang === "zh" ? "zh" : "en";
+      const peerBadgeClass = userLang === "zh" ? "en" : "zh";
+
+      const onboard = (inner) => `
+        <div class="status-bar"><span>9:41</span><span>对译</span></div>
+        <div class="onboard">${inner}</div>
+        <div class="home-ind"></div>`;
+
+      if (uiState === "welcome") {
+        screen.innerHTML = onboard(`
+          <p style="color:var(--listen);letter-spacing:.12em;font-size:12px;margin:0 0 12px">DUIYI</p>
+          <h2>对译</h2>
+          <p>把手机平放在中间，对面就能看懂你说的话。</p>
+          <button class="cta" type="button" data-go="language">开始</button>`);
+      } else if (uiState === "language") {
+        screen.innerHTML = onboard(`
+          <h2>你看哪种语言？</h2>
+          <p>另一侧会自动显示另一种语言。</p>
+          <div class="choice">
+            <button type="button" class="${userLang === "zh" ? "on" : ""}" data-set-lang="zh">中文</button>
+            <button type="button" class="${userLang === "en" ? "on" : ""}" data-set-lang="en">English</button>
+          </div>
+          <button class="cta" type="button" data-go="permission">继续</button>`);
+      } else if (uiState === "permission") {
+        screen.innerHTML = onboard(`
+          <h2>需要两样许可</h2>
+          <p>麦克风：听见对话。<br/>语音识别：在本机转成文字。</p>
+          <p>语音不会上传。</p>
+          <button class="cta" type="button" data-go="download">允许</button>`);
+      } else if (uiState === "download") {
+        screen.innerHTML = onboard(`
+          <h2>准备离线模型</h2>
+          <p>中英语音</p><div class="progress"><i></i></div>
+          <p>中英翻译</p><div class="progress"><i style="width:54%"></i></div>
+          <p>下载只需一次，之后可完全离线。</p>
+          <button class="cta" type="button" data-go="peer">进入对话</button>`);
+      } else {
+        const listening = uiState === "peer" || uiState === "user";
+        const paused = uiState === "paused" || uiState === "idle" || uiState === "settings";
+        let peerLive = t.wait;
+        let peerPrev = "";
+        let userLive = t.wait;
+        let userPrev = "";
+        let label = t.wait;
+
+        if (uiState === "idle") {
+          peerLive = t.idleLivePeer; userLive = t.idleLiveUser; label = t.start;
+        } else if (uiState === "peer") {
+          userLive = t.peerLine; userPrev = t.peerPrev; peerLive = t.speaking; peerPrev = t.userPrev; label = t.wait;
+        } else if (uiState === "user") {
+          peerLive = t.userLine; peerPrev = t.userPrev; userLive = t.speaking; userPrev = t.peerLine; label = t.wait;
+        } else if (uiState === "paused" || uiState === "settings") {
+          userLive = t.peerLine; userPrev = t.peerPrev; peerLive = t.userLine; peerPrev = t.userPrev; label = t.pause;
+        }
+
+        screen.innerHTML = `
+          <div class="status-bar"><span>9:41</span><span></span></div>
+          <div class="pane peer">
+            <span class="badge ${peerBadgeClass}">${peerBadge}</span>
+            <div class="live">${peerLive}</div>
+            <div class="prev">${peerPrev}</div>
+          </div>
+          <div class="midbar">
+            <button class="mic ${listening ? "" : "idle"}" id="mic" type="button" title="开始或暂停">${micIcon}</button>
+            <span class="mic-label">${label}</span>
+          </div>
+          <div class="pane user">
+            <span class="badge ${userBadgeClass}">${userBadge}</span>
+            <div class="live">${userLive}</div>
+            <div class="prev">${userPrev}</div>
+          </div>
+          <div class="home-ind"></div>
+          ${uiState === "settings" ? `
+            <div class="sheet">
+              <h4>设置</h4>
+              <div class="seg">
+                <button type="button" class="${userLang === "zh" ? "on" : ""}" data-set-lang="zh">我看中文</button>
+                <button type="button" class="${userLang === "en" ? "on" : ""}" data-set-lang="en">I read English</button>
+              </div>
+              <div class="seg">
+                <button type="button">标准</button>
+                <button type="button" class="on">更大</button>
+                <button type="button">最大</button>
+              </div>
+              <button class="ghost" type="button" data-go="paused">完成</button>
+            </div>` : ""}
+        `;
+      }
+
+      const explain = {
+        welcome: "一屏一句话，降低「这是什么 App」的成本。",
+        language: "只问用户看什么语言。不选当前说话人。",
+        permission: "一次说清用途和「不上传」。",
+        download: "把系统下载确认提前到引导，避免对话中弹窗。",
+        idle: "就绪但未听。真机上引导结束后会自动开始。",
+        peer: "识别到对方语言 → 译文出现在下半屏（用户正字）。",
+        user: "识别到用户语言 → 译文出现在上半屏（对方倒字、看来是正的）。",
+        paused: "字幕冻结。再点中央继续。",
+        settings: "长按中央按钮。卡片从用户侧升起，不挡对方正在看的字。"
+      };
+      document.getElementById("explain").textContent = explain[uiState];
+
+      document.querySelectorAll("#state-btns button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.state === uiState);
+      });
+      document.getElementById("lang-zh").classList.toggle("active", userLang === "zh");
+      document.getElementById("lang-en").classList.toggle("active", userLang === "en");
+    }
+
+    const btnHost = document.getElementById("state-btns");
+    states.forEach((s) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = s.label;
+      b.dataset.state = s.id;
+      b.addEventListener("click", () => { uiState = s.id; render(); });
+      btnHost.appendChild(b);
+    });
+
+    document.getElementById("lang-zh").onclick = () => { userLang = "zh"; render(); };
+    document.getElementById("lang-en").onclick = () => { userLang = "en"; render(); };
+
+    document.getElementById("screen").addEventListener("click", (e) => {
+      const go = e.target.closest("[data-go]");
+      if (go) { uiState = go.dataset.go; render(); return; }
+      const lang = e.target.closest("[data-set-lang]");
+      if (lang) { userLang = lang.dataset.setLang; render(); return; }
+      if (e.target.closest("#mic")) {
+        uiState = (uiState === "peer" || uiState === "user") ? "paused" : "peer";
+        render();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

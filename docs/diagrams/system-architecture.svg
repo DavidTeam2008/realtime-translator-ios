@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 520" role="img" aria-labelledby="title desc">
+  <title id="title">˘—˚ﬂB</title>
+  <desc id="desc">AppFeaturesDomainServices˚ﬂF∂ÑUùV</desc>
+  <style>
+    .t { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+  </style>
+  <rect width="920" height="520" fill="#F6F3EE"/>
+
+  <rect x="40" y="28" width="840" height="72" rx="14" fill="#12141A"/>
+  <text class="t" x="64" y="58" font-size="13" fill="#E8B86D">App</text>
+  <text class="t" x="64" y="80" font-size="14" fill="#F4EFE6">DuiyiApp ∑ AppEnvironment ∑ ÷O:oùVËe</text>
+
+  <rect x="40" y="116" width="840" height="88" rx="14" fill="#1C1F27"/>
+  <text class="t" x="64" y="146" font-size="13" fill="#7EC8C3">Features</text>
+  <text class="t" x="64" y="176" font-size="14" fill="#F4EFE6">Onboarding ∑ ConversationView / ViewModel ∑ CaptionPane ∑ SettingsSheet ∑ TranslationHostView</text>
+
+  <rect x="40" y="220" width="840" height="72" rx="14" fill="#24302C"/>
+  <text class="t" x="64" y="250" font-size="13" fill="#9BD4A0">Domain</text>
+  <text class="t" x="64" y="272" font-size="14" fill="#F4EFE6">AppLanguage ∑ SpeakerSide ∑ Utterance ∑ CaptionLine ∑ LanguageRouter ∑ ›∂:</text>
+
+  <rect x="40" y="308" width="840" height="88" rx="14" fill="#2A2420"/>
+  <text class="t" x="64" y="338" font-size="13" fill="#E8B86D">ServicesOÆ + actor û∞	</text>
+  <text class="t" x="64" y="368" font-size="14" fill="#F4EFE6">AudioCapturing ∑ SpeechRecognizing ∑ Translating ∑ ModelPreparing ∑ PermissionGranting</text>
+
+  <rect x="40" y="412" width="840" height="76" rx="14" fill="#E7DFD4"/>
+  <text class="t" x="64" y="442" font-size="13" fill="#6B645C">˚ﬂF∂</text>
+  <text class="t" x="64" y="466" font-size="14" fill="#3A3530">AVAudioEngine ∑ SpeechAnalyzer / SpeechTranscriber / SpeechDetector ∑ TranslationSession ∑ AssetInventory</text>
+</svg>

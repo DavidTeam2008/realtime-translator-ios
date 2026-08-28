@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 640" role="img" aria-labelledby="title desc">
+  <title id="title">对译桌面布局</title>
+  <desc id="desc">手机平放时，上半屏倒字给对方，下半屏正字给用户。</desc>
+  <rect width="720" height="640" fill="#F6F3EE"/>
+  <text x="360" y="36" text-anchor="middle" font-size="14" fill="#6B645C" font-family="-apple-system, BlinkMacSystemFont, PingFang SC, sans-serif">对方 · 只看这一侧</text>
+  <polygon points="360,52 352,68 368,68" fill="#6B645C"/>
+  <rect x="90" y="88" width="540" height="464" rx="28" fill="#E7DFD4"/>
+  <rect x="110" y="108" width="500" height="424" rx="20" fill="#D9CFC2"/>
+  <rect x="250" y="148" width="220" height="344" rx="28" fill="#1C1F27"/>
+  <rect x="258" y="156" width="204" height="328" rx="22" fill="#12141A"/>
+  <rect x="258" y="156" width="204" height="148" fill="#1A1714"/>
+  <text x="360" y="188" text-anchor="middle" font-size="9" fill="#7EC8C3" transform="rotate(180 360 186)" font-family="-apple-system, sans-serif">EN</text>
+  <text x="360" y="214" text-anchor="middle" font-size="13" fill="#F4EFE6" transform="rotate(180 360 208)" font-family="-apple-system, sans-serif">I'd like a coffee.</text>
+  <text x="360" y="248" text-anchor="middle" font-size="9" fill="#F4EFE680" transform="rotate(180 360 246)" font-family="PingFang SC, sans-serif">旋转 180° 后对方看到正字</text>
+  <line x1="258" y1="320" x2="462" y2="320" stroke="#E8B86D" stroke-width="1" stroke-dasharray="3 4"/>
+  <circle cx="360" cy="320" r="16" fill="#E8B86D"/>
+  <circle cx="360" cy="320" r="6" fill="#12141A"/>
+  <rect x="258" y="336" width="204" height="148" fill="#161920"/>
+  <text x="278" y="358" font-size="9" fill="#E8B86D" font-family="-apple-system, sans-serif">ZH</text>
+  <text x="360" y="400" text-anchor="middle" font-size="15" fill="#F4EFE6" font-family="PingFang SC, sans-serif">我想点一杯咖啡。</text>
+  <text x="360" y="428" text-anchor="middle" font-size="9" fill="#F4EFE680" font-family="PingFang SC, sans-serif">用户看到正字</text>
+  <polygon points="360,568 352,552 368,552" fill="#6B645C"/>
+  <text x="360" y="590" text-anchor="middle" font-size="14" fill="#6B645C" font-family="PingFang SC, sans-serif">用户 · 只看这一侧</text>
+</svg>
