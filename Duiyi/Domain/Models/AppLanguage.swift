@@ -71,6 +71,17 @@ enum AppLanguage: String, Codable, CaseIterable, Sendable, Hashable {
         }
     }
 
+    var speechVoiceLanguage: String {
+        switch self {
+        case .zhHans: return "zh-CN"
+        case .english: return "en-US"
+        case .japanese: return "ja-JP"
+        case .korean: return "ko-KR"
+        case .thai: return "th-TH"
+        case .vietnamese: return "vi-VN"
+        }
+    }
+
     func pick(zh: String, en: String, ja: String, ko: String, th: String, vi: String) -> String {
         switch self {
         case .zhHans: return zh

@@ -68,4 +68,8 @@ enum CaptionTypography {
     static func controlFont() -> Font {
         .system(size: 15, weight: .medium, design: .default)
     }
+
+    static func sourceLineFont() -> Font {
+        .system(size: 13, weight: .regular, design: .default)
+    }
 }

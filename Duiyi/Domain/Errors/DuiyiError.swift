@@ -9,6 +9,8 @@ enum DuiyiError: Equatable, Sendable, Error {
     case translationUnavailable
     case deviceIncapable
     case summaryEmpty
+    case voiceOutNeedsHeadphones
+    case synthesisVoiceMissing
 
     func userMessage(for language: AppLanguage) -> String {
         switch self {
@@ -74,6 +76,24 @@ enum DuiyiError: Equatable, Sendable, Error {
                 ko: "요약할 대화가 아직 없습니다.",
                 th: "ยังไม่มีบทสนทนาให้สรุป",
                 vi: "Chưa có cuộc trò chuyện để tóm tắt."
+            )
+        case .voiceOutNeedsHeadphones:
+            return language.pick(
+                zh: "请戴上耳机再读出译文。",
+                en: "Wear headphones to hear the translation.",
+                ja: "訳を読み上げるにはイヤホンをつけてください。",
+                ko: "번역을 들으려면 이어폰을 착용하세요.",
+                th: "ใส่หูฟังก่อนให้อ่านคำแปล",
+                vi: "Hãy đeo tai nghe để nghe bản dịch."
+            )
+        case .synthesisVoiceMissing:
+            return language.pick(
+                zh: "这台设备没有该语言的朗读声。",
+                en: "This iPhone has no voice for that language.",
+                ja: "このデバイスには、その言語の読み上げ音声がありません。",
+                ko: "이 기기에는 해당 언어의 음성이 없습니다.",
+                th: "อุปกรณ์นี้ไม่มีเสียงอ่านภาษานั้น",
+                vi: "Máy này không có giọng đọc cho ngôn ngữ đó."
             )
         }
     }

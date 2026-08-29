@@ -157,7 +157,9 @@ enum ConversationPreview {
             speechModels: PreviewSpeechModels(),
             translationAvailability: PreviewTranslationAvailability(),
             speechEngine: speech,
-            summarizer: summarizer
+            summarizer: summarizer,
+            audioSession: NoOpAudioSession(),
+            synthesizer: PreviewSynthesizer()
         )
         let viewModel = ConversationViewModel(
             speech: speech,
@@ -169,6 +171,111 @@ enum ConversationPreview {
         viewModel.sessionState = state
         configure?(viewModel)
         return ConversationView(viewModel: viewModel)
+            .environment(environment)
+    }
+}
+
+actor PreviewAudioSession: AudioSessionConfiguring {
+    var snapshot: AudioRouteSnapshot
+
+    init(canSpeak: Bool) {
+        snapshot = AudioRouteSnapshot(outputs: canSpeak ? [.headphones] : [.builtInSpeaker])
+    }
+
+    func activate(_ useCase: AudioUseCase) async throws {
+        _ = useCase
+    }
+
+    func deactivate() async {}
+
+    func currentRoute() async -> AudioRouteSnapshot {
+        snapshot
+    }
+
+    func routeChanges() async -> AsyncStream<AudioRouteSnapshot> {
+        AsyncStream { continuation in
+            continuation.finish()
+        }
+    }
+}
+
+@MainActor
+enum InterpretationPreview {
+    static var idle: some View {
+        makeView(state: .ready)
+    }
+
+    static var listening: some View {
+        makeView(state: .listening) { viewModel in
+            let utterance = Utterance(
+                language: .japanese,
+                text: "京都へようこそ。今日は清水寺からご案内します。",
+                isFinal: false
+            )
+            viewModel.accept(utterance)
+            viewModel.fulfill(
+                job: TranslationJob(
+                    utteranceID: utterance.id,
+                    source: .japanese,
+                    target: .zhHans,
+                    text: utterance.text,
+                    isFinal: false
+                ),
+                text: "欢迎来到京都，今天我们先去清水寺。"
+            )
+        }
+    }
+
+    static var voiceOutBlocked: some View {
+        makeView(state: .ready, canSpeak: false) { viewModel in
+            viewModel.voiceOutBlockedMessage = DuiyiError.voiceOutNeedsHeadphones.userMessage(for: .zhHans)
+        }
+    }
+
+    static var failed: some View {
+        makeView(state: .failed(.microphoneDenied))
+    }
+
+    private static func makeView(
+        state: SessionState,
+        canSpeak: Bool = true,
+        configure: ((InterpretationViewModel) -> Void)? = nil
+    ) -> some View {
+        let preferences = PreferencesStore(defaults: UserDefaults(suiteName: "duiyi.si.preview.\(UUID().uuidString)") ?? .standard)
+        preferences.userLanguage = .zhHans
+        preferences.peerLanguage = .english
+        preferences.sourceLanguage = .japanese
+        preferences.targetLanguage = .zhHans
+        preferences.appMode = .simultaneous
+        preferences.autoStartListening = false
+        let speech = PreviewSpeechEngine()
+        let permissions = PreviewPermissions()
+        let summarizer = PreviewSummarizer()
+        let audioSession = PreviewAudioSession(canSpeak: canSpeak)
+        let synthesizer = PreviewSynthesizer()
+        let environment = AppEnvironment(
+            preferences: preferences,
+            permissions: permissions,
+            speechModels: PreviewSpeechModels(),
+            translationAvailability: PreviewTranslationAvailability(),
+            speechEngine: speech,
+            summarizer: summarizer,
+            audioSession: audioSession,
+            synthesizer: synthesizer
+        )
+        let viewModel = InterpretationViewModel(
+            speech: speech,
+            permissions: permissions,
+            preferences: preferences,
+            summarizer: summarizer,
+            audioSession: audioSession,
+            synthesizer: synthesizer
+        )
+        viewModel.skipsBootstrap = true
+        viewModel.sessionState = state
+        viewModel.canSpeakWithoutEcho = canSpeak
+        configure?(viewModel)
+        return InterpretationView(viewModel: viewModel)
             .environment(environment)
     }
 }

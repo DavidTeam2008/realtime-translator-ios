@@ -43,6 +43,17 @@ enum Copy {
         language.pick(zh: "设置", en: "Settings", ja: "設定", ko: "설정", th: "ตั้งค่า", vi: "Cài đặt")
     }
 
+    static func settingsHint(for language: AppLanguage) -> String {
+        language.pick(
+            zh: "轻点开始或暂停。长按也可打开设置。",
+            en: "Tap to start or pause. Touch and hold for settings.",
+            ja: "タップで開始または一時停止。長押しでも設定を開けます。",
+            ko: "탭하면 시작 또는 일시 정지. 길게 눌러도 설정을 엽니다.",
+            th: "แตะเพื่อเริ่มหรือหยุด แตะค้างก็เปิดการตั้งค่าได้",
+            vi: "Chạm để bắt đầu hoặc tạm dừng. Giữ cũng mở cài đặt."
+        )
+    }
+
     static func done(for language: AppLanguage) -> String {
         language.pick(zh: "完成", en: "Done", ja: "完了", ko: "완료", th: "เสร็จ", vi: "Xong")
     }
@@ -307,5 +318,75 @@ enum Copy {
 
     static func allow(for language: AppLanguage) -> String {
         language.pick(zh: "允许", en: "Allow", ja: "許可", ko: "허용", th: "อนุญาต", vi: "Cho phép")
+    }
+
+    static func modeSection(for language: AppLanguage) -> String {
+        language.pick(zh: "模式", en: "Mode", ja: "モード", ko: "모드", th: "โหมด", vi: "Chế độ")
+    }
+
+    static func modeFaceToFace(for language: AppLanguage) -> String {
+        language.pick(zh: "面对面", en: "Face to face", ja: "対面", ko: "마주보기", th: "ตัวต่อตัว", vi: "Đối diện")
+    }
+
+    static func modeSimultaneous(for language: AppLanguage) -> String {
+        language.pick(zh: "同声传译", en: "Simultaneous", ja: "同時通訳", ko: "동시통역", th: "ล่ามพร้อมกัน", vi: "Phiên dịch song song")
+    }
+
+    static func interpretationTitle(for language: AppLanguage) -> String {
+        modeSimultaneous(for: language)
+    }
+
+    static func interpretationIdle(for language: AppLanguage) -> String {
+        language.pick(
+            zh: "开始听现场说话。",
+            en: "Start listening to the room.",
+            ja: "現場の話を聞き始めます。",
+            ko: "현장의 말을 듣기 시작하세요.",
+            th: "เริ่มฟังเสียงในสถานที่",
+            vi: "Bắt đầu nghe tiếng tại chỗ."
+        )
+    }
+
+    static func theySpeak(for language: AppLanguage) -> String {
+        language.pick(zh: "他说", en: "They speak", ja: "相手が話す", ko: "상대가 말함", th: "อีกฝ่ายพูด", vi: "Họ nói")
+    }
+
+    static func iListen(for language: AppLanguage) -> String {
+        language.pick(zh: "我听", en: "I listen", ja: "自分が聞く", ko: "내가 들음", th: "ฉันฟัง", vi: "Tôi nghe")
+    }
+
+    static func swapDirection(for language: AppLanguage) -> String {
+        language.pick(zh: "对调方向", en: "Swap direction", ja: "方向を入れ替え", ko: "방향 바꾸기", th: "สลับทิศทาง", vi: "Đổi chiều")
+    }
+
+    static func voiceOut(for language: AppLanguage) -> String {
+        language.pick(zh: "读出译文", en: "Speak translation", ja: "訳を読み上げ", ko: "번역 읽어주기", th: "อ่านคำแปล", vi: "Đọc bản dịch")
+    }
+
+    static func voiceOutSpeaking(for language: AppLanguage) -> String {
+        language.pick(zh: "正在读出", en: "Speaking out", ja: "読み上げ中", ko: "읽는 중", th: "กำลังอ่าน", vi: "Đang đọc")
+    }
+
+    static func voiceOutMicHint(for language: AppLanguage) -> String {
+        language.pick(
+            zh: "戴上耳机后点「读出译文」。现场声音用手机麦克风收，译文只在耳机里播放。",
+            en: "Wear headphones, then tap Speak translation. The iPhone microphone hears the room; playback stays in your headphones.",
+            ja: "イヤホンをつけて「訳を読み上げ」をオン。現場の声はiPhoneのマイクで拾い、訳はイヤホンだけに出ます。",
+            ko: "이어폰을 끼고 번역 읽어주기를 켜세요. 현장 소리는 iPhone 마이크로 듣고, 번역은 이어폰으로만 나갑니다.",
+            th: "ใส่หูฟังแล้วแตะอ่านคำแปล ไมค์โทรศัพท์ฟังเสียงในห้อง คำแปลดังในหูฟังเท่านั้น",
+            vi: "Đeo tai nghe rồi bật Đọc bản dịch. Micro iPhone nghe hiện trường; bản dịch chỉ phát trong tai nghe."
+        )
+    }
+
+    static func showSourceLine(for language: AppLanguage) -> String {
+        language.pick(zh: "显示原文", en: "Show source", ja: "原文を表示", ko: "원문 표시", th: "แสดงต้นฉบับ", vi: "Hiện bản gốc")
+    }
+
+    static func hideSourceLine(for language: AppLanguage) -> String {
+        language.pick(zh: "隐藏原文", en: "Hide source", ja: "原文を隠す", ko: "원문 숨기기", th: "ซ่อนต้นฉบับ", vi: "Ẩn bản gốc")
+    }
+
+    static func sourceLinePrefix(for language: AppLanguage) -> String {
+        language.pick(zh: "原文", en: "Source", ja: "原文", ko: "원문", th: "ต้นฉบับ", vi: "Gốc")
     }
 }

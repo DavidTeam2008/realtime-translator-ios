@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 220" role="img" aria-labelledby="title desc">
+  <title id="title">Simultaneous interpretation pipeline</title>
+  <desc id="desc">Microphone to captions and optional headphone speech</desc>
+  <style>
+    .t { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+  </style>
+  <rect width="960" height="220" fill="#F6F3EE"/>
+
+  <g font-size="13">
+    <rect x="16" y="70" width="100" height="56" rx="12" fill="#12141A"/>
+    <text class="t" x="66" y="102" text-anchor="middle" fill="#F4EFE6">ùKù</text>
+
+    <rect x="140" y="70" width="118" height="56" rx="12" fill="#1C1F27"/>
+    <text class="t" x="199" y="102" text-anchor="middle" fill="#F4EFE6">Uù,ù</text>
+
+    <rect x="282" y="70" width="118" height="56" rx="12" fill="#24302C"/>
+    <text class="t" x="341" y="102" text-anchor="middle" fill="#F4EFE6">Uùù</text>
+
+    <rect x="424" y="28" width="118" height="56" rx="12" fill="#161920"/>
+    <text class="t" x="483" y="60" text-anchor="middle" fill="#F4EFE6">'WU</text>
+
+    <rect x="424" y="112" width="118" height="56" rx="12" fill="#2A2420"/>
+    <text class="t" x="483" y="144" text-anchor="middle" fill="#F4EFE6">ùù</text>
+
+    <rect x="566" y="112" width="118" height="56" rx="12" fill="#1A1714"/>
+    <text class="t" x="625" y="144" text-anchor="middle" fill="#E8B86D">,:ù</text>
+
+    <rect x="708" y="112" width="118" height="56" rx="12" fill="#12141A"/>
+    <text class="t" x="767" y="144" text-anchor="middle" fill="#7EC8C3">3:</text>
+  </g>
+
+  <g stroke="#C4B8A8" stroke-width="1.5" fill="none">
+    <path d="M116 98 H140"/>
+    <path d="M258 98 H282"/>
+    <path d="M400 98 H424"/>
+    <path d="M400 98 C412 98, 412 140, 424 140"/>
+    <path d="M542 140 H566"/>
+    <path d="M684 140 H708"/>
+  </g>
+
+  <text class="t" x="16" y="200" font-size="12" fill="#6B645C">ù3:\('WU
+ùeù</text>
+</svg>

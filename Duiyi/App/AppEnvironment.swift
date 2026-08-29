@@ -9,6 +9,8 @@ final class AppEnvironment {
     let translationAvailability: any TranslationAvailabilityChecking
     let speechEngine: any SpeechRecognizing
     let summarizer: any ConversationSummarizing
+    let audioSession: any AudioSessionConfiguring
+    let synthesizer: any SpeechSynthesizing
 
     init(
         preferences: PreferencesStore = PreferencesStore(),
@@ -16,7 +18,9 @@ final class AppEnvironment {
         speechModels: any SpeechModelPreparing = SpeechAssetPreparer(),
         translationAvailability: any TranslationAvailabilityChecking = TranslationAvailabilityService(),
         speechEngine: any SpeechRecognizing = BilingualSpeechEngine(),
-        summarizer: any ConversationSummarizing = FoundationModelsSummarizer()
+        summarizer: any ConversationSummarizing = FoundationModelsSummarizer(),
+        audioSession: any AudioSessionConfiguring = AudioSessionPolicy(),
+        synthesizer: any SpeechSynthesizing = SystemSpeechSynthesizer()
     ) {
         self.preferences = preferences
         self.permissions = permissions
@@ -24,5 +28,7 @@ final class AppEnvironment {
         self.translationAvailability = translationAvailability
         self.speechEngine = speechEngine
         self.summarizer = summarizer
+        self.audioSession = audioSession
+        self.synthesizer = synthesizer
     }
 }

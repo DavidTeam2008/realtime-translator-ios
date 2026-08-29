@@ -10,7 +10,6 @@ actor AudioEngineCapturer: AudioCapturing {
     func start() async throws -> AsyncStream<SendablePCMBuffer> {
         await stop()
 
-        try session.setCategory(.record, mode: .measurement, options: [.duckOthers, .allowBluetoothHFP])
         try session.setActive(true, options: .notifyOthersOnDeactivation)
 
         let (stream, continuation) = AsyncStream<SendablePCMBuffer>.makeStream()

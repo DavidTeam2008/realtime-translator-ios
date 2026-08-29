@@ -7,6 +7,7 @@ final class ConversationViewModel {
     private let permissions: any PermissionGranting
     private let preferences: PreferencesStore
     private let summarizer: any ConversationSummarizing
+    private let audioSession: any AudioSessionConfiguring
 
     var sessionState: SessionState = .idle
     var userLanguage: AppLanguage
@@ -41,12 +42,14 @@ final class ConversationViewModel {
         permissions: any PermissionGranting,
         preferences: PreferencesStore,
         summarizer: any ConversationSummarizing,
+        audioSession: any AudioSessionConfiguring = NoOpAudioSession(),
         idleRestoreDelay: Duration = .seconds(ConversationLayout.idleRestoreSeconds)
     ) {
         self.speech = speech
         self.permissions = permissions
         self.preferences = preferences
         self.summarizer = summarizer
+        self.audioSession = audioSession
         self.idleRestoreDelay = idleRestoreDelay
         userLanguage = preferences.userLanguage
         peerLanguage = preferences.peerLanguage
@@ -124,6 +127,7 @@ final class ConversationViewModel {
         }
 
         do {
+            try await audioSession.activate(.faceToFace)
             let stream = try await speech.start(
                 languages: [userLanguage, peerLanguage],
                 fallbackLanguage: peerLanguage
@@ -505,7 +509,7 @@ final class ConversationViewModel {
 
     static func endsWithClause(_ text: String) -> Bool {
         guard let last = text.last else { return false }
-        return "，。！？,;:!?".contains(last)
+        return last.unicodeScalars.allSatisfy { ClauseSplitter.terminators.contains($0) }
     }
 
     static func isWorthTranslating(_ text: String, language: AppLanguage) -> Bool {

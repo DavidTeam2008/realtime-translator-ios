@@ -103,6 +103,11 @@ struct PaneState: Equatable, Sendable {
         speakingHint = nil
     }
 
+    mutating func trimHistory(to maxCount: Int) {
+        guard history.count > maxCount else { return }
+        history.removeFirst(history.count - maxCount)
+    }
+
     private mutating func mergeLive(_ line: CaptionLine) {
         guard var current = live else {
             live = line

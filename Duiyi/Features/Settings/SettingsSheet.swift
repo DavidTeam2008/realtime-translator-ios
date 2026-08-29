@@ -3,12 +3,14 @@ import SwiftUI
 struct SettingsSheet: View {
     let userLanguage: AppLanguage
     let peerLanguage: AppLanguage
+    let appMode: AppMode
     let fontSize: CaptionFontSize
     let autoStartListening: Bool
     let isRedownloading: Bool
     let speechProgress: Double
     let translationProgress: Double
     let redownloadError: String?
+    let onSelectMode: (AppMode) -> Void
     let onSelectUserLanguage: (AppLanguage) -> Void
     let onSelectPeerLanguage: (AppLanguage) -> Void
     let onSelectFont: (CaptionFontSize) -> Void
@@ -25,6 +27,18 @@ struct SettingsSheet: View {
             Text(Copy.settingsTitle(for: userLanguage))
                 .font(.headline)
                 .foregroundStyle(Tokens.textPrimary)
+
+            Text(Copy.modeSection(for: userLanguage))
+                .font(.footnote)
+                .foregroundStyle(Tokens.textSecondary)
+            HStack(spacing: 8) {
+                chip(Copy.modeFaceToFace(for: userLanguage), selected: appMode == .faceToFace) {
+                    onSelectMode(.faceToFace)
+                }
+                chip(Copy.modeSimultaneous(for: userLanguage), selected: appMode == .simultaneous) {
+                    onSelectMode(.simultaneous)
+                }
+            }
 
             Text(Copy.iReadSection(for: userLanguage))
                 .font(.footnote)

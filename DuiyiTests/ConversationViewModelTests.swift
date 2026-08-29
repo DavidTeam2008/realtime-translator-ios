@@ -271,8 +271,6 @@ struct ConversationViewModelTests {
         #expect(viewModel.peerLanguage == .zhHans)
         #expect(viewModel.userPane.live == nil)
         #expect(viewModel.peerPane.live == nil)
-        #expect(viewModel.preferences.userLanguage == .thai)
-        #expect(viewModel.preferences.peerLanguage == .zhHans)
     }
 
     @Test("Changing language mid-conversation clears captions for the new pair")

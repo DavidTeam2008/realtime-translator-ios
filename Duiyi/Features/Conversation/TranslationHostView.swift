@@ -25,8 +25,8 @@ struct TranslationHostView: View {
         self.job = job
         self.onSuccess = onSuccess
         self.onFailure = onFailure
-        _userToPeer = State(initialValue: Self.makeConfig(from: userLanguage, to: peerLanguage))
-        _peerToUser = State(initialValue: Self.makeConfig(from: peerLanguage, to: userLanguage))
+        _userToPeer = State(initialValue: translationConfiguration(from: userLanguage, to: peerLanguage))
+        _peerToUser = State(initialValue: translationConfiguration(from: peerLanguage, to: userLanguage))
     }
 
     var body: some View {
@@ -68,13 +68,61 @@ struct TranslationHostView: View {
             }
         }
     }
+}
 
-    private static func makeConfig(from: AppLanguage, to: AppLanguage) -> TranslationSession.Configuration {
-        TranslationSession.Configuration(
-            source: from.localeLanguage,
-            target: to.localeLanguage,
-            preferredStrategy: .lowLatency
-        )
+struct OneWayTranslationHostView: View {
+    let sourceLanguage: AppLanguage
+    let targetLanguage: AppLanguage
+    let job: TranslationJob?
+    let onSuccess: @MainActor (TranslationJob, String) -> Void
+    let onFailure: @MainActor (TranslationJob, Error) -> Void
+
+    @State private var configuration: TranslationSession.Configuration
+    @State private var jobs = TranslationJobBridge()
+
+    init(
+        sourceLanguage: AppLanguage,
+        targetLanguage: AppLanguage,
+        job: TranslationJob?,
+        onSuccess: @escaping @MainActor (TranslationJob, String) -> Void,
+        onFailure: @escaping @MainActor (TranslationJob, Error) -> Void
+    ) {
+        self.sourceLanguage = sourceLanguage
+        self.targetLanguage = targetLanguage
+        self.job = job
+        self.onSuccess = onSuccess
+        self.onFailure = onFailure
+        _configuration = State(initialValue: translationConfiguration(from: sourceLanguage, to: targetLanguage))
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .translationTask(configuration) { session in
+                for await job in jobs.stream() {
+                    let text = job.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !text.isEmpty else { continue }
+                    do {
+                        let response = try await session.translate(text)
+                        await onSuccess(job, response.targetText)
+                    } catch {
+                        await onFailure(job, error)
+                    }
+                }
+            }
+            .onChange(of: job) { _, newJob in
+                submit(newJob)
+            }
+            .onAppear {
+                submit(job)
+            }
+    }
+
+    private func submit(_ job: TranslationJob?) {
+        guard let job else { return }
+        guard job.source == sourceLanguage, job.target == targetLanguage else { return }
+        jobs.yield(job)
     }
 }
 
@@ -115,6 +163,7 @@ struct TranslationPrepareHost: View {
     let userLanguage: AppLanguage
     let peerLanguage: AppLanguage
     let shouldPrepare: Bool
+    var oneWay = false
     let onFinished: @MainActor (Result<Void, Error>) -> Void
 
     @State private var userToPeer: TranslationSession.Configuration
@@ -125,59 +174,76 @@ struct TranslationPrepareHost: View {
         userLanguage: AppLanguage,
         peerLanguage: AppLanguage,
         shouldPrepare: Bool,
+        oneWay: Bool = false,
         onFinished: @escaping @MainActor (Result<Void, Error>) -> Void
     ) {
         self.userLanguage = userLanguage
         self.peerLanguage = peerLanguage
         self.shouldPrepare = shouldPrepare
+        self.oneWay = oneWay
         self.onFinished = onFinished
-        _userToPeer = State(initialValue: Self.makeConfig(from: userLanguage, to: peerLanguage))
-        _peerToUser = State(initialValue: Self.makeConfig(from: peerLanguage, to: userLanguage))
+        _userToPeer = State(initialValue: translationConfiguration(from: userLanguage, to: peerLanguage))
+        _peerToUser = State(initialValue: translationConfiguration(from: peerLanguage, to: userLanguage))
     }
 
     var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .accessibilityHidden(true)
-            .translationTask(userToPeer) { session in
-                guard shouldPrepare else { return }
-                do {
-                    try await session.prepareTranslation()
-                    await markPrepared("user-to-peer")
-                } catch {
-                    await onFinished(.failure(error))
-                }
-            }
-            .translationTask(peerToUser) { session in
-                guard shouldPrepare else { return }
-                do {
-                    try await session.prepareTranslation()
-                    await markPrepared("peer-to-user")
-                } catch {
-                    await onFinished(.failure(error))
-                }
-            }
+        prepareRoot
             .onChange(of: shouldPrepare) { _, prepare in
                 guard prepare else { return }
                 preparedPairs = []
                 userToPeer.invalidate()
-                peerToUser.invalidate()
+                if !oneWay {
+                    peerToUser.invalidate()
+                }
             }
+    }
+
+    @ViewBuilder
+    private var prepareRoot: some View {
+        if oneWay {
+            Color.clear
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+                .translationTask(userToPeer) { session in
+                    await prepare(session, pair: "forward")
+                }
+        } else {
+            Color.clear
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+                .translationTask(userToPeer) { session in
+                    await prepare(session, pair: "user-to-peer")
+                }
+                .translationTask(peerToUser) { session in
+                    await prepare(session, pair: "peer-to-user")
+                }
+        }
+    }
+
+    private func prepare(_ session: TranslationSession, pair: String) async {
+        guard shouldPrepare else { return }
+        do {
+            try await session.prepareTranslation()
+            await markPrepared(pair)
+        } catch {
+            await onFinished(.failure(error))
+        }
     }
 
     @MainActor
     private func markPrepared(_ pair: String) {
         preparedPairs.insert(pair)
-        if preparedPairs.count == 2 {
+        let required = oneWay ? 1 : 2
+        if preparedPairs.count >= required {
             onFinished(.success(()))
         }
     }
+}
 
-    private static func makeConfig(from: AppLanguage, to: AppLanguage) -> TranslationSession.Configuration {
-        TranslationSession.Configuration(
-            source: from.localeLanguage,
-            target: to.localeLanguage,
-            preferredStrategy: .lowLatency
-        )
-    }
+private func translationConfiguration(from: AppLanguage, to: AppLanguage) -> TranslationSession.Configuration {
+    TranslationSession.Configuration(
+        source: from.localeLanguage,
+        target: to.localeLanguage,
+        preferredStrategy: .lowLatency
+    )
 }

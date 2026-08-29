@@ -4,12 +4,16 @@ struct ListeningControl: View {
     let sessionState: SessionState
     let label: String
     let swapLabel: String
+    let settingsLabel: String
+    let settingsHint: String
     let onTap: () -> Void
-    let onLongPress: () -> Void
+    let onOpenSettings: () -> Void
     let onSwap: () -> Void
 
     @State private var pulse = false
-    @State private var didLongPress = false
+    @State private var openedSettingsThisTouch = false
+    @State private var longPressTask: Task<Void, Never>?
+    @State private var isTouching = false
 
     private var isListening: Bool { sessionState.isListening }
 
@@ -26,11 +30,19 @@ struct ListeningControl: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(swapLabel)
                 .padding(.leading, 14)
+
                 Spacer()
-                Text(label)
-                    .font(CaptionTypography.controlFont())
-                    .foregroundStyle(Tokens.textSecondary)
-                    .padding(.trailing, 28)
+
+                Button(action: onOpenSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Tokens.textSecondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(settingsLabel)
+                .padding(.trailing, 14)
             }
 
             controlButton
@@ -40,6 +52,9 @@ struct ListeningControl: View {
         .onAppear(perform: syncPulse)
         .onChange(of: isListening) { _, _ in
             syncPulse()
+        }
+        .onDisappear {
+            longPressTask?.cancel()
         }
     }
 
@@ -71,6 +86,7 @@ struct ListeningControl: View {
         .contentShape(Circle())
         .gesture(pressGesture)
         .accessibilityLabel(label)
+        .accessibilityHint(settingsHint)
         .accessibilityAddTraits(.isButton)
     }
 
@@ -91,21 +107,28 @@ struct ListeningControl: View {
 
     private var pressGesture: some Gesture {
         DragGesture(minimumDistance: 0)
-            .onChanged { _ in }
+            .onChanged { _ in
+                guard !isTouching else { return }
+                isTouching = true
+                openedSettingsThisTouch = false
+                longPressTask?.cancel()
+                longPressTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(450))
+                    guard !Task.isCancelled else { return }
+                    openedSettingsThisTouch = true
+                    onOpenSettings()
+                }
+            }
             .onEnded { _ in
-                if didLongPress {
-                    didLongPress = false
-                } else {
+                longPressTask?.cancel()
+                longPressTask = nil
+                let shouldTap = isTouching && !openedSettingsThisTouch
+                isTouching = false
+                openedSettingsThisTouch = false
+                if shouldTap {
                     onTap()
                 }
             }
-            .simultaneously(with:
-                LongPressGesture(minimumDuration: 0.45)
-                    .onEnded { _ in
-                        didLongPress = true
-                        onLongPress()
-                    }
-            )
     }
 
     private func syncPulse() {

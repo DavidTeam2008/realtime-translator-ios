@@ -10,6 +10,11 @@ final class PreferencesStore {
         static let onboarding = "duiyi.onboardingComplete"
         static let autoStart = "duiyi.autoStartListening"
         static let onboardingStep = "duiyi.onboardingStep"
+        static let appMode = "duiyi.appMode"
+        static let sourceLanguage = "duiyi.sourceLanguage"
+        static let targetLanguage = "duiyi.targetLanguage"
+        static let voiceOut = "duiyi.voiceOutEnabled"
+        static let showsSource = "duiyi.showsSourceLine"
     }
 
     private let defaults: UserDefaults
@@ -36,6 +41,26 @@ final class PreferencesStore {
 
     var onboardingStep: Int {
         didSet { defaults.set(onboardingStep, forKey: Key.onboardingStep) }
+    }
+
+    var appMode: AppMode {
+        didSet { defaults.set(appMode.rawValue, forKey: Key.appMode) }
+    }
+
+    var sourceLanguage: AppLanguage {
+        didSet { defaults.set(sourceLanguage.rawValue, forKey: Key.sourceLanguage) }
+    }
+
+    var targetLanguage: AppLanguage {
+        didSet { defaults.set(targetLanguage.rawValue, forKey: Key.targetLanguage) }
+    }
+
+    var voiceOutEnabled: Bool {
+        didSet { defaults.set(voiceOutEnabled, forKey: Key.voiceOut) }
+    }
+
+    var showsSourceLine: Bool {
+        didSet { defaults.set(showsSourceLine, forKey: Key.showsSource) }
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -66,5 +91,30 @@ final class PreferencesStore {
             autoStartListening = defaults.bool(forKey: Key.autoStart)
         }
         onboardingStep = defaults.integer(forKey: Key.onboardingStep)
+        if let raw = defaults.string(forKey: Key.appMode), let mode = AppMode(rawValue: raw) {
+            appMode = mode
+        } else {
+            appMode = .faceToFace
+        }
+        let resolvedTarget: AppLanguage
+        if let raw = defaults.string(forKey: Key.targetLanguage), let language = AppLanguage(rawValue: raw) {
+            resolvedTarget = language
+        } else {
+            resolvedTarget = resolvedUser
+        }
+        targetLanguage = resolvedTarget
+        if let raw = defaults.string(forKey: Key.sourceLanguage),
+           let language = AppLanguage(rawValue: raw),
+           language != resolvedTarget {
+            sourceLanguage = language
+        } else {
+            sourceLanguage = resolvedTarget.defaultPeer
+        }
+        voiceOutEnabled = defaults.bool(forKey: Key.voiceOut)
+        if defaults.object(forKey: Key.showsSource) == nil {
+            showsSourceLine = true
+        } else {
+            showsSourceLine = defaults.bool(forKey: Key.showsSource)
+        }
     }
 }

@@ -36,6 +36,8 @@ struct ConversationView: View {
                     sessionState: viewModel.sessionState,
                     label: viewModel.controlLabel,
                     swapLabel: Copy.swapLanguages(for: viewModel.userLanguage),
+                    settingsLabel: Copy.settingsTitle(for: viewModel.userLanguage),
+                    settingsHint: Copy.settingsHint(for: viewModel.userLanguage),
                     onTap: {
                         guard pickingSide == nil else {
                             pickingSide = nil
@@ -44,7 +46,7 @@ struct ConversationView: View {
                         guard viewModel.sessionState != .preparing else { return }
                         Task { await viewModel.toggleListening() }
                     },
-                    onLongPress: {
+                    onOpenSettings: {
                         pickingSide = nil
                         withAnimation(.easeOut(duration: 0.22)) {
                             viewModel.isSettingsPresented = true
@@ -79,12 +81,20 @@ struct ConversationView: View {
                 SettingsSheet(
                     userLanguage: viewModel.userLanguage,
                     peerLanguage: viewModel.peerLanguage,
+                    appMode: environment.preferences.appMode,
                     fontSize: viewModel.fontSize,
                     autoStartListening: viewModel.autoStartListening,
                     isRedownloading: isRedownloading,
                     speechProgress: speechProgress,
                     translationProgress: translationProgress,
                     redownloadError: redownloadError,
+                    onSelectMode: { mode in
+                        guard mode != environment.preferences.appMode else { return }
+                        Task {
+                            await viewModel.stop(restoreIdleTimerAfterDelay: false)
+                            environment.preferences.appMode = mode
+                        }
+                    },
                     onSelectUserLanguage: { language in
                         applyUserLanguage(language)
                     },

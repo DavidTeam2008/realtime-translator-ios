@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 560" role="img" aria-labelledby="title desc">
+  <title id="title">Simultaneous interpretation layers</title>
+  <desc id="desc">App, Features Interpretation, Domain, Services, system frameworks</desc>
+  <style>
+    .t { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+  </style>
+  <rect width="920" height="560" fill="#F6F3EE"/>
+
+  <rect x="40" y="24" width="840" height="72" rx="14" fill="#12141A"/>
+  <text class="t" x="64" y="52" font-size="13" fill="#E8B86D">App</text>
+  <text class="t" x="64" y="76" font-size="15" fill="#F4EFE6">DuiyiApp · AppEnvironment · AppMode · RootView</text>
+
+  <rect x="40" y="112" width="408" height="100" rx="14" fill="#1C1F27"/>
+  <text class="t" x="64" y="142" font-size="13" fill="#7EC8C3">Features · Conversation</text>
+  <text class="t" x="64" y="168" font-size="14" fill="#F4EFE6">bùbWUò		</text>
+  <text class="t" x="64" y="190" font-size="13" fill="#F4EFE6" opacity="0.6">W · Ìï · ÌûÑ</text>
+
+  <rect x="472" y="112" width="408" height="100" rx="14" fill="#24302C"/>
+  <text class="t" x="496" y="142" font-size="13" fill="#9BD4A0">Features · Interpretation</text>
+  <text class="t" x="496" y="168" font-size="14" fill="#F4EFE6">ð Ñ,!W	</text>
+  <text class="t" x="496" y="190" font-size="13" fill="#F4EFE6" opacity="0.6">U · Uï · UÑ · ï	û</text>
+
+  <rect x="40" y="228" width="840" height="72" rx="14" fill="#1A1714"/>
+  <text class="t" x="64" y="258" font-size="13" fill="#C49BE8">Domain</text>
+  <text class="t" x="64" y="280" font-size="14" fill="#F4EFE6">AppLanguage · AppMode · Clause · SessionState · DuiyiError</text>
+
+  <rect x="40" y="316" width="840" height="96" rx="14" fill="#2A2420"/>
+  <text class="t" x="64" y="346" font-size="13" fill="#E8B86D">Services · actor</text>
+  <text class="t" x="64" y="372" font-size="14" fill="#F4EFE6">SpeechRecognizingU locale	· TranslatingU Host	</text>
+  <text class="t" x="64" y="394" font-size="14" fill="#F4EFE6">SpeechSynthesizing · AudioSessionPolicy</text>
+
+  <rect x="40" y="428" width="840" height="96" rx="14" fill="#E7DFD4"/>
+  <text class="t" x="64" y="458" font-size="13" fill="#6B645C">System</text>
+  <text class="t" x="64" y="484" font-size="14" fill="#3A3530">SpeechAnalyzer / SpeechTranscriber / SpeechDetector</text>
+  <text class="t" x="64" y="506" font-size="14" fill="#3A3530">TranslationSession · AVSpeechSynthesizer · AVAudioSession</text>
+</svg>
