@@ -680,6 +680,38 @@ struct InterpretationViewModelTests {
         #expect(viewModel.pane.live?.translatedText.contains("Lucy") == true)
     }
 
+    @Test("A same-id greeting rewrite keeps both names")
+    func sameIDGreetingSwapKeepsBothNames() {
+        let viewModel = makeViewModel()
+        let id = UUID()
+        viewModel.accept(Utterance(id: id, language: .english, text: "Hi, Jack", isFinal: true))
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: id,
+                source: .english,
+                target: .zhHans,
+                text: "Hi, Jack",
+                isFinal: true
+            ),
+            text: "嗨，Jack"
+        )
+        viewModel.accept(Utterance(id: id, language: .english, text: "Hi, Lucy", isFinal: true))
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: id,
+                source: .english,
+                target: .zhHans,
+                text: "Hi, Lucy",
+                isFinal: true
+            ),
+            text: "嗨，Lucy"
+        )
+        let captions = ([viewModel.pane.live?.translatedText].compactMap { $0 } + viewModel.pane.history.map(\.translatedText))
+            .joined(separator: " ")
+        #expect(captions.contains("Jack"))
+        #expect(captions.contains("Lucy"))
+    }
+
     private func makeViewModel(
         speech: any SpeechRecognizing = MockSpeechEngine(),
         audioSession: MockAudioSession = MockAudioSession(),

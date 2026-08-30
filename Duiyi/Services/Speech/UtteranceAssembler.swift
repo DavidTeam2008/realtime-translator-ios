@@ -38,8 +38,11 @@ struct UtteranceAssembler: Equatable, Sendable {
             let previous = textFor(locked)
             if !previous.isEmpty,
                isWinnerFinal(locked),
-               !SpokenText.isContinuation(trimmed, of: previous, language: language),
-               !SpokenText.isRefinement(trimmed, of: previous) {
+               SpokenText.isNameSwap(trimmed, of: previous)
+                || (
+                    !SpokenText.isContinuation(trimmed, of: previous, language: language)
+                    && !SpokenText.isRefinement(trimmed, of: previous)
+                ) {
                 beginNextUtterance(keeping: locked)
                 lockedLanguage = language
             }

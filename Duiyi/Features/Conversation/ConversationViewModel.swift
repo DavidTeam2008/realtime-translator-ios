@@ -280,6 +280,16 @@ final class ConversationViewModel {
         let captionID: UUID
         let carriedTranslation: String
         if let existing, existing.source == utterance.language,
+           SpokenText.isDistinctGreeting(
+            incomingSource: utterance.text,
+            incomingDisplay: utterance.text,
+            previousSource: existing.sourceText,
+            previousDisplay: existing.displayText
+           ) {
+            captionID = UUID()
+            carriedTranslation = ""
+            utteranceAliases[utterance.id] = captionID
+        } else if let existing, existing.source == utterance.language,
            SpokenText.isContinuation(utterance.text, of: existing.sourceText, language: utterance.language) {
             captionID = existing.id
             carriedTranslation = existing.translatedText
@@ -297,9 +307,10 @@ final class ConversationViewModel {
             translatedText: carriedTranslation,
             phase: utterance.isFinal ? .settled : .streaming
         )
-        mutatePane(listener) { $0.applyLive(line) }
-        upsertTranscript(line: line, speaker: speaker)
-        enqueueTranslation(line, isFinal: utterance.isFinal)
+        var applied = line
+        mutatePane(listener) { applied = $0.applyLive(line) }
+        upsertTranscript(line: applied, speaker: speaker)
+        enqueueTranslation(applied, isFinal: utterance.isFinal)
     }
 
     func fulfill(job: TranslationJob, text: String) {

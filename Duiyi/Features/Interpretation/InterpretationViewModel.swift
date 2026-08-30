@@ -327,6 +327,16 @@ final class InterpretationViewModel {
         let captionID: UUID
         let carriedTranslation: String
         if let existing, existing.source == utterance.language,
+           SpokenText.isDistinctGreeting(
+            incomingSource: text,
+            incomingDisplay: text,
+            previousSource: existing.sourceText,
+            previousDisplay: existing.displayText
+           ) {
+            captionID = UUID()
+            carriedTranslation = ""
+            utteranceAliases[utterance.id] = captionID
+        } else if let existing, existing.source == utterance.language,
            SpokenText.isContinuation(text, of: existing.sourceText, language: utterance.language)
             || SpokenText.isRefinement(text, of: existing.sourceText) {
             captionID = existing.id
@@ -345,10 +355,10 @@ final class InterpretationViewModel {
             translatedText: carriedTranslation,
             phase: utterance.isFinal ? .settled : .streaming
         )
-        pane.applyLive(line)
+        let applied = pane.applyLive(line)
         pane.trimHistory(to: InterpretationLayout.historyLimit)
-        upsertTranscript(line: line)
-        enqueueTranslation(line, isFinal: utterance.isFinal)
+        upsertTranscript(line: applied)
+        enqueueTranslation(applied, isFinal: utterance.isFinal)
     }
 
     func fulfill(job: TranslationJob, text: String) {
@@ -715,14 +725,31 @@ final class InterpretationViewModel {
 
     private func upsertTranscript(line: CaptionLine) {
         if let index = transcript.firstIndex(where: { $0.id == line.id }) {
-            transcript[index].sourceText = SpokenText.preferredSource(transcript[index].sourceText, line.sourceText)
-            if !line.translatedText.isEmpty {
-                transcript[index].translatedText = line.translatedText
+            if SpokenText.isDistinctGreeting(
+                incomingSource: line.sourceText,
+                incomingDisplay: line.displayText,
+                previousSource: transcript[index].sourceText,
+                previousDisplay: transcript[index].translatedText.isEmpty
+                    ? transcript[index].sourceText
+                    : transcript[index].translatedText
+            ) {
+                transcript[index].isFinal = true
+            } else {
+                transcript[index].sourceText = SpokenText.preferredSource(transcript[index].sourceText, line.sourceText)
+                if !line.translatedText.isEmpty {
+                    transcript[index].translatedText = line.translatedText
+                }
+                transcript[index].isFinal = line.phase == .settled
+                return
             }
-            transcript[index].isFinal = line.phase == .settled
-            return
         }
         if let last = transcript.last,
+           !SpokenText.isDistinctGreeting(
+            incomingSource: line.sourceText,
+            incomingDisplay: line.displayText,
+            previousSource: last.sourceText,
+            previousDisplay: last.translatedText.isEmpty ? last.sourceText : last.translatedText
+           ),
            SpokenText.isContinuation(line.sourceText, of: last.sourceText, language: line.source)
             || SpokenText.isRefinement(line.sourceText, of: last.sourceText)
             || SpokenText.isRefinement(line.displayText, of: last.translatedText.isEmpty ? last.sourceText : last.translatedText) {
@@ -755,6 +782,14 @@ final class InterpretationViewModel {
         while transcript.count >= 2 {
             let last = transcript[transcript.count - 1]
             let prior = transcript[transcript.count - 2]
+            if SpokenText.isDistinctGreeting(
+                incomingSource: last.sourceText,
+                incomingDisplay: last.translatedText.isEmpty ? last.sourceText : last.translatedText,
+                previousSource: prior.sourceText,
+                previousDisplay: prior.translatedText.isEmpty ? prior.sourceText : prior.translatedText
+            ) {
+                break
+            }
             let related = SpokenText.isContinuation(last.sourceText, of: prior.sourceText, language: last.source)
                 || SpokenText.isRefinement(last.sourceText, of: prior.sourceText)
                 || SpokenText.isRefinement(last.translatedText, of: prior.translatedText)

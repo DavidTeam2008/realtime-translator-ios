@@ -26,12 +26,18 @@ enum SpokenText {
     }
 
     static func preferredSource(_ current: String, _ incoming: String) -> String {
-        incoming.count >= current.count ? incoming : current
+        if isNameSwap(incoming, of: current) {
+            return joinDistinctUtterances(current, incoming)
+        }
+        return incoming.count >= current.count ? incoming : current
     }
 
     static func preferredTranslation(_ current: String, _ incoming: String) -> String {
         if incoming.isEmpty { return current }
         if current.isEmpty { return incoming }
+        if isNameSwap(incoming, of: current) {
+            return joinDistinctUtterances(current, incoming)
+        }
         if covers(incoming, of: current) { return incoming }
         if covers(current, of: incoming) { return current }
         if isRefinement(incoming, of: current) {
@@ -94,6 +100,51 @@ enum SpokenText {
         return haystack.contains(needle)
     }
 
+    /// "嗨，Jack" vs "嗨，Lucy": same greeting, different person — not a revision of one sentence.
+    static func isNameSwap(_ incoming: String, of previous: String) -> Bool {
+        guard let previousParts = greetingNameParts(previous),
+              let incomingParts = greetingNameParts(incoming)
+        else {
+            return false
+        }
+        guard previousParts.stem == incomingParts.stem else { return false }
+        guard previousParts.name != incomingParts.name else { return false }
+        if previousParts.name.hasPrefix(incomingParts.name) || incomingParts.name.hasPrefix(previousParts.name) {
+            return false
+        }
+        return true
+    }
+
+    static func isDistinctGreeting(
+        incomingSource: String,
+        incomingDisplay: String,
+        previousSource: String,
+        previousDisplay: String
+    ) -> Bool {
+        if covers(incomingSource, of: previousSource) || covers(previousSource, of: incomingSource) {
+            return false
+        }
+        if !incomingDisplay.isEmpty, !previousDisplay.isEmpty,
+           covers(incomingDisplay, of: previousDisplay) || covers(previousDisplay, of: incomingDisplay) {
+            return false
+        }
+        return isNameSwap(incomingSource, of: previousSource)
+            || isNameSwap(incomingDisplay, of: previousDisplay)
+    }
+
+    static func joinDistinctUtterances(_ current: String, _ incoming: String) -> String {
+        if covers(incoming, of: current) { return incoming }
+        if covers(current, of: incoming) { return current }
+        let head = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tail = incoming.trimmingCharacters(in: .whitespacesAndNewlines)
+        if head.isEmpty { return tail }
+        if tail.isEmpty { return head }
+        if let last = head.last, "。.!！?？".contains(last) {
+            return head + tail
+        }
+        return head + "。" + tail
+    }
+
     static func isRewrite(_ current: String, incoming: String) -> Bool {
         guard !current.isEmpty, !incoming.isEmpty else { return false }
         return !covers(incoming, of: current) && !covers(current, of: incoming)
@@ -132,6 +183,20 @@ enum SpokenText {
 
     private static func minimumStemLength(for language: AppLanguage) -> Int {
         language.usesLatinScript ? 16 : 6
+    }
+
+    private static let greetingStems = ["hello", "hey", "你好", "您好", "哈喽", "hi", "yo", "嗨"]
+
+    private static func greetingNameParts(_ text: String) -> (stem: String, name: String)? {
+        let compactText = compact(text)
+        guard let stem = greetingStems.sorted(by: { $0.count > $1.count }).first(where: {
+            compactText.hasPrefix($0)
+        }) else {
+            return nil
+        }
+        let name = String(compactText.dropFirst(stem.count))
+        guard (2...14).contains(name.count) else { return nil }
+        return (stem, name)
     }
 
     static func isSubsequence(_ needle: String, of haystack: String) -> Bool {

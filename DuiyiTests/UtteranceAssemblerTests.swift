@@ -128,6 +128,16 @@ struct UtteranceAssemblerTests {
         #expect(second?.text.contains("Lucky Days") == true)
     }
 
+    @Test("A greeting name swap after a final gets a new utterance id")
+    func greetingNameSwapAfterFinalGetsNewIdentity() {
+        var assembler = UtteranceAssembler()
+        let first = assembler.ingest(language: .english, text: "Hi, Jack", isFinal: true)
+        assembler.acknowledgeFinal(language: .english)
+        let second = assembler.ingest(language: .english, text: "Hi, Lucy", isFinal: false)
+        #expect(second?.id != first?.id)
+        #expect(second?.text == "Hi, Lucy")
+    }
+
     @Test("A new sentence after a final gets a new utterance id")
     func unrelatedSentenceAfterFinalGetsNewIdentity() {
         var assembler = UtteranceAssembler()

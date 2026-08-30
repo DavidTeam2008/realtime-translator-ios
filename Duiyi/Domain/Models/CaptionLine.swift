@@ -54,7 +54,22 @@ struct PaneState: Equatable, Sendable {
 
     static let empty = PaneState()
 
-    mutating func applyLive(_ line: CaptionLine) {
+    @discardableResult
+    mutating func applyLive(_ line: CaptionLine) -> CaptionLine {
+        if let current = live, SpokenText.isDistinctGreeting(
+            incomingSource: line.sourceText,
+            incomingDisplay: line.displayText,
+            previousSource: current.sourceText,
+            previousDisplay: current.displayText
+        ) {
+            archiveLive()
+            var next = line
+            if next.id == current.id {
+                next.id = UUID()
+            }
+            live = next
+            return next
+        }
         if live?.id == line.id || shouldMerge(line, into: live) {
             mergeLive(line)
         } else {
@@ -62,6 +77,7 @@ struct PaneState: Equatable, Sendable {
             live = line
         }
         absorbRefinementHistory()
+        return live ?? line
     }
 
     @discardableResult
@@ -158,6 +174,14 @@ struct PaneState: Equatable, Sendable {
         guard let existing, existing.source == line.source, existing.side == line.side else {
             return false
         }
+        if SpokenText.isDistinctGreeting(
+            incomingSource: line.sourceText,
+            incomingDisplay: line.displayText,
+            previousSource: existing.sourceText,
+            previousDisplay: existing.displayText
+        ) {
+            return false
+        }
         return SpokenText.isContinuation(line.sourceText, of: existing.sourceText, language: line.source)
             || SpokenText.isRefinement(line.displayText, of: existing.displayText)
             || SpokenText.isRefinement(line.sourceText, of: existing.sourceText)
@@ -165,6 +189,14 @@ struct PaneState: Equatable, Sendable {
 
     private func shouldCollapse(_ older: CaptionLine, into newer: CaptionLine) -> Bool {
         guard older.source == newer.source, older.side == newer.side else {
+            return false
+        }
+        if SpokenText.isDistinctGreeting(
+            incomingSource: newer.sourceText,
+            incomingDisplay: newer.displayText,
+            previousSource: older.sourceText,
+            previousDisplay: older.displayText
+        ) {
             return false
         }
         return shouldMerge(newer, into: older)

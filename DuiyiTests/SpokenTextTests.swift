@@ -87,6 +87,15 @@ struct SpokenTextTests {
         #expect(
             !SpokenText.isRefinement("嗨，Lucy", of: "嗨，Jack")
         )
+        #expect(SpokenText.isNameSwap("嗨，Lucy", of: "嗨，Jack"))
+        #expect(SpokenText.isNameSwap("Hi, Lucy", of: "Hi, Jack"))
+        #expect(!SpokenText.isNameSwap("Hi, Jack", of: "Hi, Ja"))
+        #expect(
+            !SpokenText.isNameSwap(
+                "好吧，我们错过了一部叫《幸运的日子》的电影",
+                of: "好吧，我们错过了一部叫《幸运》的电影"
+            )
+        )
         #expect(
             !SpokenText.isRefinement("See you later Lucy", of: "See you later Jack")
         )
