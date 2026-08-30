@@ -1,6 +1,6 @@
 # 对译 Duiyi
 
-面对面离线字幕，加上同声传译（听现场、看或听译文）。
+多语言现场沟通平台：面对面、同声传译、会议记录。任务保存在本机，能用 Apple 智能就总结，不能用就导出分享。
 
 Xcode 工程：[`Duiyi.xcodeproj`](Duiyi.xcodeproj)  
 最低系统：iOS 26.4，真机优先（语音与翻译模型在模拟器上不完整）
@@ -11,14 +11,30 @@ Xcode 工程：[`Duiyi.xcodeproj`](Duiyi.xcodeproj)
 open Duiyi.xcodeproj
 ```
 
-首次运行会引导：选语言 → 麦克风 / 语音识别 → 下载模型。之后：
+首次运行会引导：选语言 → 麦克风 / 语音识别 → 下载模型。之后先到**首页**选模块：
 
 - **面对面**：手机平放，上半屏倒字给对方，下半屏正字给用户
 - **同声传译**：单栏正字听现场；可选戴耳机读出译文
+- **会议记录**：单语全文稿，会后总结或导出
+- **任务历史**：本机记录，可回看、总结、导出分享
 
-中间按钮：点按开始 / 暂停。中间栏右侧齿轮打开设置（长按中间按钮也可以）。同声传译进界面后不会自动开始听。
+每个模块：先点**新任务**，再点中间钮开始听。**结束任务**才写入历史。暂停只停麦克风。
+
+iPhone 13 等不能使用 Apple 智能的设备会直接说明，并仍可导出 UTF-8 文字稿到系统分享。
 
 ## 设计文档
+
+平台（模块、任务、历史、总结、会议记录）：
+
+| 文档 | 内容 |
+| --- | --- |
+| [docs/09-platform-prototype.md](docs/09-platform-prototype.md) | 平台产品原型 |
+| [docs/10-platform-architecture.md](docs/10-platform-architecture.md) | 平台架构 |
+| [docs/11-platform-tech-choices.md](docs/11-platform-tech-choices.md) | 平台技术选型 |
+| [docs/12-platform-roadmap.md](docs/12-platform-roadmap.md) | 平台落地线路图 |
+| [prototype/platform.html](prototype/platform.html) | 平台可交互原型 |
+
+模块细则：
 
 | 文档 | 内容 |
 | --- | --- |

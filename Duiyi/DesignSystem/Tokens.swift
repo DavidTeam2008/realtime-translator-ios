@@ -14,6 +14,10 @@ enum Tokens {
     static let languageKO = Color(hex: 0x7EA0E8)
     static let languageTH = Color(hex: 0xC49BE8)
     static let languageVI = Color(hex: 0x7ECF9A)
+    static let featureMeeting = Color(hex: 0xC49BE8)
+    static let cardFaceToFace = Color(hex: 0x1A1714)
+    static let cardSimultaneous = Color(hex: 0x161920)
+    static let cardMeeting = Color(hex: 0x1C1824)
     static let danger = Color(hex: 0xE07070)
     static let controlIdle = Color(hex: 0x2A2E38)
     static let sheet = Color(hex: 0x23262F)
@@ -27,6 +31,22 @@ enum Tokens {
         case .korean: return languageKO
         case .thai: return languageTH
         case .vietnamese: return languageVI
+        }
+    }
+
+    static func featureAccent(_ feature: FeatureID) -> Color {
+        switch feature {
+        case .faceToFace: return listen
+        case .simultaneous: return languageEN
+        case .meeting: return featureMeeting
+        }
+    }
+
+    static func featureCard(_ feature: FeatureID) -> Color {
+        switch feature {
+        case .faceToFace: return cardFaceToFace
+        case .simultaneous: return cardSimultaneous
+        case .meeting: return cardMeeting
         }
     }
 

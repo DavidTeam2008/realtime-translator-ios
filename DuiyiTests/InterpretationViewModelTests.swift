@@ -465,6 +465,7 @@ struct InterpretationViewModelTests {
         let speech = RecordingSpeechEngine()
         let viewModel = makeViewModel(speech: speech)
         viewModel.setSourceLanguage(.japanese)
+        await viewModel.beginTask()
         await viewModel.start()
         let languages = await speech.startedLanguages
         let fallback = await speech.startedFallback

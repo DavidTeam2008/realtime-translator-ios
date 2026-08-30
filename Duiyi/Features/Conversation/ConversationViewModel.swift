@@ -8,6 +8,7 @@ final class ConversationViewModel {
     private let preferences: PreferencesStore
     private let summarizer: any ConversationSummarizing
     private let audioSession: any AudioSessionConfiguring
+    private let task: TaskSessionController
 
     var sessionState: SessionState = .idle
     var userLanguage: AppLanguage
@@ -23,6 +24,7 @@ final class ConversationViewModel {
     var transcript: [TranscriptEntry] = []
     var summary: ConversationSummary?
     var summaryError: String?
+    var summaryAvailability: SummaryAvailability = .unavailable
     var isSummarizing = false
 
     private var speechTask: Task<Void, Never>?
@@ -35,6 +37,7 @@ final class ConversationViewModel {
     private var lastAppliedSourceCount: [UUID: Int] = [:]
     private var sentSourceText: [UUID: String] = [:]
     private var utteranceAliases: [UUID: UUID] = [:]
+    private var persistTask: Task<Void, Never>?
     private let idleRestoreDelay: Duration
 
     init(
@@ -43,6 +46,7 @@ final class ConversationViewModel {
         preferences: PreferencesStore,
         summarizer: any ConversationSummarizing,
         audioSession: any AudioSessionConfiguring = NoOpAudioSession(),
+        taskStore: any TaskStore = InMemoryTaskStore(),
         idleRestoreDelay: Duration = .seconds(ConversationLayout.idleRestoreSeconds)
     ) {
         self.speech = speech
@@ -50,6 +54,7 @@ final class ConversationViewModel {
         self.preferences = preferences
         self.summarizer = summarizer
         self.audioSession = audioSession
+        self.task = TaskSessionController(feature: .faceToFace, store: taskStore)
         self.idleRestoreDelay = idleRestoreDelay
         userLanguage = preferences.userLanguage
         peerLanguage = preferences.peerLanguage
@@ -57,11 +62,39 @@ final class ConversationViewModel {
         autoStartListening = preferences.autoStartListening
     }
 
+    var hasActiveTask: Bool { task.hasActiveTask }
+    var taskStartedAt: Date? { task.startedAt }
+
     var canSummarize: Bool {
         transcript.contains { !$0.sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
+    var exportableSession: TaskSession {
+        TaskSession(
+            id: task.taskID ?? UUID(),
+            feature: .faceToFace,
+            status: hasActiveTask ? .running : .ended,
+            startedAt: task.startedAt ?? .now,
+            endedAt: nil,
+            title: TaskTitle.make(
+                feature: .faceToFace,
+                source: userLanguage,
+                target: peerLanguage,
+                startedAt: task.startedAt ?? .now,
+                language: userLanguage
+            ),
+            subtitle: nil,
+            sourceLanguage: userLanguage,
+            targetLanguage: peerLanguage,
+            entries: transcript,
+            summary: summary
+        )
+    }
+
     var controlLabel: String {
+        if !hasActiveTask {
+            return Copy.needNewTask(for: userLanguage)
+        }
         switch sessionState {
         case .listening:
             return Copy.listening(for: userLanguage)
@@ -92,18 +125,40 @@ final class ConversationViewModel {
     func bootstrap() async {
         guard !skipsBootstrap else { return }
         sessionState = .preparing
+        if let existing = await task.restore() {
+            restore(from: existing)
+        }
         let status = await permissions.currentStatus()
         if let error = status.asDuiyiError() {
             sessionState = .failed(error)
             return
         }
         sessionState = .ready
+    }
+
+    func beginTask() async {
+        if hasActiveTask {
+            _ = await task.finish(entries: transcript, summary: summary)
+        }
+        resetCaptions()
+        _ = await task.beginNew(source: userLanguage, target: peerLanguage)
         if autoStartListening {
             await start()
+        } else {
+            sessionState = .ready
         }
     }
 
+    func endTask() async -> TaskSession? {
+        await stop(restoreIdleTimerAfterDelay: false)
+        let saved = await task.finish(entries: transcript, summary: summary)
+        resetCaptions()
+        sessionState = .ready
+        return saved
+    }
+
     func toggleListening() async {
+        guard hasActiveTask else { return }
         if sessionState == .listening {
             await stop()
         } else {
@@ -112,7 +167,7 @@ final class ConversationViewModel {
     }
 
     func start() async {
-        guard sessionState != .listening else { return }
+        guard hasActiveTask, sessionState != .listening else { return }
         isStopping = false
         idleRestoreTask?.cancel()
         holdScreenAfterPause = false
@@ -134,6 +189,7 @@ final class ConversationViewModel {
             )
             sessionState = .listening
             holdScreenAfterPause = false
+            await task.setListening(true)
             speechTask?.cancel()
             speechTask = Task { [weak self] in
                 for await utterance in stream {
@@ -156,6 +212,8 @@ final class ConversationViewModel {
         let wasListening = sessionState == .listening
         if wasListening {
             sessionState = .paused
+            await task.setListening(false)
+            await persistNow()
             if restoreIdleTimerAfterDelay {
                 holdScreenAfterPause = true
                 scheduleIdleRestore()
@@ -340,6 +398,7 @@ final class ConversationViewModel {
     }
 
     func requestSummary() async {
+        summaryAvailability = await summarizer.availability()
         guard canSummarize else {
             summaryError = DuiyiError.summaryEmpty.userMessage(for: userLanguage)
             isSummaryPresented = true
@@ -349,14 +408,21 @@ final class ConversationViewModel {
         isSummaryPresented = true
         isSummarizing = true
         summaryError = nil
-        do {
-            summary = try await summarizer.summarize(entries: transcript, outputLanguage: userLanguage)
-        } catch let error as DuiyiError {
+        if summaryAvailability == .available {
+            do {
+                summary = try await summarizer.summarize(entries: transcript, outputLanguage: userLanguage)
+                if let summary {
+                    await task.saveSummary(summary)
+                }
+            } catch let error as DuiyiError {
+                summary = nil
+                summaryError = error.userMessage(for: userLanguage)
+            } catch {
+                summary = nil
+                summaryError = DuiyiError.summaryEmpty.userMessage(for: userLanguage)
+            }
+        } else {
             summary = nil
-            summaryError = error.userMessage(for: userLanguage)
-        } catch {
-            summary = nil
-            summaryError = DuiyiError.summaryEmpty.userMessage(for: userLanguage)
         }
         isSummarizing = false
     }
@@ -408,6 +474,7 @@ final class ConversationViewModel {
             transcript[index].translatedText = text
             if settle {
                 transcript[index].isFinal = true
+                schedulePersist()
             }
         }
     }
@@ -420,6 +487,9 @@ final class ConversationViewModel {
             }
             transcript[index].isFinal = line.phase == .settled
             dropPrefixTranscript(after: index, speaker: speaker, language: line.source)
+            if line.phase == .settled {
+                schedulePersist()
+            }
             return
         }
         if let last = transcript.last,
@@ -433,6 +503,9 @@ final class ConversationViewModel {
             updated.isFinal = line.phase == .settled
             transcript[transcript.count - 1] = updated
             dropPrefixTranscript(after: transcript.count - 1, speaker: speaker, language: line.source)
+            if line.phase == .settled {
+                schedulePersist()
+            }
             return
         }
         transcript.append(
@@ -445,6 +518,9 @@ final class ConversationViewModel {
                 isFinal: line.phase == .settled
             )
         )
+        if line.phase == .settled {
+            schedulePersist()
+        }
     }
 
     private func dropPrefixTranscript(after index: Int, speaker: SpeakerSide, language: AppLanguage) {
@@ -495,6 +571,41 @@ final class ConversationViewModel {
         idleRestoreTask?.cancel()
         mutatePane(.user) { $0.speakingHint = nil }
         mutatePane(.peer) { $0.speakingHint = nil }
+    }
+
+    private func restore(from session: TaskSession) {
+        transcript = session.entries
+        summary = session.summary
+        userPane = .empty
+        peerPane = .empty
+        for entry in session.entries {
+            let listener = entry.speaker.opposite
+            mutatePane(listener) {
+                $0.history.append(
+                    CaptionLine(
+                        id: entry.id,
+                        side: listener,
+                        source: entry.source,
+                        sourceText: entry.sourceText,
+                        translatedText: entry.translatedText,
+                        phase: .settled
+                    )
+                )
+            }
+        }
+    }
+
+    private func schedulePersist() {
+        persistTask?.cancel()
+        persistTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            await self?.persistNow()
+        }
+    }
+
+    private func persistNow() async {
+        await task.persist(transcript)
     }
 
     private func scheduleIdleRestore() {

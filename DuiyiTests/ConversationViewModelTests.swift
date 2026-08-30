@@ -152,6 +152,7 @@ struct ConversationViewModelTests {
         let viewModel = makeViewModel(idleRestoreDelay: .milliseconds(40))
         viewModel.autoStartListening = true
         await viewModel.bootstrap()
+        await viewModel.beginTask()
         #expect(viewModel.sessionState == .listening)
         #expect(viewModel.keepsScreenAwake)
 

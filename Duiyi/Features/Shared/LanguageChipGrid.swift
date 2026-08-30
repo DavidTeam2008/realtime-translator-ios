@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LanguageChipGrid: View {
     let selected: AppLanguage
+    var languages: [AppLanguage] = AppLanguage.allCases
     let onSelect: (AppLanguage) -> Void
 
     private let columns = [
@@ -12,7 +13,7 @@ struct LanguageChipGrid: View {
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {
-            ForEach(AppLanguage.allCases, id: \.self) { language in
+            ForEach(languages, id: \.self) { language in
                 Button {
                     onSelect(language)
                 } label: {

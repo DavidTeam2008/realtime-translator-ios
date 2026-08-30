@@ -43,6 +43,9 @@ struct InterpretationSettingsSheet: View {
                         onSelectMode(.simultaneous)
                     }
                 }
+                chip(Copy.modeMeeting(for: viewerLanguage), selected: appMode == .meeting) {
+                    onSelectMode(.meeting)
+                }
 
                 Text(Copy.theySpeak(for: viewerLanguage))
                     .font(.footnote)

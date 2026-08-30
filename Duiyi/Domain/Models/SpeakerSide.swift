@@ -1,6 +1,6 @@
 import Foundation
 
-enum SpeakerSide: String, Sendable, Hashable {
+enum SpeakerSide: String, Codable, Sendable, Hashable {
     case user
     case peer
 

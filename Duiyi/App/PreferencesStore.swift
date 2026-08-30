@@ -15,6 +15,7 @@ final class PreferencesStore {
         static let targetLanguage = "duiyi.targetLanguage"
         static let voiceOut = "duiyi.voiceOutEnabled"
         static let showsSource = "duiyi.showsSourceLine"
+        static let meetingLanguage = "duiyi.meetingLanguage"
     }
 
     private let defaults: UserDefaults
@@ -61,6 +62,10 @@ final class PreferencesStore {
 
     var showsSourceLine: Bool {
         didSet { defaults.set(showsSourceLine, forKey: Key.showsSource) }
+    }
+
+    var meetingLanguage: AppLanguage {
+        didSet { defaults.set(meetingLanguage.rawValue, forKey: Key.meetingLanguage) }
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -115,6 +120,11 @@ final class PreferencesStore {
             showsSourceLine = true
         } else {
             showsSourceLine = defaults.bool(forKey: Key.showsSource)
+        }
+        if let raw = defaults.string(forKey: Key.meetingLanguage), let language = AppLanguage(rawValue: raw) {
+            meetingLanguage = language
+        } else {
+            meetingLanguage = resolvedUser
         }
     }
 }

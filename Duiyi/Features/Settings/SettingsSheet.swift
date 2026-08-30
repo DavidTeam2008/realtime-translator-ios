@@ -39,6 +39,9 @@ struct SettingsSheet: View {
                     onSelectMode(.simultaneous)
                 }
             }
+            chip(Copy.modeMeeting(for: userLanguage), selected: appMode == .meeting) {
+                onSelectMode(.meeting)
+            }
 
             Text(Copy.iReadSection(for: userLanguage))
                 .font(.footnote)

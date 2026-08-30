@@ -172,6 +172,7 @@ enum ConversationPreview {
         configure?(viewModel)
         return ConversationView(viewModel: viewModel)
             .environment(environment)
+            .environment(AppCoordinator())
     }
 }
 
@@ -277,5 +278,6 @@ enum InterpretationPreview {
         configure?(viewModel)
         return InterpretationView(viewModel: viewModel)
             .environment(environment)
+            .environment(AppCoordinator())
     }
 }

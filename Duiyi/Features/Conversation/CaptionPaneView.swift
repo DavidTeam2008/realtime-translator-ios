@@ -12,6 +12,7 @@ struct CaptionPaneView: View {
     var onChooseLanguage: (() -> Void)?
     var onSelectLanguage: ((AppLanguage) -> Void)?
     var onCancelPicking: (() -> Void)?
+    var idleOverride: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -154,6 +155,7 @@ struct CaptionPaneView: View {
     }
 
     private var idlePrompt: String {
+        if let idleOverride { return idleOverride }
         switch sessionState {
         case .ready, .idle, .paused:
             return isPeer

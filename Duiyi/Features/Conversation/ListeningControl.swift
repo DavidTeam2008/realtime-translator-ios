@@ -6,6 +6,8 @@ struct ListeningControl: View {
     let swapLabel: String
     let settingsLabel: String
     let settingsHint: String
+    var isEnabled: Bool = true
+    var showsSwap: Bool = true
     let onTap: () -> Void
     let onOpenSettings: () -> Void
     let onSwap: () -> Void
@@ -20,16 +22,18 @@ struct ListeningControl: View {
     var body: some View {
         ZStack {
             HStack {
-                Button(action: onSwap) {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Tokens.textSecondary)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                if showsSwap {
+                    Button(action: onSwap) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Tokens.textSecondary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(swapLabel)
+                    .padding(.leading, 14)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(swapLabel)
-                .padding(.leading, 14)
 
                 Spacer()
 
@@ -61,6 +65,7 @@ struct ListeningControl: View {
     private var controlButton: some View {
         let fill: Color = {
             if sessionState.isFailed { return Tokens.danger }
+            if !isEnabled { return Tokens.controlIdle.opacity(0.7) }
             if isListening { return Tokens.listen }
             return Tokens.controlIdle
         }()
@@ -85,6 +90,7 @@ struct ListeningControl: View {
         .frame(width: Tokens.micHitSize, height: Tokens.micHitSize)
         .contentShape(Circle())
         .gesture(pressGesture)
+        .opacity(isEnabled ? 1 : 0.45)
         .accessibilityLabel(label)
         .accessibilityHint(settingsHint)
         .accessibilityAddTraits(.isButton)
@@ -125,7 +131,7 @@ struct ListeningControl: View {
                 let shouldTap = isTouching && !openedSettingsThisTouch
                 isTouching = false
                 openedSettingsThisTouch = false
-                if shouldTap {
+                if shouldTap, isEnabled {
                     onTap()
                 }
             }

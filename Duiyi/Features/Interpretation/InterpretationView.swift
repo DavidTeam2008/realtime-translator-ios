@@ -3,6 +3,7 @@ import UIKit
 
 struct InterpretationView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(AppCoordinator.self) private var coordinator
     @Bindable var viewModel: InterpretationViewModel
 
     @State private var isRedownloading = false
@@ -11,11 +12,29 @@ struct InterpretationView: View {
     @State private var redownloadError: String?
     @State private var picking: DirectionPick?
     @State private var lastPreparedKey = ""
+    @State private var confirmNewTask = false
+    @State private var confirmEndTask = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
-                topBar
+                ModuleChrome(
+                    title: Copy.interpretationTitle(for: viewModel.targetLanguage),
+                    language: viewModel.targetLanguage,
+                    onHome: { coordinator.popToHome() },
+                    onHistory: { coordinator.open(.history) }
+                )
+                TaskBar(
+                    language: viewModel.targetLanguage,
+                    statusText: TaskStatusText.make(
+                        hasTask: viewModel.hasActiveTask,
+                        startedAt: viewModel.taskStartedAt,
+                        language: viewModel.targetLanguage
+                    ),
+                    isActive: viewModel.hasActiveTask,
+                    onNewTask: { requestNewTask() },
+                    onEndTask: { confirmEndTask = true }
+                )
                 DirectionBar(
                     sourceLanguage: viewModel.sourceLanguage,
                     targetLanguage: viewModel.targetLanguage,
@@ -44,6 +63,7 @@ struct InterpretationView: View {
                     swapLabel: Copy.swapDirection(for: viewModel.targetLanguage),
                     settingsLabel: Copy.settingsTitle(for: viewModel.targetLanguage),
                     settingsHint: Copy.settingsHint(for: viewModel.targetLanguage),
+                    isEnabled: viewModel.hasActiveTask,
                     onTap: {
                         guard picking == nil else {
                             picking = nil
@@ -120,10 +140,13 @@ struct InterpretationView: View {
 
             if viewModel.isSummaryPresented {
                 SummarySheet(
-                    userLanguage: viewModel.targetLanguage,
+                    language: viewModel.targetLanguage,
+                    availability: viewModel.summaryAvailability,
                     isLoading: viewModel.isSummarizing,
                     summary: viewModel.summary,
                     errorText: viewModel.summaryError,
+                    exportTask: viewModel.exportableSession,
+                    exporter: environment.exporter,
                     onCopy: copySummary,
                     onClose: {
                         withAnimation(.easeOut(duration: 0.18)) {
@@ -173,6 +196,27 @@ struct InterpretationView: View {
         }
         .background(Tokens.userPane)
         .ignoresSafeArea()
+        .toolbar(.hidden, for: .navigationBar)
+        .confirmationDialog(
+            Copy.replaceTaskConfirm(for: viewModel.targetLanguage),
+            isPresented: $confirmNewTask,
+            titleVisibility: .visible
+        ) {
+            Button(Copy.newTask(for: viewModel.targetLanguage)) {
+                Task { await viewModel.beginTask() }
+            }
+            Button(Copy.cancel(for: viewModel.targetLanguage), role: .cancel) {}
+        }
+        .confirmationDialog(
+            Copy.endTaskConfirm(for: viewModel.targetLanguage),
+            isPresented: $confirmEndTask,
+            titleVisibility: .visible
+        ) {
+            Button(Copy.endTask(for: viewModel.targetLanguage)) {
+                Task { await finishTask() }
+            }
+            Button(Copy.cancel(for: viewModel.targetLanguage), role: .cancel) {}
+        }
         .overlay {
             OneWayTranslationHostView(
                 sourceLanguage: viewModel.sourceLanguage,
@@ -219,23 +263,6 @@ struct InterpretationView: View {
             Task { await viewModel.stop(restoreIdleTimerAfterDelay: false) }
         }
         .preferredColorScheme(.dark)
-    }
-
-    private var topBar: some View {
-        HStack {
-            Text(Copy.interpretationTitle(for: viewModel.targetLanguage))
-                .font(.headline)
-                .foregroundStyle(Tokens.textPrimary)
-            Spacer()
-            Button(Copy.modeFaceToFace(for: viewModel.targetLanguage)) {
-                selectMode(.faceToFace)
-            }
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Tokens.listen)
-        }
-        .padding(.horizontal, Tokens.horizontalPadding)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
     }
 
     private var captionColumn: some View {
@@ -360,6 +387,9 @@ struct InterpretationView: View {
     }
 
     private var idlePrompt: String {
+        if !viewModel.hasActiveTask {
+            return Copy.needNewTask(for: viewModel.targetLanguage)
+        }
         switch viewModel.sessionState {
         case .ready, .idle, .paused:
             return Copy.interpretationIdle(for: viewModel.targetLanguage)
@@ -433,10 +463,25 @@ struct InterpretationView: View {
     }
 
     private func selectMode(_ mode: AppMode) {
-        guard mode != environment.preferences.appMode else { return }
+        guard mode != .simultaneous else { return }
         Task {
             await viewModel.stop(restoreIdleTimerAfterDelay: false)
             environment.preferences.appMode = mode
+            coordinator.replaceModule(mode.featureID)
+        }
+    }
+
+    private func requestNewTask() {
+        if viewModel.hasActiveTask {
+            confirmNewTask = true
+        } else {
+            Task { await viewModel.beginTask() }
+        }
+    }
+
+    private func finishTask() async {
+        if let session = await viewModel.endTask() {
+            coordinator.showEndedTask(session.id)
         }
     }
 

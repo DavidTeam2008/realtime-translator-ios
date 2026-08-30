@@ -3,6 +3,7 @@ import UIKit
 
 struct ConversationView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(AppCoordinator.self) private var coordinator
     @Bindable var viewModel: ConversationViewModel
 
     @State private var isRedownloading = false
@@ -11,6 +12,8 @@ struct ConversationView: View {
     @State private var redownloadError: String?
     @State private var pickingSide: SpeakerSide?
     @State private var lastPreparedPair: Set<AppLanguage> = []
+    @State private var confirmNewTask = false
+    @State private var confirmEndTask = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -38,6 +41,7 @@ struct ConversationView: View {
                     swapLabel: Copy.swapLanguages(for: viewModel.userLanguage),
                     settingsLabel: Copy.settingsTitle(for: viewModel.userLanguage),
                     settingsHint: Copy.settingsHint(for: viewModel.userLanguage),
+                    isEnabled: viewModel.hasActiveTask,
                     onTap: {
                         guard pickingSide == nil else {
                             pickingSide = nil
@@ -60,20 +64,41 @@ struct ConversationView: View {
                     }
                 )
 
-                CaptionPaneView(
-                    viewerLanguage: viewModel.userLanguage,
-                    pane: viewModel.userPane,
-                    fontSize: viewModel.fontSize,
-                    isPeer: false,
-                    sessionState: viewModel.sessionState,
-                    errorText: viewModel.userErrorText,
-                    isPickingLanguage: pickingSide == .user,
-                    onChooseLanguage: { openLanguagePicker(.user) },
-                    onSelectLanguage: { language in
-                        applyUserLanguage(language)
-                    },
-                    onCancelPicking: { pickingSide = nil }
-                )
+                VStack(spacing: 0) {
+                    ModuleChrome(
+                        title: Copy.modeFaceToFace(for: viewModel.userLanguage),
+                        language: viewModel.userLanguage,
+                        onHome: { coordinator.popToHome() },
+                        onHistory: { coordinator.open(.history) }
+                    )
+                    TaskBar(
+                        language: viewModel.userLanguage,
+                        statusText: TaskStatusText.make(
+                            hasTask: viewModel.hasActiveTask,
+                            startedAt: viewModel.taskStartedAt,
+                            language: viewModel.userLanguage
+                        ),
+                        isActive: viewModel.hasActiveTask,
+                        onNewTask: { requestNewTask() },
+                        onEndTask: { confirmEndTask = true }
+                    )
+                    CaptionPaneView(
+                        viewerLanguage: viewModel.userLanguage,
+                        pane: viewModel.userPane,
+                        fontSize: viewModel.fontSize,
+                        isPeer: false,
+                        sessionState: viewModel.sessionState,
+                        errorText: viewModel.userErrorText,
+                        isPickingLanguage: pickingSide == .user,
+                        onChooseLanguage: { openLanguagePicker(.user) },
+                        onSelectLanguage: { language in
+                            applyUserLanguage(language)
+                        },
+                        onCancelPicking: { pickingSide = nil },
+                        idleOverride: viewModel.hasActiveTask ? nil : Copy.needNewTask(for: viewModel.userLanguage)
+                    )
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .ignoresSafeArea()
 
@@ -89,11 +114,7 @@ struct ConversationView: View {
                     translationProgress: translationProgress,
                     redownloadError: redownloadError,
                     onSelectMode: { mode in
-                        guard mode != environment.preferences.appMode else { return }
-                        Task {
-                            await viewModel.stop(restoreIdleTimerAfterDelay: false)
-                            environment.preferences.appMode = mode
-                        }
+                        switchModule(mode)
                     },
                     onSelectUserLanguage: { language in
                         applyUserLanguage(language)
@@ -122,10 +143,13 @@ struct ConversationView: View {
 
             if viewModel.isSummaryPresented {
                 SummarySheet(
-                    userLanguage: viewModel.userLanguage,
+                    language: viewModel.userLanguage,
+                    availability: viewModel.summaryAvailability,
                     isLoading: viewModel.isSummarizing,
                     summary: viewModel.summary,
                     errorText: viewModel.summaryError,
+                    exportTask: viewModel.exportableSession,
+                    exporter: environment.exporter,
                     onCopy: copySummary,
                     onClose: {
                         withAnimation(.easeOut(duration: 0.18)) {
@@ -174,6 +198,27 @@ struct ConversationView: View {
             }
         }
         .background(Tokens.canvas)
+        .toolbar(.hidden, for: .navigationBar)
+        .confirmationDialog(
+            Copy.replaceTaskConfirm(for: viewModel.userLanguage),
+            isPresented: $confirmNewTask,
+            titleVisibility: .visible
+        ) {
+            Button(Copy.newTask(for: viewModel.userLanguage)) {
+                Task { await viewModel.beginTask() }
+            }
+            Button(Copy.cancel(for: viewModel.userLanguage), role: .cancel) {}
+        }
+        .confirmationDialog(
+            Copy.endTaskConfirm(for: viewModel.userLanguage),
+            isPresented: $confirmEndTask,
+            titleVisibility: .visible
+        ) {
+            Button(Copy.endTask(for: viewModel.userLanguage)) {
+                Task { await finishTask() }
+            }
+            Button(Copy.cancel(for: viewModel.userLanguage), role: .cancel) {}
+        }
         .overlay {
             TranslationHostView(
                 userLanguage: viewModel.userLanguage,
@@ -383,6 +428,29 @@ struct ConversationView: View {
     private func copySummary() {
         guard let text = viewModel.summary?.text, !text.isEmpty else { return }
         UIPasteboard.general.string = text
+    }
+
+    private func requestNewTask() {
+        if viewModel.hasActiveTask {
+            confirmNewTask = true
+        } else {
+            Task { await viewModel.beginTask() }
+        }
+    }
+
+    private func finishTask() async {
+        if let session = await viewModel.endTask() {
+            coordinator.showEndedTask(session.id)
+        }
+    }
+
+    private func switchModule(_ mode: AppMode) {
+        guard mode != .faceToFace else { return }
+        Task {
+            await viewModel.stop(restoreIdleTimerAfterDelay: false)
+            environment.preferences.appMode = mode
+            coordinator.replaceModule(mode.featureID)
+        }
     }
 }
 

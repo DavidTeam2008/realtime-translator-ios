@@ -1,12 +1,13 @@
 import Foundation
 
-struct TranscriptEntry: Identifiable, Equatable, Sendable {
+struct TranscriptEntry: Identifiable, Equatable, Sendable, Codable {
     var id: UUID
     var speaker: SpeakerSide
     var source: AppLanguage
     var sourceText: String
     var translatedText: String
     var isFinal: Bool
+    var recordedAt: Date = .now
 
     func readableText(for language: AppLanguage) -> String {
         if !translatedText.isEmpty {
@@ -27,7 +28,7 @@ enum SummaryAvailability: Equatable, Sendable {
     case unavailable
 }
 
-struct ConversationSummary: Equatable, Sendable {
+struct ConversationSummary: Equatable, Sendable, Codable {
     var text: String
     var usedAppleIntelligence: Bool
 }

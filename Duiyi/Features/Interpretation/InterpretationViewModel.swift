@@ -9,6 +9,7 @@ final class InterpretationViewModel {
     private let summarizer: any ConversationSummarizing
     private let audioSession: any AudioSessionConfiguring
     private let synthesizer: any SpeechSynthesizing
+    private let task: TaskSessionController
 
     var sessionState: SessionState = .idle
     var sourceLanguage: AppLanguage
@@ -22,6 +23,7 @@ final class InterpretationViewModel {
     var transcript: [TranscriptEntry] = []
     var summary: ConversationSummary?
     var summaryError: String?
+    var summaryAvailability: SummaryAvailability = .unavailable
     var isSummarizing = false
     var voiceOutEnabled: Bool
     var showsSourceLine: Bool
@@ -46,6 +48,7 @@ final class InterpretationViewModel {
     private var speechGeneration = 0
     private var speechDebounces: [UUID: Task<Void, Never>] = [:]
     private var pendingSettledSpeech: [UUID: String] = [:]
+    private var persistTask: Task<Void, Never>?
     private let idleRestoreDelay: Duration
     private let speechSettleDelay: Duration
 
@@ -56,6 +59,7 @@ final class InterpretationViewModel {
         summarizer: any ConversationSummarizing,
         audioSession: any AudioSessionConfiguring,
         synthesizer: any SpeechSynthesizing,
+        taskStore: any TaskStore = InMemoryTaskStore(),
         idleRestoreDelay: Duration = .seconds(ConversationLayout.idleRestoreSeconds),
         speechSettleDelay: Duration = .milliseconds(380)
     ) {
@@ -65,6 +69,7 @@ final class InterpretationViewModel {
         self.summarizer = summarizer
         self.audioSession = audioSession
         self.synthesizer = synthesizer
+        self.task = TaskSessionController(feature: .simultaneous, store: taskStore)
         self.idleRestoreDelay = idleRestoreDelay
         self.speechSettleDelay = speechSettleDelay
         sourceLanguage = preferences.sourceLanguage
@@ -74,11 +79,39 @@ final class InterpretationViewModel {
         showsSourceLine = preferences.showsSourceLine
     }
 
+    var hasActiveTask: Bool { task.hasActiveTask }
+    var taskStartedAt: Date? { task.startedAt }
+
     var canSummarize: Bool {
         transcript.contains { !$0.sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
+    var exportableSession: TaskSession {
+        TaskSession(
+            id: task.taskID ?? UUID(),
+            feature: .simultaneous,
+            status: hasActiveTask ? .running : .ended,
+            startedAt: task.startedAt ?? .now,
+            endedAt: nil,
+            title: TaskTitle.make(
+                feature: .simultaneous,
+                source: sourceLanguage,
+                target: targetLanguage,
+                startedAt: task.startedAt ?? .now,
+                language: targetLanguage
+            ),
+            subtitle: nil,
+            sourceLanguage: sourceLanguage,
+            targetLanguage: targetLanguage,
+            entries: transcript,
+            summary: summary
+        )
+    }
+
     var controlLabel: String {
+        if !hasActiveTask {
+            return Copy.needNewTask(for: targetLanguage)
+        }
         switch sessionState {
         case .listening:
             return Copy.listening(for: targetLanguage)
@@ -131,6 +164,9 @@ final class InterpretationViewModel {
         }
         guard !skipsBootstrap else { return }
         sessionState = .preparing
+        if let existing = await task.restore() {
+            restore(from: existing)
+        }
         let status = await permissions.currentStatus()
         if let error = status.asDuiyiError() {
             sessionState = .failed(error)
@@ -139,7 +175,25 @@ final class InterpretationViewModel {
         sessionState = .ready
     }
 
+    func beginTask() async {
+        if hasActiveTask {
+            _ = await task.finish(entries: transcript, summary: summary)
+        }
+        resetCaptions()
+        _ = await task.beginNew(source: sourceLanguage, target: targetLanguage)
+        sessionState = .ready
+    }
+
+    func endTask() async -> TaskSession? {
+        await stop(restoreIdleTimerAfterDelay: false)
+        let saved = await task.finish(entries: transcript, summary: summary)
+        resetCaptions()
+        sessionState = .ready
+        return saved
+    }
+
     func toggleListening() async {
+        guard hasActiveTask else { return }
         if sessionState == .listening {
             await stop()
         } else {
@@ -148,7 +202,7 @@ final class InterpretationViewModel {
     }
 
     func start() async {
-        guard sessionState != .listening else { return }
+        guard hasActiveTask, sessionState != .listening else { return }
         isStopping = false
         idleRestoreTask?.cancel()
         holdScreenAfterPause = false
@@ -173,6 +227,7 @@ final class InterpretationViewModel {
             try await beginSpeechStream()
             sessionState = .listening
             holdScreenAfterPause = false
+            await task.setListening(true)
         } catch let error as DuiyiError {
             sessionState = .failed(error)
         } catch {
@@ -189,6 +244,8 @@ final class InterpretationViewModel {
         let wasListening = sessionState == .listening
         if wasListening {
             sessionState = .paused
+            await task.setListening(false)
+            await persistNow()
             if restoreIdleTimerAfterDelay {
                 holdScreenAfterPause = true
                 scheduleIdleRestore()
@@ -395,6 +452,7 @@ final class InterpretationViewModel {
     }
 
     func requestSummary() async {
+        summaryAvailability = await summarizer.availability()
         guard canSummarize else {
             summaryError = DuiyiError.summaryEmpty.userMessage(for: targetLanguage)
             isSummaryPresented = true
@@ -404,14 +462,21 @@ final class InterpretationViewModel {
         isSummaryPresented = true
         isSummarizing = true
         summaryError = nil
-        do {
-            summary = try await summarizer.summarize(entries: transcript, outputLanguage: targetLanguage)
-        } catch let error as DuiyiError {
+        if summaryAvailability == .available {
+            do {
+                summary = try await summarizer.summarize(entries: transcript, outputLanguage: targetLanguage)
+                if let summary {
+                    await task.saveSummary(summary)
+                }
+            } catch let error as DuiyiError {
+                summary = nil
+                summaryError = error.userMessage(for: targetLanguage)
+            } catch {
+                summary = nil
+                summaryError = DuiyiError.summaryEmpty.userMessage(for: targetLanguage)
+            }
+        } else {
             summary = nil
-            summaryError = error.userMessage(for: targetLanguage)
-        } catch {
-            summary = nil
-            summaryError = DuiyiError.summaryEmpty.userMessage(for: targetLanguage)
         }
         isSummarizing = false
     }
@@ -534,6 +599,7 @@ final class InterpretationViewModel {
             )
             if settle {
                 transcript[index].isFinal = true
+                schedulePersist()
             }
         }
         collapseTranscriptRefinements()
@@ -740,6 +806,9 @@ final class InterpretationViewModel {
                     transcript[index].translatedText = line.translatedText
                 }
                 transcript[index].isFinal = line.phase == .settled
+                if line.phase == .settled {
+                    schedulePersist()
+                }
                 return
             }
         }
@@ -760,6 +829,9 @@ final class InterpretationViewModel {
             }
             updated.isFinal = line.phase == .settled
             transcript[transcript.count - 1] = updated
+            if line.phase == .settled {
+                schedulePersist()
+            }
             return
         }
         transcript.append(
@@ -776,6 +848,9 @@ final class InterpretationViewModel {
             transcript.removeFirst(transcript.count - InterpretationLayout.historyLimit)
         }
         collapseTranscriptRefinements()
+        if line.phase == .settled {
+            schedulePersist()
+        }
     }
 
     private func collapseTranscriptRefinements() {
@@ -816,7 +891,39 @@ final class InterpretationViewModel {
         holdScreenAfterPause = false
         idleRestoreTask?.cancel()
         pane.speakingHint = nil
+        await persistNow()
         await clearSpeechQueue()
+    }
+
+    private func restore(from session: TaskSession) {
+        transcript = session.entries
+        summary = session.summary
+        pane = .empty
+        for entry in session.entries {
+            pane.history.append(
+                CaptionLine(
+                    id: entry.id,
+                    side: .user,
+                    source: entry.source,
+                    sourceText: entry.sourceText,
+                    translatedText: entry.translatedText,
+                    phase: .settled
+                )
+            )
+        }
+    }
+
+    private func schedulePersist() {
+        persistTask?.cancel()
+        persistTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            await self?.persistNow()
+        }
+    }
+
+    private func persistNow() async {
+        await task.persist(transcript)
     }
 
     private func scheduleIdleRestore() {
