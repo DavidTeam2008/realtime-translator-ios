@@ -122,8 +122,8 @@ struct InterpretationViewModelTests {
         #expect(viewModel.voiceOutBlockedMessage != nil)
     }
 
-    @Test("Speech queue keeps the newest two pending clauses")
-    func speechQueueCapIsTwo() async throws {
+    @Test("Speech queue keeps every settled sentence in order")
+    func speechQueueKeepsAllSettledSentences() async throws {
         let synthesizer = MockSpeechSynthesizer()
         synthesizer.holdsUntilReleased = true
         let viewModel = makeViewModel(synthesizer: synthesizer)
@@ -146,7 +146,7 @@ struct InterpretationViewModelTests {
 
         try await Task.sleep(for: .milliseconds(30))
         #expect(synthesizer.spoken.first == "一。")
-        #expect(viewModel.pendingSpeechCount == 2)
+        #expect(viewModel.pendingSpeechCount == 3)
 
         synthesizer.release()
         try await Task.sleep(for: .milliseconds(30))
@@ -154,9 +154,81 @@ struct InterpretationViewModelTests {
         try await Task.sleep(for: .milliseconds(30))
         synthesizer.release()
         try await Task.sleep(for: .milliseconds(30))
-        #expect(synthesizer.spoken.contains("二。") == false)
-        #expect(synthesizer.spoken.contains("三。"))
-        #expect(synthesizer.spoken.contains("四。"))
+        #expect(synthesizer.spoken == ["一。", "二。", "三。", "四。"])
+    }
+
+    @Test("A short follow-up does not drop a longer sentence still waiting to be spoken")
+    func shortFollowUpDoesNotDropLongSpeech() async throws {
+        let synthesizer = MockSpeechSynthesizer()
+        synthesizer.holdsUntilReleased = true
+        let viewModel = makeViewModel(synthesizer: synthesizer)
+        await viewModel.setVoiceOutEnabled(true)
+
+        let cafe = Utterance(language: .english, text: "Okay I agree to wait at the station", isFinal: true)
+        viewModel.accept(cafe)
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: cafe.id,
+                source: .english,
+                target: .zhHans,
+                text: cafe.text,
+                isFinal: true
+            ),
+            text: "好吧，我同意在车站等大家，然后我们都会在电影前去一家咖啡馆。"
+        )
+        let okay = Utterance(language: .english, text: "Okay.", isFinal: true)
+        viewModel.accept(okay)
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: okay.id,
+                source: .english,
+                target: .zhHans,
+                text: okay.text,
+                isFinal: true
+            ),
+            text: "好的。"
+        )
+
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(synthesizer.spoken == ["好吧，我同意在车站等大家，然后我们都会在电影前去一家咖啡馆。"])
+        #expect(viewModel.pendingSpeechCount == 1)
+
+        synthesizer.release()
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(synthesizer.spoken.contains("好的。"))
+    }
+
+    @Test("A short follow-up on the same utterance id still speaks the longer sentence")
+    func shortRewriteOnSameIDDoesNotCancelLongSpeech() async throws {
+        let synthesizer = MockSpeechSynthesizer()
+        let viewModel = makeViewModel(synthesizer: synthesizer, speechSettleDelay: .milliseconds(80))
+        await viewModel.setVoiceOutEnabled(true)
+
+        let id = UUID()
+        viewModel.accept(Utterance(id: id, language: .english, text: "Okay I agree to wait at the station", isFinal: true))
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: id,
+                source: .english,
+                target: .zhHans,
+                text: "Okay I agree to wait at the station",
+                isFinal: true
+            ),
+            text: "好吧，我同意在车站等大家，然后我们都会在电影前去一家咖啡馆。"
+        )
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: id,
+                source: .english,
+                target: .zhHans,
+                text: "Okay.",
+                isFinal: true
+            ),
+            text: "好的。"
+        )
+
+        try await Task.sleep(for: .milliseconds(160))
+        #expect(synthesizer.spoken.contains { $0.contains("车站等大家") })
     }
 
     @Test("A fuller translation does not re-speak the already-read head")

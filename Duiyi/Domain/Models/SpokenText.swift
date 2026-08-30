@@ -6,8 +6,15 @@ enum SpokenText {
         let previousText = normalized(previous)
         guard !incomingText.isEmpty, !previousText.isEmpty else { return false }
         if incomingText == previousText { return true }
-        if incomingText.hasPrefix(previousText) || previousText.hasPrefix(incomingText) {
+        if incomingText.hasPrefix(previousText) {
             return true
+        }
+        if previousText.hasPrefix(incomingText) {
+            let minimum = max(
+                minimumStemLength(for: language),
+                Int((Double(previousText.count) * 0.55).rounded(.up))
+            )
+            return incomingText.count >= minimum
         }
         if incomingText.contains(previousText), previousText.count >= minimumStemLength(for: language) {
             return true
@@ -44,17 +51,23 @@ enum SpokenText {
         let previousText = compact(previous)
         guard !incomingText.isEmpty, !previousText.isEmpty else { return false }
         if incomingText == previousText { return true }
-        if incomingText.hasPrefix(previousText) || previousText.hasPrefix(incomingText) {
+        if incomingText.hasPrefix(previousText) {
             return true
         }
-        if incomingText.contains(previousText) || previousText.contains(incomingText) {
+        if previousText.hasPrefix(incomingText) {
+            return incomingText.count >= max(8, Int((Double(previousText.count) * 0.55).rounded(.up)))
+        }
+        if incomingText.contains(previousText), previousText.count >= 8 {
+            return true
+        }
+        if previousText.contains(incomingText), incomingText.count >= max(8, Int((Double(previousText.count) * 0.55).rounded(.up))) {
             return true
         }
         let shorter = min(incomingText.count, previousText.count)
         let longer = max(incomingText.count, previousText.count)
         guard shorter >= 4 else { return false }
         let lcs = longestCommonSubsequenceCount(incomingText, previousText)
-        if Double(lcs) / Double(shorter) >= 0.82 {
+        if shorter >= 8, Double(lcs) / Double(shorter) >= 0.82 {
             return true
         }
         let shared = zip(incomingText, previousText).prefix { $0 == $1 }.count
@@ -97,6 +110,18 @@ enum SpokenText {
 
     static func normalized(_ text: String) -> String {
         compact(text)
+    }
+
+    /// Only replace a scheduled reading when the new text is the same sentence growing or revised,
+    /// never when a short follow-up would discard a longer sentence still waiting to be spoken.
+    static func shouldReplaceScheduledSpeech(_ current: String, with incoming: String) -> Bool {
+        if incoming.isEmpty { return false }
+        if current.isEmpty { return true }
+        if covers(incoming, of: current) { return true }
+        if isRefinement(incoming, of: current), compact(incoming).count >= compact(current).count {
+            return true
+        }
+        return false
     }
 
     static func containsCompact(_ haystack: String, clause: String) -> Bool {

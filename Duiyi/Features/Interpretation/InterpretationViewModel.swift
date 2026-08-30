@@ -44,9 +44,8 @@ final class InterpretationViewModel {
     private var pendingJobs: [SynthesisJob] = []
     private var isSpeaking = false
     private var speechGeneration = 0
-    private var speechDebounce: Task<Void, Never>?
-    private var lastScheduledTranslation = ""
-    private var pendingSpeechUtterance: UUID?
+    private var speechDebounces: [UUID: Task<Void, Never>] = [:]
+    private var pendingSettledSpeech: [UUID: String] = [:]
     private let idleRestoreDelay: Duration
     private let speechSettleDelay: Duration
 
@@ -212,9 +211,7 @@ final class InterpretationViewModel {
         spokenPrefixes.removeAll()
         lastSpokenTranslation = ""
         spokenCompactTail = ""
-        lastScheduledTranslation = ""
-        pendingSpeechUtterance = nil
-        speechDebounce?.cancel()
+        cancelSpeechDebounces()
         summary = nil
         summaryError = nil
         Task { await clearSpeechQueue() }
@@ -476,9 +473,7 @@ final class InterpretationViewModel {
         spokenPrefixes.removeAll()
         lastSpokenTranslation = ""
         spokenCompactTail = ""
-        lastScheduledTranslation = ""
-        pendingSpeechUtterance = nil
-        speechDebounce?.cancel()
+        cancelSpeechDebounces()
         if sessionState == .listening || sessionState == .paused {
             sessionState = .ready
         }
@@ -559,22 +554,40 @@ final class InterpretationViewModel {
     private func scheduleSpeech(utteranceID: UUID, translated: String, settle: Bool) {
         guard voiceOutEnabled, canSpeakWithoutEcho else { return }
         guard settle else { return }
-        let replacesPending = pendingSpeechUtterance == utteranceID
-            || SpokenText.isRefinement(translated, of: lastScheduledTranslation)
-        lastScheduledTranslation = translated
-        pendingSpeechUtterance = utteranceID
+        let slot = speechSlot(for: utteranceID, translated: translated)
+        pendingSettledSpeech[slot] = translated
         if speechSettleDelay <= .zero {
             enqueueSpokenClauses(utteranceID: utteranceID, translated: translated, settle: true)
+            pendingSettledSpeech[slot] = nil
             return
         }
-        if replacesPending {
-            speechDebounce?.cancel()
-        }
-        speechDebounce = Task { [weak self] in
+        speechDebounces[slot]?.cancel()
+        speechDebounces[slot] = Task { [weak self] in
             try? await Task.sleep(for: self?.speechSettleDelay ?? .milliseconds(380))
             guard !Task.isCancelled else { return }
-            self?.enqueueSpokenClauses(utteranceID: utteranceID, translated: translated, settle: true)
+            guard let text = self?.pendingSettledSpeech[slot] else { return }
+            self?.pendingSettledSpeech[slot] = nil
+            self?.speechDebounces[slot] = nil
+            self?.enqueueSpokenClauses(utteranceID: utteranceID, translated: text, settle: true)
         }
+    }
+
+    private func speechSlot(for utteranceID: UUID, translated: String) -> UUID {
+        if let existing = pendingSettledSpeech[utteranceID] {
+            if SpokenText.shouldReplaceScheduledSpeech(existing, with: translated) {
+                return utteranceID
+            }
+            return UUID()
+        }
+        if let match = pendingSettledSpeech.first(where: {
+            SpokenText.shouldReplaceScheduledSpeech($0.value, with: translated)
+        }) {
+            speechDebounces[match.key]?.cancel()
+            speechDebounces[match.key] = nil
+            pendingSettledSpeech[match.key] = nil
+            return match.key
+        }
+        return utteranceID
     }
 
     private func enqueueSpokenClauses(utteranceID: UUID, translated: String, settle: Bool) {
@@ -596,20 +609,28 @@ final class InterpretationViewModel {
             lastSpokenTranslation = prefix
         }
         guard !clauses.isEmpty else { return }
-        let alreadyHeard = alreadySpoken + spokenCompactTail
+        let queuedCompact = pendingJobs.map { SpokenText.compact($0.text) }.joined()
+        let alreadyHeard = alreadySpoken + spokenCompactTail + queuedCompact
         let fresh = clauses.filter { clause in
             !SpokenText.containsCompact(alreadyHeard, clause: clause.text)
         }
         guard !fresh.isEmpty else { return }
         for clause in fresh {
             pendingJobs.append(SynthesisJob(clause: clause))
-            rememberSpoken(clause.text)
         }
-        let keep = max(fresh.count, InterpretationLayout.speechQueueLimit)
-        while pendingJobs.count > keep {
-            pendingJobs.removeFirst()
-        }
+        dropSurplusShortConfirmations()
         pumpSpeech()
+    }
+
+    private func dropSurplusShortConfirmations() {
+        while pendingJobs.count > InterpretationLayout.speechQueueLimit {
+            guard let index = pendingJobs.firstIndex(where: {
+                SpokenText.compact($0.text).count <= InterpretationLayout.speechShortConfirmationLimit
+            }) else {
+                break
+            }
+            pendingJobs.remove(at: index)
+        }
     }
 
     private func rememberSpoken(_ text: String) {
@@ -625,6 +646,7 @@ final class InterpretationViewModel {
         guard let next = pendingJobs.first else { return }
         pendingJobs.removeFirst()
         isSpeaking = true
+        rememberSpoken(next.text)
         let generation = speechGeneration
         speakTask = Task { [weak self] in
             guard let self, !Task.isCancelled, generation == self.speechGeneration else { return }
@@ -635,12 +657,17 @@ final class InterpretationViewModel {
         }
     }
 
+    private func cancelSpeechDebounces() {
+        for task in speechDebounces.values {
+            task.cancel()
+        }
+        speechDebounces.removeAll()
+        pendingSettledSpeech.removeAll()
+    }
+
     private func clearSpeechQueue() async {
         speechGeneration += 1
-        speechDebounce?.cancel()
-        speechDebounce = nil
-        lastScheduledTranslation = ""
-        pendingSpeechUtterance = nil
+        cancelSpeechDebounces()
         speakTask?.cancel()
         speakTask = nil
         pendingJobs.removeAll()

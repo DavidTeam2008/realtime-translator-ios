@@ -41,6 +41,35 @@ struct SpokenTextTests {
         )
     }
 
+    @Test("A short follow-up does not replace a longer scheduled sentence")
+    func shortFollowUpDoesNotReplaceScheduledSpeech() {
+        let cafe = "好吧，我同意在车站等大家，然后我们都会在电影前去一家咖啡馆。"
+        #expect(!SpokenText.shouldReplaceScheduledSpeech(cafe, with: "好的。"))
+        #expect(
+            SpokenText.shouldReplaceScheduledSpeech(
+                "好吧，我们错过了一部叫《幸运》的电影",
+                with: "好吧，我们错过了一部叫《幸运的日子》的电影，我想看"
+            )
+        )
+    }
+
+    @Test("A short confirmation is not the same sentence as a longer remark")
+    func shortConfirmationIsNotARefinement() {
+        #expect(
+            !SpokenText.isContinuation(
+                "Okay.",
+                of: "Okay I agree to wait at the station",
+                language: .english
+            )
+        )
+        #expect(
+            !SpokenText.isRefinement(
+                "Great.",
+                of: "Okay I agree to wait at the station"
+            )
+        )
+    }
+
     @Test("Growing movie-title translations are the same sentence")
     func movieTitleFragmentsAreRefinements() {
         #expect(

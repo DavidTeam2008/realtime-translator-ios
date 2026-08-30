@@ -23,7 +23,8 @@ struct SynthesisJob: Equatable, Sendable, Identifiable {
 
 enum InterpretationLayout {
     static let historyLimit = 50
-    static let speechQueueLimit = 2
+    static let speechQueueLimit = 10
+    static let speechShortConfirmationLimit = 4
 }
 
 enum ClauseSplitter {
