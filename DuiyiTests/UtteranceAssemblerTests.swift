@@ -110,6 +110,24 @@ struct UtteranceAssemblerTests {
         #expect(second?.isFinal == false)
     }
 
+    @Test("A rewritten movie title after a premature final keeps the same utterance id")
+    func refinementAfterFinalKeepsIdentity() {
+        var assembler = UtteranceAssembler()
+        let first = assembler.ingest(
+            language: .english,
+            text: "Well we missed a movie called Lucky",
+            isFinal: true
+        )
+        assembler.acknowledgeFinal(language: .english)
+        let second = assembler.ingest(
+            language: .english,
+            text: "Well we missed a movie called Lucky Days I want to see but another movie called The Ship is out this week",
+            isFinal: false
+        )
+        #expect(first?.id == second?.id)
+        #expect(second?.text.contains("Lucky Days") == true)
+    }
+
     @Test("A new sentence after a final gets a new utterance id")
     func unrelatedSentenceAfterFinalGetsNewIdentity() {
         var assembler = UtteranceAssembler()

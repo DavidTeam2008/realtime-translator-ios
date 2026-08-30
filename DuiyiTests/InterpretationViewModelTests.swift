@@ -236,6 +236,48 @@ struct InterpretationViewModelTests {
         #expect(synthesizer.spoken.joined().contains("当我开始这份工作时"))
     }
 
+    @Test("Prepended words do not cause the already-read date clause to be spoken again")
+    func prependedTranslationSkipsAlreadyReadClause() async throws {
+        let synthesizer = MockSpeechSynthesizer()
+        let viewModel = makeViewModel(synthesizer: synthesizer)
+        await viewModel.setVoiceOutEnabled(true)
+
+        let first = Utterance(language: .english, text: "that was March 18th", isFinal: true)
+        viewModel.accept(first)
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: first.id,
+                source: .english,
+                target: .zhHans,
+                text: first.text,
+                isFinal: true
+            ),
+            text: "那是3月18日"
+        )
+        try await Task.sleep(for: .milliseconds(30))
+        #expect(synthesizer.spoken == ["那是3月18日"])
+
+        let second = Utterance(
+            language: .english,
+            text: "Yes, that was March 18th, but they changed it to the 15th.",
+            isFinal: true
+        )
+        viewModel.accept(second)
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: second.id,
+                source: .english,
+                target: .zhHans,
+                text: second.text,
+                isFinal: true
+            ),
+            text: "是的，那是 3月18日，但他们把它改成了 15日。"
+        )
+        try await Task.sleep(for: .milliseconds(40))
+        #expect(synthesizer.spoken.filter { $0.contains("3月18日") }.count == 1)
+        #expect(synthesizer.spoken.joined().contains("改成了"))
+    }
+
     @Test("An unmatched partial on a new id does not make the next sentence re-read the head")
     func unmatchedPartialDoesNotWipeSpokenPrefix() async throws {
         let synthesizer = MockSpeechSynthesizer()
@@ -385,10 +427,192 @@ struct InterpretationViewModelTests {
         #expect(viewModel.pane.live?.sourceText == "Hello")
     }
 
+    @Test("Growing translations of the same sentence do not stack duplicate captions")
+    func growingMovieCaptionDoesNotStackDuplicates() {
+        let viewModel = makeViewModel()
+        let fragments = [
+            "好吧，我们已经",
+            "好吧，我们错过了一部叫《幸运》的电影",
+            "好吧，我们错过了一部叫《幸运日》的电影，它",
+            "好吧，我们错过了一部叫《幸运的日子》的电影，我想看",
+            "好吧，我们错过了一部叫《幸运的日子》的电影，我想看，但另一部叫《船》的电影本周上映。"
+        ]
+        let id = UUID()
+        for (index, chinese) in fragments.enumerated() {
+            let source = String(repeating: "Well we missed a movie ", count: index + 1)
+            viewModel.accept(
+                Utterance(id: id, language: .english, text: source, isFinal: index == fragments.count - 1)
+            )
+            viewModel.fulfill(
+                job: TranslationJob(
+                    utteranceID: id,
+                    source: .english,
+                    target: .zhHans,
+                    text: source,
+                    isFinal: index == fragments.count - 1
+                ),
+                text: chinese
+            )
+        }
+        #expect(viewModel.pane.history.isEmpty)
+        #expect(viewModel.pane.live?.translatedText.contains("幸运的日子") == true)
+        #expect(viewModel.pane.live?.translatedText.contains("船") == true)
+        let movieMentions = ([viewModel.pane.live?.translatedText].compactMap { $0 } + viewModel.pane.history.map(\.translatedText))
+            .filter { $0.contains("幸运") }
+        #expect(movieMentions.count == 1)
+    }
+
+    @Test("Movie-title revisions on new utterance ids still become one caption")
+    func movieRevisionsOnNewIdsCollapseToOneCaption() {
+        let viewModel = makeViewModel()
+        let fragments = [
+            "好吧，我们已经",
+            "好吧，我们错过了一部叫《幸运》的电影",
+            "好吧，我们错过了一部叫《幸运日》的电影，它",
+            "好吧，我们错过了一部叫《幸运的日子》的电影，我想看",
+            "好吧，我们错过了一部叫《幸运的日子》的电影，我想看，但另一部叫《船》的电影就在这上面",
+            "好吧，我们错过了一部叫《幸运的日子》的电影，我想看，但另一部叫《船》的电影本周上映。"
+        ]
+        for (index, chinese) in fragments.enumerated() {
+            let source: String
+            switch index {
+            case 0:
+                source = "Well we already"
+            case 1:
+                source = "Well we missed a movie called Lucky"
+            case 2:
+                source = "Okay we missed a film called Lucky Day it"
+            case 3:
+                source = "Well we missed a movie called Lucky Days I want to see"
+            case 4:
+                source = "Well we missed a movie called Lucky Days I want to see but another movie called The Ship is just on top"
+            default:
+                source = "Well we missed a movie called Lucky Days I want to see but another movie called The Ship is released this week"
+            }
+            let utterance = Utterance(language: .english, text: source, isFinal: index == fragments.count - 1)
+            viewModel.accept(utterance)
+            viewModel.fulfill(
+                job: TranslationJob(
+                    utteranceID: utterance.id,
+                    source: .english,
+                    target: .zhHans,
+                    text: source,
+                    isFinal: index == fragments.count - 1
+                ),
+                text: chinese
+            )
+        }
+        #expect(viewModel.pane.history.isEmpty)
+        #expect(viewModel.pane.live?.translatedText.contains("幸运的日子") == true)
+        #expect(viewModel.pane.live?.translatedText.contains("本周上映") == true)
+        let movieMentions = ([viewModel.pane.live?.translatedText].compactMap { $0 } + viewModel.pane.history.map(\.translatedText))
+            .filter { $0.contains("幸运") }
+        #expect(movieMentions.count == 1)
+    }
+
+    @Test("Settled refinements wait and are spoken once")
+    func settledRefinementsSpeakOnce() async throws {
+        let synthesizer = MockSpeechSynthesizer()
+        let viewModel = makeViewModel(synthesizer: synthesizer, speechSettleDelay: .milliseconds(80))
+        await viewModel.setVoiceOutEnabled(true)
+
+        let fragments = [
+            "好吧，我们错过了一部叫《幸运》的电影",
+            "好吧，我们错过了一部叫《幸运的日子》的电影，我想看",
+            "好吧，我们错过了一部叫《幸运的日子》的电影，我想看，但另一部叫《船》的电影本周上映。"
+        ]
+        let id = UUID()
+        for (index, chinese) in fragments.enumerated() {
+            let source = String(repeating: "Well we missed a movie ", count: index + 1)
+            viewModel.accept(Utterance(id: id, language: .english, text: source, isFinal: true))
+            viewModel.fulfill(
+                job: TranslationJob(
+                    utteranceID: id,
+                    source: .english,
+                    target: .zhHans,
+                    text: source,
+                    isFinal: true
+                ),
+                text: chinese
+            )
+        }
+
+        try await Task.sleep(for: .milliseconds(140))
+        #expect(synthesizer.spoken.count == 1)
+        #expect(synthesizer.spoken[0].contains("幸运的日子"))
+        #expect(synthesizer.spoken[0].contains("船"))
+        #expect(synthesizer.spoken.filter { $0.contains("我们错过了一部叫") }.count == 1)
+    }
+
+    @Test("A second greeting is not dropped from captions")
+    func secondGreetingStaysVisible() {
+        let viewModel = makeViewModel()
+        let jack = Utterance(language: .english, text: "Hi, Jack", isFinal: true)
+        viewModel.accept(jack)
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: jack.id,
+                source: .english,
+                target: .zhHans,
+                text: jack.text,
+                isFinal: true
+            ),
+            text: "嗨，Jack"
+        )
+        let lucy = Utterance(language: .english, text: "Hi, Lucy", isFinal: true)
+        viewModel.accept(lucy)
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: lucy.id,
+                source: .english,
+                target: .zhHans,
+                text: lucy.text,
+                isFinal: true
+            ),
+            text: "嗨，Lucy"
+        )
+        let captions = ([viewModel.pane.live?.translatedText].compactMap { $0 } + viewModel.pane.history.map(\.translatedText))
+            .joined(separator: " ")
+        #expect(captions.contains("Jack"))
+        #expect(captions.contains("Lucy"))
+    }
+
+    @Test("A longer restatement of the same greeting keeps one caption")
+    func concatenatedGreetingsStayOneCaption() {
+        let viewModel = makeViewModel()
+        let id = UUID()
+        viewModel.accept(Utterance(id: id, language: .english, text: "Hi, Jack", isFinal: false))
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: id,
+                source: .english,
+                target: .zhHans,
+                text: "Hi, Jack",
+                isFinal: false
+            ),
+            text: "嗨，Jack"
+        )
+        viewModel.accept(Utterance(id: id, language: .english, text: "Hi, Jack Hi, Lucy", isFinal: true))
+        viewModel.fulfill(
+            job: TranslationJob(
+                utteranceID: id,
+                source: .english,
+                target: .zhHans,
+                text: "Hi, Jack Hi, Lucy",
+                isFinal: true
+            ),
+            text: "嗨，Jack。嗨，Lucy"
+        )
+        #expect(viewModel.pane.history.isEmpty)
+        #expect(viewModel.pane.live?.translatedText.contains("Jack") == true)
+        #expect(viewModel.pane.live?.translatedText.contains("Lucy") == true)
+    }
+
     private func makeViewModel(
         speech: any SpeechRecognizing = MockSpeechEngine(),
         audioSession: MockAudioSession = MockAudioSession(),
-        synthesizer: MockSpeechSynthesizer = MockSpeechSynthesizer()
+        synthesizer: MockSpeechSynthesizer = MockSpeechSynthesizer(),
+        speechSettleDelay: Duration = .milliseconds(0)
     ) -> InterpretationViewModel {
         let preferences = PreferencesStore(defaults: UserDefaults(suiteName: UUID().uuidString) ?? .standard)
         preferences.sourceLanguage = .english
@@ -400,7 +624,8 @@ struct InterpretationViewModelTests {
             preferences: preferences,
             summarizer: MockSummarizer(),
             audioSession: audioSession,
-            synthesizer: synthesizer
+            synthesizer: synthesizer,
+            speechSettleDelay: speechSettleDelay
         )
     }
 }

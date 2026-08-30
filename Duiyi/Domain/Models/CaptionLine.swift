@@ -57,30 +57,24 @@ struct PaneState: Equatable, Sendable {
     mutating func applyLive(_ line: CaptionLine) {
         if live?.id == line.id || shouldMerge(line, into: live) {
             mergeLive(line)
-            if let live {
-                dropPrefixHistory(of: live)
-            }
-            return
+        } else {
+            archiveLive()
+            live = line
         }
-        dropPrefixHistory(of: line)
-        archiveLive()
-        live = line
-        dropPrefixHistory(of: line)
+        absorbRefinementHistory()
     }
 
-    mutating func applyTranslation(utteranceID: UUID, text: String, settle: Bool) {
+    @discardableResult
+    mutating func applyTranslation(utteranceID: UUID, text: String, settle: Bool) -> Bool {
         if live?.id == utteranceID {
-            live?.translatedText = text
-            if settle {
-                live?.phase = .settled
-            }
-            return
+            applyTranslationText(toLive: text, settle: settle)
+            absorbRefinementHistory()
+            return true
         }
-        guard let index = history.firstIndex(where: { $0.id == utteranceID }) else { return }
-        history[index].translatedText = text
-        if settle {
-            history[index].phase = .settled
-        }
+        guard let index = history.firstIndex(where: { $0.id == utteranceID }) else { return false }
+        applyTranslationText(toHistory: index, text: text, settle: settle)
+        absorbRefinementHistory()
+        return true
     }
 
     mutating func archiveLive() {
@@ -127,10 +121,37 @@ struct PaneState: Equatable, Sendable {
         live = current
     }
 
-    private mutating func dropPrefixHistory(of line: CaptionLine) {
-        while let last = history.last, shouldMerge(line, into: last) {
+    private mutating func applyTranslationText(toLive text: String, settle: Bool) {
+        guard var current = live else { return }
+        current.translatedText = SpokenText.preferredTranslation(current.translatedText, text)
+        if settle {
+            current.phase = .settled
+        }
+        live = current
+    }
+
+    private mutating func applyTranslationText(toHistory index: Int, text: String, settle: Bool) {
+        history[index].translatedText = SpokenText.preferredTranslation(history[index].translatedText, text)
+        if settle {
+            history[index].phase = .settled
+        }
+    }
+
+    private mutating func absorbRefinementHistory() {
+        guard var current = live else { return }
+        while let last = history.last, shouldCollapse(last, into: current) {
+            current.sourceText = SpokenText.preferredSource(last.sourceText, current.sourceText)
+            current.translatedText = SpokenText.preferredTranslation(
+                last.translatedText,
+                current.translatedText
+            )
+            if last.phase == .settled, current.phase != .settled {
+                current.phase = .settled
+            }
+            current.updatedAt = max(last.updatedAt, current.updatedAt)
             history.removeLast()
         }
+        live = current
     }
 
     private func shouldMerge(_ line: CaptionLine, into existing: CaptionLine?) -> Bool {
@@ -138,5 +159,16 @@ struct PaneState: Equatable, Sendable {
             return false
         }
         return SpokenText.isContinuation(line.sourceText, of: existing.sourceText, language: line.source)
+            || SpokenText.isRefinement(line.displayText, of: existing.displayText)
+            || SpokenText.isRefinement(line.sourceText, of: existing.sourceText)
+    }
+
+    private func shouldCollapse(_ older: CaptionLine, into newer: CaptionLine) -> Bool {
+        guard older.source == newer.source, older.side == newer.side else {
+            return false
+        }
+        return shouldMerge(newer, into: older)
+            || SpokenText.isRefinement(newer.displayText, of: older.displayText)
+            || SpokenText.isRefinement(newer.sourceText, of: older.sourceText)
     }
 }

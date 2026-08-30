@@ -325,7 +325,9 @@ struct InterpretationView: View {
 
     private var liveIsSettled: Bool {
         if viewModel.errorText != nil { return true }
-        if viewModel.pane.speakingHint != nil { return false }
+        if viewModel.pane.live?.translatedText.isEmpty ?? true, viewModel.pane.speakingHint != nil {
+            return false
+        }
         return viewModel.pane.live?.phase == .settled && !(viewModel.pane.live?.translatedText.isEmpty ?? true)
     }
 
@@ -333,20 +335,23 @@ struct InterpretationView: View {
         if let errorText = viewModel.errorText {
             return errorText
         }
+        if let live = viewModel.pane.live, !live.translatedText.isEmpty {
+            return live.translatedText
+        }
+        if let live = viewModel.pane.live, !live.sourceText.isEmpty {
+            return live.sourceText
+        }
         if let hint = viewModel.pane.speakingHint {
             return hint
-        }
-        if let live = viewModel.pane.live {
-            if live.translatedText.isEmpty {
-                return live.sourceText
-            }
-            return live.translatedText
         }
         return idlePrompt
     }
 
     private var liveIsSecondary: Bool {
         if viewModel.errorText != nil { return false }
+        if let live = viewModel.pane.live, !live.translatedText.isEmpty {
+            return live.phase == .streaming
+        }
         if viewModel.pane.speakingHint != nil { return true }
         if let live = viewModel.pane.live {
             return live.phase == .streaming || live.translatedText.isEmpty

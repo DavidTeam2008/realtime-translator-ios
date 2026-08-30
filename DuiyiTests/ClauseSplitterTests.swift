@@ -140,15 +140,38 @@ struct ClauseSplitterTests {
         #expect(!result.clauses.map(\.text).joined().contains("和其他人一样"))
     }
 
-    @Test("A stem in the middle of a new sentence is not treated as already spoken")
-    func doesNotCarryWhenStemIsOnlyInTheMiddle() {
+    @Test("A stem in the middle of a revised sentence is skipped")
+    func middleStemIsSkippedWhenTranslationPrependsWords() {
         #expect(
-            !ClauseSplitter.shouldCarry(
-                "和其他人一样",
-                into: "我觉得和其他人一样，所以才来。",
+            ClauseSplitter.shouldCarry(
+                "那是3月18日",
+                into: "是的，那是 3月18日，但他们把它改成了 15日。",
                 language: .zhHans
             )
         )
+        let result = ClauseSplitter.consume(
+            translated: "是的，那是 3月18日，但他们把它改成了 15日。",
+            utteranceID: UUID(),
+            language: .zhHans,
+            alreadySpoken: "那是3月18日",
+            isSettled: true
+        )
+        let spoken = result.clauses.map(\.text).joined()
+        #expect(!spoken.contains("3月18日"))
+        #expect(spoken.contains("改成了"))
+        #expect(spoken.contains("15日"))
+    }
+
+    @Test("A short filler in front of an already-read clause is not spoken")
+    func shortPrependedFillerIsNotSpoken() {
+        let spoken = ClauseSplitter.unspokenSuffix(
+            speakable: "是的，那是 3月18日，但他们把它改成了 15日。",
+            alreadySpoken: "那是3月18日",
+            language: .zhHans
+        )
+        #expect(!spoken.contains("是的"))
+        #expect(!spoken.contains("3月18日"))
+        #expect(spoken.contains("但他们把它改成了"))
     }
 
     @Test("Streaming text without punctuation keeps the carried prefix")
@@ -167,13 +190,67 @@ struct ClauseSplitterTests {
     @Test("A fullwidth colon is a clause boundary")
     func fullwidthColonReleasesClause() {
         let result = ClauseSplitter.consume(
-            translated: "他说：今天我们先去清水寺",
+            translated: "他说：今天我们先去清水寺，还有别的安排",
             utteranceID: UUID(),
             language: .zhHans,
             alreadySpoken: "",
             isSettled: false
         )
-        #expect(result.clauses.map(\.text) == ["他说："])
-        #expect(result.spokenPrefix == "他说：")
+        #expect(result.clauses.map(\.text) == ["他说：", "今天我们先去清水寺，"])
+        #expect(result.spokenPrefix.hasSuffix("清水寺，"))
+    }
+
+    @Test("A short punctuated filler is not spoken until the clause is long enough")
+    func shortVolatileFillerIsSilent() {
+        let result = ClauseSplitter.consume(
+            translated: "好吧。我们错过了一部叫《幸运的日子》的电影",
+            utteranceID: UUID(),
+            language: .zhHans,
+            alreadySpoken: "",
+            isSettled: false
+        )
+        #expect(result.clauses.isEmpty)
+    }
+
+    @Test("A later movie-title restatement does not repeat the already-read clause")
+    func movieTitleRestatementSkipsSpokenClause() {
+        let first = ClauseSplitter.consume(
+            translated: "我们错过了一部叫《幸运的日子》的电影",
+            utteranceID: UUID(),
+            language: .zhHans,
+            alreadySpoken: "",
+            isSettled: true
+        )
+        let second = ClauseSplitter.consume(
+            translated: "好吧。我们错过了一部叫《幸运的日子》的电影，但一部叫《船》的电影本周上映。",
+            utteranceID: UUID(),
+            language: .zhHans,
+            alreadySpoken: first.spokenPrefix,
+            isSettled: true
+        )
+        let spoken = second.clauses.map(\.text).joined()
+        #expect(!spoken.contains("幸运的日子"))
+        #expect(spoken.contains("船"))
+    }
+
+    @Test("An inserted movie title does not re-speak the already-read stem")
+    func insertedMovieTitleSpeaksOnlyTheNewTail() {
+        let first = ClauseSplitter.consume(
+            translated: "好吧，我们错过了一部叫《幸运》的电影",
+            utteranceID: UUID(),
+            language: .zhHans,
+            alreadySpoken: "",
+            isSettled: true
+        )
+        let second = ClauseSplitter.consume(
+            translated: "好吧，我们错过了一部叫《幸运的日子》的电影，我想看，但另一部叫《船》的电影本周上映。",
+            utteranceID: UUID(),
+            language: .zhHans,
+            alreadySpoken: first.spokenPrefix,
+            isSettled: true
+        )
+        let spoken = second.clauses.map(\.text).joined()
+        #expect(!spoken.contains("我们错过了一部叫"))
+        #expect(spoken.contains("船") || spoken.contains("我想看"))
     }
 }

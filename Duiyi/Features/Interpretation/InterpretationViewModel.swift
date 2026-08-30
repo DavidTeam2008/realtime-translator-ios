@@ -40,10 +40,15 @@ final class InterpretationViewModel {
     private var utteranceAliases: [UUID: UUID] = [:]
     private var spokenPrefixes: [UUID: String] = [:]
     private var lastSpokenTranslation = ""
+    private var spokenCompactTail = ""
     private var pendingJobs: [SynthesisJob] = []
     private var isSpeaking = false
     private var speechGeneration = 0
+    private var speechDebounce: Task<Void, Never>?
+    private var lastScheduledTranslation = ""
+    private var pendingSpeechUtterance: UUID?
     private let idleRestoreDelay: Duration
+    private let speechSettleDelay: Duration
 
     init(
         speech: any SpeechRecognizing,
@@ -52,7 +57,8 @@ final class InterpretationViewModel {
         summarizer: any ConversationSummarizing,
         audioSession: any AudioSessionConfiguring,
         synthesizer: any SpeechSynthesizing,
-        idleRestoreDelay: Duration = .seconds(ConversationLayout.idleRestoreSeconds)
+        idleRestoreDelay: Duration = .seconds(ConversationLayout.idleRestoreSeconds),
+        speechSettleDelay: Duration = .milliseconds(380)
     ) {
         self.speech = speech
         self.permissions = permissions
@@ -61,6 +67,7 @@ final class InterpretationViewModel {
         self.audioSession = audioSession
         self.synthesizer = synthesizer
         self.idleRestoreDelay = idleRestoreDelay
+        self.speechSettleDelay = speechSettleDelay
         sourceLanguage = preferences.sourceLanguage
         targetLanguage = preferences.targetLanguage
         fontSize = preferences.fontSize
@@ -204,6 +211,10 @@ final class InterpretationViewModel {
         utteranceAliases.removeAll()
         spokenPrefixes.removeAll()
         lastSpokenTranslation = ""
+        spokenCompactTail = ""
+        lastScheduledTranslation = ""
+        pendingSpeechUtterance = nil
+        speechDebounce?.cancel()
         summary = nil
         summaryError = nil
         Task { await clearSpeechQueue() }
@@ -319,7 +330,8 @@ final class InterpretationViewModel {
         let captionID: UUID
         let carriedTranslation: String
         if let existing, existing.source == utterance.language,
-           SpokenText.isContinuation(utterance.text, of: existing.sourceText, language: utterance.language) {
+           SpokenText.isContinuation(text, of: existing.sourceText, language: utterance.language)
+            || SpokenText.isRefinement(text, of: existing.sourceText) {
             captionID = existing.id
             carriedTranslation = existing.translatedText
             utteranceAliases[utterance.id] = existing.id
@@ -332,7 +344,7 @@ final class InterpretationViewModel {
             id: captionID,
             side: .user,
             source: utterance.language,
-            sourceText: utterance.text,
+            sourceText: text,
             translatedText: carriedTranslation,
             phase: utterance.isFinal ? .settled : .streaming
         )
@@ -345,13 +357,19 @@ final class InterpretationViewModel {
     func fulfill(job: TranslationJob, text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        if !job.isFinal, let applied = lastAppliedSourceCount[canonicalID(job.utteranceID)], applied > job.text.count {
+        let utteranceID = canonicalID(job.utteranceID)
+        if let applied = lastAppliedSourceCount[utteranceID], applied > job.text.count {
             return
         }
-        let utteranceID = canonicalID(job.utteranceID)
         lastAppliedSourceCount[utteranceID] = max(lastAppliedSourceCount[utteranceID] ?? 0, job.text.count)
-        applyTranslation(utteranceID: utteranceID, text: trimmed, settle: job.isFinal)
-        enqueueSpokenClauses(utteranceID: utteranceID, translated: trimmed, settle: job.isFinal)
+        let appliedCaption = applyTranslation(utteranceID: utteranceID, text: trimmed, settle: job.isFinal)
+        if appliedCaption {
+            scheduleSpeech(
+                utteranceID: utteranceID,
+                translated: displayedTranslation(for: utteranceID) ?? trimmed,
+                settle: job.isFinal
+            )
+        }
         if outboundJob?.id == job.id {
             outboundJob = nil
         }
@@ -457,6 +475,10 @@ final class InterpretationViewModel {
         utteranceAliases.removeAll()
         spokenPrefixes.removeAll()
         lastSpokenTranslation = ""
+        spokenCompactTail = ""
+        lastScheduledTranslation = ""
+        pendingSpeechUtterance = nil
+        speechDebounce?.cancel()
         if sessionState == .listening || sessionState == .paused {
             sessionState = .ready
         }
@@ -497,14 +519,32 @@ final class InterpretationViewModel {
         }
     }
 
-    private func applyTranslation(utteranceID: UUID, text: String, settle: Bool) {
-        pane.applyTranslation(utteranceID: utteranceID, text: text, settle: settle)
+    @discardableResult
+    private func applyTranslation(utteranceID: UUID, text: String, settle: Bool) -> Bool {
+        let applied = pane.applyTranslation(utteranceID: utteranceID, text: text, settle: settle)
         if let index = transcript.firstIndex(where: { $0.id == utteranceID }) {
-            transcript[index].translatedText = text
+            transcript[index].translatedText = SpokenText.preferredTranslation(
+                transcript[index].translatedText,
+                text
+            )
             if settle {
                 transcript[index].isFinal = true
             }
         }
+        collapseTranscriptRefinements()
+        return applied
+    }
+
+    private func displayedTranslation(for utteranceID: UUID) -> String? {
+        if pane.live?.id == utteranceID {
+            let text = pane.live?.translatedText.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return text.isEmpty ? nil : text
+        }
+        if let line = pane.history.first(where: { $0.id == utteranceID }) {
+            let text = line.translatedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : text
+        }
+        return nil
     }
 
     private func translationDelayMilliseconds(isFirst: Bool) -> UInt64 {
@@ -514,6 +554,27 @@ final class InterpretationViewModel {
         return isFirst
             ? ConversationLayout.firstTranslationDebounceMilliseconds
             : ConversationLayout.translationDebounceMilliseconds
+    }
+
+    private func scheduleSpeech(utteranceID: UUID, translated: String, settle: Bool) {
+        guard voiceOutEnabled, canSpeakWithoutEcho else { return }
+        guard settle else { return }
+        let replacesPending = pendingSpeechUtterance == utteranceID
+            || SpokenText.isRefinement(translated, of: lastScheduledTranslation)
+        lastScheduledTranslation = translated
+        pendingSpeechUtterance = utteranceID
+        if speechSettleDelay <= .zero {
+            enqueueSpokenClauses(utteranceID: utteranceID, translated: translated, settle: true)
+            return
+        }
+        if replacesPending {
+            speechDebounce?.cancel()
+        }
+        speechDebounce = Task { [weak self] in
+            try? await Task.sleep(for: self?.speechSettleDelay ?? .milliseconds(380))
+            guard !Task.isCancelled else { return }
+            self?.enqueueSpokenClauses(utteranceID: utteranceID, translated: translated, settle: true)
+        }
     }
 
     private func enqueueSpokenClauses(utteranceID: UUID, translated: String, settle: Bool) {
@@ -535,14 +596,28 @@ final class InterpretationViewModel {
             lastSpokenTranslation = prefix
         }
         guard !clauses.isEmpty else { return }
-        for clause in clauses {
-            pendingJobs.append(SynthesisJob(clause: clause))
+        let alreadyHeard = alreadySpoken + spokenCompactTail
+        let fresh = clauses.filter { clause in
+            !SpokenText.containsCompact(alreadyHeard, clause: clause.text)
         }
-        let keep = max(clauses.count, InterpretationLayout.speechQueueLimit)
+        guard !fresh.isEmpty else { return }
+        for clause in fresh {
+            pendingJobs.append(SynthesisJob(clause: clause))
+            rememberSpoken(clause.text)
+        }
+        let keep = max(fresh.count, InterpretationLayout.speechQueueLimit)
         while pendingJobs.count > keep {
             pendingJobs.removeFirst()
         }
         pumpSpeech()
+    }
+
+    private func rememberSpoken(_ text: String) {
+        spokenCompactTail += SpokenText.compact(text)
+        let limit = 280
+        if spokenCompactTail.count > limit {
+            spokenCompactTail.removeFirst(spokenCompactTail.count - limit)
+        }
     }
 
     private func pumpSpeech() {
@@ -562,6 +637,10 @@ final class InterpretationViewModel {
 
     private func clearSpeechQueue() async {
         speechGeneration += 1
+        speechDebounce?.cancel()
+        speechDebounce = nil
+        lastScheduledTranslation = ""
+        pendingSpeechUtterance = nil
         speakTask?.cancel()
         speakTask = nil
         pendingJobs.removeAll()
@@ -617,7 +696,9 @@ final class InterpretationViewModel {
             return
         }
         if let last = transcript.last,
-           SpokenText.isContinuation(line.sourceText, of: last.sourceText, language: line.source) {
+           SpokenText.isContinuation(line.sourceText, of: last.sourceText, language: line.source)
+            || SpokenText.isRefinement(line.sourceText, of: last.sourceText)
+            || SpokenText.isRefinement(line.displayText, of: last.translatedText.isEmpty ? last.sourceText : last.translatedText) {
             var updated = last
             updated.sourceText = SpokenText.preferredSource(last.sourceText, line.sourceText)
             if !line.translatedText.isEmpty {
@@ -639,6 +720,27 @@ final class InterpretationViewModel {
         )
         if transcript.count > InterpretationLayout.historyLimit {
             transcript.removeFirst(transcript.count - InterpretationLayout.historyLimit)
+        }
+        collapseTranscriptRefinements()
+    }
+
+    private func collapseTranscriptRefinements() {
+        while transcript.count >= 2 {
+            let last = transcript[transcript.count - 1]
+            let prior = transcript[transcript.count - 2]
+            let related = SpokenText.isContinuation(last.sourceText, of: prior.sourceText, language: last.source)
+                || SpokenText.isRefinement(last.sourceText, of: prior.sourceText)
+                || SpokenText.isRefinement(last.translatedText, of: prior.translatedText)
+            guard related else { break }
+            var merged = last
+            merged.sourceText = SpokenText.preferredSource(prior.sourceText, last.sourceText)
+            merged.translatedText = SpokenText.preferredTranslation(
+                prior.translatedText,
+                last.translatedText
+            )
+            merged.isFinal = prior.isFinal || last.isFinal
+            transcript.removeLast()
+            transcript[transcript.count - 1] = merged
         }
     }
 
