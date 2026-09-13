@@ -34,14 +34,20 @@ final class SwiftDataTaskStore: TaskStore {
         return ((try? context.fetch(descriptor)) ?? []).compactMap(TaskMapping.session(from:))
     }
 
-    func startNew(feature: FeatureID, source: AppLanguage, target: AppLanguage?) async throws -> TaskSession {
+    func startNew(
+        feature: FeatureID,
+        source: AppLanguage,
+        target: AppLanguage?,
+        multilingual: Bool
+    ) async throws -> TaskSession {
         let startedAt = Date()
         let title = TaskTitle.make(
             feature: feature,
             source: source,
             target: target,
             startedAt: startedAt,
-            language: target ?? source
+            language: target ?? source,
+            multilingual: multilingual
         )
         let entity = TaskEntity(
             id: UUID(),

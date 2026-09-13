@@ -28,7 +28,10 @@ struct TranscriptExportService: ExportSharing {
             let target = task.targetLanguage ?? task.sourceLanguage.defaultPeer
             direction = "\(task.sourceLanguage.nativeName) → \(target.nativeName)"
         case .meeting:
-            direction = task.sourceLanguage.nativeName
+            let spoken = Set(task.entries.map(\.source))
+            direction = spoken.count > 1
+                ? Copy.meetingMultilingual(for: language)
+                : (spoken.first?.nativeName ?? task.sourceLanguage.nativeName)
         }
 
         var blocks = [
@@ -42,9 +45,10 @@ struct TranscriptExportService: ExportSharing {
             blocks.append("—")
         } else {
             for entry in task.entries {
+                let prefix = task.feature == .meeting ? "[\(entry.source.nativeName)] " : ""
                 let line = entry.translatedText.isEmpty
-                    ? entry.sourceText
-                    : "\(entry.sourceText)\n→ \(entry.translatedText)"
+                    ? "\(prefix)\(entry.sourceText)"
+                    : "\(prefix)\(entry.sourceText)\n→ \(entry.translatedText)"
                 blocks.append(line)
             }
         }

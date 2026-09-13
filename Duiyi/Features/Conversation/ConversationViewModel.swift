@@ -185,7 +185,8 @@ final class ConversationViewModel {
             try await audioSession.activate(.faceToFace)
             let stream = try await speech.start(
                 languages: [userLanguage, peerLanguage],
-                fallbackLanguage: peerLanguage
+                fallbackLanguage: peerLanguage,
+                style: .liveCaptions
             )
             sessionState = .listening
             holdScreenAfterPause = false

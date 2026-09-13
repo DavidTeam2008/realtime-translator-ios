@@ -16,6 +16,7 @@ final class PreferencesStore {
         static let voiceOut = "duiyi.voiceOutEnabled"
         static let showsSource = "duiyi.showsSourceLine"
         static let meetingLanguage = "duiyi.meetingLanguage"
+        static let meetingMultilingual = "duiyi.meetingMultilingual.v2"
     }
 
     private let defaults: UserDefaults
@@ -66,6 +67,10 @@ final class PreferencesStore {
 
     var meetingLanguage: AppLanguage {
         didSet { defaults.set(meetingLanguage.rawValue, forKey: Key.meetingLanguage) }
+    }
+
+    var meetingRecognizesMultipleLanguages: Bool {
+        didSet { defaults.set(meetingRecognizesMultipleLanguages, forKey: Key.meetingMultilingual) }
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -125,6 +130,11 @@ final class PreferencesStore {
             meetingLanguage = language
         } else {
             meetingLanguage = resolvedUser
+        }
+        if defaults.object(forKey: Key.meetingMultilingual) == nil {
+            meetingRecognizesMultipleLanguages = false
+        } else {
+            meetingRecognizesMultipleLanguages = defaults.bool(forKey: Key.meetingMultilingual)
         }
     }
 }

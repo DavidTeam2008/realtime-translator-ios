@@ -7,7 +7,7 @@ struct TaskStoreTests {
     @Test("Ending a task with captions writes history")
     func endWritesHistory() async throws {
         let store = InMemoryTaskStore()
-        let session = try await store.startNew(feature: .simultaneous, source: .english, target: .zhHans)
+        let session = try await store.startNew(feature: .simultaneous, source: .english, target: .zhHans, multilingual: false)
         await store.append(
             taskID: session.id,
             entries: [
@@ -31,7 +31,7 @@ struct TaskStoreTests {
     @Test("Deleting one task leaves the other")
     func deleteDoesNotAffectOther() async throws {
         let store = InMemoryTaskStore()
-        let first = try await store.startNew(feature: .faceToFace, source: .zhHans, target: .english)
+        let first = try await store.startNew(feature: .faceToFace, source: .zhHans, target: .english, multilingual: false)
         await store.append(
             taskID: first.id,
             entries: [
@@ -46,7 +46,7 @@ struct TaskStoreTests {
             ]
         )
         _ = try await store.end(taskID: first.id, summary: nil)
-        let second = try await store.startNew(feature: .meeting, source: .zhHans, target: nil)
+        let second = try await store.startNew(feature: .meeting, source: .zhHans, target: nil, multilingual: true)
         await store.append(
             taskID: second.id,
             entries: [
@@ -70,7 +70,7 @@ struct TaskStoreTests {
     @Test("Unfinished tasks survive as running")
     func unfinishedStayActive() async throws {
         let store = InMemoryTaskStore()
-        let session = try await store.startNew(feature: .faceToFace, source: .zhHans, target: .english)
+        let session = try await store.startNew(feature: .faceToFace, source: .zhHans, target: .english, multilingual: false)
         let active = await store.activeTask(for: .faceToFace)
         #expect(active?.id == session.id)
         #expect(active?.status == .running)

@@ -17,7 +17,12 @@ final class InMemoryTaskStore: TaskStore {
             .sorted { $0.startedAt > $1.startedAt }
     }
 
-    func startNew(feature: FeatureID, source: AppLanguage, target: AppLanguage?) async throws -> TaskSession {
+    func startNew(
+        feature: FeatureID,
+        source: AppLanguage,
+        target: AppLanguage?,
+        multilingual: Bool
+    ) async throws -> TaskSession {
         let startedAt = Date()
         let session = TaskSession(
             id: UUID(),
@@ -30,7 +35,8 @@ final class InMemoryTaskStore: TaskStore {
                 source: source,
                 target: target,
                 startedAt: startedAt,
-                language: target ?? source
+                language: target ?? source,
+                multilingual: multilingual
             ),
             subtitle: nil,
             sourceLanguage: source,

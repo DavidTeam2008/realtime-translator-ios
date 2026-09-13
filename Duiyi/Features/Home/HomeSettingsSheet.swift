@@ -94,13 +94,21 @@ struct HomeSettingsSheet: View {
         redownloadError = nil
         isRedownloading = true
         speechProgress = 0
-        let languages = Array(Set([
+        let meetingLanguages = MeetingRecognition.languages(
+            multilingual: environment.preferences.meetingRecognizesMultipleLanguages,
+            pinned: environment.preferences.meetingLanguage,
+            display: environment.preferences.userLanguage
+        )
+        var seen = Set<AppLanguage>()
+        var languages: [AppLanguage] = []
+        for language in [
             environment.preferences.userLanguage,
             environment.preferences.peerLanguage,
             environment.preferences.sourceLanguage,
-            environment.preferences.targetLanguage,
-            environment.preferences.meetingLanguage
-        ]))
+            environment.preferences.targetLanguage
+        ] + meetingLanguages where seen.insert(language).inserted {
+            languages.append(language)
+        }
         do {
             try await environment.speechModels.prepare(languages: languages) { value in
                 Task { @MainActor in

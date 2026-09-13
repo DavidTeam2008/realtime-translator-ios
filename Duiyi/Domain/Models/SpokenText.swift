@@ -231,4 +231,39 @@ enum SpokenText {
         }
         return previous[second.count]
     }
+
+    /// ASR often repeats a short phrase once ("你们你们"). Keep a single copy.
+    static func collapseStutteredRepeats(_ text: String) -> String {
+        guard text.count >= 4 else { return text }
+        var output = ""
+        var index = text.startIndex
+        while index < text.endIndex {
+            var didCollapse = false
+            let remaining = text.distance(from: index, to: text.endIndex)
+            if remaining >= 4 {
+                for length in (2...min(4, remaining / 2)).reversed() {
+                    guard let mid = text.index(index, offsetBy: length, limitedBy: text.endIndex),
+                          let end = text.index(mid, offsetBy: length, limitedBy: text.endIndex)
+                    else { continue }
+                    let first = text[index..<mid]
+                    let second = text[mid..<end]
+                    guard first == second else { continue }
+                    guard first.contains(where: isNonLatinLetter) else { continue }
+                    output.append(contentsOf: first)
+                    index = end
+                    didCollapse = true
+                    break
+                }
+            }
+            if !didCollapse {
+                output.append(text[index])
+                index = text.index(after: index)
+            }
+        }
+        return output
+    }
+
+    private static func isNonLatinLetter(_ character: Character) -> Bool {
+        character.isLetter && character.unicodeScalars.contains { $0.value > 127 }
+    }
 }

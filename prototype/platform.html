@@ -301,7 +301,7 @@
           <div class="cards">
             <button class="mod f2f" type="button" onclick="go('f2f')"><b>面对面</b><small>两人隔桌，字幕打到各自一侧</small></button>
             <button class="mod si" type="button" onclick="go('si')"><b>同声传译</b><small>听现场，看或听译文</small></button>
-            <button class="mod meet" type="button" onclick="go('meet')"><b>会议记录</b><small>把一场会记成完整文字稿</small></button>
+            <button class="mod meet" type="button" onclick="go('meet')"><b>会议记录</b><small>把一场会记成完整文字稿，可识别多种语言</small></button>
             <button class="mod si" type="button" onclick="go('history')" style="background:#23262f"><b>任务历史</b><small>都保存在这台 iPhone 上</small></button>
           </div>
         `,
@@ -329,10 +329,10 @@
         meet: `
           ${chrome("会议记录")}${taskBar("meet")}
           <div class="pane">
-            <div class="pill">中文 · 全文稿</div>
-            <div class="live">接下来把预算确认一下，本周内发给设计组。</div>
-            <p class="hist">上午先过了一遍时间表，下午讨论票务。</p>
-            <p class="hist">大家同意六点在车站集合，电影前去咖啡馆。</p>
+            <div class="pill">多种语言 · 全文稿</div>
+            <div class="live">ZH 接下来把预算确认一下，本周内发给设计组。</div>
+            <p class="hist">EN I can send it this week.</p>
+            <p class="hist">ZH 大家同意六点在车站集合。</p>
           </div>
           <div class="mid">
             <button class="mic ${state.listening ? "" : "off"}" ${state.task === "meet" ? "" : "disabled"} onclick="toggleListen()">记</button>
@@ -389,7 +389,7 @@
 
     function endTask() {
       if (!state.task) return;
-      const labels = { f2f: "面对面 · 中文 ↔ 英语", si: "同声传译 · 英语 → 中文", meet: "会议 · 中文" };
+      const labels = { f2f: "面对面 · 中文 ↔ 英语", si: "同声传译 · 英语 → 中文", meet: "会议 · 多种语言" };
       state.history.unshift({
         id: Date.now(),
         kind: state.task,
@@ -440,7 +440,7 @@
     document.getElementById("p-meet").innerHTML = staticPhone(`
       <div class="navrow"><span></span><span>会议记录</span><span style="color:var(--gold);font-size:13px">历史</span></div>
       <div class="taskbar"><span class="caps on">进行中 · 42 分钟</span><span class="textbtn danger">结束任务</span></div>
-      <div class="pane"><div class="pill">中文</div><div class="live">本周内把预算发给设计组。</div><p class="hist">上午过了时间表。</p></div>
+      <div class="pane"><div class="pill">多种语言</div><div class="live">ZH 本周内把预算发给设计组。</div><p class="hist">EN I can send it this week.</p></div>
       <div class="mid"><button class="mic" type="button">记</button></div>
     `);
 

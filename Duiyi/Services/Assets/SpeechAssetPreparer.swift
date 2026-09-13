@@ -38,7 +38,7 @@ actor SpeechAssetPreparer: SpeechModelPreparing {
 
     private func makePlaceholderModules(for languages: [AppLanguage]) async throws -> [any SpeechModule] {
         var modules: [any SpeechModule] = []
-        for language in languages {
+        for language in unique(languages) {
             guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: language.locale) else {
                 throw DuiyiError.languageUnsupported
             }

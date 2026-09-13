@@ -38,7 +38,8 @@ enum TaskTitle {
         source: AppLanguage,
         target: AppLanguage?,
         startedAt: Date,
-        language: AppLanguage
+        language: AppLanguage,
+        multilingual: Bool = false
     ) -> String {
         let day = startedAt.formatted(
             Date.FormatStyle(date: .abbreviated, time: .omitted)
@@ -55,7 +56,10 @@ enum TaskTitle {
             let pair = target ?? source.defaultPeer
             return "\(day) \(module) · \(source.nativeName) → \(pair.nativeName)"
         case .meeting:
-            return "\(day) \(module) · \(source.nativeName)"
+            let label = multilingual
+                ? Copy.meetingMultilingual(for: language)
+                : source.nativeName
+            return "\(day) \(module) · \(label)"
         }
     }
 
@@ -77,6 +81,21 @@ enum MeetingLayout {
     static let transcriptCharacterLimit = 20_000
 }
 
+enum MeetingRecognition {
+    static func languages(
+        multilingual: Bool,
+        pinned: AppLanguage,
+        display: AppLanguage
+    ) -> [AppLanguage] {
+        guard multilingual else { return [pinned] }
+        let peer = display.defaultPeer
+        if peer == display {
+            return [display]
+        }
+        return [display, peer]
+    }
+}
+
 enum TaskStoreError: Error, Equatable, Sendable {
     case notFound
 }
@@ -85,7 +104,12 @@ enum TaskStoreError: Error, Equatable, Sendable {
 protocol TaskStore: AnyObject {
     func activeTask(for feature: FeatureID) async -> TaskSession?
     func unfinishedTasks() async -> [TaskSession]
-    func startNew(feature: FeatureID, source: AppLanguage, target: AppLanguage?) async throws -> TaskSession
+    func startNew(
+        feature: FeatureID,
+        source: AppLanguage,
+        target: AppLanguage?,
+        multilingual: Bool
+    ) async throws -> TaskSession
     func append(taskID: UUID, entries: [TranscriptEntry]) async
     func setStatus(taskID: UUID, status: TaskStatus) async
     func saveSummary(taskID: UUID, summary: ConversationSummary) async
@@ -123,9 +147,18 @@ final class TaskSessionController {
         return current
     }
 
-    func beginNew(source: AppLanguage, target: AppLanguage?) async -> TaskSession? {
+    func beginNew(
+        source: AppLanguage,
+        target: AppLanguage?,
+        multilingual: Bool = false
+    ) async -> TaskSession? {
         do {
-            let session = try await store.startNew(feature: feature, source: source, target: target)
+            let session = try await store.startNew(
+                feature: feature,
+                source: source,
+                target: target,
+                multilingual: multilingual
+            )
             current = session
             return session
         } catch {

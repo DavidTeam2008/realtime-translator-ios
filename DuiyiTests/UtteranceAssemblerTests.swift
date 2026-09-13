@@ -176,4 +176,30 @@ struct UtteranceAssemblerTests {
         let result = assembler.ingest(language: .vietnamese, text: "Tôi muốn cà phê", isFinal: false)
         #expect(result?.language == .vietnamese)
     }
+
+    @Test("A long Chinese hypothesis preempts English hallucination")
+    func longChinesePreemptsEnglishHallucination() {
+        var assembler = UtteranceAssembler()
+        _ = assembler.ingest(
+            language: .english,
+            text: "Then I want you to imagine a picture",
+            isFinal: false
+        )
+        let result = assembler.ingest(
+            language: .zhHans,
+            text: "在那时开始之前呢我想请大家想象一个画面假如你是一个穿着校服的高中生",
+            isFinal: false
+        )
+        #expect(result?.language == .zhHans)
+        #expect(result?.text.contains("想象") == true)
+    }
+
+    @Test("Han script is resolved as Chinese even if claimed English")
+    func resolvedLanguagePrefersMatchingScript() {
+        let language = UtteranceAssembler.resolvedLanguage(
+            claimed: .english,
+            text: "在那时开始之前呢，我想请大家想象一个画面"
+        )
+        #expect(language == .zhHans)
+    }
 }

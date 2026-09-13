@@ -19,16 +19,25 @@ actor BilingualSpeechEngine: SpeechRecognizing {
     private var usingDual = true
     private var pairLanguages: [AppLanguage] = [.zhHans, .english]
     private var singleLanguage: AppLanguage = .english
+    private var style: SpeechRecognitionStyle = .liveCaptions
 
     init(capturer: AudioCapturing = AudioEngineCapturer()) {
         self.capturer = capturer
     }
 
-    func start(languages: [AppLanguage], fallbackLanguage: AppLanguage) async throws -> AsyncStream<Utterance> {
+    func start(
+        languages: [AppLanguage],
+        fallbackLanguage: AppLanguage,
+        style: SpeechRecognitionStyle
+    ) async throws -> AsyncStream<Utterance> {
         await stop()
         assembler.reset()
         lastFinalSignature = nil
-        pairLanguages = Self.normalizedPair(languages: languages, fallback: fallbackLanguage)
+        self.style = style
+        let requested = Array(
+            Self.normalizedLanguages(languages: languages, fallback: fallbackLanguage).prefix(2)
+        )
+        pairLanguages = requested
         singleLanguage = fallbackLanguage
 
         let (stream, continuation) = AsyncStream<Utterance>.makeStream()
@@ -38,21 +47,9 @@ actor BilingualSpeechEngine: SpeechRecognizing {
         }
 
         do {
-            if pairLanguages.count >= 2 {
-                try await startDualPipeline()
-                usingDual = true
-            } else {
-                try await startSinglePipeline(language: pairLanguages.first ?? fallbackLanguage)
-                usingDual = false
-            }
+            try await startBestPipeline(languages: requested, fallback: fallbackLanguage)
         } catch {
-            if Self.isResourceLimit(error) {
-                DuiyiLog.speech.error("Dual transcribers unavailable, falling back to single locale")
-                try await startSinglePipeline(language: singleLanguage)
-                usingDual = false
-            } else {
-                throw error
-            }
+            throw error
         }
 
         return stream
@@ -77,6 +74,68 @@ actor BilingualSpeechEngine: SpeechRecognizing {
         converter = BufferConverter()
         utteranceContinuation?.finish()
         utteranceContinuation = nil
+        for locale in reservedLocales {
+            _ = await AssetInventory.release(reservedLocale: locale)
+        }
+        reservedLocales.removeAll()
+    }
+
+    private func startBestPipeline(languages: [AppLanguage], fallback: AppLanguage) async throws {
+        var remaining = languages
+        while !remaining.isEmpty {
+            do {
+                if remaining.count >= 2 {
+                    try await startMultiPipeline(languages: remaining)
+                    usingDual = true
+                    pairLanguages = Array(remaining.prefix(2))
+                    return
+                }
+                try await startSinglePipeline(language: remaining[0])
+                usingDual = false
+                return
+            } catch {
+                guard Self.isResourceLimit(error), remaining.count > 1 else {
+                    throw error
+                }
+                DuiyiLog.speech.error(
+                    "Locale set of \(remaining.count, privacy: .public) failed, dropping \(remaining.last?.rawValue ?? "", privacy: .public)"
+                )
+                remaining.removeLast()
+                await resetPipelineKeepingStream()
+            }
+        }
+        DuiyiLog.speech.error("Dual transcribers unavailable, falling back to single locale")
+        try await startSinglePipeline(language: fallback)
+        usingDual = false
+    }
+
+    private func startMultiPipeline(languages: [AppLanguage]) async throws {
+        let pair = Array(languages.prefix(2))
+        pairLanguages = pair
+        guard pair.count == 2 else {
+            try await startSinglePipeline(language: pair[0])
+            return
+        }
+        try await startDualPipeline()
+    }
+
+    private func resetPipelineKeepingStream() async {
+        silenceTask?.cancel()
+        silenceTask = nil
+        audioTask?.cancel()
+        audioTask = nil
+        for task in consumeTasks {
+            task.cancel()
+        }
+        consumeTasks.removeAll()
+        inputContinuation?.finish()
+        inputContinuation = nil
+        await capturer.stop()
+        if let analyzer {
+            await analyzer.cancelAndFinishNow()
+        }
+        analyzer = nil
+        converter = BufferConverter()
         for locale in reservedLocales {
             _ = await AssetInventory.release(reservedLocale: locale)
         }
@@ -129,7 +188,10 @@ actor BilingualSpeechEngine: SpeechRecognizing {
             throw DuiyiError.deviceIncapable
         }
         analyzerFormat = format
-        let analyzer = SpeechAnalyzer(modules: modules)
+        let options = style == .meetingNotes
+            ? SpeechAnalyzer.Options(priority: .userInitiated, modelRetention: .whileInUse)
+            : nil
+        let analyzer = SpeechAnalyzer(modules: modules, options: options)
         self.analyzer = analyzer
         try await analyzer.prepareToAnalyze(in: format)
 
@@ -269,10 +331,7 @@ actor BilingualSpeechEngine: SpeechRecognizing {
 
     private func restartSingle(language: AppLanguage) async {
         DuiyiLog.speech.info("Switching single transcriber to \(language.rawValue, privacy: .public)")
-        let continuation = utteranceContinuation
-        utteranceContinuation = nil
-        await stop()
-        utteranceContinuation = continuation
+        await resetPipelineKeepingStream()
         assembler.reset()
         do {
             try await startSinglePipeline(language: language)
@@ -318,7 +377,7 @@ actor BilingualSpeechEngine: SpeechRecognizing {
         return "\(utterance.language.rawValue)-\(filtered)"
     }
 
-    private static func normalizedPair(languages: [AppLanguage], fallback: AppLanguage) -> [AppLanguage] {
+    static func normalizedLanguages(languages: [AppLanguage], fallback: AppLanguage) -> [AppLanguage] {
         var unique: [AppLanguage] = []
         for language in languages where !unique.contains(language) {
             unique.append(language)
@@ -326,10 +385,7 @@ actor BilingualSpeechEngine: SpeechRecognizing {
         if unique.isEmpty {
             unique.append(fallback)
         }
-        if unique.count == 1, unique[0] != fallback {
-            unique.append(fallback)
-        }
-        return Array(unique.prefix(2))
+        return unique
     }
 
     private static func isResourceLimit(_ error: Error) -> Bool {

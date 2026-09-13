@@ -2,9 +2,14 @@ import Foundation
 import SwiftUI
 
 actor PreviewSpeechEngine: SpeechRecognizing {
-    func start(languages: [AppLanguage], fallbackLanguage: AppLanguage) async throws -> AsyncStream<Utterance> {
+    func start(
+        languages: [AppLanguage],
+        fallbackLanguage: AppLanguage,
+        style: SpeechRecognitionStyle
+    ) async throws -> AsyncStream<Utterance> {
         _ = languages
         _ = fallbackLanguage
+        _ = style
         return AsyncStream { continuation in
             continuation.finish()
         }

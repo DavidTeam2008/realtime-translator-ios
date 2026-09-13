@@ -2,11 +2,14 @@ import SwiftUI
 
 struct MeetingSettingsSheet: View {
     let language: AppLanguage
+    let recognizesMultipleLanguages: Bool
+    let sourceLanguage: AppLanguage
     let fontSize: CaptionFontSize
     let isRedownloading: Bool
     let speechProgress: Double
     let redownloadError: String?
     let canSummarize: Bool
+    let onSelectMultilingual: (Bool) -> Void
     let onSelectLanguage: (AppLanguage) -> Void
     let onSelectFont: (CaptionFontSize) -> Void
     let onClear: () -> Void
@@ -21,10 +24,27 @@ struct MeetingSettingsSheet: View {
                     .font(.headline)
                     .foregroundStyle(Tokens.textPrimary)
 
-                Text(Copy.meetingLanguage(for: language))
+                Text(Copy.meetingRecognitionMode(for: language))
                     .font(.footnote)
                     .foregroundStyle(Tokens.textSecondary)
-                LanguageChipGrid(selected: language, onSelect: onSelectLanguage)
+                HStack(spacing: 8) {
+                    chip(Copy.meetingMultilingual(for: language), selected: recognizesMultipleLanguages) {
+                        onSelectMultilingual(true)
+                    }
+                    chip(Copy.meetingSingleLanguage(for: language), selected: !recognizesMultipleLanguages) {
+                        onSelectMultilingual(false)
+                    }
+                }
+                Text(Copy.meetingMultilingualHint(for: language))
+                    .font(.footnote)
+                    .foregroundStyle(Tokens.textSecondary)
+
+                if !recognizesMultipleLanguages {
+                    Text(Copy.meetingLanguage(for: language))
+                        .font(.footnote)
+                        .foregroundStyle(Tokens.textSecondary)
+                    LanguageChipGrid(selected: sourceLanguage, onSelect: onSelectLanguage)
+                }
 
                 HStack(spacing: 8) {
                     chip(Copy.fontStandard(for: language), selected: fontSize == .standard) {

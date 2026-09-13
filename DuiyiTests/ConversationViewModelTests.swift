@@ -5,9 +5,14 @@ import Testing
 actor MockSpeechEngine: SpeechRecognizing {
     private var continuation: AsyncStream<Utterance>.Continuation?
 
-    func start(languages: [AppLanguage], fallbackLanguage: AppLanguage) async throws -> AsyncStream<Utterance> {
+    func start(
+        languages: [AppLanguage],
+        fallbackLanguage: AppLanguage,
+        style: SpeechRecognitionStyle
+    ) async throws -> AsyncStream<Utterance> {
         _ = languages
         _ = fallbackLanguage
+        _ = style
         let (stream, continuation) = AsyncStream<Utterance>.makeStream()
         self.continuation = continuation
         return stream
@@ -286,6 +291,25 @@ struct ConversationViewModelTests {
         #expect(viewModel.userLanguage == .zhHans)
         #expect(viewModel.userPane.live == nil)
         #expect(viewModel.peerPane.live == nil)
+    }
+
+    @Test("Face-to-face still starts exactly two locales")
+    func startUsesTwoLocales() async {
+        let speech = RecordingSpeechEngine()
+        let preferences = PreferencesStore(defaults: UserDefaults(suiteName: UUID().uuidString) ?? .standard)
+        preferences.userLanguage = .zhHans
+        preferences.peerLanguage = .english
+        preferences.autoStartListening = false
+        let viewModel = ConversationViewModel(
+            speech: speech,
+            permissions: MockPermissions(),
+            preferences: preferences,
+            summarizer: MockSummarizer()
+        )
+        await viewModel.beginTask()
+        await viewModel.start()
+        let started = await speech.startedLanguages
+        #expect(started == [.zhHans, .english])
     }
 
     @Test("Summary uses the on-device summarizer after a conversation")

@@ -12,6 +12,7 @@ final class MeetingViewModel {
 
     var sessionState: SessionState = .idle
     var sourceLanguage: AppLanguage
+    var recognizesMultipleLanguages: Bool
     var fontSize: CaptionFontSize
     var pane = PaneState.empty
     var isSettingsPresented = false
@@ -49,11 +50,25 @@ final class MeetingViewModel {
         self.task = TaskSessionController(feature: .meeting, store: taskStore)
         self.idleRestoreDelay = idleRestoreDelay
         sourceLanguage = preferences.meetingLanguage
+        recognizesMultipleLanguages = preferences.meetingRecognizesMultipleLanguages
         fontSize = preferences.fontSize
     }
 
     var hasActiveTask: Bool { task.hasActiveTask }
     var taskStartedAt: Date? { task.startedAt }
+    var displayLanguage: AppLanguage { preferences.userLanguage }
+
+    var recognitionLanguages: [AppLanguage] {
+        MeetingRecognition.languages(
+            multilingual: recognizesMultipleLanguages,
+            pinned: sourceLanguage,
+            display: displayLanguage
+        )
+    }
+
+    var recognitionKey: String {
+        recognitionLanguages.map(\.rawValue).joined(separator: "|")
+    }
 
     var canSummarize: Bool {
         transcript.contains { !$0.sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -65,26 +80,26 @@ final class MeetingViewModel {
 
     var controlLabel: String {
         if !hasActiveTask {
-            return Copy.needNewTask(for: sourceLanguage)
+            return Copy.needNewTask(for: displayLanguage)
         }
         switch sessionState {
         case .listening:
-            return Copy.recording(for: sourceLanguage)
+            return Copy.recording(for: displayLanguage)
         case .paused:
-            return Copy.paused(for: sourceLanguage)
+            return Copy.paused(for: displayLanguage)
         case .preparing:
-            return Copy.preparing(for: sourceLanguage)
+            return Copy.preparing(for: displayLanguage)
         case .ready, .idle, .failed:
-            return Copy.tapToStart(for: sourceLanguage)
+            return Copy.tapToStart(for: displayLanguage)
         }
     }
 
     var errorText: String? {
         if isLengthLimited {
-            return Copy.meetingTooLong(for: sourceLanguage)
+            return Copy.meetingTooLong(for: displayLanguage)
         }
         if case let .failed(error) = sessionState {
-            return error.userMessage(for: sourceLanguage)
+            return error.userMessage(for: displayLanguage)
         }
         return nil
     }
@@ -101,7 +116,8 @@ final class MeetingViewModel {
                 source: sourceLanguage,
                 target: nil,
                 startedAt: task.startedAt ?? .now,
-                language: sourceLanguage
+                language: displayLanguage,
+                multilingual: recognizesMultipleLanguages
             ),
             subtitle: TaskTitle.subtitle(from: transcript),
             sourceLanguage: sourceLanguage,
@@ -131,7 +147,11 @@ final class MeetingViewModel {
         }
         resetCaptions()
         isLengthLimited = false
-        _ = await task.beginNew(source: sourceLanguage, target: nil)
+        _ = await task.beginNew(
+            source: recognizesMultipleLanguages ? displayLanguage : sourceLanguage,
+            target: nil,
+            multilingual: recognizesMultipleLanguages
+        )
         sessionState = .ready
     }
 
@@ -171,8 +191,9 @@ final class MeetingViewModel {
         do {
             try await audioSession.activate(.interpretationCaptions)
             let stream = try await speech.start(
-                languages: [sourceLanguage],
-                fallbackLanguage: sourceLanguage
+                languages: recognitionLanguages,
+                fallbackLanguage: recognizesMultipleLanguages ? displayLanguage : sourceLanguage,
+                style: .meetingNotes
             )
             sessionState = .listening
             await task.setListening(true)
@@ -220,15 +241,24 @@ final class MeetingViewModel {
         isLengthLimited = false
     }
 
+    func setRecognizesMultipleLanguages(_ enabled: Bool) {
+        guard enabled != recognizesMultipleLanguages else { return }
+        recognizesMultipleLanguages = enabled
+        preferences.meetingRecognizesMultipleLanguages = enabled
+        pauseRecognitionForLanguageChange()
+    }
+
     func setSourceLanguage(_ language: AppLanguage) {
-        guard language != sourceLanguage else { return }
+        if !recognizesMultipleLanguages, language == sourceLanguage {
+            return
+        }
         sourceLanguage = language
         preferences.meetingLanguage = language
-        pane.archiveLive()
-        pane.speakingHint = nil
-        if sessionState == .listening || sessionState == .paused {
-            sessionState = .ready
+        if recognizesMultipleLanguages {
+            recognizesMultipleLanguages = false
+            preferences.meetingRecognizesMultipleLanguages = false
         }
+        pauseRecognitionForLanguageChange()
     }
 
     func setFontSize(_ size: CaptionFontSize) {
@@ -255,18 +285,24 @@ final class MeetingViewModel {
 
     func accept(_ utterance: Utterance) {
         guard hasActiveTask, !isLengthLimited else { return }
-        let text = utterance.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = SpokenText.collapseStutteredRepeats(
+            utterance.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
         guard !text.isEmpty else { return }
+        let spoken = UtteranceAssembler.resolvedLanguage(claimed: utterance.language, text: text)
+        if !recognizesMultipleLanguages, spoken != sourceLanguage {
+            return
+        }
 
         if utterance.isFinal {
             pane.speakingHint = nil
         } else {
-            pane.speakingHint = Copy.speaking(for: sourceLanguage)
+            pane.speakingHint = Copy.speaking(for: spoken)
         }
 
         let existing = pane.live
         let captionID: UUID
-        if let existing,
+        if let existing, existing.source == spoken,
            SpokenText.isDistinctGreeting(
             incomingSource: text,
             incomingDisplay: text,
@@ -275,7 +311,7 @@ final class MeetingViewModel {
            ) {
             captionID = UUID()
             utteranceAliases[utterance.id] = captionID
-        } else if let existing,
+        } else if let existing, existing.source == spoken,
                   SpokenText.isContinuation(text, of: existing.sourceText, language: existing.source)
                     || SpokenText.isRefinement(text, of: existing.sourceText) {
             captionID = existing.id
@@ -287,7 +323,7 @@ final class MeetingViewModel {
         let line = CaptionLine(
             id: captionID,
             side: .user,
-            source: sourceLanguage,
+            source: spoken,
             sourceText: text,
             translatedText: "",
             phase: utterance.isFinal ? .settled : .streaming
@@ -306,7 +342,7 @@ final class MeetingViewModel {
     func requestSummary() async {
         summaryAvailability = await summarizer.availability()
         guard canSummarize else {
-            summaryError = DuiyiError.summaryEmpty.userMessage(for: sourceLanguage)
+            summaryError = DuiyiError.summaryEmpty.userMessage(for: displayLanguage)
             isSummaryPresented = true
             return
         }
@@ -316,16 +352,16 @@ final class MeetingViewModel {
         summaryError = nil
         if summaryAvailability == .available {
             do {
-                summary = try await summarizer.summarize(entries: transcript, outputLanguage: sourceLanguage)
+                summary = try await summarizer.summarize(entries: transcript, outputLanguage: displayLanguage)
                 if let summary {
                     await task.saveSummary(summary)
                 }
             } catch let error as DuiyiError {
                 summary = nil
-                summaryError = error.userMessage(for: sourceLanguage)
+                summaryError = error.userMessage(for: displayLanguage)
             } catch {
                 summary = nil
-                summaryError = DuiyiError.summaryEmpty.userMessage(for: sourceLanguage)
+                summaryError = DuiyiError.summaryEmpty.userMessage(for: displayLanguage)
             }
         } else {
             summary = nil
@@ -353,11 +389,13 @@ final class MeetingViewModel {
 
     private func upsertTranscript(line: CaptionLine) {
         if let index = transcript.firstIndex(where: { $0.id == line.id }) {
+            transcript[index].source = line.source
             transcript[index].sourceText = SpokenText.preferredSource(transcript[index].sourceText, line.sourceText)
             transcript[index].isFinal = line.phase == .settled
             return
         }
         if let last = transcript.last,
+           last.source == line.source,
            SpokenText.isContinuation(line.sourceText, of: last.sourceText, language: line.source)
             || SpokenText.isRefinement(line.sourceText, of: last.sourceText) {
             var updated = last
@@ -393,6 +431,14 @@ final class MeetingViewModel {
 
     private func persistNow() async {
         await task.persist(transcript)
+    }
+
+    private func pauseRecognitionForLanguageChange() {
+        pane.archiveLive()
+        pane.speakingHint = nil
+        if sessionState == .listening || sessionState == .paused {
+            sessionState = .ready
+        }
     }
 
     private func handleStreamEnded() async {

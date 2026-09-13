@@ -101,6 +101,44 @@ struct PlatformTaskTests {
         #expect(url.pathExtension == "txt")
     }
 
+    @Test("Meeting export keeps each spoken language labeled")
+    func exportLabelsMeetingLanguages() {
+        let task = TaskSession(
+            id: UUID(),
+            feature: .meeting,
+            status: .ended,
+            startedAt: Date(),
+            endedAt: Date(),
+            title: "会议记录 · 多种语言",
+            subtitle: nil,
+            sourceLanguage: .zhHans,
+            targetLanguage: nil,
+            entries: [
+                TranscriptEntry(
+                    id: UUID(),
+                    speaker: .user,
+                    source: .zhHans,
+                    sourceText: "把预算确认一下。",
+                    translatedText: "",
+                    isFinal: true
+                ),
+                TranscriptEntry(
+                    id: UUID(),
+                    speaker: .user,
+                    source: .english,
+                    sourceText: "I can send it this week.",
+                    translatedText: "",
+                    isFinal: true
+                )
+            ],
+            summary: nil
+        )
+        let text = TranscriptExportService().render(task: task, language: .zhHans)
+        #expect(text.contains("多种语言"))
+        #expect(text.contains("[中文] 把预算确认一下。"))
+        #expect(text.contains("[English] I can send it this week."))
+    }
+
     private func makeConversation(store: InMemoryTaskStore = InMemoryTaskStore()) -> ConversationViewModel {
         let preferences = PreferencesStore(defaults: UserDefaults(suiteName: UUID().uuidString) ?? .standard)
         preferences.userLanguage = .zhHans

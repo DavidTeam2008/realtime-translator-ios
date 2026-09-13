@@ -504,7 +504,8 @@ final class InterpretationViewModel {
     private func beginSpeechStream() async throws {
         let stream = try await speech.start(
             languages: [sourceLanguage],
-            fallbackLanguage: sourceLanguage
+            fallbackLanguage: sourceLanguage,
+            style: .liveCaptions
         )
         speechTask?.cancel()
         speechTask = Task { [weak self] in

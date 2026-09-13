@@ -183,7 +183,25 @@ struct UtteranceAssembler: Equatable, Sendable {
         incumbentLanguage: AppLanguage
     ) -> Bool {
         guard isConfident(challenger, language: challengerLanguage) else { return false }
-        return !isConfident(incumbent, language: incumbentLanguage)
+        if !isConfident(incumbent, language: incumbentLanguage) {
+            return true
+        }
+        let challengerUnits = nativeUnits(challenger, language: challengerLanguage)
+        let incumbentUnits = nativeUnits(incumbent, language: incumbentLanguage)
+        return challengerUnits > incumbentUnits * 1.5 + 2
+    }
+
+    static func resolvedLanguage(claimed: AppLanguage, text: String) -> AppLanguage {
+        if matchesClaimedLanguage(text, claimed: claimed) {
+            return claimed
+        }
+        let matches = AppLanguage.allCases.filter { matchesClaimedLanguage(text, claimed: $0) }
+        if matches.count == 1 {
+            return matches[0]
+        }
+        return matches.max { lhs, rhs in
+            score(text, as: lhs) < score(text, as: rhs)
+        } ?? claimed
     }
 
     static func isConfident(_ text: String, language: AppLanguage) -> Bool {
@@ -307,11 +325,15 @@ struct UtteranceAssembler: Equatable, Sendable {
     }
 
     static func score(_ text: String, as language: AppLanguage) -> Double {
+        nativeUnits(text, language: language)
+    }
+
+    static func nativeUnits(_ text: String, language: AppLanguage) -> Double {
         switch language {
         case .zhHans:
             return Double(hanCount(text))
         case .english:
-            return Double(letterCount(text))
+            return Double(max(wordCount(text), letterCount(text) / 4))
         case .japanese:
             return Double(kanaCount(text) * 2 + hanCount(text))
         case .korean:
@@ -319,7 +341,7 @@ struct UtteranceAssembler: Equatable, Sendable {
         case .thai:
             return Double(thaiCount(text))
         case .vietnamese:
-            return Double(vietnameseMarkCount(text) * 3 + letterCount(text))
+            return Double(wordCount(text) + vietnameseMarkCount(text))
         }
     }
 

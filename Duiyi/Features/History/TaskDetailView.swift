@@ -56,8 +56,15 @@ struct TaskDetailView: View {
                             .foregroundStyle(Tokens.textSecondary)
                         ForEach(task.entries) { entry in
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(entry.sourceText)
-                                    .foregroundStyle(Tokens.textPrimary)
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    if task.feature == .meeting {
+                                        Text(entry.source.badge)
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(Tokens.languageBadge(entry.source))
+                                    }
+                                    Text(entry.sourceText)
+                                        .foregroundStyle(Tokens.textPrimary)
+                                }
                                 if !entry.translatedText.isEmpty {
                                     Text(entry.translatedText)
                                         .foregroundStyle(Tokens.textSecondary)
@@ -77,7 +84,7 @@ struct TaskDetailView: View {
                             .background(Tokens.listen, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
 
-                        if task.feature == .meeting, language != task.sourceLanguage {
+                        if task.feature == .meeting, needsTranslation(task) {
                             Button(Copy.translateToMine(for: language)) {
                                 startTranslation(for: task)
                             }
@@ -107,14 +114,15 @@ struct TaskDetailView: View {
         .background(Tokens.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .overlay {
-            if let task, let job = translateJob {
+            if let job = translateJob {
                 OneWayTranslationHostView(
-                    sourceLanguage: task.sourceLanguage,
+                    sourceLanguage: job.source,
                     targetLanguage: language,
                     job: job,
                     onSuccess: handleTranslated,
                     onFailure: { _, _ in advanceTranslation() }
                 )
+                .id("\(job.source.rawValue)-\(job.utteranceID)")
             }
         }
         .task {
@@ -140,6 +148,14 @@ struct TaskDetailView: View {
 
     private var canSummarize: Bool {
         task?.hasTranscript == true && !isSummarizing
+    }
+
+    private func needsTranslation(_ task: TaskSession) -> Bool {
+        task.entries.contains {
+            $0.source != language
+                && $0.translatedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !$0.sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     }
 
     private var availabilityBanner: some View {
@@ -182,7 +198,8 @@ struct TaskDetailView: View {
 
     private func startTranslation(for task: TaskSession) {
         pendingTranslate = task.entries.filter {
-            $0.translatedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            $0.source != language
+                && $0.translatedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 && !$0.sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         advanceTranslation()

@@ -11,22 +11,23 @@ struct MeetingView: View {
     @State private var redownloadError: String?
     @State private var confirmNewTask = false
     @State private var confirmEndTask = false
+    @State private var lastPreparedKey = ""
 
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
                 ModuleChrome(
-                    title: Copy.modeMeeting(for: viewModel.sourceLanguage),
-                    language: viewModel.sourceLanguage,
+                    title: Copy.modeMeeting(for: viewModel.displayLanguage),
+                    language: viewModel.displayLanguage,
                     onHome: { coordinator.popToHome() },
                     onHistory: { coordinator.open(.history) }
                 )
                 TaskBar(
-                    language: viewModel.sourceLanguage,
+                    language: viewModel.displayLanguage,
                     statusText: TaskStatusText.make(
                         hasTask: viewModel.hasActiveTask,
                         startedAt: viewModel.taskStartedAt,
-                        language: viewModel.sourceLanguage
+                        language: viewModel.displayLanguage
                     ),
                     isActive: viewModel.hasActiveTask,
                     onNewTask: { requestNewTask() },
@@ -42,9 +43,9 @@ struct MeetingView: View {
                 ListeningControl(
                     sessionState: viewModel.sessionState,
                     label: viewModel.controlLabel,
-                    swapLabel: Copy.meetingLanguage(for: viewModel.sourceLanguage),
-                    settingsLabel: Copy.settingsTitle(for: viewModel.sourceLanguage),
-                    settingsHint: Copy.settingsHint(for: viewModel.sourceLanguage),
+                    swapLabel: Copy.meetingLanguage(for: viewModel.displayLanguage),
+                    settingsLabel: Copy.settingsTitle(for: viewModel.displayLanguage),
+                    settingsHint: Copy.settingsHint(for: viewModel.displayLanguage),
                     isEnabled: viewModel.hasActiveTask && !viewModel.isLengthLimited,
                     showsSwap: false,
                     onTap: {
@@ -65,12 +66,19 @@ struct MeetingView: View {
 
             if viewModel.isSettingsPresented {
                 MeetingSettingsSheet(
-                    language: viewModel.sourceLanguage,
+                    language: viewModel.displayLanguage,
+                    recognizesMultipleLanguages: viewModel.recognizesMultipleLanguages,
+                    sourceLanguage: viewModel.sourceLanguage,
                     fontSize: viewModel.fontSize,
                     isRedownloading: isRedownloading,
                     speechProgress: speechProgress,
                     redownloadError: redownloadError,
                     canSummarize: viewModel.canSummarize,
+                    onSelectMultilingual: { enabled in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewModel.setRecognizesMultipleLanguages(enabled)
+                        }
+                    },
                     onSelectLanguage: { language in
                         withAnimation(.easeInOut(duration: 0.2)) {
                             viewModel.setSourceLanguage(language)
@@ -91,7 +99,7 @@ struct MeetingView: View {
 
             if viewModel.isSummaryPresented {
                 SummarySheet(
-                    language: viewModel.sourceLanguage,
+                    language: viewModel.displayLanguage,
                     availability: viewModel.summaryAvailability,
                     isLoading: viewModel.isSummarizing,
                     summary: viewModel.summary,
@@ -112,7 +120,15 @@ struct MeetingView: View {
         .ignoresSafeArea()
         .toolbar(.hidden, for: .navigationBar)
         .task { await viewModel.bootstrap() }
-        .onAppear { applyIdleTimer() }
+        .onAppear {
+            applyIdleTimer()
+            if lastPreparedKey.isEmpty {
+                lastPreparedKey = viewModel.recognitionKey
+            }
+        }
+        .onChange(of: viewModel.recognitionKey) { _, _ in
+            Task { await handleRecognitionChange() }
+        }
         .onChange(of: viewModel.keepsScreenAwake) { _, _ in applyIdleTimer() }
         .onChange(of: viewModel.sessionState) { _, _ in applyIdleTimer() }
         .onDisappear {
@@ -120,44 +136,64 @@ struct MeetingView: View {
             Task { await viewModel.stop(restoreIdleTimerAfterDelay: false) }
         }
         .confirmationDialog(
-            Copy.replaceTaskConfirm(for: viewModel.sourceLanguage),
+            Copy.replaceTaskConfirm(for: viewModel.displayLanguage),
             isPresented: $confirmNewTask,
             titleVisibility: .visible
         ) {
-            Button(Copy.newTask(for: viewModel.sourceLanguage)) {
+            Button(Copy.newTask(for: viewModel.displayLanguage)) {
                 Task { await viewModel.beginTask() }
             }
-            Button(Copy.cancel(for: viewModel.sourceLanguage), role: .cancel) {}
+            Button(Copy.cancel(for: viewModel.displayLanguage), role: .cancel) {}
         }
         .confirmationDialog(
-            Copy.endTaskConfirm(for: viewModel.sourceLanguage),
+            Copy.endTaskConfirm(for: viewModel.displayLanguage),
             isPresented: $confirmEndTask,
             titleVisibility: .visible
         ) {
-            Button(Copy.endTask(for: viewModel.sourceLanguage)) {
+            Button(Copy.endTask(for: viewModel.displayLanguage)) {
                 Task { await finishTask() }
             }
-            Button(Copy.cancel(for: viewModel.sourceLanguage), role: .cancel) {}
+            Button(Copy.cancel(for: viewModel.displayLanguage), role: .cancel) {}
         }
         .preferredColorScheme(.dark)
     }
 
     private var languageChip: some View {
-        HStack {
-            Text(viewModel.sourceLanguage.nativeName)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Tokens.languageBadge(viewModel.sourceLanguage))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .overlay(
-                    Capsule().stroke(Tokens.languageBadge(viewModel.sourceLanguage), lineWidth: 1)
-                )
-            Text(Copy.transcriptSection(for: viewModel.sourceLanguage))
-                .font(.caption)
-                .foregroundStyle(Tokens.textSecondary)
-            Spacer()
+        Button {
+            withAnimation(.easeOut(duration: 0.22)) {
+                viewModel.isSettingsPresented = true
+            }
+        } label: {
+            HStack {
+                Text(recognitionLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(recognitionColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .overlay(
+                        Capsule().stroke(recognitionColor, lineWidth: 1)
+                    )
+                Text(Copy.transcriptSection(for: viewModel.displayLanguage))
+                    .font(.caption)
+                    .foregroundStyle(Tokens.textSecondary)
+                Spacer()
+            }
         }
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
+        .accessibilityLabel(recognitionLabel)
+        .accessibilityHint(Copy.meetingRecognitionMode(for: viewModel.displayLanguage))
+    }
+
+    private var recognitionLabel: String {
+        viewModel.recognizesMultipleLanguages
+            ? Copy.meetingMultilingual(for: viewModel.displayLanguage)
+            : viewModel.sourceLanguage.nativeName
+    }
+
+    private var recognitionColor: Color {
+        viewModel.recognizesMultipleLanguages
+            ? Tokens.featureMeeting
+            : Tokens.languageBadge(viewModel.sourceLanguage)
     }
 
     private var transcriptColumn: some View {
@@ -165,16 +201,14 @@ struct MeetingView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(viewModel.pane.history) { line in
-                        Text(line.sourceText)
-                            .font(CaptionTypography.previousFont(size: viewModel.fontSize))
-                            .foregroundStyle(Tokens.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        transcriptLine(text: line.sourceText, language: line.source, live: false)
                     }
-                    Text(liveText)
-                        .font(CaptionTypography.liveFont(size: viewModel.fontSize, settled: liveIsSettled))
-                        .foregroundStyle(liveIsSecondary ? Tokens.textSecondary : Tokens.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .id("live")
+                    transcriptLine(
+                        text: liveText,
+                        language: viewModel.pane.live?.source,
+                        live: true
+                    )
+                    .id("live")
                 }
                 .padding(.horizontal, Tokens.horizontalPadding)
                 .padding(.bottom, 12)
@@ -198,9 +232,33 @@ struct MeetingView: View {
             return hint
         }
         if viewModel.hasActiveTask {
-            return Copy.interpretationIdle(for: viewModel.sourceLanguage)
+            return viewModel.recognizesMultipleLanguages
+                ? Copy.meetingMultilingualIdle(for: viewModel.displayLanguage)
+                : Copy.interpretationIdle(for: viewModel.displayLanguage)
         }
-        return Copy.needNewTask(for: viewModel.sourceLanguage)
+        return Copy.needNewTask(for: viewModel.displayLanguage)
+    }
+
+    @ViewBuilder
+    private func transcriptLine(text: String, language: AppLanguage?, live: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if let language, showsLanguageBadge {
+                Text(language.badge)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Tokens.languageBadge(language))
+                    .accessibilityLabel(language.nativeName)
+            }
+            Text(text)
+                .font(live
+                    ? CaptionTypography.liveFont(size: viewModel.fontSize, settled: liveIsSettled)
+                    : CaptionTypography.previousFont(size: viewModel.fontSize))
+                .foregroundStyle(live && !liveIsSecondary ? Tokens.textPrimary : Tokens.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var showsLanguageBadge: Bool {
+        viewModel.recognizesMultipleLanguages || viewModel.pane.history.contains { $0.source != viewModel.sourceLanguage }
     }
 
     private var liveIsSettled: Bool {
@@ -231,25 +289,40 @@ struct MeetingView: View {
         UIApplication.shared.isIdleTimerDisabled = viewModel.keepsScreenAwake
     }
 
+    private func handleRecognitionChange() async {
+        let needsAssets = viewModel.recognitionKey != lastPreparedKey
+        await viewModel.stop(restoreIdleTimerAfterDelay: false)
+        if needsAssets {
+            viewModel.enterPreparing()
+            await redownloadModels()
+            if viewModel.sessionState == .preparing {
+                viewModel.restoreReady()
+            }
+        } else if viewModel.sessionState == .preparing {
+            viewModel.restoreReady()
+        }
+    }
+
     private func redownloadModels() async {
         redownloadError = nil
         isRedownloading = true
         speechProgress = 0
         await viewModel.stop(restoreIdleTimerAfterDelay: false)
         do {
-            guard await environment.speechModels.isDeviceCapable(for: [viewModel.sourceLanguage]) else {
+            guard await environment.speechModels.isDeviceCapable(for: viewModel.recognitionLanguages) else {
                 throw DuiyiError.deviceIncapable
             }
-            try await environment.speechModels.prepare(languages: [viewModel.sourceLanguage]) { value in
+            try await environment.speechModels.prepare(languages: viewModel.recognitionLanguages) { value in
                 Task { @MainActor in
                     speechProgress = value
                 }
             }
+            lastPreparedKey = viewModel.recognitionKey
         } catch let error as DuiyiError {
-            redownloadError = error.userMessage(for: viewModel.sourceLanguage)
+            redownloadError = error.userMessage(for: viewModel.displayLanguage)
             viewModel.fail(error)
         } catch {
-            redownloadError = DuiyiError.modelsMissing.userMessage(for: viewModel.sourceLanguage)
+            redownloadError = DuiyiError.modelsMissing.userMessage(for: viewModel.displayLanguage)
         }
         isRedownloading = false
     }

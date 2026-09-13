@@ -5,8 +5,17 @@ struct SendablePCMBuffer: @unchecked Sendable {
     let buffer: AVAudioPCMBuffer
 }
 
+enum SpeechRecognitionStyle: Sendable, Equatable {
+    case liveCaptions
+    case meetingNotes
+}
+
 protocol SpeechRecognizing: Sendable {
-    func start(languages: [AppLanguage], fallbackLanguage: AppLanguage) async throws -> AsyncStream<Utterance>
+    func start(
+        languages: [AppLanguage],
+        fallbackLanguage: AppLanguage,
+        style: SpeechRecognitionStyle
+    ) async throws -> AsyncStream<Utterance>
     func stop() async
 }
 

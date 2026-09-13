@@ -70,11 +70,17 @@ final class MockSpeechSynthesizer: SpeechSynthesizing {
 actor RecordingSpeechEngine: SpeechRecognizing {
     var startedLanguages: [AppLanguage] = []
     var startedFallback: AppLanguage?
+    var startedStyle: SpeechRecognitionStyle = .liveCaptions
     private var continuation: AsyncStream<Utterance>.Continuation?
 
-    func start(languages: [AppLanguage], fallbackLanguage: AppLanguage) async throws -> AsyncStream<Utterance> {
+    func start(
+        languages: [AppLanguage],
+        fallbackLanguage: AppLanguage,
+        style: SpeechRecognitionStyle
+    ) async throws -> AsyncStream<Utterance> {
         startedLanguages = languages
         startedFallback = fallbackLanguage
+        startedStyle = style
         let (stream, continuation) = AsyncStream<Utterance>.makeStream()
         self.continuation = continuation
         return stream

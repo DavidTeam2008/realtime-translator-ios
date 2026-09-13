@@ -118,4 +118,12 @@ struct SpokenTextTests {
             ).contains("本周上映")
         )
     }
+
+    @Test("Immediate repeated Chinese phrases collapse once")
+    func collapseStutteredRepeats() {
+        #expect(
+            SpokenText.collapseStutteredRepeats("如果是你们你们会愿意") == "如果是你们会愿意"
+        )
+        #expect(SpokenText.collapseStutteredRepeats("爸爸帮我") == "爸爸帮我")
+    }
 }

@@ -41,12 +41,12 @@ extension Copy {
 
     static func homeMeetingSubtitle(for language: AppLanguage) -> String {
         language.pick(
-            zh: "把一场会记成完整文字稿",
-            en: "Turn a meeting into a full transcript",
-            ja: "会議を全文の文字起こしに",
-            ko: "회의를 전체 기록으로",
-            th: "บันทึกประชุมเป็นข้อความเต็ม",
-            vi: "Ghi cả buổi họp thành bản chữ"
+            zh: "把一场会记成完整文字稿，可识别多种语言",
+            en: "A full transcript, including mixed languages",
+            ja: "会議を全文に。複数言語にも対応",
+            ko: "회의 전체 기록, 여러 언어 인식",
+            th: "บันทึกประชุมเต็ม รองรับหลายภาษา",
+            vi: "Bản ghi đầy đủ, nhận nhiều ngôn ngữ"
         )
     }
 
@@ -207,6 +207,40 @@ extension Copy {
 
     static func meetingLanguage(for language: AppLanguage) -> String {
         language.pick(zh: "记录语言", en: "Meeting language", ja: "記録する言語", ko: "기록 언어", th: "ภาษาที่บันทึก", vi: "Ngôn ngữ ghi")
+    }
+
+    static func meetingRecognitionMode(for language: AppLanguage) -> String {
+        language.pick(zh: "识别方式", en: "Recognition", ja: "認識方法", ko: "인식 방식", th: "วิธีรู้จำ", vi: "Cách nhận dạng")
+    }
+
+    static func meetingMultilingual(for language: AppLanguage) -> String {
+        language.pick(zh: "多种语言", en: "Multiple languages", ja: "複数の言語", ko: "여러 언어", th: "หลายภาษา", vi: "Nhiều ngôn ngữ")
+    }
+
+    static func meetingSingleLanguage(for language: AppLanguage) -> String {
+        language.pick(zh: "指定一种", en: "One language", ja: "1つの言語", ko: "하나의 언어", th: "ภาษาเดียว", vi: "Một ngôn ngữ")
+    }
+
+    static func meetingMultilingualHint(for language: AppLanguage) -> String {
+        language.pick(
+            zh: "演讲、讲座请指定一种。指定后只听这一种，会更准。多种语言适合中英插话。",
+            en: "For a talk in one language, pin that language — it is more accurate. Multiple languages is for mixed speech, such as Chinese and English.",
+            ja: "講演は言語を1つ指定した方が正確です。複数言語は日英が混ざるときに。",
+            ko: "강연은 언어를 하나로 지정하는 편이 정확합니다. 여러 언어는 한영이 섞일 때.",
+            th: "ถ้าเป็นการบรรยายภาษาเดียว ให้ระบุภาษา จะแม่นกว่า หลายภาษาเหมาะกับพูดปน",
+            vi: "Bài nói một ngôn ngữ nên chọn đúng tiếng đó, sẽ chính xác hơn. Nhiều ngôn ngữ dành cho chỗ xen tiếng."
+        )
+    }
+
+    static func meetingMultilingualIdle(for language: AppLanguage) -> String {
+        language.pick(
+            zh: "开始记录。中英插话会按所说语言落字。",
+            en: "Start recording. Mixed Chinese and English is written in the language spoken.",
+            ja: "記録を始めます。日英が混ざっても話された言語のまま書きます。",
+            ko: "기록을 시작하세요. 한영이 섞여도 말한 언어 그대로 적습니다.",
+            th: "เริ่มบันทึก ถ้าพูดปน จะเขียนตามภาษาที่พูด",
+            vi: "Bắt đầu ghi. Xen tiếng sẽ viết đúng ngôn ngữ đang nói."
+        )
     }
 
     static func meetingTooLong(for language: AppLanguage) -> String {
