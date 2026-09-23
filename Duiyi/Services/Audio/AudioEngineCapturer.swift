@@ -3,14 +3,21 @@ import Foundation
 import os
 
 actor AudioEngineCapturer: AudioCapturing {
-    private let engine = AVAudioEngine()
-    private let session = AVAudioSession.sharedInstance()
+    // Lazy to keep launch fast: AVAudioEngine() + sharedInstance() touch
+    // AVFoundation/IOKit and audio hardware. Created on first start(), not init.
+    private var engine: AVAudioEngine?
+    private var session: AVAudioSession?
     private var continuation: AsyncStream<SendablePCMBuffer>.Continuation?
 
     func start() async throws -> AsyncStream<SendablePCMBuffer> {
         await stop()
 
+        let session = AVAudioSession.sharedInstance()
+        self.session = session
         try session.setActive(true, options: .notifyOthersOnDeactivation)
+
+        let engine = AVAudioEngine()
+        self.engine = engine
 
         let (stream, continuation) = AsyncStream<SendablePCMBuffer>.makeStream()
         self.continuation = continuation
@@ -32,14 +39,19 @@ actor AudioEngineCapturer: AudioCapturing {
     func stop() async {
         continuation?.finish()
         continuation = nil
-        if engine.isRunning {
+        if let engine, engine.isRunning {
             engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
         }
-        engine.inputNode.removeTap(onBus: 0)
-        do {
-            try session.setActive(false, options: .notifyOthersOnDeactivation)
-        } catch {
-            DuiyiLog.audio.error("Failed to deactivate audio session: \(error.localizedDescription, privacy: .public)")
+        if let session {
+            do {
+                try session.setActive(false, options: .notifyOthersOnDeactivation)
+            } catch {
+                DuiyiLog.audio.error("Failed to deactivate audio session: \(error.localizedDescription, privacy: .public)")
+            }
         }
+        // Release hardware-backed objects immediately so backgrounded app drops them.
+        self.engine = nil
+        self.session = nil
     }
 }

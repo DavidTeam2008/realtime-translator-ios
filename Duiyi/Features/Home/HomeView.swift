@@ -81,7 +81,9 @@ struct HomeView: View {
         .background(Tokens.canvas.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
-        .task {
+        .task(priority: .utility) {
+            // Deferred: let Home paint empty first, then fill unfinished tasks.
+            // Triggers DeferredTaskStore resolve off the first-frame transaction.
             unfinished = await environment.taskStore.unfinishedTasks()
         }
         .sheet(isPresented: $isSettingsPresented) {

@@ -3,12 +3,21 @@ import Foundation
 
 @MainActor
 final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing, AVSpeechSynthesizerDelegate {
-    private let synthesizer = AVSpeechSynthesizer()
+    // Lazy: AVSpeechSynthesizer() loads voices + spins up synthesis daemon IPC.
+    // Must not run during first-frame construction.
+    private var synthesizer: AVSpeechSynthesizer?
     private var finish: CheckedContinuation<Void, Never>?
 
     override init() {
         super.init()
-        synthesizer.delegate = self
+    }
+
+    private func ensureSynthesizer() -> AVSpeechSynthesizer {
+        if let synthesizer { return synthesizer }
+        let created = AVSpeechSynthesizer()
+        created.delegate = self
+        synthesizer = created
+        return created
     }
 
     func hasVoice(for language: AppLanguage) async -> Bool {
@@ -29,12 +38,12 @@ final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing, AVSpeechSynth
         utterance.postUtteranceDelay = 0
         await withCheckedContinuation { continuation in
             finish = continuation
-            synthesizer.speak(utterance)
+            ensureSynthesizer().speak(utterance)
         }
     }
 
     func stopAndClear() async {
-        synthesizer.stopSpeaking(at: .immediate)
+        synthesizer?.stopSpeaking(at: .immediate)
         finishPending()
     }
 

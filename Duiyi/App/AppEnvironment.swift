@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 @MainActor
 @Observable
@@ -43,14 +42,8 @@ final class AppEnvironment {
     }
 
     static func makeTaskStore() -> any TaskStore {
-        do {
-            let schema = Schema([TaskEntity.self, TranscriptEntity.self])
-            let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-            let container = try ModelContainer(for: schema, configurations: [configuration])
-            return SwiftDataTaskStore(container: container)
-        } catch {
-            DuiyiLog.session.error("SwiftData store unavailable, using memory: \(error.localizedDescription, privacy: .public)")
-            return InMemoryTaskStore()
-        }
+        // Deferred: zero I/O at init. Real ModelContainer opens after first frame
+        // on a utility queue (see DeferredTaskStore). Falls back to memory on failure.
+        DeferredTaskStore()
     }
 }
