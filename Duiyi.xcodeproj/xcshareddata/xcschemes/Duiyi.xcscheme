@@ -40,6 +40,17 @@
                ReferencedContainer = "container:Duiyi.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "D02T00000000000000000003"
+               BuildableName = "DuiyiUITests.xctest"
+               BlueprintName = "DuiyiUITests"
+               ReferencedContainer = "container:Duiyi.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

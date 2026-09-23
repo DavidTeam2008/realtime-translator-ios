@@ -91,6 +91,7 @@ struct ListeningControl: View {
         .contentShape(Circle())
         .gesture(pressGesture)
         .opacity(isEnabled ? 1 : 0.45)
+        .accessibilityIdentifier("listening-control")
         .accessibilityLabel(label)
         .accessibilityHint(settingsHint)
         .accessibilityAddTraits(.isButton)

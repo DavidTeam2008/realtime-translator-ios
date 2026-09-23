@@ -56,6 +56,7 @@ struct HomeView: View {
                         environment.preferences.appMode = feature.id.appMode
                         coordinator.open(feature.id.route)
                     }
+                    .accessibilityIdentifier("home-module-\(feature.id.rawValue)")
                     .accessibilityLabel(feature.title(language))
                     .accessibilityHint(feature.subtitle(language))
                 }
@@ -69,6 +70,7 @@ struct HomeView: View {
                 ) {
                     coordinator.open(.history)
                 }
+                .accessibilityIdentifier("home-history")
                 .accessibilityLabel(Copy.historyTitle(for: language))
                 .accessibilityHint(Copy.historySubtitle(for: language))
             }

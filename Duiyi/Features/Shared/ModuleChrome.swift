@@ -11,6 +11,7 @@ struct ModuleChrome: View {
             Button(Copy.homeButton(for: language), action: onHome)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Tokens.listen)
+                .accessibilityIdentifier("nav-home")
             Spacer()
             Text(title)
                 .font(.headline)
@@ -19,6 +20,7 @@ struct ModuleChrome: View {
             Button(Copy.historyTitle(for: language), action: onHistory)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Tokens.listen)
+                .accessibilityIdentifier("nav-history")
         }
         .padding(.horizontal, Tokens.horizontalPadding)
         .padding(.top, 8)

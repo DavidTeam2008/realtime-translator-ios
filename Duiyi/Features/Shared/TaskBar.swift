@@ -17,10 +17,12 @@ struct TaskBar: View {
             Button(Copy.newTask(for: language), action: onNewTask)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Tokens.listen)
+                .accessibilityIdentifier("taskbar-new-task")
             Button(Copy.endTask(for: language), action: onEndTask)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isActive ? Tokens.danger : Tokens.textSecondary)
                 .disabled(!isActive)
+                .accessibilityIdentifier("taskbar-end-task")
         }
         .padding(.horizontal, Tokens.horizontalPadding)
         .padding(.bottom, 8)

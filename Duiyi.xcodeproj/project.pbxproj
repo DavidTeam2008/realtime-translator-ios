@@ -14,6 +14,13 @@
 			remoteGlobalIDString = D01T00000000000000000001;
 			remoteInfo = Duiyi;
 		};
+		D02C00000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D01000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D02T00000000000000000003;
+			remoteInfo = DuiyiUITests;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +29,7 @@
 		D01F00000000000000000003 /* Translation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Translation.framework; path = System/Library/Frameworks/Translation.framework; sourceTree = SDKROOT; };
 		D01P00000000000000000001 /* Duiyi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Duiyi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D01P00000000000000000002 /* DuiyiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DuiyiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D02P00000000000000000001 /* DuiyiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DuiyiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -48,6 +56,11 @@
 			path = DuiyiTests;
 			sourceTree = "<group>";
 		};
+		D02G00000000000000000001 /* DuiyiUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DuiyiUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +78,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D02B00000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -73,6 +93,7 @@
 			children = (
 				D01G00000000000000000001 /* Duiyi */,
 				D01G00000000000000000002 /* DuiyiTests */,
+				D02G00000000000000000001 /* DuiyiUITests */,
 				D01R00000000000000000002 /* Frameworks */,
 				D01R00000000000000000003 /* Products */,
 			);
@@ -93,6 +114,7 @@
 			children = (
 				D01P00000000000000000001 /* Duiyi.app */,
 				D01P00000000000000000002 /* DuiyiTests.xctest */,
+				D02P00000000000000000001 /* DuiyiUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -145,6 +167,29 @@
 			productReference = D01P00000000000000000002 /* DuiyiTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		D02T00000000000000000003 /* DuiyiUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D02L00000000000000000005 /* Build configuration list for PBXNativeTarget "DuiyiUITests" */;
+			buildPhases = (
+				D02B00000000000000000005 /* Sources */,
+				D02B00000000000000000002 /* Frameworks */,
+				D02B00000000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D02D00000000000000000001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D02G00000000000000000001 /* DuiyiUITests */,
+			);
+			name = DuiyiUITests;
+			packageProductDependencies = (
+			);
+			productName = DuiyiUITests;
+			productReference = D02P00000000000000000001 /* DuiyiUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -159,6 +204,10 @@
 						CreatedOnToolsVersion = 26.4;
 					};
 					D01T00000000000000000002 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = D01T00000000000000000001;
+					};
+					D02T00000000000000000003 = {
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = D01T00000000000000000001;
 					};
@@ -181,6 +230,7 @@
 			targets = (
 				D01T00000000000000000001 /* Duiyi */,
 				D01T00000000000000000002 /* DuiyiTests */,
+				D02T00000000000000000003 /* DuiyiUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -194,6 +244,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D01B00000000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D02B00000000000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -217,6 +274,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D02B00000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -224,6 +288,11 @@
 			isa = PBXTargetDependency;
 			target = D01T00000000000000000001 /* Duiyi */;
 			targetProxy = D01C00000000000000000001 /* PBXContainerItemProxy */;
+		};
+		D02D00000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D02T00000000000000000003 /* DuiyiUITests */;
+			targetProxy = D02C00000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -383,6 +452,42 @@
 			};
 			name = Release;
 		};
+		D02S00000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = REDACTED_TEAM_ID;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.david.DuiyiUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Duiyi;
+			};
+			name = Debug;
+		};
+		D02S00000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = REDACTED_TEAM_ID;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.david.DuiyiUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Duiyi;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -409,6 +514,15 @@
 			buildConfigurations = (
 				D01S00000000000000000005 /* Debug */,
 				D01S00000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D02L00000000000000000005 /* Build configuration list for PBXNativeTarget "DuiyiUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D02S00000000000000000007 /* Debug */,
+				D02S00000000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
