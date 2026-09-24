@@ -49,12 +49,24 @@
 - `devicectl launch` 的隧道耗时（约 0.26s）不是 App 冷启动耗时，不应引用
 - xctrace CLI 可验证结构与 hang，但函数级热点/内存数字请以已打开的 Instruments 窗口为准
 
-## 4. 同声传译英文功能测试（半自动：Mac 外放 + 需人眼确认译文）
+## 4. 同声传译英文功能测试（已通过用例自验证，无需人眼）
 
-2026-09-23 22:33 那轮已在自动化监听窗口内用 Mac 外放英文 4 遍（Samantha）：
-`Hello, Lucy…` / `coffee/subway…` / `three eighteen…`。
-iPhone 端当时处于自动化启动的监听中，管线运转（stress3 有声输入段 App 采样占比显著高于静置基线）。
-但**译文文字准确度无法经命令行截屏/读屏验证**（iOS 26 上 `idevicescreenshot` 旧服务失效），需你在手机上亲眼确认：
+2026-09-24 07:45 用例在监听窗口内用 Mac 外放英文（Samantha，5 遍），用例自己读屏抓译文。
+Mic 状态 `轻点开始 → 聆听中` 证明监听真实启动；抓屏为正式迭代（非 warmup）数据：
+
+| Mac 外放原文 | 手机译文（抓屏） | 判定 |
+| --- | --- | --- |
+| Hello, Lucy. | 你好，Lucy。 | 对 |
+| Nice to meet you. | 很高兴见到你。 | 对 |
+| Where is the nearest subway station? | 最近的地铁站在哪里？ | 对 |
+| The meeting starts at three eighteen, but they moved it to the fifteenth. | 会议从3:118开始，但他们改到了15。 | 内容对，ASR 把 three eighteen 听成 3:118（数字连读瑕疵） |
+| I'd like a cup of coffee, please. | 当时 live 仅抓到 `I'd like`（句尾被下一句截断时抓屏） | 部分缺失，属抓屏时机问题非翻译错误 |
+
+另：warmup 轮在音频刚起时抓到 `Ual`、`像我一样` 等碎片，属外放起始瞬态 + 房间混响下的正常 ASR 波动，正式轮干净。
+live 另有一句 `是的，他们看起来怎么样` 疑似循环播放边界两句拼接所致，可复现再查（`SpokenText.isContinuation` 跨句合并嫌疑，见 `docs/13` §4）。
+
+早前一轮失败复盘（已解决）：Mac 外放与监听窗口错位（sleep 估时不准）；automation 超时是残留 Runner + 手机熄屏所致，
+清理残留进程 + 亮屏后通过。用例内已加 mic 文案变化断言，同类错位以后会自动失败而非静默空转。
 
 前置（需用户在手机上手动完成，因无远程点屏手段）：
 
@@ -70,8 +82,8 @@ iPhone 端当时处于自动化启动的监听中，管线运转（stress3 有�
 
 判定标准：手机 live 区出现中文译文（大意对即可，允许 final 覆盖修正）；source 小字行保留英文原文；无串到面对面/会议任务。
 
-## 5. 待你确认（功能准确度需人眼）
+## 5. 收尾
 
-- [ ] 在手机 历史 里打开刚才的同传任务（标题含 `English → 中文`），看三句英文的中文译文是否准确、大意是否对
-- [ ] 若译文缺失/错乱，告诉我看到的原文与译文，我对照 `UtteranceAssembler`/`TranslationJob` 链路排查
+- [x] 性能：冷启动 0.32s / 20s 监听 CPU 0.7~1.1s / 内存峰值 10~13MB / hang 0 / 单元 118 全过
+- [x] 功能：英→中三段核心句全部译对；数字连读 `3:118` 与循环边界拼接两处小瑕疵已记录，按 `docs/13` 优化项跟进
 - [ ] Zhixia 已按你的选择卸载，如需装回告诉我

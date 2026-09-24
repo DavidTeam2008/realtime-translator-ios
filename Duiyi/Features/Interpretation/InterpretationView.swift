@@ -272,6 +272,7 @@ struct InterpretationView: View {
                 .foregroundStyle(liveIsSecondary ? Tokens.textSecondary : Tokens.textPrimary)
                 .lineSpacing(viewModel.fontSize.livePoints * 0.18)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("caption-live")
                 .transaction { transaction in
                     transaction.animation = nil
                 }
@@ -288,6 +289,7 @@ struct InterpretationView: View {
                     .font(CaptionTypography.sourceLineFont())
                     .foregroundStyle(Tokens.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
+                    .accessibilityIdentifier("caption-source")
             }
         }
         .padding(.horizontal, Tokens.horizontalPadding)
@@ -304,6 +306,7 @@ struct InterpretationView: View {
                             .font(CaptionTypography.previousFont(size: viewModel.fontSize))
                             .foregroundStyle(Tokens.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("caption-history")
                             .id(line.id)
                     }
                 }

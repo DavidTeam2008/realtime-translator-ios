@@ -20,7 +20,8 @@ struct DirectionBar: View {
                 language: sourceLanguage,
                 caption: Copy.theySpeak(for: viewerLanguage),
                 isPicking: picking == .source,
-                action: onPickSource
+                action: onPickSource,
+                testID: "direction-source"
             )
             Button(action: onSwap) {
                 Image(systemName: "arrow.left.arrow.right")
@@ -35,7 +36,8 @@ struct DirectionBar: View {
                 language: targetLanguage,
                 caption: Copy.iListen(for: viewerLanguage),
                 isPicking: picking == .target,
-                action: onPickTarget
+                action: onPickTarget,
+                testID: "direction-target"
             )
         }
         .padding(.horizontal, Tokens.horizontalPadding)
@@ -45,7 +47,8 @@ struct DirectionBar: View {
         language: AppLanguage,
         caption: String,
         isPicking: Bool,
-        action: @escaping () -> Void
+        action: @escaping () -> Void,
+        testID: String
     ) -> some View {
         Button(action: action) {
             VStack(spacing: 2) {
@@ -70,6 +73,7 @@ struct DirectionBar: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(testID)
         .accessibilityLabel("\(caption), \(language.nativeName)")
         .animation(.easeInOut(duration: 0.25), value: language)
     }

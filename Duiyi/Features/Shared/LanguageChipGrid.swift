@@ -32,6 +32,7 @@ struct LanguageChipGrid: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("langchip-\(language.rawValue)")
             }
         }
     }
