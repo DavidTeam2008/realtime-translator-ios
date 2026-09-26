@@ -7,7 +7,16 @@
 的 n=10 独立重复漂移（见 `../issues/ISSUE-P0-002-cross-run-shift.json` 与
 `../issues/ISSUE-P0-003-warmup-repeatability.json`）。
 
-当前可用候选：`startup-post-reboot-warmup3-n10.json`。设备重启并解锁后，
-同一 Release 二进制、warmup=3、n=10 的两次独立 run 分别为 p50=256ms/CV=9.6%
-与 p50=266ms/CV=7.1%；跨 run 诊断为 `consistent`，baseline compare 退出码为 0。
-由于目标工作树仍是 dirty，这仍是 **provisional baseline**，不是干净 commit 的发布基线。
+当前正式 baseline：`startup-clean-2b3a1ea-warmup3-n10.json`。
+
+- commit：`2b3a1ea`
+- 工作树：clean
+- 口径：Release / iPhone 13 / warmup=3 / n=10
+- 独立 run C：p50=252ms，CV=3.5%
+- 独立 run D：p50=257ms，CV=2.8%
+- 跨 run：`consistent`，Δp50=5ms
+- baseline compare：`no-significant-change`，退出码 0
+
+此前 `startup-post-reboot-warmup3-n10.json` 是 dirty working tree 的 provisional
+baseline；同 commit 的第一轮 clean run B 曾出现 368–413ms 的启动多簇并被拒绝，
+没有挑选后续样本。B/C/D 全部保留在 `.apm/runs/`，该失败是正式 baseline 的筛选依据。

@@ -65,5 +65,24 @@
     "cvs": [0.096, 0.071],
     "crossRunStatus": "consistent",
     "baseline": ".apm/baseline/startup-post-reboot-warmup3-n10.json"
+  },
+  "cleanCommitResolution": {
+    "commit": "2b3a1ea9f5f8f64f3e76f8534068464ed61479f4",
+    "gitDirty": false,
+    "failedRun": {
+      "path": ".apm/runs/20260926-clean-2b3a1ea-warmup3-n10-b",
+      "p50": 261,
+      "cv": 0.215,
+      "diagnosis": "unusable_multimodal",
+      "note": "前三次 368–413ms，随后 250–269ms；整 run 拒绝"
+    },
+    "acceptedRuns": [
+      ".apm/runs/20260926-clean-2b3a1ea-warmup3-n10-c",
+      ".apm/runs/20260926-clean-2b3a1ea-warmup3-n10-d"
+    ],
+    "p50s": [252, 257],
+    "cvs": [0.035, 0.028],
+    "crossRunStatus": "consistent",
+    "baseline": ".apm/baseline/startup-clean-2b3a1ea-warmup3-n10.json"
   }
 }

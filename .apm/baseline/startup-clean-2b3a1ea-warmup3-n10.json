@@ -1,0 +1,1209 @@
+{
+  "context": {
+    "schemaVersion": 1,
+    "profile": "ios-native-startup",
+    "profileVersion": 1,
+    "toolVersion": "1.1.0",
+    "device": "iPhone 13 / 26.7 / physical / REDACTED_UDID",
+    "deviceInfo": {
+      "udid": "REDACTED_UDID",
+      "coreDeviceIdentifier": "REDACTED_CORE_DEVICE_ID",
+      "model": "iPhone 13",
+      "productType": "iPhone14,5",
+      "platform": "iOS",
+      "reality": "physical",
+      "osVersion": "26.7",
+      "osBuild": "23H24",
+      "state": "connected",
+      "pairingState": "paired",
+      "transportType": "wired",
+      "connectionMode": "wired-paired",
+      "readyWaitSec": 0.7205504579978879
+    },
+    "build": "Release",
+    "buildInfo": {
+      "type": "Release",
+      "appPath": "/Users/<user>/Library/Developer/MobileBuildMCP/workspaces/realtimeTranslatorOptimize-8df963897d87/DerivedData/Duiyi-cd48ab98e467/Build/Products/Release-iphoneos/Duiyi.app",
+      "packageId": "com.david.Duiyi",
+      "debugId": null
+    },
+    "packageId": "com.david.Duiyi",
+    "projectRoot": "/Users/<user>/Documents/code/ios/realtimeTranslatorOptimize",
+    "command": "/opt/homebrew/opt/python@3.14/bin/python3.14 /Users/<user>/Documents/code/agent/mobileAutoAPM/plugins/mobile-apm/scripts/apm_measure.py --profile ios-native-startup --device REDACTED_CORE_DEVICE_ID --package-id com.david.Duiyi --build-type Release --build-path /Users/<user>/Library/Developer/MobileBuildMCP/workspaces/realtimeTranslatorOptimize-8df963897d87/DerivedData/Duiyi-cd48ab98e467/Build/Products/Release-iphoneos/Duiyi.app --project-root /Users/<user>/Documents/code/ios/realtimeTranslatorOptimize --warmup-launches 3 --samples 10 --output /Users/<user>/Documents/code/ios/realtimeTranslatorOptimize/.apm/runs/20260926-clean-2b3a1ea-warmup3-n10-c",
+    "measurementMethod": "devicectl install + terminate-existing launch + bounded idevicesyslog",
+    "startDefinition": "process creation time from sysctl(KERN_PROC_PID)",
+    "endDefinition": "firstFrame mark one runloop after onAppear (near CA::Transaction::commit)",
+    "launchType": "cold",
+    "samplePlan": {
+      "requested": 10,
+      "intervalSec": 5.0,
+      "timeoutSec": 20.0,
+      "warmupSec": 6.0,
+      "warmupLaunches": 3,
+      "deviceReadyTimeoutSec": 30.0
+    },
+    "premainPolicy": "record paired values; never auto-stratify or post-hoc correct",
+    "stageClosureToleranceMs": 5.0,
+    "stageClosureToleranceRule": "max(5ms, stageCount + 2ms; integer log truncation)",
+    "rawDataPath": "raw/",
+    "startedAt": "2026-09-26T02:07:44.541828+00:00",
+    "finishedAt": "2026-09-26T02:09:03.104265+00:00",
+    "commit": "2b3a1ea9f5f8f64f3e76f8534068464ed61479f4",
+    "gitDirty": false,
+    "measurementSignature": "d1af6c4d44552290541ad7949a2258816969384f32c848ca908fd7962f05cd50",
+    "validSampleCount": 10,
+    "invalidSampleCount": 0
+  },
+  "metrics": [
+    {
+      "name": "startup.cold.first_frame",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        248,
+        260,
+        274,
+        252,
+        254,
+        248,
+        251,
+        252,
+        265,
+        246
+      ],
+      "minEffect": 30.0
+    },
+    {
+      "name": "startup.premain",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        9,
+        13,
+        9,
+        13,
+        9,
+        13,
+        9,
+        10,
+        13,
+        10
+      ],
+      "minEffect": 5.0
+    },
+    {
+      "name": "startup.process_to_first_mark",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        13,
+        17,
+        13,
+        17,
+        13,
+        17,
+        13,
+        14,
+        18,
+        13
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.appBody",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        110,
+        114,
+        113,
+        108,
+        113,
+        109,
+        111,
+        116,
+        112,
+        109
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.appInit",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.environmentReady",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        5,
+        5,
+        5,
+        6,
+        5,
+        5,
+        5,
+        5,
+        6,
+        5
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.firstFrame",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        50,
+        53,
+        60,
+        53,
+        51,
+        53,
+        55,
+        50,
+        52,
+        53
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.homeAppear",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.homeBody",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.homeTaskEnd",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.homeTaskStart",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.processStart",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        13,
+        17,
+        13,
+        17,
+        13,
+        17,
+        13,
+        14,
+        18,
+        13
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.rootAppear",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        36,
+        35,
+        49,
+        35,
+        33,
+        36,
+        32,
+        35,
+        36,
+        33
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.rootBody",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        21,
+        25,
+        22,
+        22,
+        29,
+        18,
+        22,
+        21,
+        30,
+        22
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.storeReady",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "minEffect": null
+    },
+    {
+      "name": "startup.stage.viewModelsReady",
+      "unit": "ms",
+      "direction": "lower_is_better",
+      "samples": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "minEffect": null
+    }
+  ],
+  "observations": [
+    {
+      "index": 1,
+      "startedAt": "2026-09-26T02:08:05.209242+00:00",
+      "status": "valid",
+      "firstFrameMs": 248,
+      "premainMs": 9,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        9
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 13,
+          "deltaMs": 13
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 14,
+          "deltaMs": 0
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 20,
+          "deltaMs": 5
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 131,
+          "deltaMs": 110
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 153,
+          "deltaMs": 21
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 160,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 196,
+          "deltaMs": 36
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 196,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 197,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 197,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 197,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 197,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 248,
+          "deltaMs": 50
+        }
+      ],
+      "accountedTimeMs": 241,
+      "unattributedResidualMs": 7,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-01.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 7ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 2,
+      "startedAt": "2026-09-26T02:08:11.501539+00:00",
+      "status": "valid",
+      "firstFrameMs": 260,
+      "premainMs": 13,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        13
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 17,
+          "deltaMs": 17
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 18,
+          "deltaMs": 0
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 24,
+          "deltaMs": 5
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 139,
+          "deltaMs": 114
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 164,
+          "deltaMs": 25
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 171,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 206,
+          "deltaMs": 35
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 206,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 206,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 206,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 206,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 207,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 260,
+          "deltaMs": 53
+        }
+      ],
+      "accountedTimeMs": 255,
+      "unattributedResidualMs": 5,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-02.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 5ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 3,
+      "startedAt": "2026-09-26T02:08:17.784735+00:00",
+      "status": "valid",
+      "firstFrameMs": 274,
+      "premainMs": 9,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        9
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 13,
+          "deltaMs": 13
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 14,
+          "deltaMs": 0
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 20,
+          "deltaMs": 5
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 134,
+          "deltaMs": 113
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 156,
+          "deltaMs": 22
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 163,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 212,
+          "deltaMs": 49
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 212,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 213,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 213,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 213,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 213,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 274,
+          "deltaMs": 60
+        }
+      ],
+      "accountedTimeMs": 268,
+      "unattributedResidualMs": 6,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-03.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 6ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 4,
+      "startedAt": "2026-09-26T02:08:24.094026+00:00",
+      "status": "valid",
+      "firstFrameMs": 252,
+      "premainMs": 13,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        13
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 17,
+          "deltaMs": 17
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 18,
+          "deltaMs": 0
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 24,
+          "deltaMs": 6
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 133,
+          "deltaMs": 108
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 156,
+          "deltaMs": 22
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 162,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 198,
+          "deltaMs": 35
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 198,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 198,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 198,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 198,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 199,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 252,
+          "deltaMs": 53
+        }
+      ],
+      "accountedTimeMs": 247,
+      "unattributedResidualMs": 5,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-04.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 5ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 5,
+      "startedAt": "2026-09-26T02:08:30.376627+00:00",
+      "status": "valid",
+      "firstFrameMs": 254,
+      "premainMs": 9,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        9
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 13,
+          "deltaMs": 13
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 14,
+          "deltaMs": 0
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 20,
+          "deltaMs": 5
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 134,
+          "deltaMs": 113
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 163,
+          "deltaMs": 29
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 169,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 203,
+          "deltaMs": 33
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 203,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 203,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 203,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 203,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 203,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 254,
+          "deltaMs": 51
+        }
+      ],
+      "accountedTimeMs": 250,
+      "unattributedResidualMs": 4,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-05.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 4ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 6,
+      "startedAt": "2026-09-26T02:08:36.690124+00:00",
+      "status": "valid",
+      "firstFrameMs": 248,
+      "premainMs": 13,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        13
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 17,
+          "deltaMs": 17
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 18,
+          "deltaMs": 0
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 24,
+          "deltaMs": 5
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 133,
+          "deltaMs": 109
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 152,
+          "deltaMs": 18
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 158,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 194,
+          "deltaMs": 36
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 194,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 195,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 195,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 195,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 195,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 248,
+          "deltaMs": 53
+        }
+      ],
+      "accountedTimeMs": 244,
+      "unattributedResidualMs": 4,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-06.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 4ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 7,
+      "startedAt": "2026-09-26T02:08:42.958115+00:00",
+      "status": "valid",
+      "firstFrameMs": 251,
+      "premainMs": 9,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        9
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 13,
+          "deltaMs": 13
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 14,
+          "deltaMs": 0
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 20,
+          "deltaMs": 5
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 132,
+          "deltaMs": 111
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 155,
+          "deltaMs": 22
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 161,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 194,
+          "deltaMs": 32
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 194,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 194,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 194,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 194,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 195,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 251,
+          "deltaMs": 55
+        }
+      ],
+      "accountedTimeMs": 244,
+      "unattributedResidualMs": 7,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-07.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 7ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 8,
+      "startedAt": "2026-09-26T02:08:49.220220+00:00",
+      "status": "valid",
+      "firstFrameMs": 252,
+      "premainMs": 10,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        10
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 14,
+          "deltaMs": 14
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 15,
+          "deltaMs": 1
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 21,
+          "deltaMs": 5
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 137,
+          "deltaMs": 116
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 159,
+          "deltaMs": 21
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 165,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 200,
+          "deltaMs": 35
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 200,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 200,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 200,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 200,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 201,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 252,
+          "deltaMs": 50
+        }
+      ],
+      "accountedTimeMs": 248,
+      "unattributedResidualMs": 4,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-08.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 4ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 9,
+      "startedAt": "2026-09-26T02:08:55.541466+00:00",
+      "status": "valid",
+      "firstFrameMs": 265,
+      "premainMs": 13,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        13
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 18,
+          "deltaMs": 18
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 19,
+          "deltaMs": 1
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 25,
+          "deltaMs": 6
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 138,
+          "deltaMs": 112
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 168,
+          "deltaMs": 30
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 175,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 211,
+          "deltaMs": 36
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 211,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 211,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 211,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 211,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 212,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 265,
+          "deltaMs": 52
+        }
+      ],
+      "accountedTimeMs": 261,
+      "unattributedResidualMs": 4,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-09.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 4ms，在 15ms 理论上限内"
+      ]
+    },
+    {
+      "index": 10,
+      "startedAt": "2026-09-26T02:09:01.838574+00:00",
+      "status": "valid",
+      "firstFrameMs": 246,
+      "premainMs": 10,
+      "premainSource": "early_marker",
+      "premainCandidatesMs": [
+        10
+      ],
+      "stages": [
+        {
+          "name": "processStart",
+          "sinceMs": 13,
+          "deltaMs": 13
+        },
+        {
+          "name": "appInit",
+          "sinceMs": 14,
+          "deltaMs": 0
+        },
+        {
+          "name": "environmentReady",
+          "sinceMs": 20,
+          "deltaMs": 5
+        },
+        {
+          "name": "appBody",
+          "sinceMs": 130,
+          "deltaMs": 109
+        },
+        {
+          "name": "rootBody",
+          "sinceMs": 152,
+          "deltaMs": 22
+        },
+        {
+          "name": "homeBody",
+          "sinceMs": 158,
+          "deltaMs": 6
+        },
+        {
+          "name": "rootAppear",
+          "sinceMs": 191,
+          "deltaMs": 33
+        },
+        {
+          "name": "storeReady",
+          "sinceMs": 191,
+          "deltaMs": 0
+        },
+        {
+          "name": "viewModelsReady",
+          "sinceMs": 192,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeAppear",
+          "sinceMs": 192,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskStart",
+          "sinceMs": 192,
+          "deltaMs": 0
+        },
+        {
+          "name": "homeTaskEnd",
+          "sinceMs": 192,
+          "deltaMs": 0
+        },
+        {
+          "name": "firstFrame",
+          "sinceMs": 246,
+          "deltaMs": 53
+        }
+      ],
+      "accountedTimeMs": 241,
+      "unattributedResidualMs": 5,
+      "closureToleranceMs": 15,
+      "rawLog": "raw/sample-10.log",
+      "errors": [],
+      "warnings": [
+        "阶段整数舍入残差 5ms，在 15ms 理论上限内"
+      ]
+    }
+  ]
+}
