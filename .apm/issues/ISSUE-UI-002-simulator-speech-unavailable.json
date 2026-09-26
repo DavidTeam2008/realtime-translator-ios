@@ -1,0 +1,40 @@
+{
+  "id": "ISSUE-UI-002",
+  "type": "test-environment-capability",
+  "title": "iOS 模拟器不提供 SpeechTranscriber，真实听写路径无法在此环境验证",
+  "status": "confirmed",
+  "severity": "low",
+  "environment": {
+    "device": "iPhone 17 Pro Simulator / iOS 26.4.1",
+    "simulatorId": "REDACTED_DEVICE_ID",
+    "configuration": "Debug"
+  },
+  "measuredCapability": {
+    "method": "临时探针测试实测（已删除），逐条读回平台 API",
+    "SpeechTranscriber.isAvailable": false,
+    "supportedLocale(en-US)": "en_US",
+    "supportedLocale(zh-CN)": "zh_CN",
+    "SFSpeechRecognizer.available": true,
+    "SFSpeechRecognizer.supportsOnDeviceRecognition": true,
+    "SFSpeechRecognizer.authorizationStatus": 3
+  },
+  "appBehavior": {
+    "gate": "SpeechAssetPreparer.isDeviceCapable → guard SpeechTranscriber.isAvailable",
+    "result": "deviceIncapable",
+    "userFacingMessage": "这台设备暂时不能离线识别这段语言。",
+    "assessment": "App 行为正确：识别到能力缺失并给出明确提示，而不是静默失败。"
+  },
+  "testSymptomBeforeFix": {
+    "message": "XCTAssertNotEqual failed: (\"轻点开始\") is equal to (\"轻点开始\") - mic tap did not change state; listening never started",
+    "misleading": "断言把「平台能力不可用」呈现成「App 没进入监听」，会误导排查方向。"
+  },
+  "resolution": {
+    "approach": "按运行环境要求拆成两个用例，而不是放宽断言",
+    "tests": {
+      "testHomeModuleNavigation": "纯导航，任何环境都跑，实测 passed",
+      "testSimultaneousListeningPressure": "需要真实端侧听写；能力缺失时 throw XCTSkip 并写明实测原因"
+    },
+    "notDone": "没有把断言改弱、没有 mock 掉能力检查、没有改产品代码迎合模拟器"
+  },
+  "followUp": "该路径必须在真机（iPhone 13 / iOS 26.7）上验证；真机 UI runner 当前另被免费 provisioning 的 App 数量上限阻塞。"
+}
