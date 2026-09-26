@@ -1,0 +1,69 @@
+{
+  "id": "ISSUE-P0-003",
+  "type": "measurement-reliability",
+  "title": "warmup=3 的 n=10 独立重复测量仍然发生跨 run 漂移",
+  "status": "confirmed",
+  "severity": "high",
+  "evidence": {
+    "device": "iPhone 13 / iOS 26.7 / physical / REDACTED_UDID",
+    "build": "Release",
+    "bundleId": "com.david.Duiyi",
+    "commit": "3e22adbee43721987cfb976d21c01620142325ef",
+    "gitDirty": true,
+    "measurementMethod": "ios-native-startup, warmupLaunches=3, samples=10",
+    "runA": {
+      "path": ".apm/runs/20260925-2010-ios-startup-warmup3-n10",
+      "validSamples": 10,
+      "samples": [259, 250, 247, 255, 271, 254, 263, 259, 278, 249],
+      "p50": 257,
+      "cv": 0.0384,
+      "diagnosis": "usable"
+    },
+    "runB": {
+      "path": ".apm/runs/20260925-2025-ios-startup-warmup3-n10",
+      "validSamples": 9,
+      "invalidSamples": 1,
+      "samples": [264, null, 690, 410, 405, 488, 531, 725, 453, 479],
+      "p50": 479,
+      "cv": 0.289,
+      "diagnosis": "marginal",
+      "invalidSample": {
+        "index": 2,
+        "reason": "20s 内未观察到 first-frame 日志，raw 中只有 EARLY pre-main"
+      }
+    },
+    "runC": {
+      "path": ".apm/runs/20260925-2035-ios-startup-warmup3-n10",
+      "validSamples": 10,
+      "samples": [377, 415, 377, 374, 408, 352, 259, 262, 260, 263],
+      "p50": 363,
+      "cv": 0.197,
+      "diagnosis": "unusable_multimodal",
+      "note": "设备 100% 充电且 tunnel connected；样本前 6 次较慢、后 4 次降到 259–263ms"
+    },
+    "crossRunDiagnosis": {
+      "path": ".apm/runs/20260925-2025-ios-startup-warmup3-n10/diagnosis-cross-run.json",
+      "exitCode": 2,
+      "status": "not_enough_usable_runs",
+      "interpretation": "第二次 run 自身质量失败，不能用第一次 run 单独建立基线"
+    }
+  },
+  "conclusion": "增加 warmup 次数并扩大样本后，第一次 run 看似稳定，但独立重复仍出现 222ms 的 p50 漂移、1 个无终点样本和 28.9% CV；随后在设备 100% 充电且 tunnel connected 的 run C 中又出现 259–415ms 的多簇（CV=19.7%）。当前设备/系统环境无法提供可复现的启动基线。",
+  "implication": "不得把 2010 run 或此前任何 provisional 文件用于确认改善/劣化；这不是代码优化结论。",
+  "next_steps": [
+    "先处理设备后台状态、温度/电量与 CoreDevice tunnel 稳定性",
+    "在环境稳定后重新做至少两次同 commit、同 warmup、同样本数的重复测量",
+    "保留全部 raw 与 invalid 样本，不挑选快样本"
+  ],
+  "resolution": {
+    "status": "mitigated_after_device_reboot",
+    "runs": [
+      ".apm/runs/20260926-post-reboot-warmup3-n10",
+      ".apm/runs/20260926-post-reboot-warmup3-n10-repeat"
+    ],
+    "p50s": [256, 266],
+    "cvs": [0.096, 0.071],
+    "crossRunStatus": "consistent",
+    "baseline": ".apm/baseline/startup-post-reboot-warmup3-n10.json"
+  }
+}

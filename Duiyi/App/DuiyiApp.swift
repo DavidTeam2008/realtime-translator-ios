@@ -15,6 +15,7 @@ struct DuiyiApp: App {
     }
 
     var body: some Scene {
+        let _ = AppLaunchTracker.shared.beginOnce(.appBody)
         WindowGroup {
             RootView()
                 .environment(environment)

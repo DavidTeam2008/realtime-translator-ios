@@ -1,5 +1,12 @@
 # 15. 启动优化（对照抖音实战篇 + 二进制重排落地）
 
+> ⚠️ **2026-09-24 订正**：本文的收益判断已被**真机实测推翻**。见
+> [16-startup-measurement-verification.md](16-startup-measurement-verification.md)。
+> 要点：真机 A/B 显示**无显著改善**（280ms → 279ms，p=0.605）；
+> SwiftData 实际开库耗时**只有 12ms**（不是"最重的一项"）；
+> pre-main 在真机只占 **11ms**，瓶颈在 `environmentReady → firstFrame` 的 ~250ms。
+> 本文其余章节（文章精读、诊断、二进制重排原理）仍然有效。
+
 > 参考：字节《抖音品质建设 - iOS启动优化〈实战篇〉》（developer.volcengine.com/articles/7599494340179984426）
 > 结论前置：本 App 瓶颈在 `main` 后同步主线程工作，二进制重排已落地但预期仅 5–30ms；
 > 本次大头收益来自 SwiftData 延迟开库 + 音频/语音合成懒加载 + 首帧后预热。

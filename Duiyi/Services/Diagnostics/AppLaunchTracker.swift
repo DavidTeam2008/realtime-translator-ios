@@ -7,9 +7,23 @@ import os
 enum AppLaunchStage: String {
     case processStart
     case appInit
+    /// SwiftUI Scene 首次求值（DuiyiApp.body）
+    case appBody
     case environmentReady
+    /// RootView.body 首次求值
+    case rootBody
+    /// HomeView.body 首次求值
+    case homeBody
     case storeReady
     case viewModelsReady
+    /// RootView.onAppear 进入
+    case rootAppear
+    /// HomeView.onAppear 进入
+    case homeAppear
+    /// HomeView.task 开始
+    case homeTaskStart
+    /// HomeView.task 完成（赋值 @State 之后）
+    case homeTaskEnd
     case firstFrame
 }
 
@@ -25,6 +39,10 @@ final class AppLaunchTracker: NSObject, MXMetricManagerSubscriber, @unchecked Se
         self.processStart = Self.processStartTime()
         super.init()
         record(.processStart)
+        // 记录埋点自身被触碰的时刻 —— 它与 pre-main 打点之间的差，
+        // 就是「dyld 之后、Swift 首个初始化器之前」的耗时（如 AppCoordinator 构造）。
+        let offset = (CFAbsoluteTimeGetCurrent() - processStart) * 1000
+        DuiyiLog.session.info("TRACKER init at +\(Int(offset), privacy: .public)ms since process start")
         MXMetricManager.shared.add(self)
     }
 
@@ -34,10 +52,36 @@ final class AppLaunchTracker: NSObject, MXMetricManagerSubscriber, @unchecked Se
         record(stage)
     }
 
+    /// 只在**首次**记录该阶段。
+    /// 用于 SwiftUI `body` —— body 会被多次求值，我们只关心首次进入渲染的时刻。
+    @discardableResult
+    func beginOnce(_ stage: AppLaunchStage) -> Bool {
+        lock.lock()
+        let seen = marks.contains { $0.stage == stage }
+        lock.unlock()
+        guard !seen else { return false }
+        record(stage)
+        return true
+    }
+
     func markFirstFrame() {
         record(.firstFrame)
         let elapsed = CFAbsoluteTimeGetCurrent() - processStart
         DuiyiLog.session.info("App launch first-frame: \(Int(elapsed * 1000), privacy: .public)ms since process start")
+
+        // 临时：阶段拆分（原实现记录了 6 个阶段却只打印总数，导致无法定位瓶颈）
+        lock.lock()
+        let snapshot = marks
+        lock.unlock()
+        var prev: CFAbsoluteTime = processStart
+        var parts: [String] = []
+        for m in snapshot {
+            let since = Int((m.at - processStart) * 1000)
+            let delta = Int((m.at - prev) * 1000)
+            parts.append("\(m.stage.rawValue)=\(since)/+\(delta)")
+            prev = m.at
+        }
+        DuiyiLog.session.info("Launch stages (since/+delta ms): \(parts.joined(separator: " "), privacy: .public)")
     }
 
     func launchDurationToNow() -> TimeInterval {

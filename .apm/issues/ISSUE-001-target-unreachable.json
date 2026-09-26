@@ -1,0 +1,28 @@
+{
+  "id": "ISSUE-001",
+  "type": "feasibility",
+  "title": "冷启动 200ms 目标不可达 —— 空壳 App 的地板就在 230ms",
+  "status": "confirmed",
+  "severity": "high",
+  "evidence": {
+    "method": "把 DuiyiApp.body 的内容换成 Text(\"x\")，保留全部结构与埋点，用相同测量链路对比",
+    "minimalBody": {
+      "firstFrame_fast_mode_ms": [229, 244],
+      "appBody_ms": [172, 190],
+      "note": "内容只剩一个 Text，RootView 完全不参与"
+    },
+    "fullApp": {
+      "firstFrame_fast_mode_ms": [278, 302],
+      "appBody_ms": [152, 173]
+    },
+    "conclusion": "appBody 在两种情况下基本一致 → 它是 SwiftUI 场景引导成本，与 App 代码无关"
+  },
+  "root_cause": "SwiftUI 的 App 生命周期（UIApplicationMain → 场景创建 → 首帧提交）在这台 iPhone 13 上固定消耗约 200ms+，与 App 内容无关。空壳 App 的地板 ≈ 230ms。",
+  "implication": "200ms 目标需要把整个 App 生命周期结构换掉（如改用 UIKit + UIHostingController 或自定义 main），属于架构级改动，超出一次性能优化任务的范围。",
+  "addressable": "App 特有部分约 50ms（内容渲染 29ms + 外围脚手架 ~20ms）",
+  "confidence": "high",
+  "next_steps": [
+    "向用户报告目标不可达及依据，由用户决定是否接受架构级改动",
+    "在可达范围内做优化：把可优化的 ~50ms 尽量拿回"
+  ]
+}

@@ -10,6 +10,7 @@ struct HomeView: View {
     private var language: AppLanguage { environment.preferences.userLanguage }
 
     var body: some View {
+        let _ = AppLaunchTracker.shared.beginOnce(.homeBody)
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
@@ -81,10 +82,13 @@ struct HomeView: View {
         .background(Tokens.canvas.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { AppLaunchTracker.shared.begin(.homeAppear) }
         .task(priority: .utility) {
             // Deferred: let Home paint empty first, then fill unfinished tasks.
             // Triggers DeferredTaskStore resolve off the first-frame transaction.
+            AppLaunchTracker.shared.begin(.homeTaskStart)
             unfinished = await environment.taskStore.unfinishedTasks()
+            AppLaunchTracker.shared.begin(.homeTaskEnd)
         }
         .sheet(isPresented: $isSettingsPresented) {
             HomeSettingsSheet()

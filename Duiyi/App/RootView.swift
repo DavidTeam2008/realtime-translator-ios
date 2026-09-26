@@ -11,6 +11,7 @@ struct RootView: View {
     @State private var onboardingViewModel: OnboardingViewModel?
 
     var body: some View {
+        let _ = AppLaunchTracker.shared.beginOnce(.rootBody)
         @Bindable var coordinator = coordinator
         NavigationStack(path: $coordinator.path) {
             HomeView()
@@ -26,6 +27,7 @@ struct RootView: View {
             }
         }
         .onAppear {
+            AppLaunchTracker.shared.begin(.rootAppear)
             ensureOnboardingViewModel()
             // Defer one runloop turn so we measure post-commit, approximating
             // CA::Transaction::commit (see Douyin实战篇无侵入方案).

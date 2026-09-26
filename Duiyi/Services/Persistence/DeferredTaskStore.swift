@@ -109,7 +109,11 @@ final class DeferredTaskStore: TaskStore {
         do {
             let schema = Schema([TaskEntity.self, TranscriptEntity.self])
             let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-            return try ModelContainer(for: schema, configurations: [configuration])
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let container = try ModelContainer(for: schema, configurations: [configuration])
+            let dt = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            DuiyiLog.session.info("STORE open took \(Int(dt), privacy: .public)ms (background task)")
+            return container
         } catch {
             return nil
         }
