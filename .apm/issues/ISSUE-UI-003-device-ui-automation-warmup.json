@@ -1,0 +1,58 @@
+{
+  "id": "ISSUE-UI-003",
+  "type": "test-infrastructure",
+  "title": "网络配对设备上首次 UI 测试无法初始化 automation mode",
+  "status": "resolved",
+  "severity": "medium",
+  "environment": {
+    "device": "iPhone 13 / iOS 26.7 (23H24) / physical / REDACTED_UDID",
+    "xcode": "26.4.1 (17E202)，iOS SDK 26.4 (23E252)",
+    "connection": "network only（manualPairing / *.coredevice.local），无 USB",
+    "appsInstalledBefore": 4
+  },
+  "previousBlocker": {
+    "symptom": "Free provisioning requires at most 10 apps to be installed at the same time",
+    "resolvedBy": "用户清理设备上不用的开发 App（安装数降到 4）"
+  },
+  "symptoms": [
+    {
+      "run": 1,
+      "message": "Early unexpected exit, operation never finished bootstrapping (test runner exited with code 74)",
+      "log": "[DTXConnection] Connection peer refused channel request for \"dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface\"; channel canceled / Exiting due to IDE disconnection."
+    },
+    {
+      "run": 2,
+      "message": "The test runner failed to initialize for UI testing. (Timed out while enabling automation mode.)"
+    }
+  ],
+  "diagnosis": {
+    "discriminator": "同一设备、同一会话下 DuiyiTests/TaskStoreTests 5/5 通过 → testmanagerd 本身健康，问题专属 UI automation 通道",
+    "environmentFindings": [
+      "xctrace list devices 把该设备列为 Devices Offline",
+      "~/Library/Developer/Xcode/DeviceSupport 为空，从未为该设备准备过支持包",
+      "设备 OS 26.7 (23H24) 比 Xcode SDK 26.4 (23E252) 更新",
+      "USB 未连接 iPhone，Xcode 无法通过 USB 触发 DeviceSupport 准备"
+    ],
+    "historicalEvidence": "设备上 3 份历史 DuiyiUITests-Runner 崩溃日志均为 XCTestCore +[XCTRunnerDaemonSession sharedSession] / XCUIAutomation +[XCUIDevice localDevice] 断言后 abort，同一失败模式"
+  },
+  "resolution": {
+    "rootCause": "testmanagerd 的 UI automation 通道在冷启动状态下未就绪；DeviceSupport 缺失（无 USB）使其无法自愈",
+    "fix": "先用设备侧单元测试预热 testmanagerd，再执行 UI 测试",
+    "evidence": "预热后 testHomeModuleNavigation 立刻通过（Setting up automation session 3.68s）",
+    "noProductionCodeChange": true
+  },
+  "recommendedWorkflow": [
+    "1) mobilebuildmcp device test --only-testing:DuiyiTests/...（预热 testmanagerd）",
+    "2) mobilebuildmcp device test（完整真机套件）",
+    "如仍失败：用 USB 连接设备并保持解锁，让 Xcode 准备 23H24 的 DeviceSupport"
+  ],
+  "finalState": {
+    "realDeviceFullSuite": "123 passed, 0 failed, 0 skipped（iPhone 13 / iOS 26.7 / Debug）",
+    "realDeviceKeyDurations": {
+      "testSimultaneousListeningPressure": "1分59秒（真实端侧听写路径，确实执行未跳过）",
+      "testHomeModuleNavigation": "11秒",
+      "testColdLaunch": "24秒"
+    },
+    "simulatorSuite": "122 passed, 0 failed, 1 skipped（skip 原因见 ISSUE-UI-002）"
+  }
+}

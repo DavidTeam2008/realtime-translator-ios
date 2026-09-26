@@ -27,9 +27,10 @@
     }
   ],
   "finalState": {
-    "uiSuite": "122 passed, 0 failed, 1 skipped（iPhone 17 Pro Simulator / iOS 26.4.1 / Debug）",
-    "unitSuite": "120 passed, 0 failed",
+    "simulator": "122 passed, 0 failed, 1 skipped（iPhone 17 Pro Simulator / iOS 26.4.1 / Debug；skip 为 ISSUE-UI-002 的端侧转写能力缺失）",
+    "realDevice": "123 passed, 0 failed, 0 skipped（iPhone 13 / iOS 26.7 / Debug）",
+    "realDeviceListening": "testSimultaneousListeningPressure 在真机上执行 1分59秒，未跳过 —— 真实端侧听写路径已在物理设备验证",
     "releaseBuild": "SUCCEEDED（device / Release）"
   },
-  "environmentNote": "真机 UI test runner 仍因免费 provisioning profile 达到 App 安装上限而无法安装；没有删除设备上的用户 App。"
+  "environmentNote": "真机 UI 测试已跑通；所需的环境前置与预热步骤见 ISSUE-UI-003。"
 }

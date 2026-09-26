@@ -36,5 +36,9 @@
     },
     "notDone": "没有把断言改弱、没有 mock 掉能力检查、没有改产品代码迎合模拟器"
   },
-  "followUp": "该路径必须在真机（iPhone 13 / iOS 26.7）上验证；真机 UI runner 当前另被免费 provisioning 的 App 数量上限阻塞。"
+  "followUp": {
+    "status": "已在真机验证通过",
+    "evidence": "iPhone 13 / iOS 26.7 真机上 testSimultaneousListeningPressure 执行 1分59秒并通过，skipped=0；说明 SpeechTranscriber 仅在物理设备可用，模拟器跳过是正确行为。",
+    "remaining": "无"
+  }
 }

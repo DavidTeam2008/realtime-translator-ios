@@ -32,24 +32,22 @@ final class SimultaneousFlowTests: XCTestCase {
         return app
     }
 
-    /// 与 App 的 `SpeechAssetPreparer.isDeviceCapable` 保持同一套判据。
-    /// 返回 nil 表示能力齐备，否则返回不可用的具体原因。
-    private func speechCapabilityGap() async -> String? {
-        guard SpeechTranscriber.isAvailable else {
-            return "SpeechTranscriber.isAvailable=false（该运行时没有端侧转写器；iOS 模拟器属于此类）"
-        }
-        for tag in ["en-US", "zh-CN"] {
-            if await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: tag)) == nil {
-                return "SpeechTranscriber 不支持 locale \(tag)"
-            }
-        }
-        return nil
+    /// 端侧转写能力判据。
+    ///
+    /// 只做**同步**检查：本用例必须留在主线程（`XCUIApplication.launch()` 明确要求
+    /// main thread），所以这里不能 `await`。`isAvailable` 已足够——实测中
+    /// locale(en-US)/locale(zh-CN) 都受支持，唯一失败项就是 `isAvailable`；
+    /// 真正的 locale 不匹配会由 App 自己抛出 `languageUnsupported`。
+    private var speechTranscriptionUnavailableReason: String? {
+        SpeechTranscriber.isAvailable
+            ? nil
+            : "SpeechTranscriber.isAvailable=false（该运行时没有端侧转写器；iOS 模拟器属于此类）"
     }
 
-    func testSimultaneousListeningPressure() async throws {
-        if let gap = await speechCapabilityGap() {
+    func testSimultaneousListeningPressure() throws {
+        if let reason = speechTranscriptionUnavailableReason {
             throw XCTSkip("""
-                跳过真实听写路径：\(gap)。
+                跳过真实听写路径：\(reason)。
                 实测依据见 .apm/issues/ISSUE-UI-002-simulator-speech-unavailable.json：
                 locale(en-US)=en_US、locale(zh-CN)=zh_CN 均受支持，SFSpeechRecognizer
                 .available/.onDevice 均为 true，但 SpeechTranscriber.isAvailable=false，

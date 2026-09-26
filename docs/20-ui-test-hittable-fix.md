@@ -108,13 +108,77 @@ SFSpeechRecognizer.supportsOnDeviceRecognition = true
 
 ## 5. 最终状态
 
+模拟器（iPhone 17 Pro / iOS 26.4.1）：
+
 ```text
-UI 套件：  122 passed, 0 failed, 1 skipped
-单元套件： 120 passed, 0 failed
-Release device build：SUCCEEDED
+122 passed, 0 failed, 1 skipped   ← skip 为根因三的端侧转写能力缺失
 ```
 
-## 6. 仍未解决
+真机（iPhone 13 / iOS 26.7）：
 
-真机 UI test runner 仍因免费 provisioning profile 达到 App 安装上限而无法安装；
-`testSimultaneousListeningPressure` 的真实听写路径**必须在真机上验证**。
+```text
+123 passed, 0 failed, 0 skipped
+  testSimultaneousListeningPressure  1分59秒   ← 真实听写路径确实执行，未跳过
+  testHomeModuleNavigation           11秒
+  testColdLaunch                     24秒
+```
+
+Release device build：`SUCCEEDED`
+
+## 6. 真机跑通的过程（ISSUE-UI-003）
+
+设备上原本还有一道坎：免费 provisioning 的 App 数量上限（用户清理后降到 4 个）。
+清掉之后出现了新的失败：
+
+```text
+run 1: Early unexpected exit ... exited with code 74
+       [DTXConnection] Connection peer refused channel request for
+         "dtxproxy:XCTestDriverInterface:XCTestManager_IDEInterface"
+       [Default] Exiting due to IDE disconnection.
+
+run 2: The test runner failed to initialize for UI testing.
+       (Timed out while enabling automation mode.)
+```
+
+判别实验：同设备同会话先只跑单元测试 → **5/5 通过**，说明 `testmanagerd` 本身健康，
+问题专属 UI automation 通道。旁证：
+
+```text
+xctrace list devices  → 菀墨 (26.7) 处于 Devices Offline
+~/Library/Developer/Xcode/DeviceSupport  → 空（从未为该设备准备）
+设备 iOS 26.7 (23H24)  >  Xcode SDK 26.4 (23E252)
+USB  → 未连接
+```
+
+设备只有网络配对，Xcode 无法通过 USB 触发 DeviceSupport 准备。
+设备上还留着 3 份历史 `DuiyiUITests-Runner` 崩溃日志，全是
+`XCTRunnerDaemonSession sharedSession` 断言后 abort —— 同一失败模式。
+
+**解法**：先用设备侧单元测试预热 `testmanagerd`，再跑 UI 测试：
+
+```bash
+# 1) 预热
+mobilebuildmcp device test --device-id <DEV> \
+  --json '{"extraArgs":["-only-testing:DuiyiTests/TaskStoreTests"]}'
+
+# 2) 完整真机套件
+mobilebuildmcp device test --device-id <DEV>
+```
+
+预热后 `testHomeModuleNavigation` 立刻通过（`Setting up automation session 3.68s`）。
+
+## 7. 顺带修掉的一个自造缺陷
+
+把听写用例改成 `async` 以做能力检查后，真机上立刻暴露：
+
+```text
+-[XCUIApplication _launchUsingXcode:...] must be called on the main thread
+```
+
+`async` 用例不在主线程执行，而 `launch()` 强制要求主线程。
+模拟器上没暴露，是因为 skip 发生在 `launch()` **之前** —— 这正是
+「只在能跑通的那条路径上验证」的典型盲区。已改回同步的能力检查。
+
+## 8. 仍未解决
+
+无。`testSimultaneousListeningPressure` 的真实听写路径已在物理设备验证通过。
