@@ -41,9 +41,26 @@
     "evidence": "预热后 testHomeModuleNavigation 立刻通过（Setting up automation session 3.68s）",
     "noProductionCodeChange": true
   },
+  "automation": {
+    "script": ".apm/tools/device-test.sh",
+    "why": "顺序约定如果只写在文档里，迟早有人直接跑 UI 目标而重现 exit 74",
+    "modes": ["all（默认）", "ui", "unit", "one <Target/Class/test>", "warm（只预热）"],
+    "guards": [
+      "设备锁屏 → 退出码 2，不浪费一次完整构建",
+      "预热失败 → 立即中止，不进入 UI 阶段",
+      "失败时按证据强度打印排查顺序"
+    ],
+    "verifiedBy": "脚本自身端到端跑通：warmup 5/5 → all 123 passed, 0 failed, 0 skipped（exit 0）"
+  },
+  "shellPitfallEncountered": {
+    "trap": "变量紧邻中文全角标点时，bash 会把标点当成变量名的一部分",
+    "example": "echo \"预热（$WARMUP）\" 在 set -u 下报「WARMUP: 未绑定的变量」",
+    "fix": "写成 ${WARMUP}",
+    "note": "本项目文档大量使用全角标点，该坑极易复现；HANDOFF.md 第二节已记录同一陷阱"
+  },
   "recommendedWorkflow": [
-    "1) mobilebuildmcp device test --only-testing:DuiyiTests/...（预热 testmanagerd）",
-    "2) mobilebuildmcp device test（完整真机套件）",
+    "1) .apm/tools/device-test.sh        # 预热 + 完整真机套件（推荐入口）",
+    "2) 若手工执行：先 --only-testing:DuiyiTests/... 预热，再跑 UI 目标",
     "如仍失败：用 USB 连接设备并保持解锁，让 Xcode 准备 23H24 的 DeviceSupport"
   ],
   "finalState": {

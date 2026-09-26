@@ -167,6 +167,35 @@ mobilebuildmcp device test --device-id <DEV>
 
 预热后 `testHomeModuleNavigation` 立刻通过（`Setting up automation session 3.68s`）。
 
+### 已固化成脚本
+
+顺序约定如果只写在文档里，迟早有人直接跑 UI 目标而重现 `exit 74`。所以做了
+`.apm/tools/device-test.sh` —— **没有预热就不允许进入 UI 阶段**：
+
+```bash
+.apm/tools/device-test.sh                      # 预热 + 完整真机套件（推荐入口）
+.apm/tools/device-test.sh ui                   # 预热 + 只跑 UI
+.apm/tools/device-test.sh one <Target/Class/test>
+.apm/tools/device-test.sh warm                 # 只预热
+```
+
+它还会在跑之前检查设备是否锁屏（锁屏直接退出码 2，不浪费一次完整构建），
+预热失败则立即中止，失败时按证据强度打印排查顺序。
+
+脚本自身端到端验证过：
+
+```text
+[1/2] 预热 testmanagerd（DuiyiTests/TaskStoreTests）
+    warmup: SUCCEEDED  passed=5 failed=0 skipped=0
+[2/2] 目标测试
+    all: SUCCEEDED  passed=123 failed=0 skipped=0
+✅ 真机测试通过        exit=0
+```
+
+> 写这个脚本时还踩了本仓库 `HANDOFF.md` 第二节记录过的坑：变量紧邻中文全角标点时，
+> bash 会把标点当成变量名的一部分，`echo "预热（$WARMUP）"` 在 `set -u` 下直接报
+> 「未绑定的变量」。已全部改成 `${WARMUP}`。
+
 ## 7. 顺带修掉的一个自造缺陷
 
 把听写用例改成 `async` 以做能力检查后，真机上立刻暴露：
