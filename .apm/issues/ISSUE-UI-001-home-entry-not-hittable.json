@@ -1,0 +1,30 @@
+{
+  "id": "ISSUE-UI-001",
+  "type": "ui-test-regression",
+  "title": "SimultaneousFlowTests 首个同传入口存在但不可点击",
+  "status": "confirmed",
+  "severity": "medium",
+  "environment": {
+    "device": "iPhone 17 Pro Simulator / iOS 26.4.1",
+    "configuration": "Debug",
+    "simulatorId": "REDACTED_DEVICE_ID",
+    "xcresult": "test_sim_2026-09-26T02-49-25-708Z_pid39347_d9734b26.xcresult"
+  },
+  "evidence": {
+    "summary": "120 tests: 119 passed, 1 failed",
+    "failedTest": "SimultaneousFlowTests/testSimultaneousListeningPressure",
+    "failure": "Failed to not hittable: Button, {{20.0, 224.0}, {362.0, 78.0}}, identifier: 'home-module-simultaneous', label: '同声传译'",
+    "line": "DuiyiUITests/SimultaneousFlowTests.swift:55"
+  },
+  "hypotheses": [
+    "首页载入后仍有 sheet/overlay/系统提示遮挡按钮",
+    "ScrollView 初始滚动位置或 SwiftUI transition 尚未稳定",
+    "系统权限提示的 interruption monitor 未被主动触发"
+  ],
+  "nextSteps": [
+    "单独重复运行失败测试，确认是否稳定复现",
+    "检查失败时 UI hierarchy / snapshot 的 window 与 overlay 状态",
+    "若是测试时序问题，只调整等待/中断处理；若是 App overlay 回归，再修产品代码"
+  ],
+  "note": "真机 UI test runner 另因免费 provisioning profile 达到 App 安装上限而无法安装；没有删除设备上的用户 App。"
+}

@@ -111,6 +111,8 @@ protocol TaskStore: AnyObject {
         multilingual: Bool
     ) async throws -> TaskSession
     func append(taskID: UUID, entries: [TranscriptEntry]) async
+    /// 只回填已有条目的译文；允许用于已结束任务，避免放宽 transcript 写入规则。
+    func updateTranslations(taskID: UUID, entries: [TranscriptEntry]) async
     func setStatus(taskID: UUID, status: TaskStatus) async
     func saveSummary(taskID: UUID, summary: ConversationSummary) async
     func end(taskID: UUID, summary: ConversationSummary?) async throws -> TaskSession

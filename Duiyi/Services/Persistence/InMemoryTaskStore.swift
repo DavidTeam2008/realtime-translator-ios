@@ -69,6 +69,20 @@ final class InMemoryTaskStore: TaskStore {
         tasks[taskID] = task
     }
 
+    func updateTranslations(taskID: UUID, entries: [TranscriptEntry]) async {
+        guard var task = tasks[taskID] else { return }
+        var translations: [UUID: String] = [:]
+        for entry in entries {
+            translations[entry.id] = entry.translatedText
+        }
+        for index in task.entries.indices {
+            if let translatedText = translations[task.entries[index].id] {
+                task.entries[index].translatedText = translatedText
+            }
+        }
+        tasks[taskID] = task
+    }
+
     func setStatus(taskID: UUID, status: TaskStatus) async {
         guard var task = tasks[taskID], task.status != .ended else { return }
         task.status = status

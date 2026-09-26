@@ -1,0 +1,45 @@
+{
+  "id": "ISSUE-FUNC-001",
+  "type": "functional-data-loss",
+  "title": "已结束会议记录中的译文只更新内存，重新进入后消失",
+  "status": "resolved",
+  "severity": "high",
+  "rootCause": {
+    "summary": "译文回填复用了 append；InMemoryTaskStore 与 SwiftDataTaskStore 都拒绝修改 ended 任务，UI 却先更新了内存 @State，形成“显示成功但未落盘”。",
+    "files": [
+      "Duiyi/Features/History/TaskDetailView.swift:223",
+      "Duiyi/Services/Persistence/InMemoryTaskStore.swift:51",
+      "Duiyi/Services/Persistence/SwiftDataTaskStore.swift:69"
+    ]
+  },
+  "evidence": {
+    "redTest": {
+      "command": "mobilebuildmcp simulator test --only-testing:DuiyiTests/TaskStoreTests",
+      "result": "3 passed, 2 failed",
+      "failure": "InMemory 与 SwiftData 的 endedTaskTranslationBackfill 都读回空译文"
+    },
+    "greenTest": {
+      "command": "同上",
+      "result": "5 passed, 0 failed"
+    },
+    "fullUnitTest": {
+      "command": "mobilebuildmcp simulator test --only-testing:DuiyiTests",
+      "result": "120 passed, 0 failed"
+    },
+    "releaseBuild": "Duiyi / Release / device SUCCEEDED"
+  },
+  "fix": {
+    "approach": "新增专用 updateTranslations 通道，只更新已有 TranscriptEntry 的 translatedText，并允许作用于 ended 任务；普通 append 继续保持 ended guard。",
+    "files": [
+      "Duiyi/Domain/TaskSession.swift",
+      "Duiyi/Services/Persistence/InMemoryTaskStore.swift",
+      "Duiyi/Services/Persistence/SwiftDataTaskStore.swift",
+      "Duiyi/Services/Persistence/DeferredTaskStore.swift",
+      "Duiyi/Features/History/TaskDetailView.swift",
+      "DuiyiTests/TaskStoreTests.swift"
+    ]
+  },
+  "knownFollowUp": [
+    "ExportShareButton 使用 .task(id: task.id)，同一详情页内译文更新后导出 URL 可能仍是旧内容；作为独立问题处理，本次未混改。"
+  ]
+}

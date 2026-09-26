@@ -229,7 +229,10 @@ struct TaskDetailView: View {
         current.entries[index].translatedText = text
         task = current
         Task {
-            await environment.taskStore.append(taskID: current.id, entries: [current.entries[index]])
+            await environment.taskStore.updateTranslations(
+                taskID: current.id,
+                entries: [current.entries[index]]
+            )
         }
         advanceTranslation()
     }

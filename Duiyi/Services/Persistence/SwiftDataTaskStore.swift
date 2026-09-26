@@ -98,6 +98,20 @@ final class SwiftDataTaskStore: TaskStore {
         try? context.save()
     }
 
+    func updateTranslations(taskID: UUID, entries: [TranscriptEntry]) async {
+        guard let entity = entity(id: taskID) else { return }
+        var translations: [UUID: String] = [:]
+        for entry in entries {
+            translations[entry.id] = entry.translatedText
+        }
+        for stored in entity.entries {
+            if let translatedText = translations[stored.id] {
+                stored.translatedText = translatedText
+            }
+        }
+        try? context.save()
+    }
+
     func setStatus(taskID: UUID, status: TaskStatus) async {
         guard let entity = entity(id: taskID), entity.statusRaw != TaskStatus.ended.rawValue else { return }
         entity.statusRaw = status.rawValue

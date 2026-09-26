@@ -53,6 +53,10 @@ final class DeferredTaskStore: TaskStore {
         await resolved().append(taskID: taskID, entries: entries)
     }
 
+    func updateTranslations(taskID: UUID, entries: [TranscriptEntry]) async {
+        await resolved().updateTranslations(taskID: taskID, entries: entries)
+    }
+
     func setStatus(taskID: UUID, status: TaskStatus) async {
         await resolved().setStatus(taskID: taskID, status: status)
     }
