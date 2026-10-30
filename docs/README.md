@@ -10,6 +10,7 @@
 | 刚接手项目 | [`../HANDOFF.md`](../HANDOFF.md) → 本页 → [`13-architecture-analysis.md`](13-architecture-analysis.md) |
 | 改语音/翻译链路 | [`13`](13-architecture-analysis.md) §2 → [`06`](06-simultaneous-architecture.md) → [`14`](14-device-test-iphone13.md) |
 | 跑真机/补 UI 测试 | [`../HANDOFF.md`](../HANDOFF.md) §3 → [`20`](20-ui-test-hittable-fix.md) |
+| 跨会话任务 / 换 Agent | [`21`](21-cross-session-handoff.md)：谁维护、四个动作、命令与示例 |
 | 做启动/性能 | [`17`](17-startup-optimization-paused.md) → [`18`](18-startup-feasibility-verification.md) → [`16`](16-startup-measurement-verification.md)；**先看结论，方向已暂停** |
 | 看产品设计 | [`09`](09-platform-prototype.md) → [`10`](10-platform-architecture.md) → [`12`](12-platform-roadmap.md) |
 
@@ -22,6 +23,21 @@
 | [`14-device-test-iphone13.md`](14-device-test-iphone13.md) | iPhone 13 真机安装、Instruments/XCUITest 性能、英→中翻译抽测 | 2026-09-23/24 的历史数据；工具限制仍有效 |
 | [`19-ended-translation-persistence-fix.md`](19-ended-translation-persistence-fix.md) | 已结束任务译文只更新内存、重进丢失的修复 | 已合入；含一个导出刷新 follow-up |
 | [`20-ui-test-hittable-fix.md`](20-ui-test-hittable-fix.md) | UI 测试“存在但不可点击”、权限弹窗、模拟器无听写能力、真机 automation 预热 | 已合入；真机测试入口 `.apm/tools/device-test.sh` |
+| [`21-cross-session-handoff.md`](21-cross-session-handoff.md) | 跨会话任务与交接的人读 SOP：谁维护、四个动作、命令、示例、FAQ | 2026-10-30 |
+
+## Agent 规则（2026-10-30 引入）
+
+人读入口仍是 [`../HANDOFF.md`](../HANDOFF.md)；`AGENTS.md` 是 Agent 冷启动入口，两者分工。优先级：代码、`docs/13`、`HANDOFF.md` 是事实，`references/` 是规则视图。
+
+| 文件 | 用途 |
+| --- | --- |
+| [`../AGENTS.md`](../AGENTS.md) | Agent 冷启动入口：铁律、命令、验证矩阵、项目级覆盖 |
+| [`../references/contracts.md`](../references/contracts.md) | 架构契约与铁律细则 |
+| [`../references/verification.md`](../references/verification.md) | 测试 / 真机 / 性能验证矩阵 |
+| [`../references/workflow.md`](../references/workflow.md) | L0/L1/L2、长任务、红队 |
+| [`../tools/check-docs.py`](../tools/check-docs.py) | 文档链接 / 围栏 / 索引 / token 预算；`make check` |
+| [`../tools/plan.py`](../tools/plan.py) | 跨会话计划的新建 / 最新计划 / 交接摘要；`make plan` / `make handoff` |
+| [`../Makefile`](../Makefile) | 测试 / 构建 / 真机 / 文档 / 计划命令入口 |
 
 ## 启动优化（已暂停，保留证据）
 
@@ -58,6 +74,8 @@
 | `.apm/tools/measure-launch.sh` | 真机冷启动测量：固定命令、warmup、分层口径 |
 | `.apm/baseline/README.md` | 哪个 baseline 可用、哪个已作废 |
 | `.apm/issues/` | 问题单（含根因、证据、修复状态） |
+| [`.apm/plans/`](../.apm/plans/) | 跨会话任务的执行计划；用 `_template.md` 起稿，中断/交接前更新 |
+| `.apm/reviews/` | 独立审查报告；结论与作者回应写入对应计划 |
 | `.apm/runs/` | 历次测量原始数据（gitignore，可由脚本重建） |
 | `.apm/report.md` | 启动 200ms 演练的完整复盘 |
 

@@ -29,7 +29,7 @@
 #   .apm/tools/device-test.sh ui              # 预热 + 只跑 UI 套件
 #   .apm/tools/device-test.sh unit            # 只跑单元套件（仍先预热）
 #   .apm/tools/device-test.sh one <Target/Class/test>   # 预热 + 单个用例
-#   APM_DEVICE=<UDID> .apm/tools/device-test.sh         # 换设备
+#   APM_DEVICE=<CoreDevice ID> .apm/tools/device-test.sh # 换设备
 #
 # 退出码：0 全绿；1 有失败；2 环境前置不满足（设备锁屏/未连接等）
 
@@ -115,7 +115,7 @@ echo
 # "$VAR（说明）" 里的（不是变量名分隔符，bash 会去找一个叫 "VAR（说明）" 的变量，
 # 在 set -u 下直接报「未绑定的变量」。本项目文档全角标点很多，这个坑很容易踩。
 echo "  [1/2] 预热 testmanagerd（${WARMUP}）"
-if ! run_test "warmup" "{\"extraArgs\":[\"-only-testing:${WARMUP}\"]}"; then
+if ! run_test "warmup" "{\"extraArgs\":[\"-allowProvisioningUpdates\",\"-only-testing:${WARMUP}\"]}"; then
   echo
   echo "⛔ 预热失败 —— 先修环境，不要继续跑 UI。"
   echo "   · 确认设备已解锁、Developer Mode 已开、已信任这台 Mac"
@@ -128,11 +128,11 @@ echo
 echo "  [2/2] 目标测试"
 case "$MODE" in
   warm) echo "  （--warm：只预热）"; exit 0 ;;
-  ui)   extra='{"extraArgs":["-only-testing:DuiyiUITests"]}' ;;
-  unit) extra='{"extraArgs":["-only-testing:DuiyiTests"]}' ;;
-  all)  extra='' ;;
+  ui)   extra='{"extraArgs":["-allowProvisioningUpdates","-only-testing:DuiyiUITests"]}' ;;
+  unit) extra='{"extraArgs":["-allowProvisioningUpdates","-only-testing:DuiyiTests"]}' ;;
+  all)  extra='{"extraArgs":["-allowProvisioningUpdates"]}' ;;
   one)  [ -n "$ONLY" ] || { echo "⛔ one 模式需要给出 Target/Class/test"; exit 2; }
-        extra="{\"extraArgs\":[\"-only-testing:$ONLY\"]}" ;;
+        extra="{\"extraArgs\":[\"-allowProvisioningUpdates\",\"-only-testing:$ONLY\"]}" ;;
   *)    echo "⛔ 未知模式：${MODE}（可选 all / ui / unit / one / warm）"; exit 2 ;;
 esac
 
@@ -146,10 +146,16 @@ else
 
 排查顺序（按本机实测的证据强度排序）：
   1. 若报 exit 74 或 "Timed out while enabling automation mode"
-     → 守护进程没就绪。确认本脚本的预热步骤已执行（不要跳过它直接跑 UI）。
+     → 先确认本脚本的预热步骤已执行（不要跳过它直接跑 UI）。
+     → 仍失败时看手机是否停在「为 “XCTest” 输入 iPhone 密码 /
+       Enable UI Automation」。iOS 15+ 真机 UI 测试要求输入一次
+       锁屏密码，设备重启后会再次要求；设备没有密码时无法完成。
   2. 若报 "Free provisioning requires at most 10 apps"
      → 设备上安装的 App 超限，清理后重跑。
-  3. 若 UI 测试反复起不来
+  3. 若报 No profiles for '...xctrunner'
+     → 脚本已带 -allowProvisioningUpdates；仍失败时确认 Team 和设备
+       都在当前开发者账号下。
+  4. 若 UI 测试反复起不来
      → 用 USB 连接设备并保持解锁，让 Xcode 为该 OS 版本准备 DeviceSupport
         （网络配对时 Xcode 无法完成这一步）。
         设备 OS 比 Xcode SDK 更新时尤其容易卡在这里。

@@ -18,3 +18,7 @@ build/
 .apm/**/*.jpeg
 Launch_*.trace/
 .hvigor/
+
+# Python 检查脚本缓存
+__pycache__/
+*.pyc

@@ -1,7 +1,7 @@
 # 对译 Duiyi · 接手说明（HANDOFF）
 
-> 最后更新：2026-10-29  
-> 代码基线：`main` @ `e2050ce`；本次仅更新文档，未改业务代码  
+> 最后更新：2026-10-30（引入 Agent 规则骨架）  
+> 代码基线：`main` @ `e2050ce`；本次仅更新文档与工程脚本，未改业务代码  
 > 本机复核：Xcode 27.1 (27A9275) 构建通过；模拟器单元测试 **120/120**、
 > 导航 UI 用例通过（14.9s）  
 > 真机基线（2026-09-26）：iPhone 13 / iOS 26.7，**123/123** 通过（120 单元 + 3 UI）
@@ -141,7 +141,7 @@ app.launchArguments += ["-duiyi.onboardingComplete", "YES"]
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
 | 真机测试找不到设备 | 设备 ID 体系不同：Xcode/devicectl 用硬件 UDID，mobilebuildmcp 用自己的 ID | 分别用 `xcrun devicectl list devices` 和 `mobilebuildmcp device list` 查，不要混用 |
-| UI 测试报 `exit code 74` 或 `Timed out while enabling automation mode` | 网络配对设备上 `testmanagerd` 的 automation 通道未就绪；无 USB 时 Xcode 无法准备 DeviceSupport | **先跑一次设备侧单元测试预热**，再跑 UI。直接使用 `.apm/tools/device-test.sh`，它强制这个顺序 |
+| UI 测试报 `exit code 74` 或 `Timed out while enabling automation mode` | `testmanagerd` 的 automation 通道未就绪，或设备停在「Enable UI Automation」密码弹窗 | **先跑一次设备侧单元测试预热**，再跑 UI；仍失败时在手机上输入一次锁屏密码（见 §3.2） |
 | 真机 UI 测试起不来 | 手机锁屏 | 先解锁；`device-test.sh` 会检查并直接退出码 2 |
 | `Free provisioning requires at most ... apps` | 免费证书的 App 名额满了（Runner 也占） | 删掉不用的自签名 App，或换付费账号 |
 | 首页按钮“存在但不可点击”（`not hittable`） | 全新安装时 `OnboardingView` 以 `fullScreenCover` 盖住首页 | 测试里加 `-duiyi.onboardingComplete YES`；不要靠“模拟器里已经有人点过”的残留状态 |
@@ -178,11 +178,13 @@ idevicesyslog -u <UDID> | grep -a "Launch stages\|EARLY\|STORE open\|first-frame
 ```bash
 # 模拟器（无需真机）
 xcodebuild test -project Duiyi.xcodeproj -scheme Duiyi \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4.1' \
   -only-testing:DuiyiTests
 ```
 
 2026-10-29 在本机 iPhone 17 Pro Max / iOS 26.4 模拟器复核：**120 passed, 0 failed**。
+本机 `iPhone 17 Pro Max` 只在 iOS 26.4.1 runtime；换机器/runtime 时用
+`make test SIM_OS=<version>` 覆盖。
 
 新增测试放 `DuiyiTests/`，文件名按被测对象命名；异步 ViewModel 测试统一注入
 `PreviewSupport` 里的假引擎/假 Store/假合成器，不要连真麦克风。
@@ -202,7 +204,10 @@ APM_DEVICE=<mobilebuildmcp 设备 ID> .apm/tools/device-test.sh
 和 Xcode / `devicectl` 的 40 位硬件 UDID 可能不是同一个字符串。换设备时先跑
 `mobilebuildmcp device list`，不要直接拿 `xcrun devicectl list devices` 的 UDID 套。
 
-重跑前确认手机**亮屏解锁**。脚本失败时会按证据强度打印排查顺序。
+重跑前确认手机**亮屏解锁**。脚本已带 `-allowProvisioningUpdates`，新环境首次跑会
+自动生成 UI runner profile。iOS 15+ 的真机 UI 测试还要求设备有锁屏密码：首次运行
+会在手机上弹「为 “XCTest” 输入 iPhone 密码 / Enable UI Automation」，输入一次即可
+（重启后会再次要求）。脚本失败时会按证据强度打印排查顺序。
 
 参考结果（2026-09-26，iPhone 13 / iOS 26.7）：
 
@@ -296,7 +301,7 @@ UIHostingController 换掉 SwiftUI 场景机，或把目标改成可达范围）
 `.apm/tools/measure-launch.sh` 保证同口径；不要拿模拟器或单次样本下结论。
 
 ```bash
-# 默认 5 次；APM_APP 必须指向 Release-iphoneos 的 .app
+# 参数为运行次数；性能结论要求 n≥10；APM_APP 必须指向 Release-iphoneos 的 .app
 APM_APP=build/Release/Build/Products/Release-iphoneos/Duiyi.app \
 APM_UDID=<硬件 UDID> \
 .apm/tools/measure-launch.sh 10
@@ -529,14 +534,20 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 | --- | --- | --- |
 | [`README.md`](README.md) | 当前 | 产品简介、快速开始 |
 | [`HANDOFF.md`](HANDOFF.md) | 当前 | 本文件：接手、环境、测试、下一步 |
+| [`AGENTS.md`](AGENTS.md) | 当前 | AI Agent 冷启动入口：铁律、命令、验证矩阵、项目级覆盖 |
+| [`references/`](references/) | 当前 | Agent 细则：contracts / verification / workflow；按需读取 |
+| [`tools/check-docs.py`](tools/check-docs.py) | 当前 | 文档链接 / 围栏 / 索引检查；`make check-docs` |
+| [`Makefile`](Makefile) | 当前 | 测试 / 构建 / 真机 / 文档命令入口 |
+| [`.github/workflows/docs.yml`](.github/workflows/docs.yml) | 当前 | CI 只跑文档检查 |
 | [`docs/README.md`](docs/README.md) | 当前 | 文档索引与阅读顺序 |
 | [`docs/13-architecture-analysis.md`](docs/13-architecture-analysis.md) | 当前（2026-09-23） | 架构深挖 + 问题清单，最值得先读 |
 | [`docs/14-device-test-iphone13.md`](docs/14-device-test-iphone13.md) | 历史报告 | 真机性能/同传测试数据与工具限制 |
 | [`docs/19-ended-translation-persistence-fix.md`](docs/19-ended-translation-persistence-fix.md) | 已完成 | 已结束任务译文丢失的修复记录 |
 | [`docs/20-ui-test-hittable-fix.md`](docs/20-ui-test-hittable-fix.md) | 已完成 | UI 测试假绿/权限/模拟器能力问题的闭环 |
+| [`docs/21-cross-session-handoff.md`](docs/21-cross-session-handoff.md) | 当前 | 跨会话任务与交接的人读 SOP：四个动作、命令、示例 |
 | [`docs/15`](docs/15-startup-optimization.md)–[`docs/18`](docs/18-startup-feasibility-verification.md) | 历史，已暂停 | 启动优化过程与“200ms 不可达”的证据；只读结论，不要重启微优化 |
 | [`docs/01`](docs/01-product-prototype.md)–[`docs/12`](docs/12-platform-roadmap.md) | 设计历史 | 产品原型、模块架构、路线图；部分版本号/计划日期已过时 |
-| [`.apm/`](.apm/) | 证据库 | 基准、问题单、测量脚本、历次 run；`runs/` 不入库 |
+| [`.apm/`](.apm/) | 证据库 + 计划 | 基准、问题单、测量脚本、跨会话计划、独立审查；`runs/` 不入库 |
 | [`prototype/`](prototype/) | 设计原型 | 浏览器打开的可交互稿 |
 
 约定：**代码是事实来源**；文档里的行号/数字如果和代码冲突，以代码和最新
@@ -551,6 +562,7 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 - [ ] 手机完成引导：语言、麦克风、语音识别、模型下载
 - [ ] 三个模块各走一遍：新任务 → 开始 → 说两句 → 结束 → 历史 → 导出
 - [ ] 跑 `.apm/tools/device-test.sh`，确认 123 个测试全绿
+- [ ] 跑 `make check`；有模板仓再跑 `make check-all`，确认文档门禁、token 预算与团队基线
 - [ ] 读 `docs/13` 的 §2（数据链路）和 §4（问题清单）
 - [ ] 读 `docs/17`/`docs/18` 的结论，明确“启动优化不再投入”
 - [ ] 和负责人确认 §6 的六个决策
@@ -563,3 +575,6 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 | 日期 | 变更 |
 | --- | --- |
 | 2026-10-29 | 新建接手文档；复核 Xcode 27.1 构建、模拟器 120 个单元测试；整理现状、坑与下一步 |
+| 2026-10-30 | 引入 Agent 规则骨架：`AGENTS.md` + `references/` + `tools/check-docs.py` + `Makefile` + docs CI；补跨会话计划模板与接手协议（人读 SOP 见 `docs/21`）；未改业务代码 |
+| 2026-10-30 | 按独立审查修复：计划按 mtime 选择、`make check` 去模板仓依赖、token 预算门禁、`SpeechSessionGate` 措辞、红队范围统一；审查报告在 `.apm/reviews/` |
+| 2026-10-30 | 真机测试环境加固：模拟器默认 runtime 固定为 iOS 26.4.1；`device-test.sh` 自动带 `-allowProvisioningUpdates`；补 “Enable UI Automation” 密码弹窗说明。真机 123、模拟器 120 + UI 3/1 skip 全过 |
