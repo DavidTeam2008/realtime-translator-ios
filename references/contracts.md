@@ -2,7 +2,7 @@
 
 > 触发：改 `Services/Speech|Audio|Translation|SpeechSynthesis|Persistence|Export`、
 > `Features/*/` ViewModel、`Domain/TaskSession*`，或准备发版时读。
-> 代码是事实来源；与 `docs/13` §2/§4 冲突时，以代码和最新测试为准。
+> 代码是事实来源；与 `docs/02`/`docs/04` 冲突时，以代码和最新测试为准。
 
 ## 1. 分层与依赖方向
 

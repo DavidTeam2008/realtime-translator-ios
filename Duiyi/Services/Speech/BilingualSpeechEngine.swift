@@ -214,7 +214,7 @@ actor BilingualSpeechEngine: SpeechRecognizing {
                     return
                 } catch {
                     DuiyiLog.speech.error("Analyzer failed: \(error.localizedDescription, privacy: .public)")
-                    await self?.fail(.recognitionInterrupted)
+                    await self?.fail()
                 }
             }
         )
@@ -246,7 +246,7 @@ actor BilingualSpeechEngine: SpeechRecognizing {
                     return
                 } catch {
                     DuiyiLog.speech.error("Transcriber failed: \(error.localizedDescription, privacy: .public)")
-                    await self?.fail(.recognitionInterrupted)
+                    await self?.fail()
                 }
             }
         )
@@ -318,7 +318,7 @@ actor BilingualSpeechEngine: SpeechRecognizing {
         utteranceContinuation?.yield(utterance)
     }
 
-    private func fail(_ error: DuiyiError) {
+    private func fail() {
         utteranceContinuation?.finish()
     }
 
@@ -338,7 +338,7 @@ actor BilingualSpeechEngine: SpeechRecognizing {
             usingDual = false
         } catch {
             DuiyiLog.speech.error("Single locale restart failed: \(error.localizedDescription, privacy: .public)")
-            fail(.recognitionInterrupted)
+            fail()
         }
     }
 

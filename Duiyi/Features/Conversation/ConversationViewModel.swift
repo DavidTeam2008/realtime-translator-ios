@@ -387,12 +387,6 @@ final class ConversationViewModel {
     }
 
     func failTranslation(job: TranslationJob, error: Error) {
-        if Self.isTransientTranslationCancellation(error) {
-            if outboundJob?.id == job.id {
-                outboundJob = nil
-            }
-            return
-        }
         if outboundJob?.id == job.id {
             outboundJob = nil
         }
@@ -617,17 +611,6 @@ final class ConversationViewModel {
             guard !Task.isCancelled else { return }
             self?.holdScreenAfterPause = false
         }
-    }
-
-    static func isTransientTranslationCancellation(_ error: Error) -> Bool {
-        if error is CancellationError {
-            return true
-        }
-        let nsError = error as NSError
-        if nsError.domain == "TranslationErrorDomain", [14, 20].contains(nsError.code) {
-            return true
-        }
-        return false
     }
 
     static func endsWithClause(_ text: String) -> Bool {

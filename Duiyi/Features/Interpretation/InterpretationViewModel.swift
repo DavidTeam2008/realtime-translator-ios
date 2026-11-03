@@ -440,12 +440,6 @@ final class InterpretationViewModel {
     }
 
     func failTranslation(job: TranslationJob, error: Error) {
-        if ConversationViewModel.isTransientTranslationCancellation(error) {
-            if outboundJob?.id == job.id {
-                outboundJob = nil
-            }
-            return
-        }
         if outboundJob?.id == job.id {
             outboundJob = nil
         }

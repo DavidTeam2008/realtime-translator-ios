@@ -26,10 +26,6 @@ struct TaskSession: Identifiable, Equatable, Sendable {
     var duration: TimeInterval {
         (endedAt ?? .now).timeIntervalSince(startedAt)
     }
-
-    func characterCount() -> Int {
-        entries.reduce(0) { $0 + $1.sourceText.count + $1.translatedText.count }
-    }
 }
 
 enum TaskTitle {

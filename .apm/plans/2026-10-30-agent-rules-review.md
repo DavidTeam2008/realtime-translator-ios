@@ -153,7 +153,7 @@
 | P2-3 handoff 缺 2 项 | 接受 | `brief` 增加“已排除 / 验证证据”；缺“目标与验收 / 下一步”告警 |
 | P2-4 measure-launch 默认 5 | 接受 | `N ?= 10`；HANDOFF 注释改为“参数为运行次数，n≥10” |
 | P2-5 CI 无 path filter | 接受（部分） | 加 `paths` 过滤；计划仍纳入检查，因为已入库且链接必须有效 |
-| P2-6 references 与 HANDOFF/docs13 重叠 | 接受（文档层） | docs/README 与 docs/21 声明：代码、docs/13、HANDOFF 是事实，references 是规则视图；本轮不做大规模去重 |
+| P2-6 references 与 HANDOFF/docs 重叠 | 接受（文档层） | docs/README 与 docs/21 声明：代码、docs/01–04、HANDOFF 是事实，references 是规则视图；本轮不做大规模去重 |
 | P2-7 plan.py 缺校验 | 接受 | 缺模板给明确错误；`brief` 缺目标/下一步告警；文档改为“2–5 个短词（英文优先，允许汉字）”，与实现一致 |
 | P2-8 APM_DEVICE ID 类型 | 接受（已确认） | 真机验证：脚本默认 `REDACTED_CORE_DEVICE_ID` 同时被 `devicectl` 与 mobilebuildmcp 接受；`devicectl list devices` 显示的是另一套硬件 UDID。文档统一称 CoreDevice ID |
 | P2-9 停止上报无模板 | 接受 | workflow 增加“阻塞报告”5 行模板 |

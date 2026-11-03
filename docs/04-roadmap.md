@@ -1,238 +1,193 @@
-# 04 项目落地线路图
+# 04 当前问题与优化路线
 
-原则：**先在真机上证明双路离线听写 + 双向离线翻译，再打磨桌面字幕板。** 界面可以平行做，但 M2 过不去就不要承诺「实时对译」。
+> 本文是**当前**的工程待办与风险清单，替代早期的 04/08/12 路线图与 13 的问题清单。
+> 架构见 [`02-architecture.md`](02-architecture.md)，选型见 [`03-tech-choices.md`](03-tech-choices.md)。
+> 每条都尽量给出代码依据；行号会漂移，以类型/函数名为准。
 
-```mermaid
-gantt
-  title 对译 v1 五周落地
-  dateFormat  YYYY-MM-DD
-  axisFormat  %m/%d
-  section 设计
-  M0 设计冻结           :done, m0, 2026-08-28, 1d
-  section 实现
-  M1 字幕板与倒字       :m1, 2026-08-31, 7d
-  M2 单路离线听写       :m2, 2026-09-07, 7d
-  M3 双路融合与路由     :crit, m3, 2026-09-14, 7d
-  M4 双向离线翻译       :m4, 2026-09-21, 7d
-  M5 引导打磨验收       :m5, 2026-09-28, 7d
-```
+## 0. 状态
 
-周期按 1 名熟悉 SwiftUI 的 iOS 工程师估算。日历约 **5 周**到可当面试用的 v1。
-
----
-
-## 总览
-
-```
-W1 骨架与字幕板
-W2 单路离线听写（真机）
-W3 双路融合 + 路由
-W4 离线翻译接入
-W5 引导、降级、打磨、验收
-```
-
-| 里程碑 | 产出 | 过关标准 |
-| --- | --- | --- |
-| M0 设计冻结 | 本目录文档 + 原型 | 产品规则、技术栈无未决项 |
-| M1 可看 | 分屏倒字 App 壳 | 平放桌子，两侧字方向正确 |
-| M2 可听 | 单路 SpeechAnalyzer | 离线说出中文或英文，主屏出字 |
-| M3 可分 | 双路 + LanguageRouter | 中英交替说话，字幕打到正确一侧 |
-| M4 可译 | TranslationSession 双向 | 断网后仍能出译文 |
-| M5 可用 | 引导 + 错误 + 字号 | 新人 30 秒开用，当面 10 分钟对话不崩 |
-
----
-
-## 第 0 周 · 设计冻结（当前）
-
-- [x] 场景与字幕路由规则
-- [x] 界面原型
-- [x] 架构与技术选型
-- [x] 干系人过一遍原型 HTML，确认「自动聆听 / 语言默认跟系统」无异议后再建工程
-
-出口：本目录文档不再改产品规则。之后只改实现。
-
----
-
-## 第 1 周 · M1 骨架与字幕板
-
-**目标：** 没有麦克风也能演示「平放、倒字、两行字幕、一个按钮」。
-
-任务：
-
-1. 在 `realtimeTranslator-ox` 建 Xcode 工程 `Duiyi`，Bundle ID、竖屏锁定、隐私文案占位。
-2. DesignSystem：色板、三档字号、`CaptionPaneView`、`ListeningControl`。
-3. `ConversationView` 用假数据跑通：空闲 / 聆听 / 用户在说 / 对方在说。
-4. 设置卡片：语言对调、字号、清屏。
-5. `idleTimerDisabled`、禁止自动旋转。
-
-验收：
-
-- 真机平放，对面的人认为上半屏是正字。
-- 动态字体与「最大」档不把按钮顶出安全区。
-- Preview 覆盖四态。
-
-风险：无。
-
----
-
-## 第 2 周 · M2 单路离线听写
-
-**目标：** 证明 iOS 26 设备端实时转写在桌面距离可用。
-
-任务：
-
-1. `PermissionGranting`：麦克风 + 语音识别。
-2. `AudioEngineCapturer` + 格式转换（可从旧工程移植 Converter）。
-3. 单 `SpeechTranscriber`，locale 跟「我看的语言」的**对侧**先跑通（先听对方），再切到用户语言。
-4. `AssetInventory` 下载进度接到引导页雏形。
-5. DEBUG 日志用 `os.Logger`，不进主界面。
-
-验收：
-
-- 飞行模式，对着桌子说话，1 秒内出 volatile 字。
-- 停 1 秒左右切句。
-- 杀进程再进，模型无需重下。
-
-风险：模拟器没有模型。**全部验收在真机。** 旧工程已验证单路，本周风险低。
-
----
-
-## 第 3 周 · M3 双路融合与路由
-
-**目标：** 中英插话时，字幕出现在该看的那一侧。
-
-任务：
-
-1. 同一 `SpeechAnalyzer` 挂 `zh_CN` + `en_US` + `SpeechDetector`。
-2. `UtteranceAssembler`：脚本密度、final 优先、短句沿用上句语种。
-3. `LanguageRouter` 单测：四种说话组合全覆盖。
-4. 资源不足时的单路降级开关。
-5. ViewModel 状态机接到真实引擎。
-
-验收（两人、飞行模式）：
-
-| 动作 | 期望 |
+| 项 | 状态 |
 | --- | --- |
-| 用户说中文 | 上半屏出英文转写（此时还没有翻译，先出原文或「译字准备中」占位） |
-| 对方说英文 | 下半屏出英文转写占位 |
-| 快速交替 | 不串句、不在两侧各写一遍 |
-
-说明：本周可以还没有翻译，但**路由必须对**。转写语言应等于 detected，打到的 side 应符合规则。
-
-风险：**高**。双 Transcriber 可能 `insufficientResources`。缓冲：降级单路 + 句末切换 locale（会丢半句，仅作为兼容）。
-
----
-
-## 第 4 周 · M4 离线翻译
-
-**目标：** 听者侧看到的是译文，不是原文。
-
-任务：
-
-1. `TranslationHostView` 常驻两个 `TranslationSession.Configuration`。
-2. 引导页 `prepareTranslation()` 预下载 zh↔en。
-3. volatile 250–400 ms 节流翻译；final 再译一次并 `settled`。
-4. 过期 `utteranceId` 丢弃；取消码 14/20 不弹窗。
-5. `LanguageAvailability` 未安装 / 不支持 的失败态。
-
-验收：
-
-- 打开飞行模式后完整对话：中文→上屏英文，英文→下屏中文（用户看中文时）。
-- 对调「我看英文」后路由与翻译方向一起对调。
-- 第一次安装弹出系统下载确认；第二次不再弹。
-
-风险：中。Session 与 View 生命周期绑死，设置 sheet 不可拆掉 Host。翻译中间句可能拙——用 final 覆盖即可。
+| 启动优化 | 已暂停；200 ms 目标判定不可达，见 [`17`](17-startup-optimization-paused.md)、[`18`](18-startup-feasibility-verification.md) |
+| 已结束任务译文回填 | 已修复，见 [`19`](19-ended-translation-persistence-fix.md) |
+| UI 测试“存在但不可点击” | 已闭环，见 [`20`](20-ui-test-hittable-fix.md) |
+| 文档整理 | 2026-11-02 合并 01–13 为 01–04；05–13 已退休 |
+| 死代码清理 | 2026-11-02 删除未引用函数/常量/本地化键（见 §5） |
+| 测试基线 | 120 单元 + 3 UI = 真机 123；只增不减 |
 
 ---
 
-## 第 5 周 · M5 引导、稳定性、打磨
+## 1. P0：会丢数据或卡死主链路
 
-**目标：** 交给没做过 iOS 的人，能当面用十分钟。
+### P0-1 单引擎无全局仲裁（最高优先）
 
-任务：
+**现象**：三个常驻 ViewModel（面对面、同传、会议）共享同一个 `BilingualSpeechEngine` actor。快速切模块、前后台切换、或旧 `stop()` 晚到时，可能出现 A 已 `start`、B 的 `stop()` 后到，把 A 的流 finish 掉。
 
-1. 欢迎 / 选语言 / 权限 / 下载 四步，可断点续。
-2. 再次启动：已就绪则自动聆听（可关）。
-3. 错误只出现在用户侧正字。
-4. 暂停 30 秒后恢复自动锁屏。
-5. 误触：字幕区点击无效果；长按才出设置。
-6. 无障碍：倒字侧 `accessibilityHidden`。
-7. 内存：连续说 20 分钟，每侧仍只有 2 行。
-8. 发热：连续 20 分钟可接受（不烫到放不在桌上）。
-9. 单元测试：Router、Assembler、ViewModel 过期翻译。
-10. 去掉任何 Debug 可视化。
+**代码依据**：
 
-验收清单见文末。
+- `RootView` 在首帧后创建三个 VM，都注入 `environment.speechEngine`。
+- `BilingualSpeechEngine.stop()` finish 外发流；VM 的 `for await` 退出后走 `handleStreamEnded()`。
+- 各 VM 用 `isStopping` 局部缓解，但没有跨 VM 的 generation/owner。
 
----
+**目标**：引入 App 层 `SpeechSessionGate`（actor 或 `@MainActor` 协调器）：
 
-## 依赖与并行
+- 持全局 generation + 当前 owner `FeatureID`。
+- `request(owner:)` 先停旧 owner，再启动新 owner；旧流事件因 generation 不匹配被丢弃。
+- VM 的 `start/stop` 都经 gate，不直接调 engine。
 
-```
-M0 文档
-  └─ M1 UI 壳 ─────────────────────┐
-       └─ M2 单路听写              │
-            └─ M3 双路+路由        ├─ M5 打磨
-                 └─ M4 翻译 ───────┘
-```
+**验收**：
 
-M1 与 M2 可两人并行。一人时必须 M2 不晚于 W2，因为 M3 才是未知数。
+- 单元测试：A start → B start → A stop 不影响 B；A/B 快速交替 20 次，最终 owner 与状态一致。
+- 真机：三模块连续切换 + 前后台 10 次，无“识别暂停”误报、无流被掐断。
 
-外部依赖：
+### P0-2 长会话的数据留存
 
-- Xcode 带 iOS 26 SDK
-- 至少一台 iOS 26 真机（建议 iPhone 15 及以上）
-- 首次需网络下模型；验收「离线」在下载完成之后
+**现象**：
 
----
+| 模块 | 当前 | 风险 |
+| --- | --- | --- |
+| 面对面 | `transcript` 无上限 | 长会话内存增长，`append` 全量 upsert 变慢 |
+| 同传 | `historyLimit = 50`，超出 `removeFirst` | 结束前早期内容已从内存消失，落盘也可能缺失 |
+| 会议 | 20,000 字符硬停 | 长会无法继续，只能结束重开 |
 
-## 明确不做（v1 冻结）
+**目标**：
 
-- 说话人分离 / 双麦克风波束对准某一个人
-- 面对面模式里 TTS 把译文读出来（朗读只出现在同声传译模块，且必须戴耳机）
-- 会话记录、导出、账号
-- 粤语、繁体（第三语言已在后续迭代进入六语对）
-- 横屏、iPad 分栏、CarPlay
-- 后台持续听
-- 云翻译降级（断网就必须仍能译；模型没下好则引导去下，不上云顶）
+- 统一“内存近期窗口 + Store 全量”的策略；同传截断只影响 UI，不丢已 settled 的落盘内容。
+- 会议达到上限时提供“结束并新开续集任务”，用组 ID 关联，而不是硬停。
+- 历史详情分页加载，避免一次渲染全量。
 
-v1.1 / 同声传译模块（单独排期，不打进原五周面对面）：见 [`05-simultaneous-prototype.md`](05-simultaneous-prototype.md) 起。
+**验收**：模拟 1 小时文字稿，内存稳定；结束后历史能读回全部行；同传不再丢早期 settled 行。
 
----
+### P0-3 持久化可靠性与写放大
 
-## M5 当面验收脚本
+**现象**：
 
-环境：飞行模式、两人对坐、手机平放、系统已装中英翻译包。
+- `DeferredTaskStore.resolved()` 容器失败时静默降级 `InMemoryTaskStore`，用户以为已保存。
+- `SwiftDataTaskStore.append` 每次对传入 entries 全量 upsert 并 `save()`；主线程 `ModelContext`，`autosaveEnabled = true` 又叠加自动保存。
+- 无 `SchemaMigrationPlan`，字段变更可能崩库/丢库。
 
-1. 卸载重装。走完引导，计时应 < 90 秒（不含模型下载等待）。
-2. 用户选「我看中文」。对方说一句英文。用户下半屏出现中文，上半屏不出现大号中文。
-3. 用户说一句中文。对方（倒头看上半屏）看到英文正字。
-4. 对调「我看英文」，重复 2–3，方向相反。
-5. 暂停，字幕冻结；再开始，继续听。
-6. 拒绝权限的冷启动：用户侧有「去设置」，对方侧保持干净。
-7. 连续交替 10 分钟：无崩溃、无双份字幕、无自动旋转导致双方对着倒字。
+**目标**：
 
-全部通过 → v1 可进入 TestFlight。
+- 降级显性化：首页/历史显示“本机存储不可用”，并打点；不静默丢历史。
+- 增量落盘：`append` 只传新增/变更行，或维护脏 ID 集合批量 flush；明确 autosave 与显式 save 二选一。
+- 加 v1→v2 迁移演练与自动化测试。
+
+**验收**：注入容器打开失败，UI 有明确提示；长会写入的 save 次数与耗时下降；迁移测试通过。
 
 ---
 
-## 工程启动命令（M1 第一天）
+## 2. P1：识别/翻译质量与数据一致性
 
-用 Xcode 建 iOS App：
+### P1-1 翻译队列积压
 
-- Product Name: `Duiyi`
-- Interface: SwiftUI
-- Language: Swift
-- Minimum: iOS 26.0
-- 目录：`realtimeTranslator-ox/Duiyi`
+**现象**：`TranslationJobBridge.pending` 只有 1 个槽位，但 host 就绪后 `AsyncStream` 无界；高频 volatile 会排队。`fulfill` 用 `lastAppliedSourceCount` 丢弃过期结果，但积压仍占 session、抬高延迟。同传 voiceOut 档防抖更激进（25/50 ms）。
 
-`Info.plist` 预置：
+**目标**：Bridge 改为“每个 utteranceID 只保留最新 job”；`pump` 取最新后清空同 ID 积压；必要时按 session 繁忙度自适应防抖。
 
-- `NSMicrophoneUsageDescription`：需要麦克风，才能在本机把对话转成字幕。
-- `NSSpeechRecognitionUsageDescription`：需要语音识别，才能在本机把中文和英文转成文字。不上传语音。
-- `UISupportedInterfaceOrientations`：仅 Portrait
-- 显示名：对译
+**验收**：连续快速说话时，最终译文延迟不随时间增长；无旧 job 在新句之后才返回。
 
-本线路图完成前 **不写业务代码**。下一动作：过原型 → 按 M1 建工程。
+### P1-2 导出竞态与导出内容不刷新
 
-实现进度（2026-08-28）：`Duiyi.xcodeproj` 已按 M1–M5 一次落地（分屏倒字 UI、双路 SpeechAnalyzer、路由、TranslationSession、引导、单测）。待真机验证双路资源与离线翻译下载。
+**现象**：
+
+- `TranscriptExportService.cleanupOldExports` 每次导出删除全部 `Duiyi-*.txt`；`ShareLink` 还在读取时可能被删。
+- `TaskDetailView` 的 `ExportShareButton` 用 `.task(id: task.id)` 准备文件；任务译文更新后 `task.id` 不变，分享 URL 可能仍是旧内容。
+
+**目标**：
+
+- 文件名带 `taskID`，只清理 7 天前或分享完成后的文件。
+- `ExportShareButton` 以 `task` 内容签名（如 `id + entries hash/updatedAt`）触发重新准备，或在分享前同步重写。
+
+**验收**：连续导出/分享不失败；在详情页翻译后立即导出，内容包含新译文。
+
+### P1-3 切换语言后的旧翻译状态
+
+**现象**：语言对变化时 `ConversationView` / `InterpretationView` 用 `.id` 重建 Host，旧 session 取消；但 VM 的 `outboundJob`、`sentSourceText`、`lastAppliedSourceCount`、`utteranceAliases` 等状态可能残留（`resetCaptions` 会清，但 `setUserLanguage` / `handlePairChange` 的时序可能漏一句）。
+
+**目标**：`applyDirectionChange` / `setUserLanguage` / `handlePairChange` 统一清空翻译态：`outboundJob = nil`、取消防抖、清 `sentSourceText`/`lastApplied`/`utteranceAliases`，再重建配置。
+
+**验收**：切换语言立即说话，不出现旧语言译文写入新行；无串行/重复。
+
+### P1-4 中英混读与短句质量
+
+**现象**：
+
+- `UtteranceAssembler.matchesClaimedLanguage` 纯度要求较严（中文路要求 `han ≥ latin`，英文路要求无汉字等），中英混读句可能被两路同时丢弃。
+- 面对面 final 后 1 秒内的非自信异语会被 `shouldIgnoreCrosstalk` 丢弃，快速 code-switch 会丢合法内容。
+- 文档曾提的 `NLLanguageRecognizer` 第三票未实现。
+
+**目标**：混句不直接丢，按 `resolvedLanguage` 重判；crosstalk 窗口按置信度动态；用固定音频夹具做路由准确率回归。
+
+**验收**：中英混读夹具命中率提升且不增加串音；快速切换说话人不丢整句。
+
+---
+
+## 3. P2/P3：可观测性、音频、TTS、国际化
+
+| # | 问题 | 代码依据 | 建议 |
+| --- | --- | --- | --- |
+| P2-1 | Detector 失败静默 | `consume(detector:)` catch 只日志 | 降级提示或打点，切句退化可观测 |
+| P2-2 | 单路漂移丢句 | `restartSingle` 全量 reset | 切 locale 时保留最后 final，或提示用户 |
+| P2-3 | `BufferConverter` 非 float/int16 静默 nil | `copy` 双分支 | 加计数/日志 |
+| P2-4 | 双头管理 AudioSession | Capturer 与 Policy 都 `setActive` | 统一走 Policy gate |
+| P2-5 | TTS 参数写死 | `rate = default * 1.28` | 语速档/试听；补 `prefersAssistiveTechnologySettings` |
+| P2-6 | `StaticLanguageCatalog` 是桩 | `speech/translate/speak` 恒 true | 改为缓存型实查，`LanguageChipGrid` 读目录 |
+| P2-7 | 界面文案 `pick` 六参 | `Copy.swift` 遍布六参 | 迁移到 String Catalog，冻结新增 `pick` 参数 |
+| P2-8 | MainActor 上的 LCS/compact | `SpokenText.isRefinement` 等在 VM 主线程 | 下沉后台纯函数，缓存 compact 结果 |
+| P2-9 | 恢复任务不恢复语言对 | `restore(from:)` 只回放文本 | 恢复 `source/target`，或明确提示使用当前语言 |
+| P3-1 | 无迁移计划 | `TaskEntity.schemaVersion` 只写不读 | 加 `SchemaMigrationPlan` 与演练 |
+| P3-2 | 空稿/误触结束 | `TaskSessionController.finish` 删除空稿 | 已有确认弹窗，保持 |
+| P3-3 | 重复能力检查/摘要/胶囊样式 | 5 套能力检查、4 套摘要、10+ 处 chip | 先抽 `ChipStyle` 与 `ModelPreparation` 协调器，再逐项迁移 |
+
+---
+
+## 4. 明确不做 / 不再投入
+
+- **不重启启动微优化**：200 ms 目标已被控制组地板否定；不要用模拟器证明性能；不要手写 `Order/App.order`。
+- **不引入云后端/账号/同步**：违背本机优先与离线承诺。
+- **不引入 TCA/RIBs**：三个模块体量不够。
+- **不做外放朗读**：回声自激，产品明确禁止。
+- **不做实时说话人分离**：当前以语种为路由键；声纹/分离只做技术 spike，不承诺 v1。
+- **不在会议记录里做实时同传朗读**：会议目标是全文稿与会后总结。
+- **不为了“实时感”无限提高翻译频率**：先解决 P1-1 的队列问题。
+
+---
+
+## 5. 已完成的清理（2026-11-02）
+
+- 文档合并：`01` 产品、`02` 架构、`03` 选型、`04` 本文件；删除已完成的路线图与重复设计稿（05–13），git 历史仍可追溯。
+- 删除未引用代码：`CaptionTypography.controlFont`、`Copy.exportHeader`、`Copy.languageUnavailable`、`Copy.summaryLocalFallback`、`TaskSession.characterCount`、`AppLaunchTracker.launchDurationToNow`、`UtteranceAssembler.isShort`、`UtteranceAssembler.finalizeCurrentIfNeeded`、`ConversationLayout.captionAnimationDuration` / `captionAppearOffset`、`DuiyiError.translationUnavailable`。
+- 删除 8 个无引用的 `platform.*` 本地化键；保留被 `Text` 字面量使用的键。
+- 合并 `ConversationViewModel` / `InterpretationViewModel` 中完全重复的 `failTranslation` 分支，删除仅用于该分支的取消错误分类；`BilingualSpeechEngine.fail` 去掉未使用参数（原 P2-2）。
+- 删除仓库根目录已跟踪的过期 Instruments trace；本地 `build/`、`.hvigor/`、`.DS_Store`、未跟踪 trace 不进入版本库。
+- 修正 `docs/02` 对 `.id` 重建、`DeferredTaskStore`、`modelRetention` 的描述；`tools/generate-order-file.sh` 指向现存文档。
+
+---
+
+## 6. 建议排期
+
+| 顺序 | 事项 | 依赖 | 预估 |
+| --- | --- | --- | --- |
+| 1 | P0-1 `SpeechSessionGate` + 测试 | 无 | 3–5 天 |
+| 2 | P0-3 降级显性化 + 增量落盘 | 无 | 3–5 天 |
+| 3 | P1-2 导出竞态 + 刷新 | 无 | 1–2 天 |
+| 4 | P1-3 语言切换清态 | 无 | 1 天 |
+| 5 | P1-1 翻译队列合并 | 无 | 2–3 天 |
+| 6 | P0-2 长会话分段 | P0-3 | 1–2 周 |
+| 7 | P1-4 混读/短句质量 | 真机夹具 | 1–2 周 |
+| 8 | P2-6 语言目录实查 | 无 | 2–3 天 |
+
+同一失败检查修复 2 次仍失败，或同一子任务 3 轮修复-验证无进展时停止上报（团队规则）。
+
+---
+
+## 7. 交接前需要确认的产品/工程决策
+
+1. **发布形态**：TestFlight / App Store / 企业内部分发？
+2. **设备矩阵**：是否必须覆盖 iPhone 13（无 Apple 智能）与所有六语？
+3. **语言优先级**：六语是否全部首发，还是中英先行？
+4. **数据保留**：历史默认永久保留，还是提供自动清理？
+5. **Apple 智能范围**：只用于总结，还是未来用于翻译/润色？
+6. **长会策略**：2 万字上限是硬限制还是续集任务的触发点？
+
+未确认前，不按假设实现 P0-2/P0-3 的产品侧行为。

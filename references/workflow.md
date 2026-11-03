@@ -41,7 +41,7 @@
 |---|---|
 | 项目阶段 / 优先级 / 待决策 | `HANDOFF.md` §0/§5/§6 |
 | 进行中任务进度 / 下一步 / 未提交改动 | `.apm/plans/` 最新计划（按 mtime） |
-| 架构 / 问题清单 | `docs/13-architecture-analysis.md` |
+| 架构 / 问题清单 | `docs/02-architecture.md` / `docs/04-roadmap.md` |
 | 启动优化结论 | `docs/17` / `docs/18` |
 | 问题证据 / 修复记录 / 独立审查 | `.apm/issues/` / `.apm/reviews/` |
 | Agent 规则 | `AGENTS.md` + `references/` |

@@ -230,17 +230,6 @@ enum Copy {
         language.pick(zh: "拷贝", en: "Copy", ja: "コピー", ko: "복사", th: "คัดลอก", vi: "Sao chép")
     }
 
-    static func summaryLocalFallback(for language: AppLanguage) -> String {
-        language.pick(
-            zh: "当前用对话记录整理。打开「Apple 智能」后，可用本机模型生成更完整的摘要。",
-            en: "Notes from the transcript. Turn on Apple Intelligence for a fuller on-device summary.",
-            ja: "会話記録から整理しています。「Apple Intelligence」をオンにすると、より詳しい要約が作れます。",
-            ko: "대화 기록으로 정리했습니다. Apple Intelligence를 켜면 더 풍부한 요약을 만들 수 있습니다.",
-            th: "จัดจากบันทึกการสนทนา เปิด Apple Intelligence เพื่อสรุปที่สมบูรณ์กว่าบนเครื่อง",
-            vi: "Ghi chú từ bản ghi. Bật Apple Intelligence để có bản tóm tắt đầy đủ hơn trên máy."
-        )
-    }
-
     static func appTitle(for language: AppLanguage) -> String {
         language.pick(zh: "对译", en: "Duiyi", ja: "対訳", ko: "대역", th: "Duiyi", vi: "Duiyi")
     }

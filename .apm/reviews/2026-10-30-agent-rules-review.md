@@ -47,7 +47,7 @@
 | P2-3 `make handoff` 摘要缺 5 项中的 2 项 | [tools/plan.py:69-74](../../tools/plan.py#L69-L74) 只打印进度/未提交/下一步/待确认；[docs/21-cross-session-handoff.md:22](../../docs/21-cross-session-handoff.md#L22) 要求 5 项、[:36](../../docs/21-cross-session-handoff.md#L36) 说把该输出整段发给下一棒 | 下一棒可能漏掉“已排除/验证证据”，重复无效方案 | `brief` 增加这两节，或文档改为“发 brief + 必读计划文件” |
 | P2-4 `measure-launch` 默认 5 次与 n≥10 规则冲突 | [Makefile:8](../../Makefile#L8)、[Makefile:62](../../Makefile#L62) 默认 5；[references/verification.md:28](../../references/verification.md#L28)、[:49](../../references/verification.md#L49) 要求 n≥10；[HANDOFF.md:299](../../HANDOFF.md#L299) 也写默认 5 | 默认命令产出不合规样本，可能被当作性能结论 | `N ?= 10`，或在 N<10 时告警 |
 | P2-5 docs CI 把计划纳入链接/围栏检查且无 path filter | [tools/check-docs.py:21-28](../../tools/check-docs.py#L21-L28) 扫描 `.apm/**/*.md`；[docs.yml:3-5](../../.github/workflows/docs.yml#L3-L5) 所有 push/PR 触发 | 计划里的临时或历史链接会让 CI 变红；每次 push 都跑 | 排除 `.apm/plans/`（或只查 `_template.md`）；加 `paths` 过滤（待确认） |
-| P2-6 `references/` 与 HANDOFF/docs13 内容重叠，未声明优先级 | [references/contracts.md:1-9](../../references/contracts.md#L1-L9) 与 [HANDOFF.md:307](../../HANDOFF.md#L307)、[docs/13-architecture-analysis.md:69](../../docs/13-architecture-analysis.md#L69)；[docs/README.md:34-40](../../docs/README.md#L34-L40) 又列一套命令/规则表 | 规则变更时多处要同步，单一真源被削弱 | 明确“代码/docs13 为事实、references 为规则视图”的优先级；能链接就不复述 |
+| P2-6 `references/` 与 HANDOFF/docs 内容重叠，未声明优先级 | [references/contracts.md:1-9](../../references/contracts.md#L1-L9) 与 [HANDOFF.md:307](../../HANDOFF.md#L307)、[docs/02-architecture.md](../../docs/02-architecture.md)；[docs/README.md:34-40](../../docs/README.md#L34-L40) 又列一套命令/规则表 | 规则变更时多处要同步，单一真源被削弱 | 明确“代码/docs 为事实、references 为规则视图”的优先级；能链接就不复述 |
 | P2-7 `plan.py` 缺少模板与输入校验 | [tools/plan.py:61](../../tools/plan.py#L61) 缺模板直接 traceback；[docs/21-cross-session-handoff.md:32](../../docs/21-cross-session-handoff.md#L32) 声称 2–5 个英文小写词但 [tools/plan.py:54](../../tools/plan.py#L54) 未校验；目标/验收为空也能 handoff | 首次使用体验差；空计划可被交接 | 缺失模板给明确错误；校验目标/验收非空（或 `brief` 告警） |
 | P2-8 `APM_DEVICE` 的 ID 类型文档不一致（不确定） | [references/verification.md:14](../../references/verification.md#L14) 写 mobilebuildmcp ID；[.apm/tools/device-test.sh:32](../tools/device-test.sh#L32) 写 UDID；脚本又把同一值传给 `xcrun devicectl`（[:41](../tools/device-test.sh#L41)、[:59](../tools/device-test.sh#L59)） | 换设备时可能环境检查失败；未经真机验证 | 在真机确认 devicectl 接受哪种 ID，统一 HANDOFF/verification/脚本措辞 |
 | P2-9 停止上报的格式链断了 | [references/verification.md:54](../../references/verification.md#L54) 让转 `workflow.md`，但 workflow 无“上报/阻塞报告”模板；模板仓 `references/verification.md:28` 原有“## 阻塞报告”字段 | Agent 停下来了但不知道该报什么，交接质量下降 | 在 workflow.md 或 verification.md 补 5 行阻塞报告模板 |
@@ -59,7 +59,7 @@
 ## 3. 被挑战的假设
 
 - **“文件名排序 = 最新/活跃计划”**：不成立。`latest()` 只做路径字典序；同日多计划时与创建/修改时间无关，已用副本复现。
-- **“`references/` 仍是单一真源的一部分”**：部分是。它是第四个规则内容位置，且与 HANDOFF/docs13 重叠，未声明优先级；测试计数已经出现“AGENTS 自己违反自己规则”的具体漂移。
+- **“`references/` 仍是单一真源的一部分”**：部分是。它是第四个规则内容位置，且与 HANDOFF/docs 重叠，未声明优先级；测试计数已经出现“AGENTS 自己违反自己规则”的具体漂移。
 - **“`make check` 是通用门禁”**：不成立。它依赖仓库外 `../../agent/template`，新机器必红；错误信息清楚，但文档把它写成标准门禁。
 - **“token 预算已通过”**：只在模板 `est_tokens` 口径下通过（AGENTS 1930/2000，contracts 恰好 800/800）；无门禁、无余量，换更严格分词器可能超 2000。
 - **“CI 只跑 check-docs 所以稳定”**：对团队仓成立，但仍依赖 `.apm/plans` 和 `references/` 被提交；`.apm/plans` 的入库决定未定即可让 CI 变红。
@@ -75,7 +75,7 @@
 - P0-1/`SpeechSessionGate` 是否已授权实现、什么时候实现。
 - `APM_DEVICE` 应填 mobilebuildmcp ID 还是 devicectl UDID；需真机确认。
 - CI 是否需要 path filter、是否应检查 `.apm/plans`。
-- `references/` 与 HANDOFF/docs13 冲突时的优先级。
+- `references/` 与 HANDOFF/docs 冲突时的优先级。
 
 ## 5. 最小验证清单
 

@@ -84,10 +84,6 @@ final class AppLaunchTracker: NSObject, MXMetricManagerSubscriber, @unchecked Se
         DuiyiLog.session.info("Launch stages (since/+delta ms): \(parts.joined(separator: " "), privacy: .public)")
     }
 
-    func launchDurationToNow() -> TimeInterval {
-        CFAbsoluteTimeGetCurrent() - processStart
-    }
-
     // MARK: - MXMetricManagerSubscriber
 
     func didReceive(_ payloads: [MXMetricPayload]) {

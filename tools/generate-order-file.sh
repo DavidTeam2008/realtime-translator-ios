@@ -1,6 +1,6 @@
 #!/bin/bash
 # Regenerate Duiyi/Order/App.order from a Release binary's symbol table,
-# ordered by the actual startup call graph (see docs/13-startup-optimization.md).
+# ordered by the actual startup call graph (see docs/15-startup-optimization.md).
 #
 # Why not hand-write mangled Swift symbols? They change on every wholemodule
 # build (generic specialization, inlining). Generating from `nm` keeps the file

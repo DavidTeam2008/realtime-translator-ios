@@ -17,7 +17,7 @@
 
 - **面对面**：手机平放，上半屏倒字给对方，下半屏正字给自己；双向听写 + 双向翻译。
 - **同声传译**：单栏看现场译文，可选戴耳机读出译文；单向听写 + 单向翻译。
-- **会议记录**：单语全文稿，会后总结或导出；不做实时翻译。
+- **会议记录**：单语或双语全文稿，会后总结或导出；不做实时翻译。
 - **任务历史**：只有点“结束任务”才写入本机，可回看、总结、导出分享。
 
 ## 快速开始
@@ -88,12 +88,14 @@ prototype/        可交互 HTML 原型
 | --- | --- |
 | [`HANDOFF.md`](HANDOFF.md) | **接手入口**：环境、构建、测试、坑、架构、下一步 |
 | [`docs/README.md`](docs/README.md) | 全部文档索引与阅读顺序 |
-| [`docs/13-architecture-analysis.md`](docs/13-architecture-analysis.md) | 架构深挖、数据链路、问题清单（最值得先读） |
-| [`docs/14-device-test-iphone13.md`](docs/14-device-test-iphone13.md) | iPhone 13 真机性能与同传测试报告 |
+| [`docs/01-product-design.md`](docs/01-product-design.md) | 当前产品行为：三模块、任务、设置、总结/导出 |
+| [`docs/02-architecture.md`](docs/02-architecture.md) | 当前架构：分层、数据链路、并发、持久化（最值得先读） |
+| [`docs/03-tech-choices.md`](docs/03-tech-choices.md) | 系统框架选型、理由与明确不选 |
+| [`docs/04-roadmap.md`](docs/04-roadmap.md) | 当前 P0–P3 问题、验收标准与排期 |
+| [`docs/14-device-test-iphone13.md`](docs/14-device-test-iphone13.md) | iPhone 13 真机性能与同传测试报告（历史） |
 | [`docs/19-ended-translation-persistence-fix.md`](docs/19-ended-translation-persistence-fix.md) | 已结束任务译文持久化修复 |
 | [`docs/20-ui-test-hittable-fix.md`](docs/20-ui-test-hittable-fix.md) | UI 测试假绿/权限/模拟器能力问题闭环 |
 | [`docs/15`](docs/15-startup-optimization.md)–[`docs/18`](docs/18-startup-feasibility-verification.md) | 启动优化过程与结论（**已暂停，不要重启微优化**） |
-| [`docs/01`](docs/01-product-prototype.md)–[`docs/12`](docs/12-platform-roadmap.md) | 产品/架构/路线图设计历史 |
 
 ## 当前状态
 
@@ -102,7 +104,7 @@ prototype/        可交互 HTML 原型
 - 冷启动约 **0.32s**（XCTest 口径）；20s 同传监听内存峰值 **10–13MB**，无 Hang。
 - 启动 200ms 目标经对照实验判定**不可达**（空壳 App 地板约 210ms），已暂停。
 - 主要技术债：语音引擎全局仲裁、长会话数据留存、SwiftData 写放大、
-  翻译队列积压、导出竞态。详见 [`HANDOFF.md`](HANDOFF.md) §5。
+  翻译队列积压、导出竞态。详见 [`docs/04-roadmap.md`](docs/04-roadmap.md)。
 
 ## 隐私
 

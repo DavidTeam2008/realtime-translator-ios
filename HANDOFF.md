@@ -1,14 +1,13 @@
 # 对译 Duiyi · 接手说明（HANDOFF）
 
-> 最后更新：2026-10-30（引入 Agent 规则骨架）  
-> 代码基线：`main` @ `e2050ce`；本次仅更新文档与工程脚本，未改业务代码  
-> 本机复核：Xcode 27.1 (27A9275) 构建通过；模拟器单元测试 **120/120**、
-> 导航 UI 用例通过（14.9s）  
+> 最后更新：2026-11-02（文档整合、死代码与产物清理）
+> 代码基线：`main` @ `f57d90a` + 本次未提交清理（无功能改动）
+> 本机复核：Xcode 27.1 构建通过；模拟器单元 **120/120**、UI 3 个（1 个按预期 skip）
 > 真机基线（2026-09-26）：iPhone 13 / iOS 26.7，**123/123** 通过（120 单元 + 3 UI）
 
 这是一份“让新同学在一天内能改代码、能跑真机、知道下一步做什么”的文档。
-产品设计背景在 `docs/01`–`docs/12`，架构细节与问题清单在 `docs/13`，
-本文件只保留接手必需的信息和最关键的结论。
+产品行为在 `docs/01`，架构与数据链路在 `docs/02`，选型理由在 `docs/03`，
+问题清单与排期在 `docs/04`；本文件只保留接手必需的信息和最关键的结论。
 
 ---
 
@@ -364,7 +363,7 @@ Domain 不 import SwiftUI/系统语音框架。新增代码请保持这条线。
 5. `Duiyi/Domain/TaskSession.swift`、`Duiyi/Services/Persistence/`
 6. `Duiyi/Features/Home/HomeView.swift`、`History/`、`Shared/`
 
-更细的逐文件分析、潜在问题与代码依据在 `docs/13`。
+更细的逐文件分析在 `docs/02`，潜在问题与代码依据在 `docs/04`。
 
 ### 4.4 加一个新模块要改什么
 
@@ -466,7 +465,7 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 
 **问题**：语言对变化会重建 `TranslationHostView` 的 session，但 VM 的
 `outboundJob` / `sentSourceText` / `lastApplied` 没有统一清空，旧译文可能写进
-新语言的行（`docs/13` §4 第 10 条）。
+新语言的行（`docs/04` P1-3）。
 
 **建议**：把 `applyDirectionChange/setUserLanguage/handlePairChange` 收口到
 一个 `resetTranslationState()`；切语言时 cancel debounce、清 job、清 sent 记录。
@@ -540,13 +539,15 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 | [`Makefile`](Makefile) | 当前 | 测试 / 构建 / 真机 / 文档命令入口 |
 | [`.github/workflows/docs.yml`](.github/workflows/docs.yml) | 当前 | CI 只跑文档检查 |
 | [`docs/README.md`](docs/README.md) | 当前 | 文档索引与阅读顺序 |
-| [`docs/13-architecture-analysis.md`](docs/13-architecture-analysis.md) | 当前（2026-09-23） | 架构深挖 + 问题清单，最值得先读 |
+| [`docs/01-product-design.md`](docs/01-product-design.md) | 当前 | 产品行为：三模块、任务、设置、总结/导出 |
+| [`docs/02-architecture.md`](docs/02-architecture.md) | 当前 | 架构、数据链路、并发与持久化 |
+| [`docs/03-tech-choices.md`](docs/03-tech-choices.md) | 当前 | 系统框架选型、理由与明确不选 |
+| [`docs/04-roadmap.md`](docs/04-roadmap.md) | 当前 | P0–P3 问题、验收标准与排期 |
 | [`docs/14-device-test-iphone13.md`](docs/14-device-test-iphone13.md) | 历史报告 | 真机性能/同传测试数据与工具限制 |
 | [`docs/19-ended-translation-persistence-fix.md`](docs/19-ended-translation-persistence-fix.md) | 已完成 | 已结束任务译文丢失的修复记录 |
 | [`docs/20-ui-test-hittable-fix.md`](docs/20-ui-test-hittable-fix.md) | 已完成 | UI 测试假绿/权限/模拟器能力问题的闭环 |
 | [`docs/21-cross-session-handoff.md`](docs/21-cross-session-handoff.md) | 当前 | 跨会话任务与交接的人读 SOP：四个动作、命令、示例 |
 | [`docs/15`](docs/15-startup-optimization.md)–[`docs/18`](docs/18-startup-feasibility-verification.md) | 历史，已暂停 | 启动优化过程与“200ms 不可达”的证据；只读结论，不要重启微优化 |
-| [`docs/01`](docs/01-product-prototype.md)–[`docs/12`](docs/12-platform-roadmap.md) | 设计历史 | 产品原型、模块架构、路线图；部分版本号/计划日期已过时 |
 | [`.apm/`](.apm/) | 证据库 + 计划 | 基准、问题单、测量脚本、跨会话计划、独立审查；`runs/` 不入库 |
 | [`prototype/`](prototype/) | 设计原型 | 浏览器打开的可交互稿 |
 
@@ -563,7 +564,7 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 - [ ] 三个模块各走一遍：新任务 → 开始 → 说两句 → 结束 → 历史 → 导出
 - [ ] 跑 `.apm/tools/device-test.sh`，确认 123 个测试全绿
 - [ ] 跑 `make check`；有模板仓再跑 `make check-all`，确认文档门禁、token 预算与团队基线
-- [ ] 读 `docs/13` 的 §2（数据链路）和 §4（问题清单）
+- [ ] 读 `docs/02`（数据链路、并发）和 `docs/04`（问题清单、排期）
 - [ ] 读 `docs/17`/`docs/18` 的结论，明确“启动优化不再投入”
 - [ ] 和负责人确认 §6 的六个决策
 - [ ] 从 P0-1 开始：先写并发测试，再加 `SpeechSessionGate`
@@ -578,3 +579,4 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 | 2026-10-30 | 引入 Agent 规则骨架：`AGENTS.md` + `references/` + `tools/check-docs.py` + `Makefile` + docs CI；补跨会话计划模板与接手协议（人读 SOP 见 `docs/21`）；未改业务代码 |
 | 2026-10-30 | 按独立审查修复：计划按 mtime 选择、`make check` 去模板仓依赖、token 预算门禁、`SpeechSessionGate` 措辞、红队范围统一；审查报告在 `.apm/reviews/` |
 | 2026-10-30 | 真机测试环境加固：模拟器默认 runtime 固定为 iOS 26.4.1；`device-test.sh` 自动带 `-allowProvisioningUpdates`；补 “Enable UI Automation” 密码弹窗说明。真机 123、模拟器 120 + UI 3/1 skip 全过 |
+| 2026-11-02 | 文档整合为 01 产品 / 02 架构 / 03 选型 / 04 路线图，删除 05–13 重复稿并修正全仓链接；删除未引用代码、8 个 `platform.*` 本地化键与过期 trace/build 产物；模拟器单元 120/120、UI 3/1 skip 通过 |

@@ -334,21 +334,6 @@ extension Copy {
             return summaryUnavailable(for: language)
         }
     }
-
-    static func exportHeader(app: String, feature: String, range: String, direction: String) -> String {
-        "\(app) · \(feature)\n\(range)\n\(direction)"
-    }
-
-    static func languageUnavailable(for language: AppLanguage) -> String {
-        language.pick(
-            zh: "这台 iPhone 还没有这个语言模型",
-            en: "This iPhone does not have this language model yet",
-            ja: "この iPhone には、この言語モデルがまだありません",
-            ko: "이 iPhone에는 아직 이 언어 모델이 없습니다",
-            th: "iPhone เครื่องนี้ยังไม่มีโมเดลภาษานี้",
-            vi: "iPhone này chưa có mô hình ngôn ngữ này"
-        )
-    }
 }
 
 enum TaskFormatting {

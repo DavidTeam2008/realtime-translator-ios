@@ -86,10 +86,6 @@ struct UtteranceAssembler: Equatable, Sendable {
         hold(language, for: 1.0)
     }
 
-    mutating func finalizeCurrentIfNeeded() -> Utterance? {
-        silenceTimedOut()
-    }
-
     mutating func reset() {
         lastLanguage = nil
         lockedLanguage = nil
@@ -343,9 +339,5 @@ struct UtteranceAssembler: Equatable, Sendable {
         case .vietnamese:
             return Double(wordCount(text) + vietnameseMarkCount(text))
         }
-    }
-
-    static func isShort(_ text: String, language: AppLanguage) -> Bool {
-        !isConfident(text, language: language)
     }
 }

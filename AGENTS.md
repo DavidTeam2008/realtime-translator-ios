@@ -50,7 +50,7 @@
 接手进行中任务：先看 `.apm/plans/` 最新计划（排除 `_template.md`）、`git status`、`git log -5`；未提交改动按计划说明处理，不清理、不覆盖。
 
 1. `HANDOFF.md` §0–§3：项目、构建、真机、测试入口
-2. `docs/13-architecture-analysis.md` §2/§4：数据链路、问题清单
+2. `docs/02-architecture.md` + `docs/04-roadmap.md`：数据链路、问题清单
 3. `docs/README.md`：文档索引
 4. 按任务读细则：语音/翻译/音频/持久化/任务/导出 → `references/contracts.md`；测试/真机/性能 → `references/verification.md`；L2/长任务/红队/接手 → `references/workflow.md`
 

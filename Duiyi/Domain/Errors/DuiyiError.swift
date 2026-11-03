@@ -6,7 +6,6 @@ enum DuiyiError: Equatable, Sendable, Error {
     case modelsMissing
     case languageUnsupported
     case recognitionInterrupted
-    case translationUnavailable
     case deviceIncapable
     case summaryEmpty
     case voiceOutNeedsHeadphones
@@ -58,15 +57,6 @@ enum DuiyiError: Equatable, Sendable, Error {
                 ko: "듣기가 멈췄습니다. 탭하여 계속하세요.",
                 th: "การฟังหยุดแล้ว แตะเพื่อต่อ",
                 vi: "Đã tạm dừng nghe. Chạm để tiếp tục."
-            )
-        case .translationUnavailable:
-            return language.pick(
-                zh: "听清了，但译文还没好。",
-                en: "Heard you, but the translation is not ready.",
-                ja: "聞こえましたが、訳がまだありません。",
-                ko: "듣기는 했지만 번역이 아직 없습니다.",
-                th: "ได้ยินแล้ว แต่คำแปลยังไม่พร้อม",
-                vi: "Đã nghe, nhưng bản dịch chưa sẵn sàng."
             )
         case .summaryEmpty:
             return language.pick(
