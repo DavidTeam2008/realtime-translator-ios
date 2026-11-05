@@ -6,7 +6,8 @@ owner: david
 updated: 2026-11-05
 phase0_commit: d83bb05
 phase1_commit: 3935e60
-phase1_state: committed-evidence-recorded-pending-push
+phase1_state: committed-evidence-recorded-pushed
+device_state: device-connected-ui-automation-password-needed
 scope:
   allow:              # 方案 §5.7 新增/修改清单；子任务拆分时以任务级 write scope 为准
     - .gitignore
@@ -659,17 +660,16 @@ verify:                   # 完成前必须跑的命令
 | 负向演示（Phase 1） | 无 xcresult→UNVERIFIED(2)；119<floor→FAIL(1)；无 evidence→FAIL(1)；device-test skip fixture→exit 1 | 本机 |
 | **clean-tree evidence（Phase 1）** | `.apm/evidence/20261105T055610Z-unit-tests-pass.json`（120/120，dirty=False，commit 3935e60）与 `...T055845Z-ui-tests-pass.json`（3 executed=2 pass+1 expected skip；dirty=False，commit fb217f6） | 本机，Xcode 27.1 |
 | `make verify-claim --all`（Phase 1） | **PASS**：unit + ui 两条均 PASS（exit 0）；`make check-evidence` PASS | 本机 |
-| `make device-test`（Phase 1，iPhone 13） | **FAIL（环境前置）**：warmup `Failed to install or launch the test runner — Developer App Certificate is not trusted`；未生成 device evidence；需在设备上信任开发者证书后重跑 | 本机 + iPhone 13（iOS 27.0.1） |
+| `make device-test`（Phase 1，iPhone 13 ×2） | 第一次 FAIL：`Developer App Certificate is not trusted`；用户信任后第二次：**warmup PASS 5/5，单元 120 通过，UI runner `Timed out while enabling automation mode`**（需设备端输入一次 UI Automation 密码）；未保留 device evidence（FAIL 证据不入库） | 本机 + iPhone 13（iOS 27.0.1） |
 
 ## 10. 未运行 / 未验证（必须如实记录）
 
 - **动态测试已验证并落证据（clean tree）**：提交 `3935e60` 后在 clean tree 重跑 `make test` → **120/120**、`make test-ui` → **3 executed / 2 passed / 1 expected skip / 0 failed**；生成 `.apm/evidence/20261105T055610Z-unit-tests-pass.json` 与 `20261105T055845Z-ui-tests-pass.json`（dirty=False），`make verify-claim --all` → **PASS**。
-- **真机未验证（环境前置）**：iPhone 13 已连接并解锁，但 `make device-test` 在 warmup 失败：`Developer App Certificate is not trusted`。需在设备 `设置 → 通用 → VPN与设备管理` 信任开发者 App（并确认 Developer Mode 已开）后重跑；本次未生成 device evidence。
-- **未验证**：GitHub Actions 尚未实际运行（本次 push 后才触发 static；macOS unit-tests 默认跳过，需 `MACOS_CI_ENABLED=true` + 自托管 runner）。
+- **真机未验证（环境/授权前置）**：iPhone 13 已连接并解锁；信任开发者证书后第一次 warmup 已通过、真机单元 120 通过，但 UI runner 报 `Timed out while enabling automation mode`——iOS 15+ 真机首次 UI 测试需在手机上输入一次锁屏密码/允许 "Enable UI Automation"（设备重启后会再次要求）。待用户处理设备提示后重跑；本次未保留 device evidence（FAIL 证据不作为 claim 入库）。
+- **未验证**：GitHub Actions static job 尚无法从本机核对（已 push；`gh` token 被组织策略拒绝查询），macOS unit-tests 默认跳过（需 `MACOS_CI_ENABLED=true` + 自托管 runner）。
 - **已验证**：`.dsh/skills` 6 项已被 DSH 会话 skill catalog 实时发现；`AGENTS.local.md.example` 不写真实机器信息。
 - **未验证**：嵌套 AGENTS.md 的注入时机（文件操作后）未单独实测，但 `check-harness` 校验了存在/长度/引用。
 - **未验证**：真实 tokenizer 计数（`token_estimate.py` 是预算口径，不是模型 tokenizer）。
-- **未验证**：GitHub Actions 未实跑（未 push）；`MACOS_CI_ENABLED` + 自托管 macOS runner 未配置；GitHub 托管 macOS 是否带 iOS 26.4 runtime 未验证。
 - **未验证**：性能口径能否统一（旧 baseline 由仓库外工具生成；本方案不重启性能工作）。
 - **未验证（来源级）**：OpenAI 文章正文（仅开头句 + 二手摘要）；CAICT 报告 PDF 正文（只到官方摘要/目录 + 镜像前 5 页）；LangChain/Cursor 原文；DSH architecture.md 事件管线为二手转述。引用时已标注。
 - **未执行**：Phase 2（P0-1/P0-2/P0-3 行为测试 + 翻译夹具）与 Phase 3（maker-checker、月度 harness 审计自动打分、失败回写、指标）。
@@ -721,17 +721,17 @@ verify:                   # 完成前必须跑的命令
 - [x] Phase 0 提交：`d83bb05`
 - [x] Phase 0 动态验证：full-access 下 `make test` 120/120、`make test-ui` 3 executed/1 skip/0 failed
 - [x] Phase 1：evidence + CI（ubuntu 静态 + macOS 自托管单测，默认跳过）+ `.dsh/skills` + `HARNESS.md` + pre-push
-- [x] Phase 1 提交：`3935e60`（代码）、`fb217f6`（unit evidence）、HEAD（ui evidence + verify-claim 修正 + 本计划）
+- [x] Phase 1 提交：`3935e60`（代码）、`fb217f6`（unit evidence）、`74485d3`（ui evidence + verify-claim 修正 + 计划）
 - [x] Phase 1 clean-tree 证据：unit 120/120、ui 3 executed(2 pass+1 skip)；`make verify-claim --all` PASS
-- [ ] 真机验证：iPhone 13 已连接但 Developer App Certificate 未信任 → 需设备端信任后重跑 `make device-test`
-- [ ] Push：本次提交后推送到 origin/main
+- [x] Push：已推送到 `origin/main`（远端重定向到 DavidTeam2008/realtimeTranslatorOptimize；本机 remote 已更新）
+- [ ] 真机验证：iPhone 13 已连接；证书信任后 warmup/单元通过，UI 需在手机上输入一次 UI Automation 密码；重跑后生成 device evidence
 - [ ] Phase 2：P0-1/P0-2/P0-3 行为测试 + 翻译夹具（建议 P0-1/P0-3 先做；P0-2 依赖 D5/D7 决策）
 - [ ] Phase 3：maker-checker、月度 harness 审计自动打分、失败回写、指标（建议只做最小人工闭环）
 
 ### 下一步
 
-1. 等用户/设备端信任开发者证书后重跑 `make device-test` 生成 device evidence（真机 123/123）；
-2. Push 后观察 GitHub Actions `verify` static job；
+1. 设备端处理 `Enable UI Automation` 密码提示后重跑 `make device-test` 生成 device evidence（真机 123/123）；
+2. 观察 GitHub Actions `verify` static job（本机 token 查询被组织策略拒绝，需网页确认）；
 3. Phase 2 建议先做 P0-1（并发仲裁）红测 + P0-3（持久化）测试；P0-2 等 D5/D7 产品决策；
 4. Phase 3 不做完整自动化：保留 HARNESS.md 月度人工审计 + red-team 场景强制。
 
