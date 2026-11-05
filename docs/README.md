@@ -21,7 +21,7 @@
 | [`01-product-design.md`](01-product-design.md) | 三模块行为、任务生命周期、引导/设置、总结/导出、视觉与无障碍 | 产品行为变化时同步 |
 | [`02-architecture.md`](02-architecture.md) | 分层、依赖、启动、音频/听写/翻译/持久化全链路、并发、测试、风险摘要 | 改数据链路或依赖时同步 |
 | [`03-tech-choices.md`](03-tech-choices.md) | 系统框架选型、理由、强制约束、明确不选、权衡与缺口 | 换框架/API 或推翻决策时同步 |
-| [`04-roadmap.md`](04-roadmap.md) | 当前 P0–P3 问题、代码依据、验收标准、排期与待确认决策 | 问题状态变化时更新；完成后移入“已完成” |
+| [`04-roadmap.md`](04-roadmap.md) | 当前 P0–P3 问题、代码依据、**验收标准与排期（唯一真源）**；待确认决策见 HANDOFF §6 D1–D7 | 问题状态变化时更新；完成后移入“已完成” |
 
 ## 历史与证据（14–21）
 
@@ -41,17 +41,26 @@
 ## Agent 规则
 
 人读入口是 [`../HANDOFF.md`](../HANDOFF.md)；`AGENTS.md` 是 Agent 冷启动入口。
-优先级：代码与测试 > `docs/01`–`04` > `HANDOFF.md` > `references/`（规则视图）> 历史文档。
+**真源优先级只在本页维护**：代码与测试 > `docs/01`–`04` > `HANDOFF.md` > `references/`（规则视图）> 历史文档。
+唯一决策表是 [`HANDOFF.md` §6 的 D1–D7](../HANDOFF.md)，其他文件只引用编号。
+
+门禁：`make check` = 文档（`check-docs`）+ 架构铁律（`check-arch`）+ 测试计数（`check-tests`）+ 指令层（`check-harness`）+ 计划状态（`check-plan`）；`make verify-static` 额外校验脚本语法。
+规则层 token 预算（`tools/token_estimate.py` 口径：CJK 汉字 / CJK 标点 / 全角字符各按 1 token，其余按 4 字符/token）：`AGENTS.md` ≤1600；每个 `references/*.md` ≤950；超预算先删重复，不删有效规则。
 
 | 文件 | 用途 |
 | --- | --- |
 | [`../AGENTS.md`](../AGENTS.md) | Agent 冷启动入口：铁律、命令、验证矩阵、项目级覆盖 |
+| [`AGENTS.md`](AGENTS.md) | `docs/` 目录级规则：01–04 当前规范 / 14–21 历史、登记与真源优先级 |
 | [`../references/contracts.md`](../references/contracts.md) | 架构契约与铁律细则 |
 | [`../references/verification.md`](../references/verification.md) | 测试 / 真机 / 性能验证矩阵 |
 | [`../references/workflow.md`](../references/workflow.md) | L0/L1/L2、长任务、红队 |
-| [`../tools/check-docs.py`](../tools/check-docs.py) | 文档链接 / 围栏 / 索引 / token 预算；`make check` |
-| [`../tools/plan.py`](../tools/plan.py) | 跨会话计划的新建 / 最新计划 / 交接摘要；`make plan` / `make handoff` |
-| [`../Makefile`](../Makefile) | 测试 / 构建 / 真机 / 文档 / 计划命令入口 |
+| [`../tools/check-docs.py`](../tools/check-docs.py) | 文档链接 / 围栏 / 索引 / token 预算；`make check-docs` |
+| [`../tools/check-arch.py`](../tools/check-arch.py) | 架构铁律 R1–R6 静态扫描；`make check-arch` |
+| [`../tools/check-test-baseline.py`](../tools/check-test-baseline.py) | 测试计数 / skip 白名单门禁（基线 `.apm/test-baseline.json`）；`make check-tests` |
+| [`../tools/check-harness.py`](../tools/check-harness.py) | 指令层机检：预算 / § 引用 / 嵌套 AGENTS / skills / 敏感路径；`make check-harness` |
+| [`../tools/plan.py`](../tools/plan.py) | 跨会话计划：新建 / 最新 / 交接摘要 / check / resume / end；`make plan` / `handoff` / `resume` / `end` |
+| [`../tools/doctor.py`](../tools/doctor.py) | 环境检查：Xcode / 模拟器 runtime / 真机工具 / 模板仓；`make doctor` |
+| [`../Makefile`](../Makefile) | 测试 / 构建 / 真机 / 门禁 / 计划命令入口 |
 
 ## 原型与图
 
@@ -80,4 +89,4 @@
 - 已完成的修复写“发现 → 红测 → 修复 → 绿测 → 未混入本次的 follow-up”。
 - 性能结论必须写清口径（设备、构建、样本量、起止点），否则视为无效。
 - 未验证的推断要标注“待验证”，不要把设计意图写成已实现事实。
-- 新增 `docs/*.md` 必须登记到本页，否则 `make check` 失败。
+- 新增 `docs/*.md` 必须登记到本页，否则 `make check` 失败；新增工具/门禁要同时登记上方表并配 `make check-*` 入口。

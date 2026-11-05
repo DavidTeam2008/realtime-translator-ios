@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
-"""文档自检：相对链接、代码围栏、docs 索引覆盖。
+"""文档自检：相对链接、代码围栏、docs 索引覆盖、token 预算。
 
 只扫当前事实源：根 README/HANDOFF/AGENTS、docs/*.md、references/*.md、
 .apm/**/*.md；跳过 build/、prototype/、.apm/runs/ 与 trace 目录。
+token 预算从 tools/rules-budget.json 读取，估算口径见 tools/token_estimate.py；
+每次运行都打印每个受控文件的已用/预算/余量。
 用法：python3 tools/check-docs.py
 """
 from __future__ import annotations
 
-import math
+import json
 import re
 import sys
 from pathlib import Path
 
+from token_estimate import estimate_tokens
+
 ROOT = Path(__file__).resolve().parent.parent
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 FENCE_RE = re.compile(r"^\s*```", re.M)
-TOKEN_BUDGETS = {
-    "AGENTS.md": 2000,
-    "references/contracts.md": 800,
-    "references/verification.md": 800,
-    "references/workflow.md": 800,
-}
+BUDGET_FILE = ROOT / "tools" / "rules-budget.json"
 
 errors: list[str] = []
 
@@ -81,16 +80,28 @@ def check_docs_index() -> None:
 
 
 def check_budgets() -> None:
-    for rel, budget in TOKEN_BUDGETS.items():
+    try:
+        data = json.loads(BUDGET_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        errors.append("缺少 tools/rules-budget.json（token 预算配置）")
+        return
+    except json.JSONDecodeError as exc:
+        errors.append(f"tools/rules-budget.json 不是合法 JSON：{exc}")
+        return
+    budgets = data.get("tokenBudgets", {})
+    if not budgets:
+        errors.append("tools/rules-budget.json 缺少 tokenBudgets")
+        return
+    print(f"token 口径：{data.get('estimator', 'unknown')}")
+    for rel, budget in budgets.items():
         path = ROOT / rel
         if not path.is_file():
             errors.append(f"缺少文件：{rel}")
             continue
-        text = path.read_text(encoding="utf-8")
-        cjk = len(re.findall(r"[\u3400-\u4dbf\u4e00-\u9fff]", text))
-        tokens = cjk + math.ceil((len(text) - cjk) / 4)
+        tokens = estimate_tokens(path.read_text(encoding="utf-8"))
+        remain = budget - tokens
         status = "OK" if tokens <= budget else "FAIL"
-        print(f"[{status}] {rel} ≈ {tokens}/{budget} tokens")
+        print(f"[{status}] {rel} ≈ {tokens}/{budget} tokens（余 {remain}）")
         if tokens > budget:
             errors.append(f"{rel} 超出 token 预算：≈{tokens} > {budget}")
 

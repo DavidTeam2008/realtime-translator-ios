@@ -9,7 +9,7 @@ DERIVED_DEVICE ?= $(DERIVED)-device
 TEAM_RULES ?= ../../agent/template
 N ?= 10
 
-.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-agents check check-all measure-launch plan handoff
+.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan check check-all verify-static verify doctor resume end measure-launch plan handoff
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -45,6 +45,33 @@ device-test-one: ## 真机单用例：make device-test-one TEST=DuiyiUITests/Sim
 check-docs: ## 文档链接 / 围栏 / 索引 / token 预算
 	python3 tools/check-docs.py
 
+check-arch: ## 架构铁律 R1–R6（依赖单向 / 翻译锚 View / 单引擎 / 内存为准）
+	python3 tools/check-arch.py
+
+check-tests: ## 测试计数下限 + skip 白名单（防删测试变绿）
+	python3 tools/check-test-baseline.py
+
+check-harness: ## 指令层机检：预算 / § 引用 / 嵌套 AGENTS / skills / 敏感路径
+	python3 tools/check-harness.py
+
+check-plan: ## 计划状态机与必填字段 / 未提交改动 vs git
+	python3 tools/plan.py check
+
+verify-static: check ## 本地秒级门禁（docs + 架构 + 计数 + harness + 计划 + 脚本语法）
+	@bash -n .apm/tools/*.sh tools/*.sh
+	@python3 -m py_compile tools/*.py
+
+verify: verify-static ## 同 verify-static（阶段别名）
+
+doctor: ## 环境自检（Xcode / 模拟器 / mobilebuildmcp / python / 模板仓）
+	python3 tools/doctor.py
+
+resume: ## 接手：active 计划 + git 状态 + 下一步 + 建议阅读
+	python3 tools/plan.py resume
+
+end: verify-static ## 收尾：门禁 + 计划检查 + git 状态 + 未验证项
+	@python3 tools/plan.py end
+
 check-agents: ## 校验团队基线（无模板仓时 SKIP）
 	@if [ ! -f "$(TEAM_RULES)/scripts/sync_team_baseline.py" ]; then \
 		echo "[SKIP] 未找到团队规则仓：$(TEAM_RULES)"; \
@@ -53,8 +80,8 @@ check-agents: ## 校验团队基线（无模板仓时 SKIP）
 		python3 "$(TEAM_RULES)/scripts/sync_team_baseline.py" --check AGENTS.md; \
 	fi
 
-check: check-docs ## 本地门禁（不依赖模板仓）
-check-all: check-docs check-agents ## 本地门禁 + 团队基线
+check: check-docs check-arch check-tests check-harness check-plan ## 本地门禁（不依赖模板仓）
+check-all: verify-static check-agents ## 本地门禁 + 团队基线
 
 plan: ## 新建跨会话计划：make plan TOPIC=speech-gate
 	@test -n "$(TOPIC)" || { echo "用法：make plan TOPIC=speech-gate"; exit 2; }

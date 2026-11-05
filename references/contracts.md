@@ -2,7 +2,7 @@
 
 > 触发：改 `Services/Speech|Audio|Translation|SpeechSynthesis|Persistence|Export`、
 > `Features/*/` ViewModel、`Domain/TaskSession*`，或准备发版时读。
-> 代码是事实来源；与 `docs/02`/`docs/04` 冲突时，以代码和最新测试为准。
+> 真源优先级见 [`docs/README.md`](../docs/README.md)；与 `docs/02`/`docs/04` 冲突时，以代码和最新验证为准。
 
 ## 1. 分层与依赖方向
 
@@ -41,4 +41,4 @@ Features 只依赖 Domain + Services 协议；Domain 不 import SwiftUI/语音/�
 
 ## 9. 未定决策
 
-HANDOFF §6 六项未确认前，不按假设实现 P0-2/P0-3；先问再写回。
+决策见 `HANDOFF.md` §6 的 D1–D7（唯一真源，含启动口径与长会策略）；D5/D7 未确认前，不按假设实现 P0-2/P0-3 的产品侧行为。先问再写回。

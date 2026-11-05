@@ -17,7 +17,7 @@
 
 - **面对面**：手机平放，上半屏倒字给对方，下半屏正字给自己；双向听写 + 双向翻译。
 - **同声传译**：单栏看现场译文，可选戴耳机读出译文；单向听写 + 单向翻译。
-- **会议记录**：单语或双语全文稿，会后总结或导出；不做实时翻译。
+- **会议记录**：单语全文稿，会后总结或导出；不做实时翻译。
 - **任务历史**：只有点“结束任务”才写入本机，可回看、总结、导出分享。
 
 ## 快速开始
@@ -64,6 +64,9 @@ xcodebuild test -project Duiyi.xcodeproj -scheme Duiyi \
 `Timed out while enabling automation mode` 失败。`.apm/tools/device-test.sh`
 已固化这个顺序；说明见 [`docs/20`](docs/20-ui-test-hittable-fix.md)。
 
+静态门禁：`make check`（文档 + 架构铁律 + 测试计数 + harness + 计划），
+`make verify-static` 另加脚本语法；规则与预算见 [`docs/README.md`](docs/README.md)。
+
 ## 项目结构
 
 ```text
@@ -75,9 +78,9 @@ Duiyi/
   DesignSystem/   Tokens、卡片、列表行、安全区
 DuiyiTests/       120 个单元测试（Swift Testing）
 DuiyiUITests/     启动性能 + 导航 + 同传监听 UI 测试
-.apm/             性能基准、问题单、测量/真机测试脚本（runs 不入库）
+.apm/             性能基准、问题单、测量/真机测试脚本、跨会话计划（runs 不入库）
 Order/            Release 二进制重排符号表（生成物）
-tools/            order file 生成脚本
+tools/            静态门禁（docs/架构/测试计数/harness/计划/doctor）+ order file 生成脚本
 docs/             设计文档、架构分析、真机测试与问题闭环记录
 prototype/        可交互 HTML 原型
 ```

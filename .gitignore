@@ -19,6 +19,10 @@ build/
 Launch_*.trace/
 .hvigor/
 
+# 本机 Agent 覆盖（签名 Team / 设备 ID / 本机路径等机器本地事实）
+AGENTS.local.md
+CLAUDE.local.md
+
 # Python 检查脚本缓存
 __pycache__/
 *.pyc

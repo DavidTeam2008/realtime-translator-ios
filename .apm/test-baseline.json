@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-05",
+  "unit": {
+    "floor": 120,
+    "files": 13
+  },
+  "ui": {
+    "floor": 3,
+    "files": 2
+  },
+  "expectedSkipped": {
+    "simulator": 1,
+    "device": 0
+  },
+  "xctSkipOccurrences": 1,
+  "notes": [
+    "只增不减：删测试会让 tools/check-test-baseline.py exit 1；增加测试无需改本文件。",
+    "unit.floor 统计 DuiyiTests/**/*.swift 中 @Test 出现次数（当前无参数化，@Test 数=执行数）。",
+    "ui.floor 统计 DuiyiUITests/**/*.swift 中 func test 出现次数。",
+    "xctSkipOccurrences=1 对应 testSimultaneousListeningPressure（模拟器无 SpeechTranscriber，skip 是预期）。",
+    "expectedSkipped 是运行期预期（模拟器 1 / 真机 0），未来由 verify-claim/evidence 校验。"
+  ]
+}

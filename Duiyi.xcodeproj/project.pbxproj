@@ -37,8 +37,24 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Features/AGENTS.md,
+				Services/AGENTS.md,
 			);
 			target = D01T00000000000000000001 /* Duiyi */;
+		};
+		D01E00000000000000000002 /* Exceptions for "DuiyiTests" folder in "DuiyiTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AGENTS.md,
+			);
+			target = D01T00000000000000000002 /* DuiyiTests */;
+		};
+		D02E00000000000000000001 /* Exceptions for "DuiyiUITests" folder in "DuiyiUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AGENTS.md,
+			);
+			target = D02T00000000000000000003 /* DuiyiUITests */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -53,11 +69,17 @@
 		};
 		D01G00000000000000000002 /* DuiyiTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D01E00000000000000000002 /* Exceptions for "DuiyiTests" folder in "DuiyiTests" target */,
+			);
 			path = DuiyiTests;
 			sourceTree = "<group>";
 		};
 		D02G00000000000000000001 /* DuiyiUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D02E00000000000000000001 /* Exceptions for "DuiyiUITests" folder in "DuiyiUITests" target */,
+			);
 			path = DuiyiUITests;
 			sourceTree = "<group>";
 		};

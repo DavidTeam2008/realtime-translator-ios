@@ -1,7 +1,7 @@
 # 对译 Duiyi · 接手说明（HANDOFF）
 
-> 最后更新：2026-11-02（文档整合、死代码与产物清理）
-> 代码基线：`main` @ `f57d90a` + 本次未提交清理（无功能改动）
+> 最后更新：2026-11-05（Phase 0 单一真源清理：§6 决策合并为 D1–D7、§5 改摘要）
+> 代码基线：`main`（以 `git log` 为准）
 > 本机复核：Xcode 27.1 构建通过；模拟器单元 **120/120**、UI 3 个（1 个按预期 skip）
 > 真机基线（2026-09-26）：iPhone 13 / iOS 26.7，**123/123** 通过（120 单元 + 3 UI）
 
@@ -382,121 +382,23 @@ Domain 不 import SwiftUI/系统语音框架。新增代码请保持这条线。
 
 ---
 
-## 5. 下一步做什么（按优先级）
+## 5. 下一步做什么（摘要）
 
-没有“必须马上修才能跑”的 Bug；以下是按**风险 × 用户影响**排的技术债。
-建议一次只做一个 P0，配一条可验证的测试，不要同时动语音和持久化。
+没有“必须马上修才能跑”的 Bug；完整验收判据与排期以
+[`docs/04-roadmap.md`](docs/04-roadmap.md) 为**唯一真源**（§1–§3 判据、§6 排期），
+本节只是按该排期顺序的导航摘要。建议一次只做一个 P0，配一条可验证的测试，
+不要同时动语音和持久化。
 
-### P0-1 语音引擎的全局仲裁（最高优先）
-
-**问题**：`RootView` 创建三个常驻 ViewModel，共享同一个
-`BilingualSpeechEngine` actor。快速“同传 → 面对面 → 会议”切换或前后台切换时，
-A 的 `start` 与 B 的 `stop` 可能交叉，`stop()` 会 finish utterance 流，
-旧 `for await` 退出后可能误报 `recognitionInterrupted`，甚至把新会话的流掐断。
-
-**建议**：在 App 层加一个 `SpeechSessionGate` actor，持有 generation 与 owner
-（`FeatureID`）；所有 VM 的 `start/stop` 必须经 gate 请求，旧 owner 自动失效；
-每次 `for await` 校验自己的 token。不要给每个 VM 各建一个引擎——麦克风和
-`AVAudioSession` 仍然是独占资源，gate 是更小的改动。
-
-**验收**：
-
-- 监听中来回切三个模块 20 次，始终只有一个活跃流，界面不出现错误的
-  “识别中断”；
-- 前后台切换 10 次，回到前台仍能继续；
-- 用假引擎写一条并发单元测试锁定 start/stop 顺序。
-
-### P0-2 长会话的数据留存
-
-**问题**：同传 `InterpretationLayout.historyLimit = 50`，超过后
-`transcript.removeFirst(...)`，**结束前早期内容已经丢了**；会议在 2 万字时硬停；
-面对面 `transcript` 无上限，长会话内存和落盘都持续增长。三条路径策略不一致。
-
-**建议**：统一成“Store 保留全量、UI 只保留窗口”。同传/面对面按条数分页，
-历史详情分页读取；会议到上限时自动“结束并开续集任务”（用同组 ID 关联），
-而不是直接停止。导出始终取全量。
-
-**验收**：构造 500 条 transcript，结束 → 杀进程 → 重开历史，导出文本包含
-第一条和最后一条；UI 滚动流畅，内存不随条数线性增长。
-
-### P0-3 持久化可靠性与写放大
-
-**问题**：
-
-- `DeferredTaskStore` 建库失败会**静默降级到内存**，用户以为已保存，杀进程全丢；
-- `TaskEntity.schemaVersion = 1` 存在但没有 `SchemaMigrationPlan`，字段变更可能崩溃或丢库；
-- `SwiftDataTaskStore.append` 每次把全部 entries 逐条 upsert 后 `save()`，
-  且 `autosaveEnabled = true`，长会反复全量写主线程上下文。
-
-**建议**：存储失败要显性化（启动横幅 + 历史空态提示 + 日志/打点）；补 v1→v2
-迁移演练；`append` 改成只写增量/脏 id 批量刷，关掉 autosave 或改为显式 save 二选一。
-
-**验收**：模拟容器创建失败时用户能看到提示；迁移测试通过；10 分钟会议结束时
-主线程无 >100ms 的写盘卡顿。
-
-### P1-1 翻译队列积压
-
-**问题**：`TranslationJobBridge` 只有一个 `pending` 槽 + 无界 `AsyncStream`；
-volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译文，但 session
-仍被占着，延迟会越积越高；同传 voiceOut 档的 debounce 更激进（25/50ms）。
-
-**建议**：按 `utteranceID` 合并，只保最新；`pump` 取最新后清空同 id 积压；
-用 `os_signpost` 记录 submit → 字幕更新延迟，再决定 debounce 阈值。
-
-**验收**：连续 5 句/秒输入时，p95 延迟不超过基线的 1.5 倍，且不出现旧译文
-覆盖新行。
-
-### P1-2 导出竞态与导出内容不刷新
-
-**问题**：
-
-- `TranscriptExportService` 每次导出前删除**所有** `Duiyi-*.txt`，可能删掉
-  正在被 `ShareLink` 读取的文件；
-- `ExportShareButton` 用 `.task(id: task.id)`，历史详情里补翻译后 `task.id` 不变，
-  导出的可能仍是旧内容（`docs/19` 已记录为独立 follow-up）。
-
-**建议**：文件名加 taskID + 时间戳；只清理 7 天前或分享完成后的文件；
-把导出依赖改成内容版本号/更新时间，翻译更新后重新生成。
-
-**验收**：连续导出两次、分享面板未关闭时再导出，不崩溃且文件内容正确；
-补翻译后立即分享，txt 含新译文。
-
-### P1-3 切换语言后的旧翻译状态
-
-**问题**：语言对变化会重建 `TranslationHostView` 的 session，但 VM 的
-`outboundJob` / `sentSourceText` / `lastApplied` 没有统一清空，旧译文可能写进
-新语言的行（`docs/04` P1-3）。
-
-**建议**：把 `applyDirectionChange/setUserLanguage/handlePairChange` 收口到
-一个 `resetTranslationState()`；切语言时 cancel debounce、清 job、清 sent 记录。
-
-**验收**：监听中从英→中切到日→韩，屏幕上不出现旧语言译文；单元测试覆盖。
-
-### P1-4 中英混读与短句质量
-
-**问题**：`UtteranceAssembler.matchesClaimedLanguage` 对“纯语言”要求很严，
-中英混读句会被其中一路丢弃；final 后 1s 的 crosstalk 窗会丢合法 code-switch；
-单路模式切 locale 会丢约一句。这是产品体验问题，不是崩溃。
-
-**建议**：先做固定音频夹具和可观测指标（WER/路由正确率/端到端延迟），
-再考虑 `NLLanguageRecognizer` 第三票或按 `resolvedLanguage` 重判；
-改动放在实验开关后，用真机 A/B 验证，不要凭感觉调阈值。
-
-### P2 其他（按需排期）
-
-- **音频会话一致性**：`AudioSessionPolicy` 与 `AudioEngineCapturer` 都在
-  `setActive`；文档说支持蓝牙 HFP，代码里 faceToFace 没有对应 option。
-  统一由 Policy 管理，并补蓝牙/耳机真机回归。
-- **TTS 可调**：语速写死 `Default * 1.28`，无音色/试听；外放回声门禁只有
-  一层 `canSpeakWithoutEcho`。
-- **语言目录与本地化**：`StaticLanguageCatalog` 是桩（`speechSupported` 恒 true），
-  加语言要改 `AppLanguage`、`Copy` 六参、`SpokenText` 阈值、测试；
-  `Localizable.xcstrings` 只有 14 个 key，大部分 UI 文案仍在 `Copy` 函数里。
-- **无障碍**：VoiceOver 主路径、大字号档、动态字体尚未系统验收。
-- **发布工程**：没有 CI、没有 Archive/Export 流程、没有崩溃/指标采集；
-  发 TestFlight 前需要补。
-- **产品增强**（需产品决策，不要擅自排期）：说话人分离、会议分块总结、
-  可选 iCloud 同步、更多语种。
+| 优先级 | 事项 | 一句话状态 | 详细验收 |
+| --- | --- | --- | --- |
+| P0-1 | 语音引擎全局仲裁（`SpeechSessionGate`） | 未实现；三 VM 共享 actor，无跨 VM owner/generation | [§1](docs/04-roadmap.md) |
+| P0-3 | 持久化可靠性与写放大 | 未修；失败静默降级内存、全量 upsert、无迁移计划 | [§1](docs/04-roadmap.md) |
+| P1-2 | 导出竞态与导出内容不刷新 | 未修；导出前删全部 txt，`task.id` 不变时分享旧内容 | [§2](docs/04-roadmap.md) |
+| P1-3 | 切换语言后的旧翻译状态 | 未修；VM 翻译态未统一清空 | [§2](docs/04-roadmap.md) |
+| P1-1 | 翻译队列积压 | 未修；单 pending 槽 + 无界 `AsyncStream` | [§2](docs/04-roadmap.md) |
+| P0-2 | 长会话的数据留存 | 未修；三条路径策略不一致；依赖 P0-3 | [§1](docs/04-roadmap.md) |
+| P1-4 | 中英混读与短句质量 | 未修；需真机音频夹具 | [§2](docs/04-roadmap.md) |
+| P2-6 | 语言目录实查 | 未修；`StaticLanguageCatalog` 是桩 | [§3](docs/04-roadmap.md) |
 
 ### 明确不要做的
 
@@ -508,24 +410,21 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 
 ---
 
-## 6. 交接前需要确认的产品/工程决策
+## 6. 交接前需要确认的产品/工程决策（唯一真源）
 
-这些问题没有标准答案，建议新负责人和原负责人对齐后再排期：
+> **本表是决策的唯一真源**：`docs/04` §7、`AGENTS.md`、`references/contracts.md`
+> 只引用 D 编号，不复制内容。确认后更新本表并标注日期；未确认前，不按假设实现
+> P0-2/P0-3 的产品侧行为。
 
-1. **启动目标**：200ms 是硬指标还是“尽量快”？按 `startup.cold.first_frame` 口径，
-   现有 p50≈262.5ms；按 XCTest 冷启动口径约 0.32s。若改为 p50≤300ms（或 XCTest
-   口径 ≤400ms），当前实现已达标，但要先把口径写进验收标准；硬指标 200ms 需要架构改造。
-2. **发布形态**：App Store / TestFlight / 企业内部分发？当前没有 Archive 流程、
-   没有隐私清单（PrivacyInfo.xcprivacy）、没有 CI。
-3. **设备矩阵**：最低 iOS 26.4 是否要下调？下调会牵涉 Speech/Translation API
-   可用性与 UI 适配。
-4. **语言优先级**：6 种语言是否都要达到“可发布”质量？当前听写/翻译能力
-   依赖系统资源，泰/越的实际体验需要真机抽测。
-5. **数据保留策略**：同传只留 50 条是产品要求还是历史实现？这决定 P0-2 的方案。
-6. **Apple 智能**：是否要求 iPhone 13 也有“总结”？当前是本地摘要回退，
-   文案已经按设备能力区分。
-
----
+| ID | 决策 | 当前已知事实 | 未定问题 | 影响范围 |
+| --- | --- | --- | --- | --- |
+| D1 | 启动目标 / 口径 | 真机冷启动 240–280ms（`AppLaunchTracker`：进程创建 → 首帧提交）；XCTest 冷启动 0.31–0.33s（到首页卡片可点）；200ms 经对照判定不可达（最小 `Text("x")` 对照 p50=210ms，`docs/17`/`docs/18`） | 200ms 是硬指标还是“尽量快”？若改为 p50≤300ms（或 XCTest 口径 ≤400ms），当前实现已达标，但要先把口径写进验收；硬指标 200ms 需架构改造（如换掉 SwiftUI 场景机） | 性能验收标准、是否重启启动优化（当前已暂停） |
+| D2 | 发布形态 | App Store / TestFlight / 企业分发均未定；当前没有 Archive/Export 流程、没有隐私清单（PrivacyInfo.xcprivacy）、没有 CI | 首发走 App Store、TestFlight 还是企业内部分发？ | 发布工程工作量、隐私清单与 CI 排期、发版验收 |
+| D3 | 设备矩阵 | 最低 iOS 26.4、仅 iPhone 竖屏；参考机 iPhone 13 / iOS 26.7（无 Apple 智能，总结走本地回退是预期行为） | 最低 iOS 26.4 是否下调？是否必须覆盖 iPhone 13 与全部六语？ | Speech/Translation API 可用性与 UI 适配、真机测试矩阵 |
+| D4 | 语言优先级 | 6 种语言（中/英/日/韩/泰/越）；听写/翻译能力依赖系统资源，泰/越的实际体验需真机抽测 | 六语是否都要达到“可发布”质量、全部首发？还是中英先行？ | P1-4 质量工作优先级、发布范围与验收 |
+| D5 | 数据保留策略 | 历史默认永久保留（本机 SwiftData）；同传 `historyLimit = 50`、会议 2 万字符硬停；无自动清理 | 同传只留 50 条是产品要求还是历史实现？历史是否提供自动清理？ | P0-2 方案（Store 全量 + UI 窗口、续集任务）与“导出取全量” |
+| D6 | Apple 智能范围 | 总结优先 Apple 智能，设备不支持时本地摘要回退（文案已按能力区分）；iPhone 13 走回退 | 是否要求 iPhone 13 也有“总结”？Apple 智能只用于总结，还是未来用于翻译/润色？ | P1/P2 产品行为、文案与验收（不改变本机/离线承诺） |
+| D7 | 长会策略 | 会议 2 万字符硬停；P0-2 目标改为“结束并开续集任务”（同组 ID 关联），而不是直接停止 | 2 万字上限是硬限制，还是续集任务的触发点？ | P0-2 实现方式与验收（与 D5 共同决定数据保留行为） |
 
 ## 7. 文档地图
 
@@ -535,7 +434,8 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 | [`HANDOFF.md`](HANDOFF.md) | 当前 | 本文件：接手、环境、测试、下一步 |
 | [`AGENTS.md`](AGENTS.md) | 当前 | AI Agent 冷启动入口：铁律、命令、验证矩阵、项目级覆盖 |
 | [`references/`](references/) | 当前 | Agent 细则：contracts / verification / workflow；按需读取 |
-| [`tools/check-docs.py`](tools/check-docs.py) | 当前 | 文档链接 / 围栏 / 索引检查；`make check-docs` |
+| [`tools/check-docs.py`](tools/check-docs.py) | 当前 | 文档链接 / 围栏 / 索引 / token 预算；`make check-docs` |
+| [`tools/`](tools/) | 当前 | 静态门禁：架构铁律、测试计数、harness、环境检查；`make check` / `verify-static` / `doctor` |
 | [`Makefile`](Makefile) | 当前 | 测试 / 构建 / 真机 / 文档命令入口 |
 | [`.github/workflows/docs.yml`](.github/workflows/docs.yml) | 当前 | CI 只跑文档检查 |
 | [`docs/README.md`](docs/README.md) | 当前 | 文档索引与阅读顺序 |
@@ -551,8 +451,8 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 | [`.apm/`](.apm/) | 证据库 + 计划 | 基准、问题单、测量脚本、跨会话计划、独立审查；`runs/` 不入库 |
 | [`prototype/`](prototype/) | 设计原型 | 浏览器打开的可交互稿 |
 
-约定：**代码是事实来源**；文档里的行号/数字如果和代码冲突，以代码和最新
-`.apm/` 证据为准，并在改动时顺手更新文档。
+约定：真源优先级只在 [`docs/README.md`](docs/README.md) 维护（代码与最新验证 >
+当前文档 > 历史）；文档里的行号/数字漂移时顺手更新，不在此重复优先级声明。
 
 ---
 
@@ -566,7 +466,7 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 - [ ] 跑 `make check`；有模板仓再跑 `make check-all`，确认文档门禁、token 预算与团队基线
 - [ ] 读 `docs/02`（数据链路、并发）和 `docs/04`（问题清单、排期）
 - [ ] 读 `docs/17`/`docs/18` 的结论，明确“启动优化不再投入”
-- [ ] 和负责人确认 §6 的六个决策
+- [ ] 和负责人确认 §6 的 D1–D7 决策（唯一决策表；未确认前不按假设实现）
 - [ ] 从 P0-1 开始：先写并发测试，再加 `SpeechSessionGate`
 
 ---
@@ -580,3 +480,4 @@ volatile 高频时旧 job 在流里排队，`fulfill` 虽然会丢弃过期译�
 | 2026-10-30 | 按独立审查修复：计划按 mtime 选择、`make check` 去模板仓依赖、token 预算门禁、`SpeechSessionGate` 措辞、红队范围统一；审查报告在 `.apm/reviews/` |
 | 2026-10-30 | 真机测试环境加固：模拟器默认 runtime 固定为 iOS 26.4.1；`device-test.sh` 自动带 `-allowProvisioningUpdates`；补 “Enable UI Automation” 密码弹窗说明。真机 123、模拟器 120 + UI 3/1 skip 全过 |
 | 2026-11-02 | 文档整合为 01 产品 / 02 架构 / 03 选型 / 04 路线图，删除 05–13 重复稿并修正全仓链接；删除未引用代码、8 个 `platform.*` 本地化键与过期 trace/build 产物；模拟器单元 120/120、UI 3/1 skip 通过 |
+| 2026-11-05 | Phase 0 单一真源清理：§6 六决策合并为 D1–D7（唯一决策真源，补“启动目标/口径”与“长会策略”）；§5 改为按 docs/04 §6 排期的摘要表；基线 hash 改为以 `git log` 为准；同步 docs/04、references、docs/README |
