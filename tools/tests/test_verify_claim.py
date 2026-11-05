@@ -168,9 +168,15 @@ class VerifyClaimTests(unittest.TestCase):
         self.assert_verdict(self.verify(doc), 0, "PASS")
 
     def test_ui_simulator_expected_skip_one_pass(self) -> None:
+        # 真实模拟器结果：3 executed = 2 passed + 1 expected skip；floor 是"用例总数"。
         doc = base_evidence(claim="ui-tests-pass")
-        doc["result"].update({"passed": 3, "skipped": 1, "xcresultPath": str(self.xcresult)})
+        doc["result"].update({"passed": 2, "skipped": 1, "xcresultPath": str(self.xcresult)})
         self.assert_verdict(self.verify(doc), 0, "PASS")
+
+    def test_ui_executed_below_floor_fail(self) -> None:
+        doc = base_evidence(claim="ui-tests-pass")
+        doc["result"].update({"passed": 1, "skipped": 1, "xcresultPath": str(self.xcresult)})
+        self.assert_verdict(self.verify(doc), 1, "FAIL")
 
     def test_device_claim_pass(self) -> None:
         doc = base_evidence(claim="device-tests-pass")

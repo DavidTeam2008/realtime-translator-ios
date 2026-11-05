@@ -6,7 +6,7 @@
 
     unit-tests-pass    passed≥baseline.unit.floor；failed=0；skipped=0；
                        xcresult 缺失/不存在 → UNVERIFIED
-    ui-tests-pass      passed≥baseline.ui.floor；skipped：模拟器=1 / 真机=0；
+    ui-tests-pass      executed(passed+skipped)≥baseline.ui.floor；skipped：模拟器=1 / 真机=0；
                        xcresult 缺失/不存在 → UNVERIFIED
     device-tests-pass  passed≥unit.floor+ui.floor；skipped=0（真机白名单）；
                        xcresult 缺失/不存在 → UNVERIFIED
@@ -151,8 +151,12 @@ def check_test_claim(root: Path, doc: dict[str, Any], claim: str) -> tuple[str, 
         return FAIL, [f"result.status={status!r} 不是 SUCCEEDED"]
     if failed != 0:
         return FAIL, [f"failed={failed}，失败的测试不能算通过"]
-    if passed < floor:
-        return FAIL, [f"passed={passed} < 基线 floor={floor}（疑似删测试/少跑）"]
+    # UI claim 的 floor 是"用例总数"（含预期 skip）；unit/device 用 passed 即可。
+    executed = passed + skipped
+    observed = executed if claim == "ui-tests-pass" else passed
+    label = "executed(passed+skipped)" if claim == "ui-tests-pass" else "passed"
+    if observed < floor:
+        return FAIL, [f"{label}={observed} < 基线 floor={floor}（疑似删测试/少跑）"]
     if skipped != expected_skipped:
         return FAIL, [f"skipped={skipped} ≠ 环境预期 {expected_skipped}（skip 白名单漂移）"]
 
@@ -163,7 +167,7 @@ def check_test_claim(root: Path, doc: dict[str, Any], claim: str) -> tuple[str, 
     if not path.exists():
         return UNVERIFIED, [f"xcresult 不存在：{artifact}（换机器/已清理则无法复核）"]
     return PASS, [
-        f"passed={passed} ≥ floor={floor}",
+        f"{label}={observed} ≥ floor={floor}",
         "failed=0",
         f"skipped={skipped} == 预期 {expected_skipped}",
         "xcresult 存在",

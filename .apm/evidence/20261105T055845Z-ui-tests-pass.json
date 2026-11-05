@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "claim": "ui-tests-pass",
+  "command": "make test-ui DERIVED=build/evidence-ui",
+  "environment": {
+    "xcode": "Xcode 27.1 (27A9275)",
+    "simulator": "iPhone 17 Pro Max / iOS 26.4.1",
+    "device": null,
+    "build": "Debug",
+    "host": null
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "passed": 2,
+    "failed": 0,
+    "skipped": 1,
+    "durationSec": 60.3,
+    "xcresultPath": "build/evidence-ui/Logs/Test/Test-Duiyi-2026.11.05_13-56-26-+0800.xcresult",
+    "metricsPath": null
+  },
+  "verdict": "PASS",
+  "verifier": "tools/evidence.py@1",
+  "notes": "1 skipped = testSimultaneousListeningPressure（模拟器无 SpeechTranscriber，预期）",
+  "git": {
+    "commit": "fb217f6cdbd7",
+    "dirty": false
+  },
+  "createdAt": "2026-11-05T05:58:45Z",
+  "id": "20261105T055845Z-ui-tests-pass"
+}
