@@ -1,0 +1,117 @@
+name: verify
+
+# Phase 1 CI 门禁（两层）：
+#   static      ubuntu-latest，纯 Python 标准库 + make，跑 `make verify-static`（约 3–5s，无 macOS 依赖）
+#   unit-tests  self-hosted macOS，跑 `make test`（DuiyiTests 模拟器单测），默认跳过
+#
+# unit-tests 默认跳过逻辑：
+#   job 级 `if: ${{ vars.MACOS_CI_ENABLED == 'true' }}`
+#   仓库 Settings → Secrets and variables → Actions → Variables 新建 `MACOS_CI_ENABLED=true` 才启用；
+#   未设置时变量为空字符串 → 表达式 false → job skipped（不会因未注册 runner 一直排队）。
+#
+# 启用 unit-tests 需要的 runner（本机开发机即候选）：
+#   1) macOS 机器装 Xcode 26.4+/27.x 与 iOS 26.4 Simulator runtime，注册 GitHub self-hosted runner；
+#   2) runner labels 至少包含 GitHub 默认的 `self-hosted` 与 `macOS` 两个（本 workflow 用
+#      runs-on: [self-hosted, macOS]）；建议再打自定义 label（如 `duiyi-ios`）便于以后区分；
+#   3) runner 用户能跑模拟器（首次 `xcodebuild test` 可能触发 runtime 安装/授权，先手动跑一次）。
+#   GitHub 托管 macOS（macos-14/15）镜像是否有 iOS 26.4 runtime 未验证，且分钟成本高，故默认自托管。
+#
+# 安全：self-hosted runner 不应用来跑不可信代码。若仓库接受外部 PR，请保持 MACOS_CI_ENABLED 关闭，
+#       或给该 job 加 Environment 人工批准；pull_request 拿不到 secrets，但自托管 runner 的
+#       文件系统/钥匙串仍需按不可信输入防护。
+#
+# 本地等价命令：`make verify-static`（推送前由 .githooks/pre-push 自动跑；SKIP_HARNESS_HOOK=1 可跳过）。
+# 注意：`.github/workflows/docs.yml` 仍保留（只查文档）；本 workflow 的 static job 覆盖全量静态门禁。
+
+on:
+  push:
+    paths:
+      - "**/*.swift"
+      - "DuiyiTests/**"
+      - "DuiyiUITests/**"
+      - "Duiyi.xcodeproj/**"
+      - "tools/**"
+      - "Makefile"
+      - ".apm/test-baseline.json"
+      - ".apm/evidence/**"
+      - ".dsh/**"
+      - "references/**"
+      - "HARNESS.md"
+      - ".github/workflows/**"
+      # 指令层/文档锚点：check-harness 校验 AGENTS.md 与 § 引用指向 HANDOFF/docs
+      - "AGENTS.md"
+      - "**/AGENTS.md"
+      - "HANDOFF.md"
+      - "docs/**"
+  pull_request:
+    paths:
+      - "**/*.swift"
+      - "DuiyiTests/**"
+      - "DuiyiUITests/**"
+      - "Duiyi.xcodeproj/**"
+      - "tools/**"
+      - "Makefile"
+      - ".apm/test-baseline.json"
+      - ".apm/evidence/**"
+      - ".dsh/**"
+      - "references/**"
+      - "HARNESS.md"
+      - ".github/workflows/**"
+      - "AGENTS.md"
+      - "**/AGENTS.md"
+      - "HANDOFF.md"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: static gates (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      # ubuntu-latest 自带 python3（>=3.10），门禁脚本只用标准库，无需 setup-python / pip。
+      - name: Static gates
+        run: make verify-static
+
+  unit-tests:
+    name: unit tests (self-hosted macOS)
+    runs-on: [self-hosted, macOS]
+    # 默认跳过：未注册 runner / 未开变量时不会排队卡住。
+    if: ${{ vars.MACOS_CI_ENABLED == 'true' }}
+    # 分层门禁：静态门禁先绿，再占用昂贵的自托管 macOS runner 跑单测。
+    needs: static
+    timeout-minutes: 20
+    env:
+      # derivedData 放 runner 临时目录，避免污染 WORKSPACE（Makefile 用 ?=，环境变量可覆盖）。
+      DERIVED: ${{ runner.temp }}/duiyi-ci
+      # 与 Makefile 基线（SIM_OS）保持一致；runner runtime 不同时改这里或仓库变量。
+      SIM_OS: "26.4.1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Environment doctor (non-blocking)
+        # 环境自检失败只记录、不阻断单测：环境问题 ≠ 代码问题（doctor.py 约定 exit 2 = 动态验证不可用）。
+        continue-on-error: true
+        run: make doctor
+      - name: Unit tests (DuiyiTests)
+        run: make test
+      - name: Upload xcresult / logs (always)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/duiyi-ci/**/*.xcresult
+            ${{ runner.temp }}/duiyi-ci/Logs/**/*.log
+            .apm/runs/
+          if-no-files-found: ignore
+          retention-days: 7

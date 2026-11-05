@@ -17,6 +17,15 @@ N="${1:-5}"
 RUN_DIR="${2:-.apm/runs/$(date +%Y%m%d-%H%M%S)-launch}"
 APP="${APM_APP:-/tmp/duiyi-t1/Build/Products/Release-iphoneos/Duiyi.app}"
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+EVIDENCE_TOOL="$ROOT/tools/evidence.py"
+# Xcode 版本只作为 evidence 的 environment 字段；没有 Xcode 时留空（测量本身会先失败）。
+XCODE_VERSION=""
+if command -v xcodebuild >/dev/null 2>&1; then
+  XCODE_VERSION="$(xcodebuild -version 2>/dev/null | head -n 1 || true)"
+fi
+SECONDS=0
+
 mkdir -p "$RUN_DIR/raw"
 RAW="$RUN_DIR/raw/samples.txt"
 : > "$RAW"
@@ -55,11 +64,14 @@ for i in $(seq 1 "$N"); do
   [ -n "$stages" ] && echo "$stages" >> "$RUN_DIR/raw/stages.txt"
 done
 
-python3 - "$RUN_DIR" <<'PY'
+python3 - "$RUN_DIR" "$N" "$XCODE_VERSION" "$SECONDS" <<'PY'
 import json, statistics as st, subprocess, sys
 from pathlib import Path
 
 run = Path(sys.argv[1])
+requested = int(sys.argv[2])
+xcode = sys.argv[3].strip() or None
+duration = float(sys.argv[4])
 pairs = []
 p = run/"raw"/"paired.txt"
 if p.exists():
@@ -124,4 +136,46 @@ for l in (line("fast_env", fast), line("slow_env", slow)):
     if l: print(l)
 print(f"  混合口径    中位数 {st.median(allff):>5.0f}ms   n={len(allff)}")
 print(f"  → {run/'metrics.json'}")
+
+# Phase 1：evidence 草稿（摘要：n/CV/context/metrics 路径）。由外层 shell 调
+# tools/evidence.py write --from-json 落盘；这里只产出草稿，避免脚本耦合 git 状态判定。
+n_valid = len(allff)
+cv_all = (st.stdev(allff) / st.mean(allff) * 100) if n_valid > 1 else 0.0
+verdict = "PASS" if n_valid >= 10 and cv_all <= 10.0 else "UNVERIFIED"
+draft = {
+    "claim": "perf-measurement",
+    "command": f".apm/tools/measure-launch.sh {requested} {run.as_posix()}",
+    "environment": {
+        "xcode": xcode,
+        "simulator": None,
+        "device": "physical",
+        "build": "Release",
+    },
+    "result": {
+        "status": "SUCCEEDED",
+        "passed": n_valid,
+        "failed": max(0, requested - n_valid),
+        "skipped": 0,
+        "durationSec": round(duration, 1),
+        "xcresultPath": None,
+        "metricsPath": (run / "metrics.json").as_posix(),
+    },
+    "verdict": verdict,
+    "notes": (
+        f"n={n_valid} CV={cv_all:.1f}%；PASS 仅表示测量可用且 context 一致，"
+        "A/B 显著性/最小效应属后续阶段；分层口径与 .apm/report.md 的历史结论存在差异（已知项）"
+    ),
+}
+(run / "evidence-draft.json").write_text(json.dumps(draft, ensure_ascii=False), encoding="utf-8")
 PY
+
+# Phase 1：写 evidence 摘要（原始产物仍在 .apm/runs/，不入库；本文件是 1–3KB 摘要）。
+DRAFT="$RUN_DIR/evidence-draft.json"
+if [ -f "$DRAFT" ] && [ -f "$EVIDENCE_TOOL" ]; then
+  if EV_PATH=$(python3 "$EVIDENCE_TOOL" write --from-json "$DRAFT" --root "$ROOT"); then
+    echo "  evidence: ${EV_PATH}"
+  else
+    echo "  ⚠️ evidence 写入失败（测量结果不受影响；修好后可重跑生成）"
+  fi
+  rm -f "$DRAFT"
+fi

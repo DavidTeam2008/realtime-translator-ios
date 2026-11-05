@@ -28,7 +28,7 @@
 - 产品/架构/排期：`docs/01`–`04`；验收与排期唯一源 `docs/04-roadmap.md`。
 - 语音/翻译/音频/持久化/导出：`references/contracts.md`、`Duiyi/Services/AGENTS.md`、`Duiyi/Features/AGENTS.md`。
 - 测试/真机/性能：`references/verification.md`、`DuiyiTests/AGENTS.md`、`DuiyiUITests/AGENTS.md`。
-- 分级/红队/计划：`references/workflow.md`、`.apm/AGENTS.md`；文档 `docs/AGENTS.md`。
+- 分级/红队/计划：`references/workflow.md`、`.apm/AGENTS.md`；文档 `docs/AGENTS.md`；流程动作走 `.dsh/skills`。
 
 ## 4. 铁律（理由 → `references/contracts.md`）
 
@@ -46,7 +46,7 @@
 - 开工：`make resume`；计划写改动范围，越界先停；一次一个 active 任务。
 - 分级：L0 直接做；L1 5–10 行短方案；L2 完整方案 + 确认；改规则/工具/CI 至少 L1。
 - 小步：每步一个可验证点；完成前跑 `make verify-static` + 对应测试，失败先定位。
-- 证据：完成声明附命令/退出码/环境；未运行写“未验证”（Phase 1 起 evidence id 唯一）。
+- 证据：完成声明附命令/退出码/环境；未运行写“未验证”；evidence id 见 `.apm/evidence/`，无 id 即未验证。
 - 收尾：更新计划 → `make check-plan` → `make end`；提交前询问。
 - 停止：同一失败 2 次 / 子任务 3 轮无进展 → 按 `references/workflow.md` 上报。
 

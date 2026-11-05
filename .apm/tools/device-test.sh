@@ -46,6 +46,14 @@ WARMUP="${APM_WARMUP:-DuiyiTests/TaskStoreTests}"
 MODE="${1:-all}"
 ONLY="${2:-}"
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+EVIDENCE_TOOL="$ROOT/tools/evidence.py"
+# Xcode 版本只作为 evidence 的 environment 字段；没有 Xcode 时测试本身会先失败。
+XCODE_VERSION=""
+if command -v xcodebuild >/dev/null 2>&1; then
+  XCODE_VERSION="$(xcodebuild -version 2>/dev/null | head -n 1 || true)"
+fi
+
 command -v mobilebuildmcp >/dev/null || { echo "⛔ 缺少 mobilebuildmcp（npm i -g mobilebuildmcp）"; exit 2; }
 
 # ── 环境前置检查 ─────────────────────────────────────────
@@ -74,9 +82,11 @@ echo "  ✓ 设备已解锁"
 
 # ── 预热 ────────────────────────────────────────────────
 # 这一步不是可选的。缺它，UI 阶段会以 exit 74 / automation 超时失败。
+# summary_path（第 3 参数，可选）：目标测试的机器可读摘要，供 evidence 使用。
 run_test() {
   local label="$1"; shift
-  local extra_json="$1"; shift
+  local extra_json="${1:-}"; shift || true
+  local summary_path="${1:-}"
   local out; out=$(mktemp -t apm-test.XXXXXX)
   echo "  → $label"
   local -a args=(
@@ -87,11 +97,12 @@ run_test() {
   set +e
   mobilebuildmcp "${args[@]}" >"$out" 2>/dev/null
   set -e
-  python3 - "$out" "$label" <<'PY'
+  python3 - "$out" "$label" "$summary_path" <<'PY'
 import json, sys
 path, label = sys.argv[1], sys.argv[2]
+summary_path = sys.argv[3] if len(sys.argv) > 3 else ""
 try:
-    data = json.load(open(path)).get("data", {})
+    data = json.load(open(path)).get("data", {}) or {}
 except Exception as exc:
     print(f"    ⛔ 无法解析输出：{exc}")
     sys.exit(1)
@@ -106,7 +117,113 @@ for f in (data.get("diagnostics", {}) or {}).get("testFailures", []) or []:
 xcr = (data.get("artifacts", {}) or {}).get("xcresultPath")
 if xcr:
     print(f"      xcresult: {xcr}")
+if summary_path:
+    with open(summary_path, "w", encoding="utf-8") as fh:
+        json.dump({
+            "label": label,
+            "status": status,
+            "counts": counts,
+            "durationMs": summary.get("durationMs", 0),
+            "xcresultPath": xcr,
+        }, fh, ensure_ascii=False)
 sys.exit(0 if status == "SUCCEEDED" else 1)
+PY
+}
+
+# ── 证据与 skip 断言（Phase 1）────────────────────────────────
+# 目标测试完成后自动写 .apm/evidence/；skipped 必须等于真机预期（基线读自
+# .apm/test-baseline.json）。证据写入失败不覆盖测试结论，但会显式告警。
+write_evidence() {
+  local mode="$1" summary="$2"
+  [ -s "$summary" ] || { echo "  （无测试摘要，跳过 evidence）"; return 0; }
+  [ -f "$EVIDENCE_TOOL" ] || { echo "  ⚠️ 缺少 ${EVIDENCE_TOOL}，跳过 evidence"; return 0; }
+  local draft; draft=$(mktemp -t apm-evidence.XXXXXX)
+  if ! python3 - "$ROOT" "$mode" "$summary" "$XCODE_VERSION" "$CONFIG" >"$draft" <<'PY'
+import json, sys
+from pathlib import Path
+
+root, mode = Path(sys.argv[1]), sys.argv[2]
+summary_path, xcode, config = Path(sys.argv[3]), sys.argv[4].strip() or None, sys.argv[5]
+claims = {"all": "device-tests-pass", "ui": "ui-tests-pass", "unit": "unit-tests-pass"}
+claim = claims.get(mode)
+if claim is None:
+    sys.exit(0)
+baseline = json.loads((root / ".apm/test-baseline.json").read_text(encoding="utf-8"))
+summary = json.loads(summary_path.read_text(encoding="utf-8"))
+counts = summary.get("counts") or {}
+status = summary.get("status", "UNKNOWN")
+passed = int(counts.get("passed", 0) or 0)
+failed = int(counts.get("failed", 0) or 0)
+skipped = int(counts.get("skipped", 0) or 0)
+floors = {
+    "all": int(baseline["unit"]["floor"]) + int(baseline["ui"]["floor"]),
+    "ui": int(baseline["ui"]["floor"]),
+    "unit": int(baseline["unit"]["floor"]),
+}
+expected_skipped = int(baseline["expectedSkipped"]["device"])
+verdict = "PASS" if (
+    status == "SUCCEEDED"
+    and failed == 0
+    and passed >= floors[mode]
+    and skipped == expected_skipped
+) else "FAIL"
+draft = {
+    "claim": claim,
+    "command": f".apm/tools/device-test.sh {mode}",
+    "environment": {
+        "xcode": xcode,
+        "simulator": None,
+        "device": "physical",
+        "build": config,
+    },
+    "result": {
+        "status": status,
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
+        "durationSec": round(float(summary.get("durationMs") or 0) / 1000, 1),
+        "xcresultPath": summary.get("xcresultPath"),
+    },
+    "verdict": verdict,
+    "notes": f"mode={mode}；设备 ID 不写入证据；skipped 期望={expected_skipped}",
+}
+print(json.dumps(draft, ensure_ascii=False))
+PY
+  then
+    echo "  ⚠️ evidence 草稿生成失败（不覆盖测试结论）"
+    rm -f "$draft"
+    return 0
+  fi
+  if [ ! -s "$draft" ]; then
+    rm -f "$draft"
+    return 0
+  fi
+  local evidence_path=""
+  if evidence_path=$(python3 "$EVIDENCE_TOOL" write --from-json "$draft" --root "$ROOT"); then
+    echo "  evidence: ${evidence_path}"
+  else
+    echo "  ⚠️ evidence 写入失败（不覆盖测试结论；修好后重跑可重新生成）"
+  fi
+  rm -f "$draft"
+}
+
+# skipped 断言：真机预期 0（白名单）；不符按失败处理（不静默变绿）。
+check_skipped() {
+  local summary="$1"
+  [ -s "$summary" ] || return 0
+  python3 - "$ROOT" "$summary" <<'PY'
+import json, sys
+from pathlib import Path
+
+root, summary_path = Path(sys.argv[1]), Path(sys.argv[2])
+summary = json.loads(summary_path.read_text(encoding="utf-8"))
+counts = summary.get("counts") or {}
+skipped = int(counts.get("skipped", 0) or 0)
+baseline = json.loads((root / ".apm/test-baseline.json").read_text(encoding="utf-8"))
+expected = int(baseline["expectedSkipped"]["device"])
+if skipped != expected:
+    print(f"    ⛔ skipped={skipped} 与真机预期 {expected} 不符（skip 白名单漂移，按失败处理）")
+    sys.exit(1)
 PY
 }
 
@@ -115,7 +232,7 @@ echo
 # "$VAR（说明）" 里的（不是变量名分隔符，bash 会去找一个叫 "VAR（说明）" 的变量，
 # 在 set -u 下直接报「未绑定的变量」。本项目文档全角标点很多，这个坑很容易踩。
 echo "  [1/2] 预热 testmanagerd（${WARMUP}）"
-if ! run_test "warmup" "{\"extraArgs\":[\"-allowProvisioningUpdates\",\"-only-testing:${WARMUP}\"]}"; then
+if ! run_test "warmup" "{\"extraArgs\":[\"-allowProvisioningUpdates\",\"-only-testing:${WARMUP}\"]}" ""; then
   echo
   echo "⛔ 预热失败 —— 先修环境，不要继续跑 UI。"
   echo "   · 确认设备已解锁、Developer Mode 已开、已信任这台 Mac"
@@ -136,12 +253,33 @@ case "$MODE" in
   *)    echo "⛔ 未知模式：${MODE}（可选 all / ui / unit / one / warm）"; exit 2 ;;
 esac
 
-if run_test "$MODE" "$extra"; then
+SUMMARY_JSON=$(mktemp -t apm-summary.XXXXXX)
+TARGET_OK=0
+if run_test "$MODE" "$extra" "$SUMMARY_JSON"; then
+  TARGET_OK=1
+fi
+
+# Phase 1：自动写证据 + skipped 断言。unit/ui/all 才写；one/warm 不写证据。
+SKIP_OK=1
+case "$MODE" in
+  unit|ui|all)
+    write_evidence "$MODE" "$SUMMARY_JSON"
+    if ! check_skipped "$SUMMARY_JSON"; then
+      SKIP_OK=0
+    fi
+    ;;
+esac
+rm -f "$SUMMARY_JSON"
+
+if [ "$TARGET_OK" -eq 1 ] && [ "$SKIP_OK" -eq 1 ]; then
   echo
   echo "✅ 真机测试通过"
 else
   echo
   echo "❌ 真机测试失败"
+  if [ "$TARGET_OK" -eq 1 ] && [ "$SKIP_OK" -eq 0 ]; then
+    echo "   原因：测试本身 SUCCEEDED，但 skipped 数不符合真机预期 → 按失败处理。"
+  fi
   cat <<'HINT'
 
 排查顺序（按本机实测的证据强度排序）：

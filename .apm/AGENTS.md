@@ -24,7 +24,7 @@
 
 - 表固定四列：`命令 | 结果 | 环境 | 证据 ID`。
 - 结果写退出码/通过数/skip 数；环境写 Xcode/模拟器 runtime 或真机型号 + iOS。
-- 证据 ID：Phase 0 记命令 + commit 短 hash；Phase 1 引入 `.apm/evidence/` 后填 evidence id。无证据的“已验证”按未验证处理。
+- 证据 ID：填 `.apm/evidence/` 的 evidence id（生成/校验见 `.apm/evidence/README.md`、`make evidence`、`make verify-claim`）；无 id 的“已验证”按未验证处理。
 - 未运行/未验证单列；不得把“环境跑不了”写成“代码通过”。
 
 ## 4. 红队 / 独立审查协议

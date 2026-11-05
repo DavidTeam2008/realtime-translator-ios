@@ -4,10 +4,13 @@ status: active
 level: L2
 owner: david
 updated: 2026-11-05
+phase0_commit: d83bb05
+phase1_state: implemented-uncommitted
 scope:
   allow:              # 方案 §5.7 新增/修改清单；子任务拆分时以任务级 write scope 为准
     - .gitignore
     - AGENTS.md
+    - AGENTS.local.md.example
     - HARNESS.md
     - README.md
     - HANDOFF.md
@@ -546,6 +549,49 @@ verify:                   # 完成前必须跑的命令
 
 ---
 
+## 6.2 Phase 1 实施记录（2026-11-05）
+
+> 用户确认继续 Phase 1（决策 1/2/3/4/5/6/7/8 已落）。Phase 0 已提交 `d83bb05`；本节改动尚未提交。
+
+### 交付（工作区，未提交）
+
+| 层 | 交付 |
+|---|---|
+| Skills | `.dsh/skills/` 6 项：`session-bootstrap`、`verify-change`、`handoff`、`red-team`、`harness-audit`、`device-verify`（各 34–45 行，frontmatter 通过 check-harness；**已在本会话 skill catalog 实时出现，实测可加载**）；`AGENTS.local.md.example` 机器本地覆盖模板 |
+| 证据 | `.apm/evidence/{README.md,schema.json,TEMPLATE.json}`；`tools/evidence.py`（ls/show/validate/write，自动填 id/commit/dirty/verifier，路径归一化）；`tools/verify-claim.py`（三值 PASS/FAIL/UNVERIFIED）；`tools/tests/` 41 个 unittest；`.apm/tools/device-test.sh` 自动写证据 + `skipped==0` 断言；`.apm/tools/measure-launch.sh` 写 perf-measurement 证据（n<10/CV>10% → UNVERIFIED） |
+| CI/Hooks | `.github/workflows/verify.yml`：`static`（ubuntu，`make verify-static`）+ `unit-tests`（`[self-hosted, macOS]`，`if: vars.MACOS_CI_ENABLED == 'true'` 默认跳过，`needs: static`，artifact 上传）；`.githooks/pre-push`（`make verify-static`，`SKIP_HARNESS_HOOK=1` 可跳）+ `make hooks-install` |
+| 文档 | `HARNESS.md`（159 行：`.apm` 解释、Guides/Sensors 矩阵、运行手册、证据政策、skills、CI/hooks、DSH 用户级配置建议、月度审计清单+三指标、Changelog）；`docs/README.md` 同步；`AGENTS.md`/`.apm/AGENTS.md` 指向 evidence 与 skills（AGENTS 1550/1600） |
+| 门禁扩展 | Makefile：`check-evidence`、`test-tools`、`verify-claim`、`evidence`、`hooks-install`、`harness-audit`；`verify-static` = 原 check + 证据校验 + 脚本单测 + `bash -n`（含 pre-push）+ `py_compile` |
+
+### 验收结果
+
+| 命令 | 结果 |
+|---|---|
+| `make test-tools` | **41 tests OK**（verify-claim/evidence：PASS/FAIL/UNVERIFIED、commit/dirty、计数不符、无证据、device skip、perf n=1） |
+| `make check-evidence` | PASS（当前 0 条真实 evidence；模板/schema 不参与校验） |
+| `make check-docs` | PASS（29 篇文档/200 链接；AGENTS 1550/1600，refs 899/915/919 ≤950） |
+| `make check-harness` | PASS 19 项（含 6 个 skill frontmatter；skills 已在 DSH catalog 出现） |
+| `make check-arch` / `make check-tests` | PASS（0 违规 / 120+3+123 与 skip 白名单一致） |
+| `make verify-static` | PASS（Phase 1 文件就绪后；见最终运行） |
+| `make test`（full-access） | **PASS：120/120，0 failed，0 skipped**（xcresult 见 `build/duiyi-test/Logs/Test/…`；工作树 dirty，故暂不生成 PASS evidence） |
+| `make test-ui`（full-access） | **PASS：3 executed / 2 passed / 1 skipped（预期无 SpeechTranscriber）/ 0 failed**（xcresult 见 `build/duiyi-test-ui/Logs/Test/…`；同样待 clean tree 证据） |
+| 负向演示（evidence） | 伪造"123 全过"无 xcresult → **UNVERIFIED exit 2**；119<floor → **FAIL exit 1**；无 evidence → **FAIL exit 1**；device-test fixture skipped=2 → exit 1 |
+
+### 关键事实：动态测试为何之前失败、现在通过
+
+- 之前 `make test` 失败是 **DSH 会话沙箱拒绝写 `$HOME` / `~/Library/Caches`**（terminal backend 同样被沙箱）：SwiftData 宏的 `swift-plugin-server` 需要写缓存 → `malformed response`。
+- 用完整权限（danger-full-access）运行后，单元 120/120、UI 3（1 skip）全过；说明是环境限制，不是代码/工程问题。
+- 证据策略要求 **clean tree → 跑验证 → 生成 evidence → 提交**；当前 Phase 1 改动未提交（dirty），因此真实结果先记录在这里，待提交后在 clean tree 重跑并生成 PASS evidence。
+
+### 偏差与处理
+
+1. `.apm/evidence` 的真实 evidence 尚未生成（dirty tree 规则）；`make verify-claim --all` 当前为空（FAIL 是设计：无证据）。
+2. `unit-tests` CI 默认跳过（需 repo variable `MACOS_CI_ENABLED=true` + 自托管 runner）；GitHub 托管 macOS 是否带 iOS 26.4 runtime 未验证，故默认自托管。
+3. `HARNESS.md` 中 DSH 用户级配置为**建议片段**，仓库不强制、不承诺自动生效；`AGENTS.local.md` 不入库。
+4. 测试产物 `build/` 353MB（gitignore）；保留以便下一次 clean-tree 证据校验，之后可删。
+
+---
+
 ## 7. 风险与回滚
 
 | 风险 | 触发 | 缓解 / 回滚 |
@@ -570,22 +616,22 @@ verify:                   # 完成前必须跑的命令
 
 | # | 决策 | 结论 |
 |---|---|---|
-| 1 | AGENTS 预算 | 接受 1964→≈1400 + 修正估算器（等效上限 1600）；已落为 1535/1600（余 65） |
+| 1 | AGENTS 预算 | 接受 1964→≈1400 + 修正估算器（等效上限 1600）；已落为 1550/1600（余 50） |
 | 2 | evidence 入库范围 | 接受：摘要 evidence 入库（1–3KB/条），原始 xcresult/日志/会话不入库 |
-| 3 | CI 形态 | 加 macOS/自托管 runner 自动跑单测（开发机已有 Xcode）；Phase 1 实现 |
+| 3 | CI 形态 | 加 macOS/自托管 runner 自动跑单测（开发机已有 Xcode）；Phase 1 已实现，默认由 `MACOS_CI_ENABLED` 控制 |
 | 4 | 行为测试优先级 | 随后排期（Phase 2，与 P0 实现绑定） |
-| 5 | DSH 仓库约定 | 接受 `.dsh/skills/` + `AGENTS.local.md` 入库；Agent Teams/worktree 等用户级配置由 Lead 按推荐配置（Phase 1/3） |
+| 5 | DSH 仓库约定 | 接受 `.dsh/skills/` + `AGENTS.local.md` 入库；Agent Teams/worktree 等用户级配置按 HARNESS.md 建议由用户配（Phase 1 起有文档） |
 | 6 | 复核成本 | **仅红队场景（并发/持久化/发布工程）强制**"独立复核 + 人工体验复核"；其他 L2 自检 + 用户确认 |
 | 7 | 计划状态迁移 | 已完成计划标 `done`；`_archive/` 归档随后续清理 |
 | 8 | 单源清理 | 本轮一并做：HANDOFF §6 决策表合并、§5 改摘要（已完成） |
 | 9 | "未验证 + 手动步骤" | 接受为合规交付，但不得写成"已验证" |
-| 10 | 提交节奏 | 阶段一提交、提交前询问（Phase 0 等你确认后再提交） |
+| 10 | 提交节奏 | 阶段一提交、提交前询问（Phase 0 已提交 `d83bb05`；Phase 1 待确认提交） |
 
 ---
 
-## 9. 验证证据（规划 + Phase 0）
+## 9. 验证证据（规划 + Phase 0/1）
 
-> Phase 0 已实施；下表前 8 行为规划期只读证据，后 6 行为 Phase 0 实施验收。动态测试状态见 §10。
+> 前 8 行为规划期只读证据；中间为 Phase 0 验收；末尾为 Phase 1 验收。动态测试真实结果与"证据待 clean-tree 重跑"说明见 §6.2/§10。
 
 | 命令 / 动作 | 结果 | 环境 |
 |---|---|---|
@@ -603,35 +649,36 @@ verify:                   # 完成前必须跑的命令
 | `make doctor`（Phase 0） | OK 7 / WARN 0 / FAIL 0（Xcode 27.1、iOS 26.4.1 runtime、mobilebuildmcp、python 3.14.7） | 本机 |
 | `make resume` / `make handoff`（Phase 0） | active 计划 + 三问 + 下一步；handoff 不再选已完成计划 | 本机 |
 | `make test`（Phase 0，四次） | **FAIL**：SwiftData 宏 `swift-plugin-server produced malformed response`（本会话沙箱/环境问题；资源重复已修复；代码结论=未验证） | 本机 |
+| `make test`（Phase 1，full-access） | **PASS：120/120**（0 failed / 0 skipped）；xcresult 已生成；因工作树 dirty 暂不生成 PASS evidence | 本机，Xcode 27.1 |
+| `make test-ui`（Phase 1，full-access） | **PASS：3 executed / 2 passed / 1 skipped（模拟器无 SpeechTranscriber，预期）/ 0 failed** | 本机 |
+| `make test-tools`（Phase 1） | **41 tests OK**（verify-claim/evidence 的 PASS/FAIL/UNVERIFIED、dirty、计数、skip、perf） | 本机 |
+| `make check-docs`（Phase 1） | PASS：29 篇文档/200 链接；AGENTS 1550/1600；refs 899/915/919 ≤950 | 本机 |
+| `make check-harness`（Phase 1） | PASS 19 项；6 个 skill frontmatter OK，且 6 个 skill 已在 DSH skill catalog 实时出现 | 本机 |
+| `make verify-static`（Phase 1） | **PASS**（原 check + check-evidence + test-tools + `bash -n` 含 pre-push + py_compile） | 本机 |
+| 负向演示（Phase 1） | 无 xcresult→UNVERIFIED(2)；119<floor→FAIL(1)；无 evidence→FAIL(1)；device-test skip fixture→exit 1 | 本机 |
 
 ## 10. 未运行 / 未验证（必须如实记录）
 
-- **动态测试未验证**：`make test` / `make test-ui` / 真机 / 性能测量在本会话均未通过。尝试过：默认 `/tmp` derived、仓库内 derived、`TMPDIR` 改为仓库内、`-skipMacroValidation`/`-skipPackagePluginValidation`，均在同一点失败：SwiftData 宏插件（`swift-plugin-server`）报 `malformed response`。资源重复问题（嵌套 AGENTS 被当 app 资源）已用 pbxproj membershipExceptions 修复；宏失败发生在编译期，尚不能归因于代码或测试。最可能是 DSH 会话沙箱限制子进程 IPC/缓存写入。需在用户终端跑一次（或经批准用 full-access 重试）才能给出结论。
-- **未验证**：120/3/123 的历史执行结论仍只是仓库记录；Phase 0 的计数门禁是源码静态计数，不等于执行结果。
-- **未验证**：`.dsh/skills` 在本仓库实际被发现（需 smoke test）；嵌套 AGENTS.md 注入时机需实测（Phase 1）。
-- **未验证**：真实 tokenizer 计数（`token_estimate.py` 是预算口径，不是模型 tokenizer）；`@Test` 数=执行数的前提（未来参数化会变）。
-- **未验证**：GitHub 托管 macOS runner 是否有 iOS 26.4 模拟器 runtime；干净 checkout 下 docs CI 是否绿（需 push 后看 Actions）。
+- **动态测试已人工跑通，但 evidence 未生成**：用完整权限（danger-full-access）在非沙箱限制下运行 `make test` → **120/120 通过**、`make test-ui` → **3 executed / 1 skipped / 0 failed**。证据策略要求 clean tree 才能判 PASS；当前 Phase 1 改动未提交（dirty），因此**未落 `.apm/evidence/` 的 PASS 证据**；待提交后在 clean tree 重跑并生成。真机/性能仍未跑（无设备/不重启性能）。
+- **未验证**：`.apm/evidence` 的真实 evidence 0 条；`make verify-claim --all` 当前按设计返回 FAIL（无证据）。真机 evidence 的 xcresult 路径只经 fixture 验证；真机实测后需确认路径在可复核范围内。
+- **已验证**：`.dsh/skills` 6 项已被 DSH 会话 skill catalog 实时发现；`AGENTS.local.md.example` 不写真实机器信息。
+- **未验证**：嵌套 AGENTS.md 的注入时机（文件操作后）未单独实测，但 `check-harness` 校验了存在/长度/引用。
+- **未验证**：真实 tokenizer 计数（`token_estimate.py` 是预算口径，不是模型 tokenizer）。
+- **未验证**：GitHub Actions 未实跑（未 push）；`MACOS_CI_ENABLED` + 自托管 macOS runner 未配置；GitHub 托管 macOS 是否带 iOS 26.4 runtime 未验证。
 - **未验证**：性能口径能否统一（旧 baseline 由仓库外工具生成；本方案不重启性能工作）。
 - **未验证（来源级）**：OpenAI 文章正文（仅开头句 + 二手摘要）；CAICT 报告 PDF 正文（只到官方摘要/目录 + 镜像前 5 页）；LangChain/Cursor 原文；DSH architecture.md 事件管线为二手转述。引用时已标注。
-- **未执行**：Phase 1–3 的全部改造动作（`.dsh/skills`、evidence、CI、pre-push、HARNESS.md、maker-checker、metrics）。
+- **未执行**：Phase 2（P0-1/P0-2/P0-3 行为测试 + 翻译夹具）与 Phase 3（maker-checker、月度 harness 审计自动打分、失败回写、指标）。
 
 ## 11. 未提交改动
 
-> 全部 Phase 0 改动未提交；等用户确认后按阶段提交（提交前询问）。`git status --short` 为准。
+> Phase 0 已提交 `d83bb05`；以下是 Phase 1 未提交改动，等用户确认后提交（提交前询问）。`git status --short` 为准。
 
-- `AGENTS.md` / `Makefile` / `HANDOFF.md` / `README.md` / `.gitignore`
-- `docs/` / `references/` / `.apm/` / `tools/`
-- `Duiyi/Services/AGENTS.md` / `Duiyi/Features/AGENTS.md` / `DuiyiTests/AGENTS.md` / `DuiyiUITests/AGENTS.md`
-- `Duiyi.xcodeproj/project.pbxproj`（嵌套 AGENTS 资源排除的必要例外，已加入 scope）
-- `tools/token_estimate.py` / 新增：统一 token 估算器
-- `tools/rules-budget.json` / 新增：预算配置
-- `tools/check-arch.py` / 新增：架构铁律门禁
-- `tools/check-test-baseline.py` / 新增：测试计数门禁
-- `tools/check-harness.py` / 新增：指令层机检
-- `tools/doctor.py` / 新增：环境自检
-- `.apm/test-baseline.json` / 新增：测试基线
-- `.apm/AGENTS.md` / 新增：`.apm/` 嵌套规则
-- `docs/AGENTS.md` / 新增：`docs/` 嵌套规则
+- `Makefile` / `AGENTS.md` / `AGENTS.local.md.example` / `HARNESS.md`
+- `docs/README.md` / `docs/`（Phase 1 文档同步）
+- `.dsh/skills/` / `.dsh/`（6 个 skill）
+- `.github/workflows/verify.yml` / `.githooks/pre-push`
+- `.apm/AGENTS.md` / `.apm/evidence/` / `.apm/tools/device-test.sh` / `.apm/tools/measure-launch.sh` / `.apm/plans/2026-11-05-harness-engineering.md`
+- `tools/evidence.py` / `tools/verify-claim.py` / `tools/tests/`
 
 ## 12. 已排除（勿重试）
 
@@ -645,6 +692,7 @@ verify:                   # 完成前必须跑的命令
 - 在 Debug 开 ORDER_FILE / 重启启动微优化（既有暂停决定）。
 - 在仓库文件里承诺 hooks/MCP/Agent Teams/workflow 自动生效（它们不是仓库级能力）。
 - 把嵌套 `AGENTS.md` 放回 app target 资源里而不加 Xcode 例外（会导致构建失败，已修复）。
+- 在 dirty 工作树上生成"PASS"证据（证据规则要求 clean tree；当前真实测试结果只作人工记录）。
 
 ## 13. 参考与底稿
 
@@ -670,18 +718,20 @@ verify:                   # 完成前必须跑的命令
 - [x] 改造方案与分阶段计划（本文）
 - [x] 用户确认第 8 节决策（2026-11-05）
 - [x] Phase 0 实施：估算器 + AGENTS 压缩 + 嵌套 AGENTS + 静态门禁 + 状态机 + 单源清理
-- [ ] Phase 0 动态验证：在非沙箱环境跑 `make test` / `make test-ui`（当前宏插件失败=未验证）
-- [ ] 提交 Phase 0（需用户确认；按决策 8 阶段一提交）
-- [ ] Phase 1：evidence + CI（ubuntu 静态 + macOS 单测）+ `.dsh/skills` + `HARNESS.md` + pre-push
+- [x] Phase 0 提交：`d83bb05`
+- [x] Phase 0 动态验证：full-access 下 `make test` 120/120、`make test-ui` 3 executed/1 skip/0 failed
+- [x] Phase 1：evidence + CI（ubuntu 静态 + macOS 自托管单测，默认跳过）+ `.dsh/skills` + `HARNESS.md` + pre-push
+- [ ] Phase 1 提交（待用户确认）
+- [ ] Phase 1 clean-tree 证据：提交后在 clean tree 重跑测试并生成 PASS evidence
 - [ ] Phase 2：P0-1/P0-2/P0-3 行为测试 + 翻译夹具（随后排期）
-- [ ] Phase 3：maker-checker、月度 harness 审计、失败回写、指标
+- [ ] Phase 3：maker-checker、月度 harness 审计自动打分、失败回写、指标
 
 ### 下一步
 
-1. **用户确认后提交 Phase 0**（单 commit；提交信息英文，不加 AI 署名）；
-2. 在非 DSH 沙箱的终端（或经批准）跑 `make test` / `make test-ui`，确认真实测试结果；若仍失败再定位宏环境；
-3. 进入 Phase 1（evidence/CI/skills）。
+1. **用户确认后提交 Phase 1**（单 commit；提交信息英文，不加 AI 署名）；
+2. 提交后在 clean tree 重跑 `make test` / `make test-ui`，用 `tools/evidence.py write` 生成 PASS evidence 并 `make verify-claim`；
+3. 进入 Phase 2（P0-1/P0-2/P0-3 行为测试 + 翻译夹具）。
 
 ### 待确认
 
-- Phase 0 是否现在提交？是否同意 Phase 1 按已确认决策继续（CI 含 macOS 单测、`.dsh/skills`、evidence）？
+- Phase 1 是否现在提交？提交后是否按上述步骤补 clean-tree evidence？

@@ -44,12 +44,13 @@
 **真源优先级只在本页维护**：代码与测试 > `docs/01`–`04` > `HANDOFF.md` > `references/`（规则视图）> 历史文档。
 唯一决策表是 [`HANDOFF.md` §6 的 D1–D7](../HANDOFF.md)，其他文件只引用编号。
 
-门禁：`make check` = 文档（`check-docs`）+ 架构铁律（`check-arch`）+ 测试计数（`check-tests`）+ 指令层（`check-harness`）+ 计划状态（`check-plan`）；`make verify-static` 额外校验脚本语法。
+门禁：`make check` = 文档（`check-docs`）+ 架构铁律（`check-arch`）+ 测试计数（`check-tests`）+ 指令层（`check-harness`）+ 计划状态（`check-plan`）；`make verify-static` 在 `check` 之上再加证据 schema 校验（`check-evidence`）、harness 脚本单测（`test-tools`）与脚本语法。证据与三值判定见 [`HARNESS.md`](../HARNESS.md) §5。
 规则层 token 预算（`tools/token_estimate.py` 口径：CJK 汉字 / CJK 标点 / 全角字符各按 1 token，其余按 4 字符/token）：`AGENTS.md` ≤1600；每个 `references/*.md` ≤950；超预算先删重复，不删有效规则。
 
 | 文件 | 用途 |
 | --- | --- |
 | [`../AGENTS.md`](../AGENTS.md) | Agent 冷启动入口：铁律、命令、验证矩阵、项目级覆盖 |
+| [`../HARNESS.md`](../HARNESS.md) | harness 系统地图：guides/sensors 矩阵、运行手册、证据政策、月度审计、DSH 用户级配置建议 |
 | [`AGENTS.md`](AGENTS.md) | `docs/` 目录级规则：01–04 当前规范 / 14–21 历史、登记与真源优先级 |
 | [`../references/contracts.md`](../references/contracts.md) | 架构契约与铁律细则 |
 | [`../references/verification.md`](../references/verification.md) | 测试 / 真机 / 性能验证矩阵 |
@@ -60,7 +61,11 @@
 | [`../tools/check-harness.py`](../tools/check-harness.py) | 指令层机检：预算 / § 引用 / 嵌套 AGENTS / skills / 敏感路径；`make check-harness` |
 | [`../tools/plan.py`](../tools/plan.py) | 跨会话计划：新建 / 最新 / 交接摘要 / check / resume / end；`make plan` / `handoff` / `resume` / `end` |
 | [`../tools/doctor.py`](../tools/doctor.py) | 环境检查：Xcode / 模拟器 runtime / 真机工具 / 模板仓；`make doctor` |
-| [`../Makefile`](../Makefile) | 测试 / 构建 / 真机 / 门禁 / 计划命令入口 |
+| [`../tools/evidence.py`](../tools/evidence.py) | 证据读写：`ls` / `show` / `validate` / `write`；`make evidence` |
+| [`../tools/verify-claim.py`](../tools/verify-claim.py) | 完成声明三值判定 PASS / FAIL / UNVERIFIED；`make verify-claim` |
+| [`../.github/workflows/verify.yml`](../.github/workflows/verify.yml) | CI：ubuntu 静态门禁 + 可选 self-hosted macOS 单测（`MACOS_CI_ENABLED=true`） |
+| [`../.githooks/pre-push`](../.githooks/pre-push) | push 前跑 `make verify-static`；`make hooks-install` 安装 |
+| [`../Makefile`](../Makefile) | 测试 / 构建 / 真机 / 门禁 / 计划 / 证据命令入口 |
 
 ## 原型与图
 
@@ -70,18 +75,22 @@
 
 ## 证据与工具（`.apm/`）
 
-`.apm/` 不是运行时依赖，是性能和问题的证据库：
+`.apm/` 不是运行时依赖，是**计划 / 证据 / 审查 / 工具的唯一工作区**（项目自定的 Agent 工作区，目录名沿用早期启动性能测量演练）；原始产物不入库，入库的只有摘要与结论。
 
 | 路径 | 内容 |
 | --- | --- |
-| `.apm/tools/device-test.sh` | 真机测试唯一入口：先预热 `testmanagerd`，再跑单元/UI |
-| `.apm/tools/measure-launch.sh` | 真机冷启动测量：固定命令、warmup、分层口径 |
+| [`.apm/AGENTS.md`](../.apm/AGENTS.md) | `.apm/` 目录级协议：计划状态机、验证证据四列、红队/审查输入输出 |
+| [`.apm/evidence/`](../.apm/evidence/README.md) | 可复核证据：schema / 模板 / 摘要 JSON；`make evidence`；无 evidence id 即未验证 |
+| `.apm/tools/device-test.sh` | 真机测试唯一入口：先预热 `testmanagerd`，再跑单元/UI；成功自动写证据 |
+| `.apm/tools/measure-launch.sh` | 真机冷启动测量：固定命令、warmup、分层口径；完成写证据摘要 |
 | `.apm/baseline/README.md` | 哪个 baseline 可用、哪个已作废 |
 | `.apm/issues/` | 问题单（根因、证据、修复状态） |
-| [`.apm/plans/`](../.apm/plans/) | 跨会话任务执行计划；用 `_template.md` 起稿，中断/交接前更新 |
+| [`.apm/plans/`](../.apm/plans/) | 跨会话任务执行计划；front matter `status`、同一时间一个 active、done 移入 `_archive/` |
 | `.apm/reviews/` | 独立审查报告；结论与作者回应写入对应计划 |
 | `.apm/runs/` | 历次测量原始数据（gitignore，可由脚本重建） |
 | `.apm/report.md` | 启动 200ms 演练的完整复盘（历史，已被 17/18 结论取代） |
+| [`HARNESS.md`](../HARNESS.md)（仓库根） | harness 系统地图：guides/sensors、运行手册、证据政策、审计清单、DSH 用户级配置建议 |
+| [`.dsh/skills/`](../.dsh/skills/) | 6 个项目级 skills（DSH 原生；其他 agent 工具可当动作卡读，不保证自动加载） |
 
 ## 维护约定
 

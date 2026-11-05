@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:duiyi:evidence:schema:1",
+  "title": "Duiyi 验证证据（evidence）",
+  "description": "一条证据 = 一次可复核的验证摘要。入库的是 1–3KB 摘要，不放大产物（.apm/runs/ 保持 gitignore）。schema 用 draft-07 语法；tools/evidence.py 实现其子集，无第三方依赖。",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "claim",
+    "createdAt",
+    "git",
+    "command",
+    "environment",
+    "result",
+    "verdict",
+    "verifier"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9]{8}T[0-9]{6}Z-[a-z0-9][a-z0-9-]*$",
+      "description": "UTC 时间 + claim，必须等于文件名 stem。例：20261105T052500Z-unit-tests-pass"
+    },
+    "claim": {
+      "type": "string",
+      "enum": [
+        "unit-tests-pass",
+        "ui-tests-pass",
+        "device-tests-pass",
+        "docs-pass",
+        "arch-pass",
+        "perf-measurement",
+        "perf-no-regression",
+        "perf-improved"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "UTC RFC3339（秒级，Z 结尾）"
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "dirty"],
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$",
+          "description": "生成证据时的 HEAD 短 hash；必须是当前 HEAD 或其祖先"
+        },
+        "dirty": {
+          "type": "boolean",
+          "description": "生成证据时工作树是否 dirty；dirty=true 的证据不可判 PASS"
+        }
+      }
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "description": "产生证据的命令原文（仓库相对路径，不写本机绝对路径）"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xcode", "simulator", "device"],
+      "properties": {
+        "xcode": {
+          "type": ["string", "null"],
+          "description": "Xcode 版本行；静态/无 Xcode 场景可为 null"
+        },
+        "simulator": {
+          "type": ["string", "null"],
+          "description": "模拟器 runtime（如 iOS 26.4.1）；真机/静态场景为 null"
+        },
+        "device": {
+          "type": ["string", "null"],
+          "description": "真机标识：只写型号/系统或物理设备占位（如 physical）；不写 UDID/CoreDevice ID"
+        },
+        "build": {
+          "type": ["string", "null"],
+          "description": "构建配置（Debug/Release）；未知为 null"
+        },
+        "host": {
+          "type": ["string", "null"],
+          "description": "主机/系统描述（可选）；不写用户名或绝对路径"
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "passed", "failed", "skipped", "durationSec"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["SUCCEEDED", "FAILED", "SKIPPED", "UNVERIFIED"]
+        },
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "skipped": {"type": "integer", "minimum": 0},
+        "durationSec": {"type": "number", "minimum": 0},
+        "xcresultPath": {
+          "type": ["string", "null"],
+          "description": "xcresult 路径；仓库相对或 ~/ 相对；机器不可达时 verify-claim 判 UNVERIFIED"
+        },
+        "metricsPath": {
+          "type": ["string", "null"],
+          "description": "性能 metrics.json 路径；仓库相对或 ~/ 相对"
+        }
+      }
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "UNVERIFIED"]
+    },
+    "verifier": {
+      "type": "string",
+      "minLength": 1,
+      "description": "生成者/版本。例：tools/evidence.py@1 或 .apm/tools/device-test.sh"
+    },
+    "notes": {
+      "type": "string",
+      "description": "补充说明：环境限制、未验证项、口径差异"
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "可选：产生证据的 agent 会话 id（可得时填；本机日志在 ~/.dsh/sessions，不入库）"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Phase 1 pre-push 门禁：推送前跑 `make verify-static`（约 3–5s，纯本地标准库，不跑 xcodebuild）。
+#
+# 安装（每个克隆一次；跨 DSH / 其他 agent 都生效）：
+#   git config core.hooksPath .githooks
+#
+# 单次跳过（本地环境问题且已确认时；请在计划/PR 记录原因）：
+#   SKIP_HARNESS_HOOK=1 git push
+# 跳过所有 hook（不推荐）：
+#   git push --no-verify
+#
+# 约定：失败一律 exit 1 并说明原因；本 hook 不修改文件、不跑测试、不联网。
+
+set -u
+
+skip_reason() {
+  echo "[pre-push] 已跳过：$1" >&2
+  exit 0
+}
+
+if [ "${SKIP_HARNESS_HOOK:-0}" = "1" ]; then
+  skip_reason "SKIP_HARNESS_HOOK=1（请确认跳过原因已记录）"
+fi
+
+if ! command -v make >/dev/null 2>&1; then
+  echo "[pre-push] FAIL: 找不到 make，无法运行 make verify-static。" >&2
+  echo "[pre-push] 请安装 make 后重试，或用 SKIP_HARNESS_HOOK=1 git push 临时跳过。" >&2
+  exit 1
+fi
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  echo "[pre-push] FAIL: 不在 git 仓库内，无法定位仓库根。" >&2
+  exit 1
+}
+cd "$repo_root" || {
+  echo "[pre-push] FAIL: 无法进入仓库根 $repo_root。" >&2
+  exit 1
+}
+
+echo "[pre-push] 运行 make verify-static（文档/架构/测试计数/harness/计划/脚本语法）..." >&2
+if ! make verify-static; then
+  echo "" >&2
+  echo "[pre-push] FAIL: make verify-static 未通过，push 已阻止。" >&2
+  echo "[pre-push] 先修复上面的失败项；确认只是本地环境问题时，可用 SKIP_HARNESS_HOOK=1 git push 跳过。" >&2
+  exit 1
+fi
+
+echo "[pre-push] OK: make verify-static 通过，允许 push。" >&2
+exit 0

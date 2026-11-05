@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "20260101T000000Z-unit-tests-pass",
+  "claim": "unit-tests-pass",
+  "createdAt": "2026-01-01T00:00:00Z",
+  "git": {
+    "commit": "0000000",
+    "dirty": false
+  },
+  "command": "make test",
+  "environment": {
+    "xcode": null,
+    "simulator": "iOS X.Y",
+    "device": null,
+    "build": "Debug"
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "passed": 120,
+    "failed": 0,
+    "skipped": 0,
+    "durationSec": 0,
+    "xcresultPath": null,
+    "metricsPath": null
+  },
+  "verdict": "UNVERIFIED",
+  "verifier": "tools/evidence.py@1",
+  "notes": "占位模板：复制后用 tools/evidence.py write --from-json 生成，不要手改 id（id 必须等于文件名 stem）。xcresultPath=null 时 verify-claim 判 UNVERIFIED，这是预期。"
+}
