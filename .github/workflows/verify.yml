@@ -91,8 +91,6 @@ jobs:
     needs: static
     timeout-minutes: 20
     env:
-      # derivedData 放 runner 临时目录，避免污染 WORKSPACE（Makefile 用 ?=，环境变量可覆盖）。
-      DERIVED: ${{ runner.temp }}/duiyi-ci
       # 与 Makefile 基线（SIM_OS）保持一致；runner runtime 不同时改这里或仓库变量。
       SIM_OS: "26.4.1"
     steps:
@@ -103,6 +101,10 @@ jobs:
         continue-on-error: true
         run: make doctor
       - name: Unit tests (DuiyiTests)
+        env:
+          # derivedData 放 runner 临时目录，避免污染 WORKSPACE（Makefile 用 ?=，环境变量可覆盖）。
+          # 注意：job 级 env 不允许 runner context，必须放 step 级。
+          DERIVED: ${{ runner.temp }}/duiyi-ci
         run: make test
       - name: Upload xcresult / logs (always)
         if: ${{ always() }}
