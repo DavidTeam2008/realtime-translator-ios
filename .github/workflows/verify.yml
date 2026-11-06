@@ -78,6 +78,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # tools/tests 里有用 HEAD~1 做"祖先 commit"校验的用例；浅克隆会失败。
+          # 同时方便后续 CI 用真实 git 历史复核 evidence（commit 祖先校验）。
+          fetch-depth: 0
       # ubuntu-latest 自带 python3（>=3.10），门禁脚本只用标准库，无需 setup-python / pip。
       - name: Static gates
         run: make verify-static
@@ -96,6 +100,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Environment doctor (non-blocking)
         # 环境自检失败只记录、不阻断单测：环境问题 ≠ 代码问题（doctor.py 约定 exit 2 = 动态验证不可用）。
         continue-on-error: true
