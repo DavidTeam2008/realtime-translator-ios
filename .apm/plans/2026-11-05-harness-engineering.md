@@ -7,7 +7,8 @@ updated: 2026-11-05
 phase0_commit: d83bb05
 phase1_commit: 3935e60
 phase1_state: committed-evidence-recorded-pushed
-device_state: device-connected-ui-automation-password-needed
+device_state: device-tests-pass-recorded
+ci_state: static-green-unit-skipped
 scope:
   allow:              # 方案 §5.7 新增/修改清单；子任务拆分时以任务级 write scope 为准
     - .gitignore
@@ -658,15 +659,16 @@ verify:                   # 完成前必须跑的命令
 | `make check-harness`（Phase 1） | PASS 19 项；6 个 skill frontmatter OK，且 6 个 skill 已在 DSH skill catalog 实时出现 | 本机 |
 | `make verify-static`（Phase 1） | **PASS**（原 check + check-evidence + test-tools + `bash -n` 含 pre-push + py_compile） | 本机 |
 | 负向演示（Phase 1） | 无 xcresult→UNVERIFIED(2)；119<floor→FAIL(1)；无 evidence→FAIL(1)；device-test skip fixture→exit 1 | 本机 |
-| **clean-tree evidence（Phase 1）** | `.apm/evidence/20261105T055610Z-unit-tests-pass.json`（120/120，dirty=False，commit 3935e60）与 `...T055845Z-ui-tests-pass.json`（3 executed=2 pass+1 expected skip；dirty=False，commit fb217f6） | 本机，Xcode 27.1 |
-| `make verify-claim --all`（Phase 1） | **PASS**：unit + ui 两条均 PASS（exit 0）；`make check-evidence` PASS | 本机 |
-| `make device-test`（Phase 1，iPhone 13 ×2） | 第一次 FAIL：`Developer App Certificate is not trusted`；用户信任后第二次：**warmup PASS 5/5，单元 120 通过，UI runner `Timed out while enabling automation mode`**（需设备端输入一次 UI Automation 密码）；未保留 device evidence（FAIL 证据不入库） | 本机 + iPhone 13（iOS 27.0.1） |
+| **clean-tree evidence（Phase 1）** | `.apm/evidence/20261105T055610Z-unit-tests-pass.json`（120/120，commit 3935e60）、`...T055845Z-ui-tests-pass.json`（3 executed=2 pass+1 expected skip，commit fb217f6）、`20261106T053620Z-device-tests-pass.json`（真机 123/123，commit 71bec62）；三条均 dirty=False | 本机，Xcode 27.1 |
+| `make verify-claim --all`（Phase 1） | **PASS**：unit + ui + device 三条均 PASS（exit 0）；`make check-evidence` PASS | 本机 |
+| `make device-test`（Phase 1，iPhone 13 ×3） | 第一次 FAIL：`Developer App Certificate is not trusted`；信任后第二次：warmup 5/5、单元 120 通过，UI runner `Timed out while enabling automation mode`；第三次（设备端完成 UI Automation 密码后）：**warmup PASS 5/5，all 123/123，0 failed / 0 skipped**，生成 device evidence | 本机 + iPhone 13（iOS 27.0.1） |
+| GitHub Actions `verify`（Phase 1） | 前两次 failure：① job-level `env` 使用 `runner` context（workflow 解析级失败，0 jobs）② static job 浅克隆致 `HEAD~1` 测试失败。修复后 `b800830`/`71bec62`：**static PASS，unit-tests skipped（`MACOS_CI_ENABLED` 未开）** | GitHub Actions（public API 核对） |
 
 ## 10. 未运行 / 未验证（必须如实记录）
 
 - **动态测试已验证并落证据（clean tree）**：提交 `3935e60` 后在 clean tree 重跑 `make test` → **120/120**、`make test-ui` → **3 executed / 2 passed / 1 expected skip / 0 failed**；生成 `.apm/evidence/20261105T055610Z-unit-tests-pass.json` 与 `20261105T055845Z-ui-tests-pass.json`（dirty=False），`make verify-claim --all` → **PASS**。
-- **真机未验证（环境/授权前置）**：iPhone 13 已连接并解锁；信任开发者证书后第一次 warmup 已通过、真机单元 120 通过，但 UI runner 报 `Timed out while enabling automation mode`——iOS 15+ 真机首次 UI 测试需在手机上输入一次锁屏密码/允许 "Enable UI Automation"（设备重启后会再次要求）。待用户处理设备提示后重跑；本次未保留 device evidence（FAIL 证据不作为 claim 入库）。
-- **未验证**：GitHub Actions static job 尚无法从本机核对（已 push；`gh` token 被组织策略拒绝查询），macOS unit-tests 默认跳过（需 `MACOS_CI_ENABLED=true` + 自托管 runner）。
+- **真机已验证（clean tree）**：iPhone 13 上 `make device-test` → warmup 5/5、all **123/123**（0 failed/0 skipped），生成 `.apm/evidence/20261106T053620Z-device-tests-pass.json`（commit 71bec62，dirty=False），`make verify-claim` PASS。首次两次失败分别是证书未信任与 UI Automation 密码；均为设备端一次性授权，不是代码问题。
+- **CI 已核对**：`verify.yml` 两次失败均为 workflow/CI 自身问题（job 级 `env` 用 `runner` context；浅克隆缺 `HEAD~1`），修复后 `static` job PASS、`unit-tests` 按设计 skipped；macOS 单测仍需 `MACOS_CI_ENABLED=true` + 自托管 runner。
 - **已验证**：`.dsh/skills` 6 项已被 DSH 会话 skill catalog 实时发现；`AGENTS.local.md.example` 不写真实机器信息。
 - **未验证**：嵌套 AGENTS.md 的注入时机（文件操作后）未单独实测，但 `check-harness` 校验了存在/长度/引用。
 - **未验证**：真实 tokenizer 计数（`token_estimate.py` 是预算口径，不是模型 tokenizer）。
@@ -676,7 +678,7 @@ verify:                   # 完成前必须跑的命令
 
 ## 11. 未提交改动
 
-> 无未提交改动：Phase 1 代码 `3935e60`、unit evidence `fb217f6`、ui evidence + verify-claim 修正 + 本计划更新已随 HEAD 提交。下次接手先 `git status --short` 核对。
+> 无未提交改动：Phase 0 `d83bb05`；Phase 1 代码 `3935e60`；unit evidence `fb217f6`；ui evidence + verify-claim 修正 `74485d3`；push/真机记录 `58d7fee`；CI workflow 修复 `b800830`/`71bec62`；真机 evidence + 本计划更新随 HEAD 提交。下次接手先 `git status --short` 核对。
 
 - 无
 
@@ -724,18 +726,19 @@ verify:                   # 完成前必须跑的命令
 - [x] Phase 1 提交：`3935e60`（代码）、`fb217f6`（unit evidence）、`74485d3`（ui evidence + verify-claim 修正 + 计划）
 - [x] Phase 1 clean-tree 证据：unit 120/120、ui 3 executed(2 pass+1 skip)；`make verify-claim --all` PASS
 - [x] Push：已推送到 `origin/main`（远端重定向到 DavidTeam2008/realtimeTranslatorOptimize；本机 remote 已更新）
-- [ ] 真机验证：iPhone 13 已连接；证书信任后 warmup/单元通过，UI 需在手机上输入一次 UI Automation 密码；重跑后生成 device evidence
+- [x] 真机验证：iPhone 13 → warmup 5/5、all **123/123**；device evidence `20261106T053620Z-device-tests-pass` PASS
+- [x] CI 核对：`verify.yml` static PASS、unit-tests skipped（修了 job env context 与浅克隆两个问题）
 - [ ] Phase 2：P0-1/P0-2/P0-3 行为测试 + 翻译夹具（建议 P0-1/P0-3 先做；P0-2 依赖 D5/D7 决策）
 - [ ] Phase 3：maker-checker、月度 harness 审计自动打分、失败回写、指标（建议只做最小人工闭环）
 
 ### 下一步
 
-1. 设备端处理 `Enable UI Automation` 密码提示后重跑 `make device-test` 生成 device evidence（真机 123/123）；
-2. 观察 GitHub Actions `verify` static job（本机 token 查询被组织策略拒绝，需网页确认）；
-3. Phase 2 建议先做 P0-1（并发仲裁）红测 + P0-3（持久化）测试；P0-2 等 D5/D7 产品决策；
-4. Phase 3 不做完整自动化：保留 HARNESS.md 月度人工审计 + red-team 场景强制。
+1. **Harness Engineering 评估已完成**（Phase 0/1 + 静态/unit/UI/真机四层证据 + CI static 绿）；等你确认是否进入 Phase 2；
+2. Phase 2 建议先做 P0-1（并发仲裁）红测 + P0-3（持久化）测试；P0-2 等 D5/D7 产品决策；
+3. Phase 3 不做完整自动化：保留 HARNESS.md 月度人工审计 + red-team 场景强制；
+4. 可选：配 `MACOS_CI_ENABLED=true` + 自托管 macOS runner 让 CI 跑单测；应用 HARNESS.md §8 的用户级 DSH 配置（非必需）。
 
 ### 待确认
 
-- 设备信任证书后是否由我重跑真机测试？
-- Phase 2 是否按"P0-1 + P0-3 先行、P0-2 等 D5/D7"排期？
+- Phase 2 是否按"P0-1 + P0-3 先行、P0-2 等 D5/D7"开始？
+- 是否需要我配置自托管 macOS runner / DSH 用户级 profile（均为可选，不影响 Harness 评估结论）？
