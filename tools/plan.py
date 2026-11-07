@@ -755,6 +755,54 @@ def check_plan(plan: Plan) -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
+EVIDENCE_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[a-z0-9][a-z0-9-]*$")
+
+
+def evidence_id_warnings(plan: Plan) -> list[str]:
+    """计划“验证证据”表的证据 ID 校验（WARN；不阻断）。
+
+    - 形如 evidence id 的值必须能在 harness/evidence/<id>.json 找到且 verdict=PASS；
+    - 声称 PASS 但证据 ID 为空 → WARN（历史基线行用 “—” 占位，不告警）。
+    """
+    sec = plan.section("验证证据")
+    if sec is None:
+        return []
+    warnings: list[str] = []
+    seen_header: list[str] | None = None
+    for raw in section_raw_lines(plan, sec):
+        stripped = raw.strip()
+        if not stripped.startswith("|"):
+            if seen_header is not None:
+                break
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if seen_header is None:
+            seen_header = cells
+            id_index = next((i for i, cell in enumerate(cells) if "证据" in cell), None)
+            continue
+        if _is_separator(cells):
+            continue
+        if id_index is None or id_index >= len(cells):
+            return warnings
+        evidence_id = cells[id_index].strip("`")
+        result = cells[1] if len(cells) > 1 else ""
+        if EVIDENCE_ID_RE.fullmatch(evidence_id):
+            path = ROOT / "harness" / "evidence" / f"{evidence_id}.json"
+            if not path.is_file():
+                warnings.append(f"证据 ID 不存在：{evidence_id}（{rel(plan.path)}）")
+                continue
+            try:
+                doc = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                warnings.append(f"证据 ID 无法读取：{evidence_id}")
+                continue
+            if doc.get("verdict") != "PASS":
+                warnings.append(f"证据 verdict 非 PASS：{evidence_id} = {doc.get('verdict')!r}")
+        elif "PASS" in result and evidence_id not in {"", "—", "-", "N/A"} and "—" not in evidence_id:
+            warnings.append(f"结果声称 PASS 但证据 ID 不是可解析的 evidence id：{evidence_id or '<空>'}")
+    return warnings
+
+
 def run_check(verbose: bool = True) -> tuple[int, int]:
     plans = load_plans()
     if not plans:
@@ -770,6 +818,7 @@ def run_check(verbose: bool = True) -> tuple[int, int]:
     total_warnings = 0
     for plan in plans:
         errors, warnings = check_plan(plan)
+        warnings += evidence_id_warnings(plan)
         tag = "FAIL" if errors else "OK"
         if verbose:
             print(f"[{tag}]  {rel(plan.path)}  status={plan.status or ('legacy' if plan.legacy else '缺失')}")

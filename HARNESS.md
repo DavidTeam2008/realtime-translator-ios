@@ -116,7 +116,7 @@ make check-evidence  # 只做 schema/语义校验
 - **工具适配**：Claude Code 的 hooks 示例、skills 同步为设计资产，未在本机实测（本机未装 Claude Code）。
 - **git 历史**：旧 commit 可能含 Team/设备 ID/本机路径；当前树已脱敏，历史清理需 `git filter-repo`（改写历史，需单独决策）。
 - **证据可伪造**：三值判定提高说谎成本，不提供密码学保证；高风险仍需独立审查。
-- **验证接线**：`verify-claim` 已接入 `make end`，但尚未进入 pre-push/CI；旧 evidence 只要 commit 是 HEAD 祖先即可 PASS（时效/HEAD 绑定待补）。
+- **验证接线**：`verify-claim` 已接入 `make end`（`--fresh` 告警）与 `make release-check`（`--fresh --strict`，STALE 判 UNVERIFIED）；尚未进入 pre-push/CI，`commit==HEAD` 绑定仍待补。
 - **scope 越界**：`scope.allow` 已能报「allow 外改动」，但 allow 本身可由执行者修改；范围正确性仍是半自动。
 - **§ 引用 sensor**：目前对根 AGENTS 的 `§` 形式引用做检查；嵌套 AGENTS 的节号漂移尚未覆盖。
 - **clean clone**：Phase 3 前未实测；当前工作树（Phase 2 未提交）不能由 clone 复现。
@@ -130,6 +130,8 @@ make check-evidence  # 只做 schema/语义校验
 | 秒级门禁 | `make check` / `make verify-static` | 前者 5 组静态；后者加证据/脚本单测/语法 |
 | 按类型验证 | `make test` / `make test-ui` / `make device-test` | 见 [`references/verification.md`](references/verification.md) |
 | 证据 | `make evidence` / `make verify-claim` | 三值判定 |
+| 证据时效 | `make verify-claim-fresh` | 相关文件在证据 commit 后变更 → STALE 告警（不阻断） |
+| 发布门禁 | `make release-check` | 静态 + 证据时效 strict（STALE → UNVERIFIED） |
 | 收尾 | `make check-plan` → `make end` → `make handoff` | 提交前询问 |
 | 月度审计 | `make harness-audit` | 人工打分，结果写 `harness/reviews/` |
 | Agent 适配 | `make adapters-sync` / `make adapters-check` | 单源 skills → `.claude/skills`；hooks 示例见 [`harness/adapters/`](harness/adapters/) |
@@ -163,3 +165,4 @@ make check-evidence  # 只做 schema/语义校验
 | 2026-11-07 | Phase 1 第一批：HANDOFF 拆分（CONTRIBUTING + docs/decisions）、LICENSE/README 重写、脱敏、公开文档白名单门禁 |
 | 2026-11-07 | Phase 1 第二批：历史文档蒸馏为案例并删除、原 APM 工作区更名 `harness/` 并瘦身、截图 |
 | 2026-11-07 | Phase 2：HARNESS 重写（案例+方法+采用指南+评分卡+适配层）、独立复评、evidence schema v2 |
+| 2026-11-07 | Phase 2.5：证据时效检查（`--fresh` / `--strict`）、`make release-check`、scope 越界 FAIL、计划证据 ID WARN |

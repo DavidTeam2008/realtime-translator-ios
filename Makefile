@@ -9,7 +9,7 @@ DERIVED_DEVICE ?= $(DERIVED)-device
 TEAM_RULES ?= ../../agent/template
 N ?= 10
 
-.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools check check-all verify-static verify verify-claim evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
+.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools check check-all verify-static verify verify-claim verify-claim-fresh release-check evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -89,7 +89,13 @@ doctor: ## 环境自检（Xcode / 模拟器 / mobilebuildmcp / python / 模板�
 resume: ## 接手：active 计划 + git 状态 + 下一步 + 建议阅读
 	python3 tools/plan.py resume
 
-end: verify-static verify-claim ## 收尾：静态门禁 + 证据判定 + 计划检查 + git 状态
+verify-claim-fresh: ## 证据时效检查（相关文件变更后 → STALE 告警，不阻断）
+	python3 tools/verify-claim.py --all --fresh
+
+release-check: verify-static ## 发布前门禁：静态 + 证据时效 strict（STALE 判 UNVERIFIED）
+	python3 tools/verify-claim.py --all --fresh --strict
+
+end: verify-static verify-claim-fresh ## 收尾：静态门禁 + 证据判定/时效 + 计划检查 + git 状态
 	@python3 tools/plan.py end
 
 check-agents: ## 校验团队基线（无模板仓时 SKIP）

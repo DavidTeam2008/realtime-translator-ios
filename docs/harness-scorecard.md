@@ -12,7 +12,7 @@
 | Verification | **4.5** | **4.0** | `make check` 5 组门禁；`verify-static` 含 42 个脚本单测；3 条 clean-tree evidence PASS；`verify-claim` 三值；四层验证矩阵 |
 | Scope | **3.5** | **3.0** | L0/L1/L2；计划 `scope.allow/deny`；并发/持久化/发布工程强制红队；无"改动 vs 声明范围"自动机检 |
 | Session Lifecycle | **4.0** | **3.5** | 6 个 skills；`make doctor/resume/end`；handoff 协议；未验证项单列 |
-| **综合** | **≈4.0 / 5（80%）** | **≈3.6 / 5（72%）** | 等级判定：**L3 条件成立**——能力就绪，但 `verify-claim` 仅接入 `make end`，仍缺 evidence 时效/ID 校验；未达 L4/L5 |
+| **综合** | **≈4.0 / 5（80%）** | **≈3.6 / 5（72%）** | 等级判定：**L3 条件成立**——`verify-claim` 已接入 `make end`（fresh 告警）与 `make release-check`（strict）；仍缺 commit==HEAD 绑定、证据 ID 硬校验与 pre-push/CI 接线；未达 L4/L5 |
 
 ## 对照
 

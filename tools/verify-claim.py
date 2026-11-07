@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
 import statistics
@@ -44,6 +45,23 @@ TEST_CLAIMS = ("unit-tests-pass", "ui-tests-pass", "device-tests-pass")
 PERF_CLAIMS = ("perf-measurement", "perf-no-regression", "perf-improved")
 
 PASS, FAIL, UNVERIFIED = "PASS", "FAIL", "UNVERIFIED"
+
+# 证据时效（freshness）：按 claim 的相关路径，比较 evidence.commit..HEAD 是否有变更。
+# 用途：旧证据跨 commit 复用时给出 STALE 信号；--strict 时判 UNVERIFIED（发布门禁用）。
+FRESH_SCOPES: dict[str, tuple[str, ...]] = {
+    "unit-tests-pass": ("Duiyi/*.swift", "DuiyiTests/*.swift", "Duiyi.xcodeproj/*"),
+    "ui-tests-pass": ("Duiyi/*.swift", "DuiyiTests/*.swift", "DuiyiUITests/*.swift", "Duiyi.xcodeproj/*"),
+    "device-tests-pass": ("Duiyi/*.swift", "DuiyiTests/*.swift", "DuiyiUITests/*.swift", "Duiyi.xcodeproj/*"),
+    "docs-pass": ("docs/*", "references/*", "harness/*", "tools/check-docs.py", "AGENTS.md", "HARNESS.md", "README.md", "CONTRIBUTING.md", "Makefile"),
+    "arch-pass": ("Duiyi/*.swift", "tools/check-arch.py"),
+}
+
+# 性能 claim 不做 freshness（需要 metrics 自身口径）。
+
+
+def _under(path: str, patterns: tuple[str, ...]) -> bool:
+    """路径匹配：支持 `*`（含跨目录，便于 `Duiyi/*.swift` 覆盖深层文件）与精确路径。"""
+    return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
 
 
 # ── 辅助 ───────────────────────────────────────────────────────────────────
@@ -89,6 +107,39 @@ def load_baseline(root: Path) -> tuple[dict[str, Any] | None, str | None]:
     except (KeyError, TypeError, ValueError):
         return None, f"{BASELINE_REL} 结构不完整（unit/ui/expectedSkipped）"
     return data, None
+
+
+# ── 证据时效（freshness） ──────────────────────────────────────────────────
+def changed_paths_since(root: Path, commit: str) -> set[str] | None:
+    """返回 evidence.commit..HEAD 的变更路径集合；git 不可用或不可比较时返回 None。"""
+    if not re.fullmatch(r"[0-9a-f]{7,40}", commit):
+        return None
+    out = run_git(root, "diff", "--name-only", f"{commit}..HEAD")
+    if out.returncode != 0:
+        return None
+    return {line.strip() for line in out.stdout.splitlines() if line.strip()}
+
+
+def freshness_reasons(root: Path, doc: dict[str, Any]) -> list[str]:
+    claim = str(doc.get("claim") or "")
+    scopes = FRESH_SCOPES.get(claim)
+    if not scopes:
+        return []
+    git = doc.get("git")
+    if not isinstance(git, dict):
+        return []
+    commit = str(git.get("commit") or "").strip()
+    head = run_git(root, "rev-parse", "HEAD")
+    if head.returncode == 0 and head.stdout.strip().lower().startswith(commit.lower()):
+        return []  # 证据就是 HEAD
+    changed = changed_paths_since(root, commit)
+    if changed is None:
+        return [f"STALE：无法比较证据 commit {commit} 与 HEAD 的变更"]
+    relevant = sorted(path for path in changed if _under(path, scopes))
+    if not relevant:
+        return []
+    sample = "、".join(relevant[:4]) + ("…" if len(relevant) > 4 else "")
+    return [f"STALE：证据生成后相关文件有变更（{commit}..HEAD）：{sample}（重跑验证或使用 make release-check 要求 fresh）"]
 
 
 # ── git 证据有效性 ─────────────────────────────────────────────────────────
@@ -279,7 +330,8 @@ def load_schema_for(root: Path) -> tuple[dict[str, Any] | None, list[str]]:
 
 # ── 单条判定 ───────────────────────────────────────────────────────────────
 def verify_one(
-    root: Path, path: Path, *, require_filename_id: bool = False
+    root: Path, path: Path, *, require_filename_id: bool = False,
+    fresh: bool = False, strict: bool = False,
 ) -> tuple[str, list[str], str]:
     """返回 (verdict, reasons, id)。
 
@@ -311,14 +363,23 @@ def verify_one(
 
     claim = str(doc.get("claim"))
     if claim in TEST_CLAIMS:
-        return (*check_test_claim(root, doc, claim), claim_id)
-    if claim == "docs-pass":
-        return (*check_static_claim(root, "tools/check-docs.py", "check-docs"), claim_id)
-    if claim == "arch-pass":
-        return (*check_static_claim(root, "tools/check-arch.py", "check-arch"), claim_id)
-    if claim in PERF_CLAIMS:
-        return (*check_perf_claim(root, doc), claim_id)
-    return FAIL, [f"不支持的 claim 类型：{claim!r}"], claim_id
+        verdict, reasons = check_test_claim(root, doc, claim)
+    elif claim == "docs-pass":
+        verdict, reasons = check_static_claim(root, "tools/check-docs.py", "check-docs")
+    elif claim == "arch-pass":
+        verdict, reasons = check_static_claim(root, "tools/check-arch.py", "check-arch")
+    elif claim in PERF_CLAIMS:
+        verdict, reasons = check_perf_claim(root, doc)
+    else:
+        return FAIL, [f"不支持的 claim 类型：{claim!r}"], claim_id
+
+    if fresh:
+        stale = freshness_reasons(root, doc)
+        if stale:
+            if strict and verdict == PASS:
+                return UNVERIFIED, stale + reasons, claim_id
+            reasons = reasons + stale
+    return verdict, reasons, claim_id
 
 
 def print_result(claim_id: str, verdict: str, reasons: list[str]) -> None:
@@ -342,6 +403,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--all", action="store_true", help="校验 harness/evidence/*.json 全部证据")
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help="仓库根（默认脚本上级目录）")
     parser.add_argument("--evidence-dir", type=Path, help="证据目录（默认 <root>/harness/evidence）")
+    parser.add_argument("--fresh", action="store_true", help="检查证据时效（相关文件在证据 commit 后变更 → STALE 告警）")
+    parser.add_argument("--strict", action="store_true", help="与 --fresh 连用：STALE 的证据判 UNVERIFIED（发布门禁用）")
     return parser
 
 
@@ -349,7 +412,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = Path(args.root).resolve()
     if args.claim:
-        verdict, reasons, claim_id = verify_one(root, Path(args.claim).expanduser())
+        verdict, reasons, claim_id = verify_one(root, Path(args.claim).expanduser(), fresh=args.fresh or args.strict, strict=args.strict)
         print_result(claim_id, verdict, reasons)
         return exit_code([verdict])
 
@@ -367,7 +430,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     verdicts: list[str] = []
     for path in files:
-        verdict, reasons, claim_id = verify_one(root, path, require_filename_id=True)
+        verdict, reasons, claim_id = verify_one(root, path, require_filename_id=True, fresh=args.fresh or args.strict, strict=args.strict)
         verdicts.append(verdict)
         print_result(claim_id, verdict, reasons)
     counts = {name: verdicts.count(name) for name in (PASS, FAIL, UNVERIFIED)}

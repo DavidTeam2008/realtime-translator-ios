@@ -305,8 +305,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 2.5.1 | `make end` 默认跑 `verify-claim --all` | 已完成（本批） |
 | 2.5.2 | 计划 `scope.allow` 之外的未提交改动必须 FAIL（不再静默过滤） | 已完成（本批） |
 | 2.5.3 | 计划补充「目标与非目标」「验收」节，修正 `make resume` 输出 | 已完成（本批） |
-| 2.5.4 | evidence.commit 必须 == HEAD 或在计划 `submitted`；旧证据对当前 claim 至少 WARN | 待做 |
-| 2.5.5 | 计划"证据ID"列必填并解析到 `harness/evidence/*.json`（verdict=PASS）；done 与 active 同等严格 | 待做 |
+| 2.5.4 | 证据时效：按 claim 相关路径比较 `evidence.commit..HEAD`；`--fresh` 告警，`--strict` 判 UNVERIFIED；接入 `make end` 与 `make release-check` | 已完成（`commit==HEAD/计划 submitted` 硬绑定仍待补） |
+| 2.5.5 | 计划证据 ID 校验：形如 evidence id 的值必须存在且 verdict=PASS；声称 PASS 但 ID 为空 → WARN | 部分完成（WARN 级；硬失败与 done 严格待补） |
 | 2.5.6 | `§` 引用扫描扩展到嵌套 AGENTS / 支持"第 N 节"；token 预算余量再平衡（AGENTS 24、refs 18–25） | 待做 |
 | 2.5.7 | CI 合并 `docs.yml` 进 `verify.yml`；clean clone 复现（Phase 3） | 待做（Phase 3） |
 
@@ -443,6 +443,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 3.1 clean clone 复现：`make check` 0.33s PASS；`make verify-static` 4.65s PASS（42 单测，无 Xcode）
 - [x] Phase 3.3（部分）：`docs.yml` 合并进 `verify.yml`（`**/*.md`）；README 徽章（verify/MIT/iOS）
 - [ ] Phase 3 其余：CONTRIBUTING 分层复核、doctor 对陌生人友好化、CI 说明
+- [x] Phase 2.5.1–2.5.4：end 接线、scope 越界 FAIL、计划节修正、证据时效 `--fresh/--strict` + `make release-check`
+- [x] Phase 2.5.5：证据 ID WARN 校验（硬失败待补）
 - [ ] Phase 4 发布 + 外部验证
 - [ ] Phase 5 `harness-kit` 模板抽取（含首个外部试点）
 - [ ] Phase 6（可选）产品可信度
@@ -468,7 +470,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | CI 合并与徽章（Phase 3.3） | `docs.yml` 删除；`verify.yml` 增加 `**/*.md`；README 徽章（verify/MIT/iOS） | 本机文件检查；CI 未触发新 run | —（Phase 3.3） |
 | `make adapters-check`（2026-11-07） | **PASS**（6 个 skills 单源；hooks 示例/CLAUDE 模板/red-team agent 就绪） | 本机 | —（适配层） |
 | `make verify-static`（Phase 2 工作树） | **PASS**（新增 adapters-check 后 42 单测仍过） | 本机 | —（静态门禁） |
-| HARNESS/评分卡指标 | HARNESS 190 行；scorecard 新建；root/README 已互链 | 本机 `wc -l` | —（文档） |
+| HARNESS/评分卡指标 | HARNESS 165 行；scorecard 53 行；root/README 已互链 | 本机 `wc -l` | —（文档） |
+| 证据时效负向验证（Phase 2.5.4） | `make verify-claim-fresh`：3 条证据均 **STALE**（pbxproj / UI 测试文件变更）但 exit 0；`--fresh --strict` → **UNVERIFIED×3，exit 2** | 本机 | —（负向验证） |
 | `make check`（2026-11-07，Phase 1 第一批） | **PASS**（0 error / 0 warn；公开文档白名单 docs 15/16、根 4 个 md） | 本机 macOS + python3 | —（静态门禁） |
 | `make verify-static`（2026-11-07） | **PASS**（+证据 schema/42 单测/语法；约 4.3s） | 本机 macOS | —（静态门禁） |
 | `make build`（模拟器 Debug，脱敏后） | **BUILD SUCCEEDED**（`xcodebuild -list` 也能解析工程） | Xcode 27.1 | —（构建验证） |
@@ -511,11 +514,17 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（Phase 2 + Phase 3.1/3.3 部分已提交；工作区 clean）。
+> Phase 2.5（部分）待提交。
+
+- `Makefile` / `verify-claim-fresh`、`release-check`、end 接线 / 可提交
+- `tools/` / 证据时效与计划证据 ID 校验 / 可提交
+- `HARNESS.md` / 证据时效与发布门禁说明 / 可提交
+- `docs/` / scorecard L3 条件更新 / 可提交
+- `harness/` / 计划记录（本文件）/ 可提交
 
 ## 下一步
 
-1. Phase 2.5 剩余 P0：evidence HEAD/时效绑定、证据 ID 校验、done 严格、`§` 扫描扩展、token 余量（发布前建议完成）。
+1. 提交 Phase 2.5（部分），随后做剩余 P0（commit==HEAD/计划 submitted 硬绑定、证据 ID 硬失败、done 严格、§ 扫描、token 余量）。
 2. 处理 Phase 2.5 剩余 P0：evidence HEAD/时效绑定、证据 ID 校验、done 严格、§ 引用扫描扩展、token 余量再平衡（发布前建议完成）。
 3. Phase 3 收尾：CONTRIBUTING 分层复核、doctor 友好化、CI 说明与首次真实 PR 验证。
 4. Phase 4：发布与真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试独立排期。
