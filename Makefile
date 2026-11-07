@@ -9,7 +9,7 @@ DERIVED_DEVICE ?= $(DERIVED)-device
 TEAM_RULES ?= ../../agent/template
 N ?= 10
 
-.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools check check-all verify-static verify verify-claim verify-claim-fresh release-check evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
+.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools kit-check check check-all verify-static verify verify-claim verify-claim-fresh release-check evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -61,9 +61,12 @@ check-evidence: ## 证据 schema 校验（harness/evidence/*.json）
 	python3 tools/evidence.py validate
 
 test-tools: ## harness 脚本单测（verify-claim / evidence）
-	python3 -m unittest discover -s tools/tests -q
+	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/tests -q
 
-verify-static: check check-evidence test-tools ## 本地秒级门禁（docs+架构+计数+harness+计划+证据+脚本语法+脚本单测）
+kit-check: ## harness-kit 端到端验收（三 profile init + make check + hygiene）
+	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s harness-kit/tests -q
+
+verify-static: check check-evidence test-tools kit-check ## 本地秒级门禁（docs+架构+计数+harness+计划+证据+脚本语法+脚本单测+kit 验收）
 	@bash -n harness/tools/*.sh tools/*.sh .githooks/pre-push
 	@python3 -m py_compile tools/*.py
 

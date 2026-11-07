@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "harness evidence record",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "claim",
+    "createdAt",
+    "git",
+    "command",
+    "environment",
+    "result",
+    "verdict",
+    "verifier"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9]{8}T[0-9]{6}Z-[a-z0-9][a-z0-9-]*$"
+    },
+    "claim": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "git": {
+      "type": "object",
+      "required": ["commit", "dirty"],
+      "additionalProperties": false,
+      "properties": {
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "command": { "type": "string", "minLength": 1 },
+    "environment": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "os": { "type": "string" },
+        "toolchain": { "type": "string" },
+        "project": { "type": "string" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": true,
+      "properties": {
+        "status": { "enum": ["SUCCEEDED", "FAILED", "SKIPPED", "UNKNOWN"] },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "durationSec": { "type": "number", "minimum": 0 },
+        "artifacts": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL", "UNVERIFIED"] },
+    "verifier": { "type": "string", "minLength": 1 },
+    "notes": { "type": "string" }
+  }
+}

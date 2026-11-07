@@ -1,0 +1,77 @@
+{
+  "name": "strict",
+  "description": "在 standard 上增加指令/适配器门禁、发布前 strict 证据门禁、红队与 scorecard；适合长期维护项目。",
+  "extends": "standard",
+  "files": [
+    {
+      "src": "core/templates/docs/README.strict.md.template",
+      "dst": "docs/README.md",
+      "render": true,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/templates/docs/harness-scorecard.md.template",
+      "dst": "docs/harness-scorecard.md",
+      "render": true,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/templates/harness/reviews/README.md.template",
+      "dst": "harness/reviews/README.md",
+      "render": true,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/templates/harness/reviews/_template.md",
+      "dst": "harness/reviews/_template.md",
+      "render": true,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/templates/skills/verify-change/SKILL.md",
+      "dst": ".dsh/skills/verify-change/SKILL.md",
+      "render": true,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/templates/skills/handoff/SKILL.md",
+      "dst": ".dsh/skills/handoff/SKILL.md",
+      "render": true,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/templates/skills/red-team/SKILL.md",
+      "dst": ".dsh/skills/red-team/SKILL.md",
+      "render": true,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/tools/doctor.py",
+      "dst": "tools/doctor.py",
+      "render": false,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/tools/adapters.py",
+      "dst": "tools/adapters.py",
+      "render": false,
+      "onConflict": "fail"
+    }
+  ],
+  "makefile": "core/templates/makefiles/Makefile.strict.template",
+  "makeTargets": [
+    "check",
+    "verify-static",
+    "verify-claim",
+    "release-check",
+    "doctor",
+    "adapters-sync",
+    "adapters-check",
+    "plan"
+  ],
+  "defaultAdapters": [
+    "claude-code",
+    "githooks",
+    "ci"
+  ]
+}

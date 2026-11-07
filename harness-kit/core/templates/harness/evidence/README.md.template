@@ -1,0 +1,28 @@
+# 证据目录（evidence）
+
+> 一条验证结论一个文件，让“完成”可复核；原始产物不入库。
+> 目录协议见 [`../AGENTS.md`](../AGENTS.md)，判定口径见 [`../../{{REFERENCES_DIR}}/verification.md`](../../{{REFERENCES_DIR}}/verification.md)。
+
+## 1. 命名与位置
+
+- 名称：`<UTC时间>-<claim>.json`，例如 `20260101T000000Z-tests-pass.json`。
+- `claim` 必须出现在 `{{HARNESS_DIR}}/config.json` 的 `claims[].name` 中。
+- 同一 claim 可保留多条历史文件；按时间排序，最新一条用于判定。
+
+## 2. 结构
+
+- 字段以 [`schema.json`](schema.json) 为准；可从 [`TEMPLATE.json`](TEMPLATE.json) 复制后填写。
+- 必需：`schemaVersion` / `id` / `claim` / `createdAt` / `git{commit,dirty}` / `command` / `environment` / `result` / `verdict` / `verifier`。
+- `verdict` 只能是 PASS / FAIL / UNVERIFIED；`git.dirty` 必须为 false 才代表可复核的提交态。
+
+## 3. 生成与校验
+
+- 用工具写入（自动填 id / 时间 / git 信息）：`python3 tools/evidence.py write --claim tests-pass`；要求工作树干净。
+- 全量校验：`make check-evidence`（或 `python3 tools/evidence.py validate`）。
+- 三值判定：`make verify-claim`（或 `python3 tools/verify_claim.py --all`）；无证据 = FAIL，环境不可复核 = UNVERIFIED。
+
+## 4. 入库策略
+
+- 入库：小的 JSON 摘要 + 命令 + 结论；不提交原始日志、截图、大文件。
+- 不写本机绝对路径、设备 ID、令牌 / 密钥；用相对路径或摘要指纹。
+- 证据 ID 必须能被计划「验证证据」表引用；引用不存在的 ID 视为未验证。

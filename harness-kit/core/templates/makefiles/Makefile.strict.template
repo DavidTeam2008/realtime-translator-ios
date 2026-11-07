@@ -1,0 +1,39 @@
+# {{PROJECT_NAME}} · harness 门禁（strict profile）
+# 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
+# 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
+
+.PHONY: help check check-evidence adapters-check adapters-sync verify-static verify-claim release-check doctor plan
+
+help: ## 显示可用目标
+	@echo "{{PROJECT_NAME}} · harness 目标"
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-18s %s\n", $$1, $$2}'
+
+check: ## 文档 + 指令 + 计划 + 适配层静态门禁
+	@python3 tools/check_docs.py
+	@python3 tools/check_agents.py
+	@python3 tools/check_plan.py
+	@python3 tools/adapters.py check
+
+check-evidence: ## 证据 schema 校验
+	@python3 tools/evidence.py validate
+
+verify-static: check check-evidence ## 本地静态门禁（含证据校验）
+
+verify-claim: ## 证据三值判定（PASS / FAIL / UNVERIFIED）
+	@python3 tools/verify_claim.py --all
+
+release-check: verify-static ## 发布前门禁：证据时效 strict（STALE 判未验证）
+	@python3 tools/verify_claim.py --all --fresh --strict
+
+doctor: ## 环境自检（缺必需项时 exit 2）
+	@python3 tools/doctor.py
+
+adapters-sync: ## 同步 .dsh/skills → .claude/skills
+	@python3 tools/adapters.py sync
+
+adapters-check: ## 校验适配层（skills 单源 / 哈希）
+	@python3 tools/adapters.py check
+
+plan: ## 新建计划：make plan TOPIC=<topic>
+	@test -n "$(TOPIC)" || { echo "用法：make plan TOPIC=<topic>"; exit 2; }
+	@python3 tools/check_plan.py new "$(TOPIC)"

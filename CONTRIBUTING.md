@@ -19,7 +19,7 @@
 ```bash
 git clone <repo-url> && cd realtimeTranslatorOptimize
 make check          # 6 组静态门禁（docs/架构/计数/harness/计划/adapters），约 1s
-make verify-static  # 再加证据 schema、91 个脚本单测、语法检查，约 5–15s
+make verify-static  # 再加证据 schema、91 个脚本单测、kit 端到端，约 15–25s
 ```
 
 这条路径不需要 Xcode：能验证规则/结构/证据/代码边界，不能运行 App/模拟器/真机。若用 `git clone --depth 1` 浅克隆，先 `git fetch --unshallow`（脚本单测会读取提交历史）。

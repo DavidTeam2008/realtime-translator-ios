@@ -1,0 +1,15 @@
+# {{PROJECT_NAME}} · harness 门禁（minimal profile）
+# 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
+# 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
+
+.PHONY: help check verify-static
+
+help: ## 显示可用目标
+	@echo "{{PROJECT_NAME}} · harness 目标"
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-18s %s\n", $$1, $$2}'
+
+check: ## 文档 + 指令静态门禁
+	@python3 tools/check_docs.py
+	@python3 tools/check_agents.py
+
+verify-static: check ## 本地静态门禁（= check）

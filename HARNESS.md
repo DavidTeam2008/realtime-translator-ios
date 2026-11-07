@@ -37,17 +37,18 @@ Harness Engineering 的回答：**模型之外的一切工程设施都是 harnes
 |---|---|---|---|
 | Instructions | AGENTS ≈1576/1650 token；6 个嵌套 AGENTS；敏感信息 / §·第N节 引用机检（13 个指令文件） | `make check-harness` | 前馈+机检 |
 | State | 计划 front matter/status；唯一 active；未提交改动与 git 交叉核对 | `make check-plan`、`make resume` | 状态 |
-| Verification | 文档/架构/计数/harness/计划/adapters 6 组门禁；证据 schema + 三值判定 + 证据 ID/done submitted 硬校验；91 个脚本单测 | `make check` / `make verify-static` / `make verify-claim` | 反馈 |
+| Verification | 文档/架构/计数/harness/计划/adapters 6 组门禁；证据 schema + 三值判定 + 证据 ID/done submitted 硬校验；91 个脚本单测 + 66 个 kit 端到端测试 | `make check` / `make verify-static` / `make verify-claim` | 反馈 |
 | Scope | 计划 `scope.allow/deny`；L0/L1/L2；并发/持久化/发布工程强制独立红队 | `references/workflow.md`、`red-team` skill | 作用域 |
 | Lifecycle | 6 个 skills：bootstrap / verify-change / handoff / red-team / harness-audit / device-verify | `.dsh/skills/`、`make resume/end` | 会话 |
 | 证据层 | 单元/UI/真机 evidence JSON；三值判定；commit/dirty 校验 | `harness/evidence/` | 可审计 |
 | 目录分层 | `docs/`（事实）· `references/`（规则）· `harness/`（过程与证据）· `tools/`（门禁） | `docs/README.md`、`harness/README.md` | 信息架构 |
+| 模板化 | `harness-kit/`：项目无关模板（minimal/standard/strict + `harness-init` + 端到端验收） | `make kit-check`、[`harness-kit/README.md`](harness-kit/README.md) | 可复制 |
 
 **门禁分层（成本与可信度匹配）**：
 
 | 层 | 内容 | 何时跑 |
 |---|---|---|
-| 静态（约 1–15s，无 Xcode；浅克隆先 `git fetch --unshallow`） | docs/架构/计数/harness/计划/证据 + 脚本单测 | 每次改动；CI ubuntu；pre-push |
+| 静态（约 2–25s，无 Xcode；浅克隆先 `git fetch --unshallow`） | docs/架构/计数/harness/计划/证据 + 脚本单测 + kit 端到端 | 每次改动；CI ubuntu；pre-push |
 | 动态（分钟级） | 模拟器单元 / UI 测试 | 对应代码改动后；可选 self-hosted macOS CI |
 | 人工（真机） | 语音 / 翻译 / TTS / 音频 / 持久化 / SwiftData | 相关改动与发版前；不可替代 |
 | 月度 | harness 审计 + 评分卡更新 | 每月或大改后 |
@@ -98,7 +99,7 @@ make check-evidence  # 只做 schema/语义校验
 9. **接入你的 agent**：保持规则在 `AGENTS.md`；用适配层提供工具差异（见 §9 / [`harness/adapters/`](harness/adapters/)）。
 10. **周期修剪**：月度审计（评分卡）+ 季度文档修剪；过程只留结论+证据，原始记录进 git 历史。
 
-> 完整模板（profiles + 脚手架 + adapters）在 Phase 5 抽成 `harness-kit`；本项目是它的第一个案例。
+> 模板已抽出：[`harness-kit/`](harness-kit/README.md)（minimal/standard/strict + `harness-init` + 三档端到端验收 `make kit-check`）。本项目是它的第一个案例；kit 自身不含本项目专有引用。
 
 ## 7. 评分卡与独立复评
 

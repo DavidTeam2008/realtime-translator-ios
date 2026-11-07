@@ -17,6 +17,7 @@ scope:
     - docs/
     - references/
     - harness/
+    - harness-kit/        # Phase 5：与 Duiyi 无关的 harness 模板（kit）
     - .dsh/
     - tools/
     - .github/
@@ -339,13 +340,13 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 **目标**：把本项目验证过的 harness 抽成与 Duiyi 无关的模板，其它项目可 10 分钟接入。
 
-| # | 任务 | 产出 | 验收 |
-| --- | --- | --- | --- |
-| 5.1 | 定义模板分层 | `harness-kit/`：`core/`（AGENTS 模板、references 模板、docs IA 模板、`harness/` 工作区、`config.json`、通用门禁脚本）+ `adapters/`（dsh / claude-code / ci / githooks）+ `profiles/`（minimal / standard / strict）+ `scripts/harness-init` | 目录与配置能表达"项目路径、命令、预算、claims、adapters" |
-| 5.2 | 脚手架 | `harness-init`：探测语言/命令、按 profile 生成文件、dry-run + 备份、不覆盖已有文件、运行首次 `make check` | 在空白测试仓（或 fork）10 分钟内 init + `make check` PASS |
-| 5.3 | profiles 与采用指南 | minimal（AGENTS + 静态门禁）/ standard（+计划/证据/CI）/ strict（+红队/scorecard/月度审计）；`docs/playbook.md` 五步改造法 | 每个 profile 有独立验收脚本；playbook 可由非作者照做 |
-| 5.4 | 首个外部试点 | 在作者另一个项目上真实改造一次，记录卡点并回写模板 | 试点项目 1 天内完成接入；卡点进入模板 issue/plan |
-| 5.5 | 发布模板 | 独立仓库（推荐 `harness-kit`）或本仓 `harness-kit/`；README 说明与 Duiyi 案例的关系；License 一致 | 模板仓 0 个 Duiyi 专用引用；外部可 clone |
+| # | 任务 | 产出 | 验收 | 状态 |
+| --- | --- | --- | --- | --- |
+| 5.1 | 定义模板分层 | `harness-kit/`：`core/`（AGENTS 模板、references 模板、docs IA 模板、`harness/` 工作区、`config.json`、通用门禁脚本）+ `adapters/`（dsh / claude-code / ci / githooks）+ `profiles/`（minimal / standard / strict）+ `scripts/harness-init` | 目录与配置能表达"项目路径、命令、预算、claims、adapters" | 已完成（2026-11-07；SPEC/config schema/profiles/adapters） |
+| 5.2 | 脚手架 | `harness-init`：探测语言/命令、按 profile 生成文件、dry-run + 备份、不覆盖已有文件、运行首次 `make check` | 在空白测试仓（或 fork）10 分钟内 init + `make check` PASS | 已完成（三档空白仓 init + 首次 `make check` PASS） |
+| 5.3 | profiles 与采用指南 | minimal（AGENTS + 静态门禁）/ standard（+计划/证据/CI）/ strict（+红队/scorecard/月度审计）；`docs/playbook.md` 五步改造法 | 每个 profile 有独立验收脚本；playbook 可由非作者照做 | 已完成（`make kit-check` 66 用例覆盖三档；playbook 已写，非作者试点见 5.4） |
+| 5.4 | 首个外部试点 | 在作者另一个项目上真实改造一次，记录卡点并回写模板 | 试点项目 1 天内完成接入；卡点进入模板 issue/plan | 部分：改用无上下文 AI 代理在空白仓试点并回写（真实项目未验证） |
+| 5.5 | 发布模板 | 独立仓库（推荐 `harness-kit`）或本仓 `harness-kit/`；README 说明与 Duiyi 案例的关系；License 一致 | 模板仓 0 个 Duiyi 专用引用；外部可 clone | 部分：本仓 `harness-kit/` 可复制（0 专有引用）；独立仓库待权限 |
 
 ### Phase 6（可选，独立排期）· 产品可信度
 
@@ -456,7 +457,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] v1.0.0 annotated tag 已推送（目标 `c78abe8`，main HEAD）；CI run `42347475807` static success；GitHub Release 待用户创建（PAT 403）
 - [x] 外部首访（AI 代理，公开 clone）：4/5 可答；发现浅克隆 P0 → 已修（skip + README/CONTRIBUTING unshallow、无 Xcode 边界、采用指南直链、实测耗时）
 - [ ] Phase 4 发布 + 外部验证（v1.0.0 tag/release + 非作者首访）
-- [ ] Phase 5 `harness-kit` 模板抽取（含首个外部试点）
+- [x] Phase 5.1–5.3：SPEC/config schema/profiles/`harness-init`/core 脚本/模板/adapters/README/playbook + 66 个 kit 端到端测试
+- [ ] Phase 5.4：作者另一项目真实试点（改用无上下文 AI 代理在空白仓试点，卡点回写待完成；真实项目未验证）
+- [ ] Phase 5.5：独立模板仓（PAT 403；暂以本仓可复制 `harness-kit/` 交付）
 - [ ] Phase 6（可选）产品可信度
 
 ## 验证证据
@@ -502,6 +505,10 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 外部首访（2026-11-07，公开 clone @ `631d334`，AI 代理陌生人协议） | 5 问可答 **4/5**（Q5 采用指南在 HARNESS.md，属第 4 文件）；`make check` exit 0（≈1s）；`make verify-static` 浅克隆 exit 2 → `git fetch --unshallow` 后 exit 0（88 单测，≈15s） | 公开 clone；macOS 27.0.1 / python 3.14.7 / make 3.81，无 Xcode | —（外部记录：AI 代理，非人类） |
 | 首访整改（2026-11-07） | **PASS**：浅克隆（`--is-shallow-repository=true`）跳过父提交用例；`--depth 1` 模拟提交后 `make check` / `verify-static` exit 0（88 tests，1 skipped）；README/CONTRIBUTING 增加 unshallow、无 Xcode 边界、harness 10 步指南直链与实测耗时 | 本机 /tmp 浅克隆 | —（过程记录：首访整改） |
 | `git tag -a v1.0.0` + `git push origin v1.0.0`（2026-11-07） | annotated tag 目标 `c78abe8`（main HEAD）；CI run `42347475807` static success；release notes 见 `harness/release-notes-v1.0.0.md` | 本机 + GitHub | —（外部记录：release tag） |
+| `make kit-check`（2026-11-07） | **PASS**：66 用例；3 个 profile 在空白 git 仓 init 后 `make check`/`verify-static` PASS；证据写入→`verify-claim` PASS；strict `release-check` PASS；dry-run/冲突/备份/无 Duiyi 专有引用 | 本机 python3 3.14.7 | —（过程记录：kit 验收） |
+| 三档 demo 人工试用（2026-11-07） | minimal/standard/strict 各 init 到 /tmp 空白仓：created 14/26/37 文件；`make check` 全部 exit 0（init 内置首次检查）；standard `verify-static` exit 0；strict 写 tests-pass 证据后 `verify-claim`/`release-check` PASS | 本机 /tmp；无 Xcode | —（过程记录：kit 试用） |
+| kit 卫生扫描（2026-11-07） | `harness-kit/{core,adapters,profiles,scripts}` 对 `Duiyi/duiyi/对译/TranslationSession/SwiftData` **0 命中**（唯一允许为 README 来源案例）；`make kit-check` 含专有名词/残留占位符/链接断言 | 本机 | —（过程记录：kit 卫生） |
+| `make verify-static`（Phase 5 集成后，2026-11-07） | **PASS**，约 17s：91 个 Duiyi 脚本单测 + 66 个 kit 端到端测试 + docs/架构/计数/harness/计划/证据/adapters 全过 | 本机 python3 3.14.7 / make 3.81 | —（过程记录：集成门禁） |
 
 ## 未验证项
 
@@ -519,6 +526,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - Phase 2.5 已完成（2.5.1–2.5.8）；其中 done 的 `submitted`/证据绑定目前只在单测负向 fixture 演练，本计划尚未 done，Phase 4 收尾时以本计划走一遍真实 done 演练。
 - P1 残留（Phase 2.5 独立复核）：`make end` 对 STALE 只告警（`release-check` strict 阻断，设计保留）；CI/pre-push 不跑 verify-claim 判定；P0-1/P0-3 行为测试与性能门禁仍缺（Phase 6）。
 - 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；用户已接受「分支干净、旧对象不可达」状态（2026-11-07 决策）。
+- Phase 5 外部试点未按原始要求完成：作者另一项目未实际改造（改用无上下文 AI 代理在空白仓试点，报告待回写）；真实人类项目接入仍未验证。
+- Phase 5 独立模板仓未创建：PAT 受组织策略 403；当前交付为仓库内 `harness-kit/` 可复制目录（`git clone` 后 `cp -r`/subtree 拆分）。
+- kit 的非 Python 语言链路未实测：`--test-command` 与 config 由宿主提供，node/go/swift 的建议命令未逐个验证。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
 ## 参考（外部事实核对，2026-11-07）
@@ -546,12 +556,20 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（社交预览素材与记录已提交）。
+- `harness-kit/` / Phase 5 集成与记录
+- `harness/plans/2026-11-06-benchmark-opensource.md` / Phase 5 集成与记录
+- `Makefile` / Phase 5 集成与记录
+- `HARNESS.md` / Phase 5 集成与记录
+- `README.md` / Phase 5 集成与记录
+- `CONTRIBUTING.md` / Phase 5 集成与记录
+- `docs/README.md` / Phase 5 集成与记录
+- `docs/harness-scorecard.md` / Phase 5 集成与记录
 
 ## 下一步
 
-1. Phase 4 收尾（需用户）：用 `harness/release-notes-v1.0.0.md` 创建 GitHub Release（tag `v1.0.0`）；设置仓库 description/topics/social preview；招募 1 名人类非作者按 README/CONTRIBUTING 走查并回填卡点。
-2. 然后 Phase 5：`harness-kit` 模板抽取（依赖 Phase 1–4 稳定）；Phase 6 产品行为测试独立排期。
+1. Phase 5 收尾：无上下文代理按 kit README/playbook 在空白仓完成一次接入试点 → 卡点回写模板/README → 提交推送。
+2. Phase 4 收尾（需用户）：创建 GitHub Release（tag `v1.0.0`，notes 用 `harness/release-notes-v1.0.0.md`）；设置 description/topics/social preview；招募人类非作者首访。
+3. Phase 6（可选）：P0-1 并发 / P0-3 持久化行为测试，独立排期。
 
 ## 待确认
 

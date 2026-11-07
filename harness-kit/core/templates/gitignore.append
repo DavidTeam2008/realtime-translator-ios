@@ -1,0 +1,7 @@
+# harness-kit 追加：运行产物 / 初始化备份 / 本地缓存（保留原有内容，不覆盖）
+harness/runs/
+.harness-init-backup/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

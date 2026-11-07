@@ -53,6 +53,7 @@
 | [`AGENTS.md`](AGENTS.md) | `docs/` 目录级写作规则（当前规范 / 历史 / 新增与索引 / 验证） |
 | [`../tools/check-docs.py`](../tools/check-docs.py) | 文档链接/围栏/索引/token 预算/公开文档白名单 |
 | [`../Makefile`](../Makefile) | 测试、构建、真机、门禁、计划、证据命令入口 |
+| [`../harness-kit/`](../harness-kit/README.md) | 与项目无关的 harness 模板：minimal/standard/strict、`harness-init` 脚手架、端到端验收（`make kit-check`） |
 | [`../.dsh/skills/`](../.dsh/skills/) | 6 个项目级 Agent skills（按需加载的动作卡） |
 
 ## 维护约定

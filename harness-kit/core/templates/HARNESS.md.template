@@ -1,0 +1,60 @@
+# HARNESS · {{PROJECT_NAME}}
+
+> 一页说明本项目的 harness 怎么运转：**guides（指令） + sensors（门禁/证据）**。
+> 规则入口是 [`{{ROOT_AGENTS}}`]({{ROOT_AGENTS}})；文档索引见 [`{{DOCS_DIR}}/README.md`]({{DOCS_DIR}}/README.md)。
+
+## 1. 问题
+
+AI 编码 Agent 的“做完了”通常不可验证：指令越堆越乱、状态靠记忆、证据靠自述。
+harness 的目标是让完成声明**可复跑、可否定、可交接**，而不是增加更多文档。
+
+## 2. 五个子系统
+
+| 子系统 | 作用 | 本项目落点 |
+| --- | --- | --- |
+| Instructions | 该做什么、去哪读 | [`{{ROOT_AGENTS}}`]({{ROOT_AGENTS}}) + 嵌套 `AGENTS.md` + [`{{REFERENCES_DIR}}/`]({{REFERENCES_DIR}}/) |
+| State | 做到哪、上次结论 | `{{HARNESS_DIR}}/plans/`（唯一 active 计划）+ `{{HARNESS_DIR}}/evidence/` |
+| Verification | 怎么证明做完了 | `make check` / `make verify-static` / `make verify-claim` |
+| Scope | 允许改什么 | 计划 front matter 的 `scope.allow/deny` + L0/L1/L2 分级 |
+| Session Lifecycle | 怎么接手、怎么收尾 | `{{HARNESS_DIR}}/README.md` 的接手/收尾步骤 + 计划状态机 |
+
+## 3. 落地矩阵
+
+| 资产 | 类别 | 入口 |
+| --- | --- | --- |
+| 根/嵌套 `AGENTS.md`、`{{REFERENCES_DIR}}/` | 前馈指令 | 直接阅读；`make check` 校验预算与引用 |
+| `{{DOCS_DIR}}/` 文档索引与事实 | 前馈指令 | `{{DOCS_DIR}}/README.md` 唯一索引 |
+| `make check` / `make verify-static` | 静态传感器 | 文档链接/围栏/索引/预算/指令/计划/证据 |
+| `{{HARNESS_DIR}}/evidence/*.json` + `make verify-claim` | 证据传感器 | 三值判定（PASS/FAIL/UNVERIFIED） |
+| 计划 front matter + `make plan` | 状态传感器 | 唯一 active、验收、范围、未提交改动 |
+| CI / pre-push（若启用） | 自动化传感器 | `make verify-static` |
+
+## 4. 证据政策
+
+- 证据是**摘要**（1–3KB JSON）：命令、环境、计数、commit、verdict；原始产物不入库。
+- 无证据的“已验证”按未验证处理；换机器无法复核的产物（截图/构建目录）标 UNVERIFIED。
+- 三类判定：PASS（可复跑通过）/ FAIL（有反证）/ UNVERIFIED（证据不足，不算通过）。
+- 证据不防伪；高风险改动仍走独立复核与人工体验。
+
+## 5. 采用与升级
+
+- 模板版本与目录见 `{{HARNESS_DIR}}/../`（kit 源与采用指南由引入方保存）。
+- 升级 profile 时只增补文件，不回写已改过的项目规则；升级后重跑 `make check` / `make verify-static`。
+
+## 6. 运行手册
+
+```bash
+make check            # 静态门禁
+make verify-static    # 静态 + 证据校验
+make verify-claim     # 证据三值判定
+make plan TOPIC=x     # 新建计划
+{{TEST_COMMAND}}      # 项目测试
+make release-check    # 发布前 strict（strict profile）
+make doctor           # 环境自检（strict profile）
+```
+
+## 7. 局限
+
+- 静态门禁不证明行为正确；动态层依赖项目自己的测试命令与运行环境。
+- 证据可伪造；三值判定提高说谎成本，不提供密码学保证。
+- AGENTS 有 token 预算，规则增长应优先放嵌套 `AGENTS.md` 或动作卡，而不是继续堆根文件。

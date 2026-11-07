@@ -1,0 +1,195 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "harness config (target project)",
+  "type": "object",
+  "required": [
+    "kitVersion",
+    "project",
+    "paths",
+    "commands",
+    "claims"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "kitVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "name",
+        "language"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "required": [
+        "docs",
+        "references",
+        "harness",
+        "plans",
+        "evidence",
+        "tools"
+      ],
+      "properties": {
+        "docs": {
+          "type": "string"
+        },
+        "references": {
+          "type": "string"
+        },
+        "harness": {
+          "type": "string"
+        },
+        "plans": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "string"
+        },
+        "reviews": {
+          "type": "string"
+        },
+        "tools": {
+          "type": "string"
+        },
+        "rootDocs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "instructions": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string"
+        },
+        "nested": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nestedMaxBytes": {
+          "type": "integer",
+          "minimum": 1024
+        },
+        "budgets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "sensitivePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "docs": {
+      "type": "object",
+      "properties": {
+        "publicWhitelist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "publicBudget": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rootMarkdownAllowed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "required": [
+        "test"
+      ],
+      "properties": {
+        "check": {
+          "type": "string"
+        },
+        "verify": {
+          "type": "string"
+        },
+        "test": {
+          "type": "string"
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "type": {
+            "enum": [
+              "test-count",
+              "static"
+            ]
+          },
+          "baseline": {
+            "type": "string"
+          },
+          "floor": {
+            "type": "string"
+          },
+          "expectedSkipped": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "requireArtifact": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "adapters": {
+      "type": "object"
+    }
+  }
+}

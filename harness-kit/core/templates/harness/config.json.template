@@ -1,0 +1,77 @@
+{
+  "kitVersion": "{{KIT_VERSION}}",
+  "project": {
+    "name": "{{PROJECT_NAME}}",
+    "language": "{{PROJECT_LANGUAGE}}"
+  },
+  "paths": {
+    "docs": "{{DOCS_DIR}}",
+    "references": "{{REFERENCES_DIR}}",
+    "harness": "{{HARNESS_DIR}}",
+    "plans": "{{HARNESS_DIR}}/plans",
+    "evidence": "{{HARNESS_DIR}}/evidence",
+    "reviews": "{{HARNESS_DIR}}/reviews",
+    "tools": "tools",
+    "rootDocs": ["{{ROOT_AGENTS}}"]
+  },
+  "instructions": {
+    "root": "{{ROOT_AGENTS}}",
+    "nested": ["{{DOCS_DIR}}/AGENTS.md", "{{HARNESS_DIR}}/AGENTS.md"],
+    "nestedMaxBytes": 8192,
+    "budgets": {
+      "{{ROOT_AGENTS}}": 1200,
+      "{{REFERENCES_DIR}}/contracts.md": 700,
+      "{{REFERENCES_DIR}}/verification.md": 700,
+      "{{REFERENCES_DIR}}/workflow.md": 700
+    },
+    "sensitivePatterns": ["/Users/", "sk-"]
+  },
+  "docs": {
+    "publicWhitelist": [
+      "README.md",
+      "{{ROOT_AGENTS}}",
+      "{{DOCS_DIR}}/README.md",
+      "{{DOCS_DIR}}/AGENTS.md",
+      "{{DOCS_DIR}}/harness-scorecard.md"
+    ],
+    "publicBudget": 12,
+    "rootMarkdownAllowed": [
+      "README.md",
+      "{{ROOT_AGENTS}}",
+      "HARNESS.md",
+      "CONTRIBUTING.md",
+      "CLAUDE.md"
+    ]
+  },
+  "commands": {
+    "check": "{{CHECK_COMMAND}}",
+    "verify": "{{VERIFY_COMMAND}}",
+    "test": "{{TEST_COMMAND}}"
+  },
+  "claims": [
+    {
+      "name": "tests-pass",
+      "type": "test-count",
+      "baseline": "{{HARNESS_DIR}}/test-baseline.json",
+      "floor": "unit.floor",
+      "expectedSkipped": "unit.expectedSkipped",
+      "requireArtifact": false,
+      "command": "{{TEST_COMMAND}}"
+    },
+    {
+      "name": "docs-pass",
+      "type": "static",
+      "command": "python3 tools/check_docs.py"
+    }
+  ],
+  "freshness": {
+    "tests-pass": ["**/*.py", "**/*.swift", "**/*.ts", "tests/**"],
+    "docs-pass": ["{{DOCS_DIR}}/**", "{{REFERENCES_DIR}}/**", "{{ROOT_AGENTS}}", "{{HARNESS_DIR}}/**"]
+  },
+  "adapters": {
+    "claudeCode": {
+      "skillsSource": ".dsh/skills",
+      "skillsTarget": ".claude/skills"
+    }
+  }
+}

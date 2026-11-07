@@ -1,0 +1,14 @@
+{
+  "githooks": [
+    { "src": "adapters/githooks/pre-push", "dst": ".githooks/pre-push", "render": false, "executable": true, "onConflict": "fail" }
+  ],
+  "ci": [
+    { "src": "adapters/ci/verify.yml.template", "dst": ".github/workflows/verify.yml", "render": true, "onConflict": "fail" }
+  ],
+  "dsh": [],
+  "claude-code": [
+    { "src": "adapters/claude-code/CLAUDE.md.template", "dst": "CLAUDE.md", "render": true, "onConflict": "skip" },
+    { "src": "adapters/claude-code/settings.hooks.example.json", "dst": ".claude/settings.hooks.example.json", "render": false, "onConflict": "skip" },
+    { "src": "adapters/claude-code/agents/red-team.md", "dst": ".claude/agents/red-team.md", "render": true, "onConflict": "skip" }
+  ]
+}

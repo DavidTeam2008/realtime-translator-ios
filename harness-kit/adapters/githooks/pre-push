@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# harness-kit · pre-push：推送前跑本地静态门禁。
+# 安装：git config core.hooksPath .githooks（并 chmod +x .githooks/pre-push）
+# 临时跳过：SKIP_HARNESS_HOOK=1 git push
+set -u
+
+if [ "${SKIP_HARNESS_HOOK:-0}" = "1" ]; then
+    echo "[pre-push] SKIP_HARNESS_HOOK=1，跳过静态门禁"
+    exit 0
+fi
+
+if ! command -v make >/dev/null 2>&1; then
+    echo "[pre-push] 未找到 make，跳过静态门禁（建议安装 make 后重试）" >&2
+    exit 0
+fi
+
+echo "[pre-push] make verify-static"
+if make verify-static; then
+    echo "[pre-push] 静态门禁通过"
+else
+    echo "[pre-push] 静态门禁失败：修复后重试，或 SKIP_HARNESS_HOOK=1 git push 临时跳过" >&2
+    exit 1
+fi

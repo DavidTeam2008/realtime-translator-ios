@@ -1,0 +1,34 @@
+# 文档索引
+
+> 本页是 `{{DOCS_DIR}}/` 的唯一索引：新增文档必须登记，否则静态门禁失败。
+> 事实以代码、测试与证据为准；文档与代码冲突时以代码为准并顺手修正文档。
+> 最后更新：{{YEAR}}。
+
+## 先读哪几篇
+
+| 你的目的 | 阅读顺序 |
+| --- | --- |
+| 刚接手项目 | [`../{{ROOT_AGENTS}}`](../{{ROOT_AGENTS}}) → 本页 → [`AGENTS.md`](AGENTS.md) → [`../{{HARNESS_DIR}}/README.md`](../{{HARNESS_DIR}}/README.md) |
+| 查规则与边界 | [`../{{REFERENCES_DIR}}/contracts.md`](../{{REFERENCES_DIR}}/contracts.md) |
+| 查验证与命令 | [`../{{REFERENCES_DIR}}/verification.md`](../{{REFERENCES_DIR}}/verification.md) |
+| 查分级 / 计划 / 红队 | [`../{{REFERENCES_DIR}}/workflow.md`](../{{REFERENCES_DIR}}/workflow.md) |
+
+## 当前文档
+
+| 文档 | 内容 | 维护要求 |
+| --- | --- | --- |
+| [`AGENTS.md`](AGENTS.md) | 本目录增量规则：新增/登记/链接/历史口径 | 规则变化时同步 |
+| [`../{{ROOT_AGENTS}}`](../{{ROOT_AGENTS}}) | 根指令：路由、铁律、分级与完成协议 | 铁律变化时同步 |
+| [`../{{HARNESS_DIR}}/README.md`](../{{HARNESS_DIR}}/README.md) | 计划、证据与门禁的运行说明 | 流程变化时同步 |
+
+## 证据与审查
+
+- 计划与证据的存放约定见 [`../{{HARNESS_DIR}}/AGENTS.md`](../{{HARNESS_DIR}}/AGENTS.md)；证据目录是否启用取决于所选 profile。
+- 红队 / 独立审查报告按 [`../{{REFERENCES_DIR}}/workflow.md`](../{{REFERENCES_DIR}}/workflow.md) 输出。
+
+## 维护约定
+
+- 新增 `{{DOCS_DIR}}/*.md` 必须登记到本页，否则 `{{CHECK_COMMAND}}` 失败。
+- 只写事实与理由；规则放根 `AGENTS.md` 与 `{{REFERENCES_DIR}}/`，不在 docs 复制。
+- 链接一律用相对路径；代码围栏必须成对闭合。
+- 历史 / 案例类文档保留当时口径；结论变化时新增带日期段落，不改写历史数字。

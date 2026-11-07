@@ -1,0 +1,17 @@
+# CLAUDE.md
+
+> 本文件是 Claude Code 的入口，只做转发：项目规则与路由以 [`AGENTS.md`](AGENTS.md) 为准，不在此复制。
+> 由 harness-kit {{KIT_VERSION}} 渲染；最后更新：{{YEAR}}。
+
+## 必读
+
+1. [`AGENTS.md`](AGENTS.md)：根指令、铁律、L0/L1/L2 与完成协议。
+2. [`{{REFERENCES_DIR}}/verification.md`]({{REFERENCES_DIR}}/verification.md)：验证矩阵与命令。
+3. [`{{REFERENCES_DIR}}/workflow.md`]({{REFERENCES_DIR}}/workflow.md)：计划、红队与停止规则。
+
+## 工作方式
+
+- 完成声明前按 `{{REFERENCES_DIR}}/verification.md` 选择验证；未运行或环境不可用时写“未验证”。
+- 高风险 L2 走只读独立复核（见 `.claude/agents/red-team.md`）。
+- 不写本机绝对路径、设备 ID、令牌与密钥；不清理未声明的未提交改动。
+- 门禁命令：`{{CHECK_COMMAND}}`（静态）、`{{VERIFY_COMMAND}}`（验证）、`{{TEST_COMMAND}}`（测试）。

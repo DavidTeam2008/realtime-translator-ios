@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "{{YEAR}}0101T000000Z-tests-pass",
+  "claim": "tests-pass",
+  "createdAt": "{{YEAR}}-01-01T00:00:00Z",
+  "git": {
+    "commit": "0000000",
+    "dirty": false
+  },
+  "command": "{{TEST_COMMAND}}",
+  "environment": {
+    "project": "{{PROJECT_NAME}}",
+    "toolchain": "{{PROJECT_LANGUAGE}}",
+    "os": "example"
+  },
+  "result": {
+    "status": "UNKNOWN",
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "durationSec": 0
+  },
+  "verdict": "UNVERIFIED",
+  "verifier": "example"
+}

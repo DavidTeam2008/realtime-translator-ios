@@ -1,0 +1,445 @@
+#!/usr/bin/env python3
+"""harness-init: scaffold a project-agnostic harness from harness-kit profiles.
+
+Usage:
+    python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
+        [--name MyApp] [--language auto|python|swift|node|go|other] \
+        [--test-command "make test"] [--adapters dsh,claude-code,ci,githooks] \
+        [--dry-run] [--force] [--no-check] [--backup-dir PATH] [--root KIT_ROOT]
+
+Contract: see harness-kit/SPEC.md §7/§8. Standard library only; no network.
+Exit codes: 0 ok; 1 usage/config/conflict; otherwise the exit code of the first
+post-init check command (so a failing `make check` is visible to callers).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+DEFAULT_KIT_ROOT = Path(__file__).resolve().parent.parent
+PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
+BACKUP_DIRNAME = ".harness-init-backup"
+TEST_COMMAND_SUGGESTIONS = {
+    "python": "python3 -m unittest discover -s tests -q",
+    "node": "npm test",
+    "go": "go test ./...",
+    "swift": "swift test",
+    "other": "make test",
+}
+
+
+class InitError(Exception):
+    """User-facing failure (exit 1)."""
+
+
+def load_json(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise InitError(f"cannot read {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise InitError(f"invalid JSON in {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise InitError(f"{path} must contain a JSON object")
+    return data
+
+
+def kit_version(kit_root: Path) -> str:
+    version_file = kit_root / "VERSION"
+    try:
+        version = version_file.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise InitError(f"cannot read {version_file}: {exc}") from exc
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        raise InitError(f"invalid VERSION: {version!r}")
+    return version
+
+
+def load_profile(kit_root: Path, name: str) -> dict:
+    path = kit_root / "profiles" / f"{name}.json"
+    profile = load_json(path)
+    inherited = profile.get("extends")
+    if not inherited:
+        return profile
+    parent = load_profile(kit_root, str(inherited))
+    merged_files: dict[str, dict] = {}
+    for item in parent.get("files") or []:
+        merged_files[str(item.get("dst"))] = item
+    for item in profile.get("files") or []:
+        merged_files[str(item.get("dst"))] = item
+    merged = dict(parent)
+    merged.update(profile)
+    merged["files"] = list(merged_files.values())
+    return merged
+
+
+def load_adapter_files(kit_root: Path, adapters: list[str]) -> list[dict]:
+    manifest_path = kit_root / "adapters" / "manifest.json"
+    manifest = load_json(manifest_path)
+    files: list[dict] = []
+    for adapter in adapters:
+        if adapter not in manifest:
+            raise InitError(f"unknown adapter {adapter!r} (known: {', '.join(sorted(manifest))})")
+        if not isinstance(manifest[adapter], list):
+            raise InitError(f"adapters/manifest.json entry {adapter!r} must be a list")
+        files.extend(manifest[adapter])
+    return files
+
+
+def detect_language(target: Path) -> str:
+    if (target / "Package.swift").exists():
+        return "swift"
+    if (target / "package.json").exists():
+        return "node"
+    if (target / "go.mod").exists():
+        return "go"
+    if any((target / name).exists() for name in ("pyproject.toml", "setup.py", "requirements.txt")):
+        return "python"
+    if any(target.glob("*.py")):
+        return "python"
+    return "other"
+
+
+def detect_branch(target: Path) -> str:
+    proc = subprocess.run(
+        ["git", "-C", str(target), "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    branch = proc.stdout.strip()
+    return branch if proc.returncode == 0 and branch and branch != "HEAD" else "main"
+
+
+def safe_rel(value: str, *, field: str) -> str:
+    path = Path(str(value))
+    if path.is_absolute() or ".." in path.parts:
+        raise InitError(f"{field} must be a relative path without '..': {value!r}")
+    return path.as_posix()
+
+
+def substitutions(
+    project_name: str,
+    language: str,
+    test_command: str,
+    kit_ver: str,
+    branch: str,
+) -> dict[str, str]:
+    return {
+        "PROJECT_NAME": project_name,
+        "PROJECT_LANGUAGE": language,
+        "TEST_COMMAND": test_command,
+        "CHECK_COMMAND": "make check",
+        "VERIFY_COMMAND": "make verify-static",
+        "KIT_VERSION": kit_ver,
+        "YEAR": str(datetime.now(timezone.utc).year),
+        "DOCS_DIR": "docs",
+        "REFERENCES_DIR": "references",
+        "HARNESS_DIR": "harness",
+        "ROOT_AGENTS": "AGENTS.md",
+        "DEFAULT_BRANCH": branch,
+    }
+
+
+def render(text: str, subs: dict[str, str], *, src: Path) -> str:
+    def replace(match: re.Match[str]) -> str:
+        key = match.group(1)
+        if key not in subs:
+            raise InitError(f"unknown placeholder {{{{ {key} }}}} in {src}")
+        return subs[key]
+
+    rendered = PLACEHOLDER_RE.sub(replace, text)
+    if "{{" in rendered:
+        raise InitError(f"{src} still contains an unresolved placeholder after rendering")
+    return rendered
+
+
+def plan_makefile(profile: dict, target: Path) -> tuple[str, str]:
+    """Return (src_rel, dst_rel). Existing Makefile -> Makefile.harness (never overwrite)."""
+    src = safe_rel(str(profile.get("makefile") or ""), field="profile.makefile")
+    if not src:
+        raise InitError("profile is missing 'makefile'")
+    dst = "Makefile.harness" if (target / "Makefile").exists() else "Makefile"
+    return src, dst
+
+
+def collect_actions(
+    kit_root: Path,
+    target: Path,
+    profile: dict,
+    adapter_files: list[dict],
+    *,
+    force: bool,
+) -> list[dict]:
+    actions: list[dict] = []
+
+    def add(src_rel: str, dst_rel: str, *, render_it: bool, on_conflict: str,
+            executable: bool = False, append: bool = False) -> None:
+        src = (kit_root / safe_rel(src_rel, field="src")).resolve()
+        if not src.is_file():
+            raise InitError(f"profile references a missing file: {src_rel}")
+        dst = target / safe_rel(dst_rel, field="dst")
+        actions.append({
+            "src": src,
+            "dst": dst,
+            "render": render_it,
+            "onConflict": on_conflict,
+            "executable": executable,
+            "append": append,
+        })
+
+    for item in profile.get("files") or []:
+        if not isinstance(item, dict):
+            raise InitError(f"profile file entry must be an object: {item!r}")
+        add(
+            str(item.get("src") or ""),
+            str(item.get("dst") or ""),
+            render_it=bool(item.get("render")),
+            on_conflict=str(item.get("onConflict") or "fail"),
+            executable=bool(item.get("executable")),
+            append=bool(item.get("append")),
+        )
+
+    make_src, make_dst = plan_makefile(profile, target)
+    add(make_src, make_dst, render_it=True, on_conflict="fail")
+
+    for item in adapter_files:
+        add(
+            str(item.get("src") or ""),
+            str(item.get("dst") or ""),
+            render_it=bool(item.get("render")),
+            on_conflict=str(item.get("onConflict") or "fail"),
+            executable=bool(item.get("executable")),
+        )
+
+    if not actions:
+        raise InitError("profile produced no files")
+    return actions
+
+
+def append_block(dst: Path, block: str) -> None:
+    marker = "# harness-kit"
+    existing = dst.read_text(encoding="utf-8") if dst.exists() else ""
+    if marker in existing:
+        return
+    prefix = "" if not existing or existing.endswith("\n") else "\n"
+    dst.write_text(existing + prefix + "\n" + block.rstrip() + "\n", encoding="utf-8")
+
+
+def backup_file(path: Path, target: Path, backup_root: Path) -> None:
+    rel = path.relative_to(target)
+    dest = backup_root / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, dest)
+
+
+def describe(dst: Path, target: Path) -> str:
+    try:
+        return dst.relative_to(target).as_posix()
+    except ValueError:
+        return str(dst)
+
+
+def execute(
+    actions: list[dict],
+    target: Path,
+    subs: dict[str, str],
+    *,
+    force: bool,
+    dry_run: bool,
+    backup_root: Path,
+) -> tuple[list[str], list[str], list[str]]:
+    created: list[str] = []
+    skipped: list[str] = []
+    conflicts: list[str] = []
+
+    for action in actions:
+        dst: Path = action["dst"]
+        label = describe(dst, target)
+        src: Path = action["src"]
+        text = src.read_text(encoding="utf-8", errors="replace")
+
+        if action["append"]:
+            if dry_run:
+                created.append(label)
+                print(f"APPEND  {label}")
+                continue
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            append_block(dst, text)
+            created.append(label)
+            continue
+
+        rendered = render(text, subs, src=src) if action["render"] else text
+        if dst.exists():
+            if action["onConflict"] == "skip":
+                skipped.append(label)
+                print(f"SKIP    {label}  (exists, onConflict=skip)")
+                continue
+            if not force:
+                conflicts.append(label)
+                print(f"CONFLICT {label}  (exists; re-run with --force to back up and overwrite)")
+                continue
+            if not dry_run:
+                backup_file(dst, target, backup_root)
+            print(f"BACKUP  {label}  -> {backup_root.relative_to(target).as_posix()}/{label}")
+        if dry_run:
+            created.append(label)
+            mode = "RENDER" if action["render"] else "COPY"
+            suffix = " (executable)" if action["executable"] else ""
+            print(f"{mode:<6} {label}{suffix}")
+            continue
+
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(rendered, encoding="utf-8")
+        if action["executable"]:
+            dst.chmod(0o755)
+        created.append(label)
+
+    return created, skipped, conflicts
+
+
+def run_check(
+    target: Path,
+    *,
+    makefile_used: str,
+    no_check: bool,
+    dry_run: bool,
+) -> int:
+    if no_check or dry_run:
+        return 0
+    if not shutil.which("make"):
+        print("WARN: make not found; skipping post-init check (run the profile check manually)")
+        return 0
+    if makefile_used == "Makefile.harness":
+        cmd = ["make", "-f", "Makefile.harness", "check"]
+    else:
+        cmd = ["make", "check"]
+    print()
+    print("== post-init check: " + " ".join(cmd) + " ==")
+    proc = subprocess.run(cmd, cwd=str(target), text=True)
+    if proc.returncode == 0:
+        print("== post-init check: PASS ==")
+    else:
+        print(f"== post-init check: FAIL (exit {proc.returncode}); files were written, fix the failure above ==")
+    return proc.returncode
+
+
+def parse_adapters(value: str | None, profile: dict) -> list[str]:
+    if value is None:
+        raw = profile.get("defaultAdapters") or []
+        return [str(item) for item in raw]
+    if value.strip().lower() in ("", "none"):
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def write_summary(target: Path, profile_name: str, created: list[str], skipped: list[str]) -> None:
+    print()
+    print(f"harness-kit init: profile={profile_name} target={target}")
+    print(f"  created/updated: {len(created)} file(s)")
+    print(f"  skipped (existing): {len(skipped)} file(s)")
+    print()
+    print("Next steps:")
+    print("  1. Review harness/config.json (commands.test, claims, freshness, budgets).")
+    print("  2. Run `make check` / `make verify-static` and fix the failing gate.")
+    print("  3. Read HARNESS.md (standard/strict) or docs/README.md, then AGENTS.md.")
+    print("  4. Commit the scaffold; keep plans/evidence in the harness/ workspace.")
+    print("  5. Optional: install git hooks (`git config core.hooksPath .githooks`).")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Scaffold a project-agnostic harness from harness-kit profiles.",
+    )
+    parser.add_argument("--profile", required=True, help="minimal | standard | strict")
+    parser.add_argument("--target", required=True, help="existing target project directory")
+    parser.add_argument("--name", help="project name (default: target directory name)")
+    parser.add_argument(
+        "--language",
+        default="auto",
+        choices=("auto", "python", "swift", "node", "go", "other"),
+    )
+    parser.add_argument("--test-command", help="command that runs the project test suite")
+    parser.add_argument("--adapters", help="comma-separated adapters (or 'none'); default from profile")
+    parser.add_argument("--dry-run", action="store_true", help="print the plan; write nothing")
+    parser.add_argument("--force", action="store_true", help="back up and overwrite conflicting files")
+    parser.add_argument("--no-check", action="store_true", help="skip the post-init check")
+    parser.add_argument("--backup-dir", help=f"backup directory (default: <target>/{BACKUP_DIRNAME}/<UTC>)")
+    parser.add_argument("--root", default=str(DEFAULT_KIT_ROOT), help="kit root (default: script parent parent)")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    kit_root = Path(args.root).expanduser().resolve()
+    target = Path(args.target).expanduser().resolve()
+    if not target.is_dir():
+        print(f"ERROR: target directory does not exist: {target}", file=sys.stderr)
+        return 1
+
+    try:
+        version = kit_version(kit_root)
+        profile = load_profile(kit_root, args.profile)
+        adapters = parse_adapters(args.adapters, profile)
+        adapter_files = load_adapter_files(kit_root, adapters)
+        language = detect_language(target) if args.language == "auto" else args.language
+        project_name = args.name or target.name
+        test_command = args.test_command or TEST_COMMAND_SUGGESTIONS.get(
+            language, TEST_COMMAND_SUGGESTIONS["other"]
+        )
+        if not args.test_command:
+            print(
+                f"NOTE: test command was inferred for language={language!r}: "
+                f"{test_command!r} (edit harness/config.json if wrong)"
+            )
+        subs = substitutions(project_name, language, test_command, version, detect_branch(target))
+        actions = collect_actions(kit_root, target, profile, adapter_files, force=args.force)
+
+        print(f"harness-kit {version} · profile={args.profile} · target={target}")
+        print(f"project={project_name} language={language} test={test_command}")
+        print(f"adapters={adapters or 'none'}")
+        print()
+        if not args.force and not args.dry_run:
+            existing = [describe(action["dst"], target) for action in actions
+                        if action["dst"].exists() and action["onConflict"] != "skip" and not action["append"]]
+            if existing:
+                for label in existing:
+                    print(f"CONFLICT {label}  (exists; re-run with --force to back up and overwrite)")
+                print()
+                print("ERROR: refusing to overwrite existing files (use --force to back up first)", file=sys.stderr)
+                return 1
+
+        backup_root = Path(args.backup_dir).expanduser() if args.backup_dir else (
+            target / BACKUP_DIRNAME / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        )
+        created, skipped, _conflicts = execute(
+            actions,
+            target,
+            subs,
+            force=args.force,
+            dry_run=args.dry_run,
+            backup_root=backup_root,
+        )
+        makefile_used = "Makefile.harness" if (target / "Makefile.harness").exists() else "Makefile"
+        if args.dry_run:
+            print()
+            print(f"dry-run: {len(created)} file(s) would be written; nothing changed")
+            return 0
+        write_summary(target, args.profile, created, skipped)
+        if "Makefile.harness" in created:
+            print()
+            print("NOTE: target already had a Makefile. Add this line to it:")
+            print("  include Makefile.harness")
+        return run_check(target, makefile_used=makefile_used, no_check=args.no_check, dry_run=args.dry_run)
+    except InitError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,23 @@
+{
+  "name": "minimal",
+  "description": "AGENTS 指令 + 文档/指令静态门禁；10 分钟接入，不需要测试框架。",
+  "extends": null,
+  "files": [
+    { "src": "core/templates/AGENTS.md.template", "dst": "AGENTS.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/docs/README.md.template", "dst": "docs/README.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/docs/AGENTS.md.template", "dst": "docs/AGENTS.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/references/contracts.md.template", "dst": "references/contracts.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/references/verification.md.template", "dst": "references/verification.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/references/workflow.md.template", "dst": "references/workflow.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/harness/README.md.template", "dst": "harness/README.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/harness/AGENTS.md.template", "dst": "harness/AGENTS.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/harness/config.json.template", "dst": "harness/config.json", "render": true, "onConflict": "fail" },
+    { "src": "core/tools/token_estimate.py", "dst": "tools/token_estimate.py", "render": false, "onConflict": "fail" },
+    { "src": "core/tools/check_docs.py", "dst": "tools/check_docs.py", "render": false, "onConflict": "fail" },
+    { "src": "core/tools/check_agents.py", "dst": "tools/check_agents.py", "render": false, "onConflict": "fail" },
+    { "src": "core/templates/gitignore.append", "dst": ".gitignore", "render": false, "append": true, "onConflict": "append" }
+  ],
+  "makefile": "core/templates/makefiles/Makefile.minimal.template",
+  "makeTargets": ["check", "verify-static"],
+  "defaultAdapters": []
+}

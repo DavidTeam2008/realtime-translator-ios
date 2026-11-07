@@ -14,6 +14,7 @@
 - **真实产品，不是 demo**：面对面、同声传译、会议记录三个模块，任务历史、总结、导出都是可用的；全部在设备端完成，无后端、无 API Key、不上传音频。
 - **端侧隐私**：听写/翻译依赖系统端侧能力，首次需联网下载系统资源；文本只在本机保存。
 - **Harness 可审计**：`AGENTS` 指令树、静态门禁、证据链、PASS/FAIL/UNVERIFIED 三值判定都固化进仓库——"已验证"不是一句自述，而是可被脚本否证的声明（见 [`HARNESS.md`](HARNESS.md)）。
+- **可复制**：[`harness-kit/`](harness-kit/README.md) 把指令/门禁/证据抽成项目无关模板（minimal/standard/strict + `harness-init` + 三档端到端验收），同一套机制可在其他仓库 10 分钟接入。
 
 ## 功能
 
@@ -36,12 +37,12 @@
 ```bash
 git clone <repo-url> && cd realtimeTranslatorOptimize
 make check          # 6 组静态门禁（docs/架构/计数/harness/计划/adapters），约 1s
-make verify-static  # 再加证据 schema + 91 个脚本单测 + 语法检查，约 5–15s
+make verify-static  # 再加证据 schema + 91 个脚本单测 + kit 端到端，约 15–25s
 ```
 
 只依赖 `python3`、`make`、`git`，不需要 Xcode——因此这里能验证规则/结构/证据/代码边界，但**不能运行 App、模拟器或真机**。用 `git clone --depth 1` 浅克隆时先 `git fetch --unshallow`（脚本单测会读取提交历史）。
 
-想把整套 harness 用到自己项目：见 [`HARNESS.md`](HARNESS.md) 的「10 步采用指南」。
+想把整套 harness 用到自己项目：见 [`harness-kit/`](harness-kit/README.md)（`harness-init` 10 分钟接入）与 [`HARNESS.md`](HARNESS.md) 的「10 步采用指南」。
 
 ## 完整 iOS 环境
 
@@ -136,12 +137,13 @@ It also serves as an **auditable Harness Engineering case study** for AI coding 
 - **Guides**: an `AGENTS.md` instruction tree, `references/` rule details, and project-level skills.
 - **Sensors**: fast static gates (docs / architecture / test-baseline / plan / evidence), unit & UI tests, real-device verification, and a three-valued claim verifier.
 - **Evidence**: completion claims must map to evidence JSON; `make verify-claim` returns PASS / FAIL / UNVERIFIED. Claims without evidence count as unverified.
+- **Reusable kit**: [`harness-kit/`](harness-kit/README.md) extracts the same guides / sensors / evidence into project-agnostic profiles (minimal / standard / strict) with a `harness-init` scaffolder and end-to-end acceptance tests.
 
 No Xcode needed to check the repository:
 
 ```bash
 make check          # 6 static gate groups, ~1s
-make verify-static  # + evidence schema + 91 script tests, ~5-15s (use a full clone)
+make verify-static  # + evidence schema + 91 script tests + 66 kit e2e tests, ~15-25s (use a full clone)
 ```
 
 Full iOS build requires macOS + Xcode 26.4+ and an iPhone running iOS 26.4+; see [`CONTRIBUTING.md`](CONTRIBUTING.md). Start with [`HARNESS.md`](HARNESS.md) for the harness map, [`docs/02-architecture.md`](docs/02-architecture.md) for the architecture, and [`docs/04-roadmap.md`](docs/04-roadmap.md) for the roadmap.

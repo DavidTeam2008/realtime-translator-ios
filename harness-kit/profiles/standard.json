@@ -1,0 +1,20 @@
+{
+  "name": "standard",
+  "description": "在 minimal 上增加跨会话计划、三值证据、pre-push 与 CI；适合真实仓库。",
+  "extends": "minimal",
+  "files": [
+    { "src": "core/templates/CONTRIBUTING.md.template", "dst": "CONTRIBUTING.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/HARNESS.md.template", "dst": "HARNESS.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/harness/plans/_template.md", "dst": "harness/plans/_template.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/harness/evidence/README.md.template", "dst": "harness/evidence/README.md", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/harness/evidence/schema.json", "dst": "harness/evidence/schema.json", "render": false, "onConflict": "fail" },
+    { "src": "core/templates/harness/evidence/TEMPLATE.json", "dst": "harness/evidence/TEMPLATE.json", "render": true, "onConflict": "fail" },
+    { "src": "core/templates/harness/test-baseline.json.template", "dst": "harness/test-baseline.json", "render": true, "onConflict": "fail" },
+    { "src": "core/tools/check_plan.py", "dst": "tools/check_plan.py", "render": false, "onConflict": "fail" },
+    { "src": "core/tools/evidence.py", "dst": "tools/evidence.py", "render": false, "onConflict": "fail" },
+    { "src": "core/tools/verify_claim.py", "dst": "tools/verify_claim.py", "render": false, "onConflict": "fail" }
+  ],
+  "makefile": "core/templates/makefiles/Makefile.standard.template",
+  "makeTargets": ["check", "verify-static", "verify-claim", "plan"],
+  "defaultAdapters": ["githooks", "ci"]
+}
