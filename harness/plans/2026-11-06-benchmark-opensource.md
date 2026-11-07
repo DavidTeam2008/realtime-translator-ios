@@ -557,12 +557,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `harness-kit/` / Phase 5 试点回写与记录
-- `harness/reviews/2026-11-07-kit-pilot.md` / Phase 5 试点回写与记录
-- `HARNESS.md` / Phase 5 试点回写与记录
-- `README.md` / Phase 5 试点回写与记录
-- `docs/harness-scorecard.md` / Phase 5 试点回写与记录
-- `harness/plans/2026-11-06-benchmark-opensource.md` / Phase 5 试点回写与记录
+- 无未提交改动（Phase 5 试点回写与文档修正已提交）。
 
 ## 下一步
 
