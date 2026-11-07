@@ -480,27 +480,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-> Phase 1 第二批（1.4/1.6/1.8 + 1.9 待补）待提交；第一批已提交 `b88910b`。
-
-- `README.md` / 截图与案例入口 / 可提交
-- `CONTRIBUTING.md` / 启动案例链接与设备参数说明 / 可提交
-- `HARNESS.md` / 目录更名与审计入口 / 可提交
-- `docs/` / 新索引、case、历史文档删除、链接同步、截图 / 可提交
-- `references/` / 案例与目录路径同步 / 可提交
-- `harness/` / 目录更名、瘦身、README、证据/计划/工具路径 / 可提交
-- `.apm/` / 重命名源（git 记录）/ 可提交
-- `.dsh/` / skills 路径同步 / 可提交
-- `tools/` / 门禁与证据路径同步 / 可提交
-- `Makefile` / 命令入口路径同步 / 可提交
-- `.github/` / CI 路径过滤同步 / 可提交
-- `.gitignore` / 忽略规则更名 / 可提交
-- `AGENTS.md` / 路由路径同名更新 / 可提交
-- `Duiyi/Services/AGENTS.md` / 嵌套路径同步 / 可提交
-- `DuiyiTests/AGENTS.md` / 嵌套路径同步 / 可提交
-- `DuiyiUITests/AGENTS.md` / 嵌套路径同步 / 可提交
-- `DuiyiUITests/SimultaneousFlowTests.swift` / 仅注释路径同步 / 可提交
-- `harness/plans/2026-11-06-benchmark-opensource.md` / 计划记录（本文件）/ 可提交
-- `prototype/` / 已删除（视觉稿由截图替代）/ 可提交
+- 无未提交改动（Phase 1 两批已提交 `b88910b`、`98b8247`；进入 Phase 2 前工作区 clean）。
 
 ## 下一步
 
