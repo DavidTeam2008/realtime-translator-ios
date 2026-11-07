@@ -521,13 +521,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `docs/case-startup-performance.md` / commit 引用回填（邮箱重写后）
-- `harness/evidence/20261105T055610Z-unit-tests-pass.json` / 同上
-- `harness/evidence/20261105T055845Z-ui-tests-pass.json` / 同上
-- `harness/evidence/20261106T053620Z-device-tests-pass.json` / 同上
-- `harness/plans/2026-11-06-benchmark-opensource.md` / 同上 + 计划记录更新（本文件）
-- `harness/plans/_template.md` / 同上
-- `harness/reviews/2026-11-07-harness-reaudit.md` / 同上
+- 无未提交改动（邮箱重写、commit 引用回填与计划记录已提交）。
 
 ## 下一步
 
