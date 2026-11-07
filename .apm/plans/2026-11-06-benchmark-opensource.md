@@ -461,8 +461,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `.apm/plans/2026-11-06-benchmark-opensource.md` / 新增本计划 / 可丢弃
-- `.apm/plans/2026-11-05-harness-engineering.md` / 上游计划置 done 并写交接 / 可丢弃
+- 无未提交改动（Phase 1 开工前工作区 clean）。
 
 ## 下一步
 
