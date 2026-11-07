@@ -477,23 +477,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-> Phase 1 最小批次（1.2/1.3/1.5/1.7/1.10）已完成，以下为待提交范围（含 staged rename/delete）。
-
-- `HANDOFF.md` / 删除并拆分到 CONTRIBUTING + docs/decisions / 可提交
-- `README.md` / 重写为公开入口（含英文概览）/ 可提交
-- `CONTRIBUTING.md`、`LICENSE` / 新增 / 可提交
-- `HARNESS.md` / 更新接手入口 / 可提交
-- `AGENTS.md` / 更新路由与决策源 / 可提交
-- `docs/` / 新索引、decisions、历史文档链接修正 / 可提交
-- `references/` / 去掉 HANDOFF 引用与签名信息 / 可提交
-- `Duiyi/Features/AGENTS.md` / 嵌套 AGENTS 更新 / 可提交
-- `Duiyi/Services/AGENTS.md` / 嵌套 AGENTS 更新 / 可提交
-- `DuiyiTests/AGENTS.md` / 嵌套 AGENTS 更新 / 可提交
-- `DuiyiUITests/AGENTS.md` / 嵌套 AGENTS 更新 / 可提交
-- `.apm/` / 已完成计划与审查归档、脚本设备参数脱敏、问题单文本 / 可提交
-- `tools/` / check-docs 公开文档白名单、plan.py 阅读清单 / 可提交
-- `.github/` / CI 路径过滤同步 / 可提交
-- `Duiyi.xcodeproj/project.pbxproj` / 清除 DEVELOPMENT_TEAM / 可提交
+- 无未提交改动（Phase 1 第一批已提交 `b88910b`；工作区 clean）。
 
 ## 下一步
 
