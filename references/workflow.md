@@ -39,11 +39,11 @@ L1 方案写 5–10 行（目标、改动点、验收）；分级入口由 AGENT
 
 | 信息 | 唯一位置 |
 |---|---|
-| 项目阶段 / 优先级 / 决策 | `HANDOFF.md` §0/§5/§6（决策表 D1–D7） |
+| 项目阶段 / 优先级 / 决策 | `docs/04-roadmap.md` + `docs/decisions.md`（D1–D7） |
 | 进行中任务进度 / 下一步 / 未提交改动 | `.apm/plans/` 的 active 计划（front matter `status`） |
 | 架构 / 问题清单 | `docs/02-architecture.md` / `docs/04-roadmap.md` |
 | 启动优化结论 | `docs/17` / `docs/18` |
 | 问题证据 / 修复记录 / 独立审查 | `.apm/issues/` / `.apm/reviews/` |
 | Agent 规则 | `AGENTS.md` + `references/` |
 
-不作弊：不把“未验证”写成“已验证”；不为变绿改断言或 mock 能力；不跳过 HANDOFF §6 D1–D7 的决策直接实现。
+不作弊：不把“未验证”写成“已验证”；不为变绿改断言或 mock 能力；不跳过 `docs/decisions.md` D1–D7 的决策直接实现。

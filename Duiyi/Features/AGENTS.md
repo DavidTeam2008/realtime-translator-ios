@@ -1,7 +1,7 @@
 # AGENTS.md · Duiyi/Features
 
 > 触发：改 ViewModel / View / 导航入口 / 任务条交互前先读本页。
-> 本页只写 Features 的增量约束；项目规则见根 [`AGENTS.md`](../../AGENTS.md)，依赖理由见 [`references/contracts.md`](../../references/contracts.md)，加模块六步见 [`HANDOFF.md`](../../HANDOFF.md) §4.4。
+> 本页只写 Features 的增量约束；项目规则见根 [`AGENTS.md`](../../AGENTS.md)，依赖理由见 [`references/contracts.md`](../../references/contracts.md)，加模块步骤见 [`docs/02-architecture.md`](../../docs/02-architecture.md)。
 
 ## 1. 依赖与注入
 
@@ -31,7 +31,7 @@
 - 改入口/标识要同步 `DuiyiUITests`；历史返回用 `nav-home`，不要用系统返回键。
 - View 保持薄：复用 `Shared/`（`TaskBar`、`ModuleChrome`、`LanguageChipGrid`）与 `DesignSystem`，不要复制布局常量。
 
-## 6. 新增模块（HANDOFF §4.4 六步）
+## 6. 新增模块（六步）
 
 1. `Domain/FeatureID.swift` 加 case 与 `AppMode` 映射；
 2. `App/AppCoordinator.swift` 的 `FeatureID.route` 加映射；

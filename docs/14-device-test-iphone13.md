@@ -11,7 +11,7 @@
 | --- | --- |
 | Mac | MacBook Pro，macOS 26.6.2 (25G83) |
 | Xcode | 26.4.1 (17E202)，SDK iPhoneOS26.4，Swift 6.0 |
-| 手机 | 菀墨 · iPhone 13 (iPhone14,5)，iOS 26.7 (23H24)，UDID REDACTED_UDID，开发者模式已开 |
+| 手机 | 菀墨 · iPhone 13 (iPhone14,5)，iOS 26.7 (23H24)，UDID <DEVICE_UDID>，开发者模式已开 |
 | App | com.david.Duiyi v1.0 (1)，Debug-iphoneos，包体约 8.3MB（Mac 端 .app） |
 | 签名 | Apple Development 自动签名，Team Provisioning Profile 正常 |
 | DDI | ~/Library/Developer/Xcode/iOS DeviceSupport/iPhone14,5 26.7 (23H24) 已缓存 |

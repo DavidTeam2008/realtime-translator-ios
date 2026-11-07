@@ -9,7 +9,7 @@
 ### 真机
 
 - 设备：iPhone 13 / iOS 26.7 / physical
-- 旧 `idevicescreenshot -u REDACTED_UDID ...` 两次均失败：
+- 旧 `idevicescreenshot -u <DEVICE_UDID> ...` 两次均失败：
   `Could not start screenshotr service: Invalid service`
 - 通过新增的 `apm_screenshot.py` + 可选 `pymobiledevice3` DVT 后端成功抓取真机 PNG：
   `real-wrapper-final.png`，1170×2532（backend=`pymobiledevice3-native`）。

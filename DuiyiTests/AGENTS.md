@@ -1,7 +1,7 @@
 # AGENTS.md · DuiyiTests
 
 > 触发：新增/修改单元测试、调整测试替身或测试计数前先读本页。
-> 本页只写单元测试的增量约束；验证矩阵见 [`references/verification.md`](../references/verification.md)，测试入口与已知坑见 [`HANDOFF.md`](../HANDOFF.md) §3.1。
+> 本页只写单元测试的增量约束；验证矩阵见 [`references/verification.md`](../references/verification.md)，测试入口与真机坑见 [`CONTRIBUTING.md`](../CONTRIBUTING.md)。
 
 ## 1. 框架与写法
 

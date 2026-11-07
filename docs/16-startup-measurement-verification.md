@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| 设备 | iPhone 13「菀墨」`REDACTED_UDID`，iOS 26.7 |
+| 设备 | iPhone 13「菀墨」`<DEVICE_UDID>`，iOS 26.7 |
 | 构建 | Release / iphoneos / arm64，自动签名 |
 | 对照版本 | `4e9dbd2`（优化前，HEAD~2） |
 | 优化版本 | `3e22adb`（当前 HEAD） |

@@ -5,7 +5,7 @@
   "status": "resolved",
   "severity": "medium",
   "environment": {
-    "device": "iPhone 13 / iOS 26.7 (23H24) / physical / REDACTED_UDID",
+    "device": "iPhone 13 / iOS 26.7 (23H24) / physical / <DEVICE_UDID>",
     "xcode": "26.4.1 (17E202)，iOS SDK 26.4 (23E252)",
     "connection": "network only（manualPairing / *.coredevice.local），无 USB",
     "appsInstalledBefore": 4
@@ -56,7 +56,7 @@
     "trap": "变量紧邻中文全角标点时，bash 会把标点当成变量名的一部分",
     "example": "echo \"预热（$WARMUP）\" 在 set -u 下报「WARMUP: 未绑定的变量」",
     "fix": "写成 ${WARMUP}",
-    "note": "本项目文档大量使用全角标点，该坑极易复现；HANDOFF.md 第二节已记录同一陷阱"
+    "note": "本项目文档大量使用全角标点，该坑极易复现；references/verification.md 已记录同一陷阱"
   },
   "recommendedWorkflow": [
     "1) .apm/tools/device-test.sh        # 预热 + 完整真机套件（推荐入口）",

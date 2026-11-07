@@ -1,6 +1,6 @@
 # AGENTS.md · 对译 Duiyi
 
-> 冷启动入口：只定位/约束；事实→`HANDOFF.md`/`docs/`/`references/`；代码与最新验证是事实源；细节读嵌套 `AGENTS.md`，覆盖只写第 7 节。
+> 冷启动入口：只定位/约束；事实→`docs/`/`references/`/`CONTRIBUTING.md`；代码与最新验证是事实源；细节读嵌套 `AGENTS.md`，覆盖只写第 7 节。
 
 ## 0. 团队基线（同步块，勿手改）
 
@@ -24,7 +24,7 @@
 
 ## 3. 阅读路由（按任务读段落）
 
-- 接手：`make resume` → active 计划（`.apm/plans/`）→ `HANDOFF.md` §0–§3。
+- 接手：`make resume` → active 计划（`.apm/plans/`）→ `README.md` / `CONTRIBUTING.md`（环境、签名、已知坑）。
 - 产品/架构/排期：`docs/01`–`04`；验收与排期唯一源 `docs/04-roadmap.md`。
 - 语音/翻译/音频/持久化/导出：`references/contracts.md`、`Duiyi/Services/AGENTS.md`、`Duiyi/Features/AGENTS.md`。
 - 测试/真机/性能：`references/verification.md`、`DuiyiTests/AGENTS.md`、`DuiyiUITests/AGENTS.md`。
@@ -59,10 +59,10 @@
 
 | 覆盖项 | 项目规则 |
 |---|---|
-| 知识库 | `HANDOFF`+`docs/`+`.apm/`；不建 `MEMORY/Wiki/Resources` |
+| 知识库 | `docs/`+`CONTRIBUTING`+`HARNESS`+`.apm/`；不建 `MEMORY/Wiki/Resources` |
 | 测试计数 | 数字只在 `references/verification.md` |
 | 红队 | 仅并发/持久化/发布工程；其他 L2 自检 + 确认 |
 | 计划 | 仅 L2/跨会话，`.apm/plans/`，需 front matter + status |
-| 决策 | 唯一表 `HANDOFF.md` §6 D1–D7；其他只引用 ID |
+| 决策 | 唯一表 `docs/decisions.md`（D1–D7）；其他只引用 ID |
 | CI | 本地静态门禁；macOS 动态测试 Phase 1 起 |
 | 提交语言 | 英文，跟随近 5 条非 merge commit |

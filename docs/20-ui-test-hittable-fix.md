@@ -192,7 +192,7 @@ mobilebuildmcp device test --device-id <DEV>
 ✅ 真机测试通过        exit=0
 ```
 
-> 写这个脚本时还踩了本仓库 `HANDOFF.md` 第二节记录过的坑：变量紧邻中文全角标点时，
+> 写这个脚本时还踩了本仓库 `references/verification.md` 记录过的坑：变量紧邻中文全角标点时，
 > bash 会把标点当成变量名的一部分，`echo "预热（$WARMUP）"` 在 `set -u` 下直接报
 > 「未绑定的变量」。已全部改成 `${WARMUP}`。
 

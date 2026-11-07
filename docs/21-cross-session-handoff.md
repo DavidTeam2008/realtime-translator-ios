@@ -8,7 +8,7 @@
 
 - 计划由**执行任务的 Agent** 维护，不要求人改内容。
 - 人只负责两个口令：开工恢复计划、收工更新并交接。
-- 计划是任务进度的唯一真源；[`HANDOFF.md`](../HANDOFF.md) 只管项目阶段与优先级。
+- 计划是任务进度的唯一真源；[`CONTRIBUTING.md`](../CONTRIBUTING.md) 负责环境与项目阶段入口。
 - 每份计划有 front matter：`status: active | done | blocked | archived`；**同一时间只允许一个 active**，完成后标 `done` 并移入 `.apm/plans/_archive/`。
 - 真源优先级只在 [`README.md`](README.md) 维护；本页不重复声明。
 

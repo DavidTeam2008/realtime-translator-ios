@@ -1,7 +1,7 @@
 # AGENTS.md · Duiyi/Services
 
 > 触发：改 `Speech` / `Audio` / `Translation` / `SpeechSynthesis` / `Persistence` / `Export` / `Summary` / `Permissions` 前先读本页。
-> 本页只写 Services 的增量约束；项目规则见根 [`AGENTS.md`](../../AGENTS.md)，契约细则见 [`references/contracts.md`](../../references/contracts.md)，链路事实见 [`HANDOFF.md`](../../HANDOFF.md) §4 与 [`docs/02-architecture.md`](../../docs/02-architecture.md)。
+> 本页只写 Services 的增量约束；项目规则见根 [`AGENTS.md`](../../AGENTS.md)，契约细则见 [`references/contracts.md`](../../references/contracts.md)，链路事实见 [`docs/02-architecture.md`](../../docs/02-architecture.md)。
 
 ## 1. 语音：单引擎，Gate 未实现
 

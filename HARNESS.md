@@ -1,7 +1,7 @@
 # HARNESS.md · Harness 系统地图（对译 Duiyi）
 
 > 一句话：本项目把"agent 该做什么"（**guides**，前馈）和"仓库怎么否证 agent 的完成声明"（**sensors**，反馈）都固化进仓库；本文是这张地图的运行手册与索引，**不是事实真源**。
-> 真源优先级见 [`docs/README.md`](docs/README.md)；规则入口 [`AGENTS.md`](AGENTS.md)；人读接手 [`HANDOFF.md`](HANDOFF.md)。
+> 真源优先级见 [`docs/README.md`](docs/README.md)；规则入口 [`AGENTS.md`](AGENTS.md)；人读接手 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 > 状态：**Phase 1（2026-11-05）**。Phase 2 行为传感器（P0 对应测试）与 Phase 3 自动审计/指标尚未完成，未做的能力在文中显式标注。
 
 ## 1. 目标与边界
@@ -25,7 +25,7 @@
 **为什么放这里**：
 
 1. **单一真源 + 可恢复**：与仓库一起版本化，换 agent / 换机器只靠仓库就能恢复任务与证据。
-2. **与产品文档分层**：`docs/` 写"当前规范与理由"；`.apm/` 写"某次任务的执行状态、证据与审查"。`HANDOFF.md` 只写项目阶段。
+2. **与产品文档分层**：`docs/` 写"当前规范与理由"；`.apm/` 写"某次任务的执行状态、证据与审查"。项目阶段与路线图写 `docs/04-roadmap.md`。
 3. **体积可控**：原始测量/日志/trace 全部 gitignore，入库的只有摘要（JSON/Markdown）。
 
 | 子目录 | 职责 | 入库 |
@@ -46,7 +46,7 @@
 | --- | --- | --- | --- |
 | Guide | [`AGENTS.md`](AGENTS.md) + 6 个嵌套 `AGENTS.md` | 冷启动定位、铁律、路由、执行协议 | 自动注入（DSH）；其他工具当 Markdown 读 |
 | Guide | [`docs/README.md`](docs/README.md)、`docs/01`–`04` | 真源优先级、产品/架构/选型/排期 | 按任务读段落 |
-| Guide | [`HANDOFF.md`](HANDOFF.md) | 接手环境、坑、测试入口、D1–D7 决策 | 接手第一篇 |
+| Guide | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 本地环境、签名、测试入口与已知坑 | 接手第一篇 |
 | Guide | [`references/contracts.md`](references/contracts.md)、[`verification.md`](references/verification.md)、[`workflow.md`](references/workflow.md) | 契约细则、验证矩阵、任务分级/红队 | 按任务按需读 |
 | Guide | [`.dsh/skills/`](.dsh/skills/) | 6 个可调用动作（见 §6） | `skill` 工具（DSH） |
 | Sensor | `make check-docs` | 链接 / 围栏 / docs 索引 / token 预算 | 静态 |
@@ -157,3 +157,4 @@ dsh plugin --profile <profile> add @deepseek-ai/dsh-experimental-tool-worktree
 | --- | --- |
 | 2026-11-05 | Phase 0：AGENTS 压缩+嵌套、静态门禁（arch/tests/harness）、计划状态机（resume/end/doctor）、单一真源清理（D1–D7） |
 | 2026-11-05 | Phase 1：evidence 三值判定、6 个 `.dsh/skills`、CI `verify.yml` + pre-push、HARNESS.md 初版、`AGENTS.local.md` 模板 |
+| 2026-11-07 | Phase 1 第一批：HANDOFF 拆分（CONTRIBUTING + docs/decisions）、LICENSE/README 重写、脱敏（Team/设备 ID/路径）、公开文档白名单门禁 |

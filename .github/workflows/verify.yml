@@ -38,10 +38,10 @@ on:
       - "references/**"
       - "HARNESS.md"
       - ".github/workflows/**"
-      # 指令层/文档锚点：check-harness 校验 AGENTS.md 与 § 引用指向 HANDOFF/docs
+      # 指令层/文档锚点：check-harness 校验 AGENTS.md 与 § 引用指向 docs/decisions 等
       - "AGENTS.md"
       - "**/AGENTS.md"
-      - "HANDOFF.md"
+      - "CONTRIBUTING.md"
       - "docs/**"
   pull_request:
     paths:
@@ -59,7 +59,7 @@ on:
       - ".github/workflows/**"
       - "AGENTS.md"
       - "**/AGENTS.md"
-      - "HANDOFF.md"
+      - "CONTRIBUTING.md"
       - "docs/**"
   workflow_dispatch:
 

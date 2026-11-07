@@ -8,7 +8,7 @@
   "unit": "ms",
   "direction": "lower_is_better",
   "target": 200,
-  "device": "iPhone 13 / iOS 26.7 / physical / REDACTED_UDID",
+  "device": "iPhone 13 / iOS 26.7 / physical / <DEVICE_UDID>",
   "measurement": {
     "build": "Release",
     "warmupLaunches": 3,

@@ -828,7 +828,7 @@ def _print_section(plan: Plan, label: str, keywords: tuple[str, ...]) -> None:
 
 
 READING_LIST = (
-    ("HANDOFF.md §0–§3", "项目、构建、真机、测试入口"),
+    ("README.md + CONTRIBUTING.md", "项目入口、环境、签名、测试与坑"),
     ("docs/02-architecture.md", "数据链路与分层"),
     ("docs/04-roadmap.md", "问题清单与优先级（验收判据唯一源）"),
     ("references/verification.md", "验证矩阵 / 真机 / 性能口径"),

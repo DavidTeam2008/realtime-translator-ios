@@ -1,7 +1,7 @@
 # AGENTS.md · DuiyiUITests
 
 > 触发：新增/修改 UI 测试或无障碍标识前先读本页。
-> 本页只写 UI 测试的增量约束；真机入口与坑见 [`references/verification.md`](../references/verification.md) 与 [`HANDOFF.md`](../HANDOFF.md) §3.2–§3.3。
+> 本页只写 UI 测试的增量约束；真机入口与坑见 [`references/verification.md`](../references/verification.md)。
 
 ## 1. 基本事实
 

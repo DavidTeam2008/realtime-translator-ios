@@ -5,7 +5,7 @@
   "status": "confirmed",
   "severity": "high",
   "evidence": {
-    "device": "iPhone 13 / iOS 26.7 / physical / REDACTED_UDID",
+    "device": "iPhone 13 / iOS 26.7 / physical / <DEVICE_UDID>",
     "build": "Release",
     "bundleId": "com.david.Duiyi",
     "commit": "3e22adbee43721987cfb976d21c01620142325ef",

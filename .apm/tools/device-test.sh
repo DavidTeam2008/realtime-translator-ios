@@ -38,7 +38,13 @@ set -euo pipefail
 SCHEME="${APM_SCHEME:-Duiyi}"
 PROJECT="${APM_PROJECT:-Duiyi.xcodeproj}"
 CONFIG="${APM_CONFIG:-Debug}"
-DEVICE="${APM_DEVICE:-REDACTED_CORE_DEVICE_ID}"
+DEVICE="${APM_DEVICE:-}"
+if [ -z "$DEVICE" ]; then
+  echo "⛔ 缺少 APM_DEVICE（设备 CoreDevice ID）" >&2
+  echo "   查看：xcrun devicectl list devices / mobilebuildmcp device list" >&2
+  echo "   本机值写 AGENTS.local.md，或：APM_DEVICE=<id> .apm/tools/device-test.sh" >&2
+  exit 2
+fi
 # 预热目标：故意选一组又快又稳的纯单元测试，它的作用不是测覆盖率，而是把
 # testmanagerd 拉起来。换成任何设备侧可跑目标都行。
 WARMUP="${APM_WARMUP:-DuiyiTests/TaskStoreTests}"

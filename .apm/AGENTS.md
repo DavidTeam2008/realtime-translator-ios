@@ -18,7 +18,7 @@
 - front matter 必填：`id`、`status`、`level`、`owner`、`updated`、`scope`（允许/禁止改动的文件或目录）、`acceptance`、`verify`。
 - `status` 取值：`active` / `done` / `blocked` / `archived`；完成后改 `done` 并移入 `plans/_archive/`。
 - 正文必填：目标、验收（可执行判据）、改动范围、DoD、验证证据、未验证项、下一步。
-- 越界改动先停并更新 `scope`；计划不是规范文档，事实引用 `docs/` 与 `HANDOFF.md`。
+- 越界改动先停并更新 `scope`；计划不是规范文档，事实引用 `docs/` 与 `references/`。
 
 ## 3. 验证证据
 

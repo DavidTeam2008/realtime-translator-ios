@@ -11,7 +11,13 @@
 
 set -euo pipefail
 
-UDID="${APM_UDID:-REDACTED_UDID}"
+UDID="${APM_UDID:-}"
+if [ -z "$UDID" ]; then
+  echo "⛔ 缺少 APM_UDID（硬件 UDID）" >&2
+  echo "   查看：xcrun devicectl list devices" >&2
+  echo "   本机值写 AGENTS.local.md，或：APM_UDID=<udid> .apm/tools/measure-launch.sh" >&2
+  exit 2
+fi
 BID="${APM_BUNDLE_ID:-com.david.Duiyi}"
 N="${1:-5}"
 RUN_DIR="${2:-.apm/runs/$(date +%Y%m%d-%H%M%S)-launch}"
