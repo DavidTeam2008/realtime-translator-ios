@@ -564,10 +564,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `README.md` / 独立模板仓发布记录与链接
-- `HARNESS.md` / 独立模板仓发布记录与链接
-- `docs/README.md` / 独立模板仓发布记录与链接
-- `harness/plans/2026-11-06-benchmark-opensource.md` / 独立模板仓发布记录与链接
+- 无未提交改动（独立模板仓发布记录已提交）。
 
 ## 下一步
 
