@@ -507,15 +507,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-> Phase 2（2.1/2.2/2.6/2.7 + 2.3 独立复评）待提交。
-
-- `HARNESS.md` / 重写为实践地图+采用指南 / 可提交
-- `README.md` / 新增评分卡与适配层入口 / 可提交
-- `docs/` / 评分卡与索引更新 / 可提交
-- `harness/` / 适配层（claude-code/dsh）、evidence 可选字段 / 可提交
-- `tools/` / 适配器脚本与 check-docs 白名单 / 可提交
-- `Makefile` / adapters 命令 / 可提交
-- `.gitignore` / 生成物忽略 / 可提交
+- 无未提交改动（Phase 2 已提交 `0f82598`；工作区 clean）。
 
 ## 下一步
 
