@@ -563,11 +563,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `harness-kit/` / Phase 5.6 语言试点与独立仓准备
-- `HARNESS.md` / Phase 5.6 语言试点与独立仓准备
-- `README.md` / Phase 5.6 语言试点与独立仓准备
-- `docs/harness-scorecard.md` / Phase 5.6 语言试点与独立仓准备
-- `harness/plans/2026-11-06-benchmark-opensource.md` / Phase 5.6 语言试点与独立仓准备
+- 无未提交改动（Phase 5.6 语言试点与独立仓准备已提交）。
 
 ## 下一步
 
