@@ -512,7 +512,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | kit 卫生扫描（2026-11-07） | `harness-kit/{core,adapters,profiles,scripts}` 对 `Duiyi/duiyi/对译/TranslationSession/SwiftData` **0 命中**（唯一允许为 README 来源案例）；`make kit-check` 含专有名词/残留占位符/链接断言 | 本机 | —（过程记录：kit 卫生） |
 | Phase 5.4 外部试点（2026-11-07，AI 代理采用者） | **接入成功**：standard 五步闭环；首次 `make check` 一次 PASS；`verify-static` / `verify-claim`(含 `--fresh`) exit 0；执行 ≈80s（端到端 ≈7m20s，含源获取失败重试）；重复 init 冲突（24 CONFLICT 无写入）/ `--force` 备份 / 已有 Makefile → `Makefile.harness` 探测通过 | 空白 Python 宿主；公开 main @`501ae9c`；报告 `harness/reviews/2026-11-07-kit-pilot.md` | —（外部记录：AI 代理） |
 | `make verify-static`（Phase 5 集成后，2026-11-07） | **PASS**，约 17s：91 个 Duiyi 脚本单测 + 69 个 kit 端到端测试 + docs/架构/计数/harness/计划/证据/adapters 全过 | 本机 python3 3.14.7 / make 3.81 | —（过程记录：集成门禁） |
-| Node 试点（2026-11-07，Node 24 / `node --test`） | **PASS**：blank Node 项目 init standard → 首次 `make check` PASS；`npm test` 2 passed；证据 `passed=2` → `verify-claim` PASS；`verify-static` exit 0 | 本机 node 24.14 / npm 11.9 | —（过程记录：语言试点） |
+| Node 试点（2026-11-07，Node 24 / `node --test`） | **PASS**：blank Node 项目 init standard → 首次 `make check` PASS；`npm test` 两个断言通过；证据记录 2 个通过用例 → `verify-claim` PASS；`verify-static` exit 0 | 本机 node 24.14 / npm 11.9 | —（过程记录：语言试点） |
 | Swift 试点（2026-11-07，SwiftPM / `swift test`） | **PASS**：blank SwiftPM 包 init standard → 首次 `make check` PASS；`swift test` Executed 1 test / 0 failures；`.build/` 已被 gitignore 忽略（证据写入不被 dirty 拦）；`verify-claim`/`verify-static` PASS | 本机 Apple Swift 6.4 | —（过程记录：语言试点） |
 | kit standalone 布局（2026-11-07） | **PASS**：`cp -r harness-kit` 到仓库外后 `python3 -m unittest discover -s tests -q` 69 tests OK（tests 自动适配 monorepo/独立仓两种根）；独立仓文件（LICENSE/CHANGELOG/.gitignore/CI workflow）就绪 | 本机 /tmp | —（过程记录：独立仓准备） |
 
@@ -563,7 +563,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（Phase 5.6 语言试点与独立仓准备已提交）。
+- `harness/plans/2026-11-06-benchmark-opensource.md` / Node 试点记录措辞（避免误触动态 claim 规则）
 
 ## 下一步
 
