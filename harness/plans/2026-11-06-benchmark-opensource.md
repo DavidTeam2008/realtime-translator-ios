@@ -328,7 +328,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | # | 任务 | 产出 | 验收 |
 | --- | --- | --- | --- |
-| 4.1 | GitHub 元数据 | 仓库 description / topics（`ios`, `swift`, `on-device`, `harness-engineering`, `ai-agent`, `translation`, `deepseek-harness`）/ social preview | 由用户在 GitHub 设置（我提供文案） |
+| 4.1 | GitHub 元数据 | 仓库 description / topics（`ios`, `swift`, `on-device`, `harness-engineering`, `ai-agent`, `translation`, `deepseek-harness`）/ social preview；issue/PR 模板已随仓库提供 | 由用户在 GitHub 设置（我提供文案） |
 | 4.2 | Release | `v1.0.0` tag + `harness/release-notes-v1.0.0.md`（中英，含"如何 10 分钟验证 harness"）；release 文案由该文件提供 | release 页面可访问；tag 在 HEAD 或指定提交 |
 | 4.3 | 外部首访测试 | AI 代理按公开 clone 走查（已完成，见 review）；再招募 1 名人类非作者按 README + CONTRIBUTING 走 | 5/5 问可答且 10 分钟复现 PASS（当前 AI 代理 4/5；人类待验证） |
 | 4.4 | 可选：仓库改名 | 建议改 `duiyi`（品牌化）；改前确认 remote/链接影响 | 由用户决定；本轮默认不改 |
@@ -452,6 +452,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [ ] Phase 3 剩余：首次真实 PR / 分支保护设置（需仓库管理员或可用 token；当前 PAT 受组织策略 403）
 - [x] Phase 4 发布准备：unit/UI 发布前重跑证据（`20261107T062204Z` / `20261107T062205Z`）；`harness/release-notes-v1.0.0.md` 起草
 - [x] Phase 2.5 独立复核（2026-11-07）：P0×3 关闭；综合 ≈4.0/5；L3「达成（有条件）」；报告 `harness/reviews/2026-11-07-phase2.5-reaudit.md`
+- [x] 开源包装：issue/PR 模板（`.github/ISSUE_TEMPLATE/`、`.github/PULL_REQUEST_TEMPLATE.md`）
 - [x] 外部首访（AI 代理，公开 clone）：4/5 可答；发现浅克隆 P0 → 已修（skip + README/CONTRIBUTING unshallow、无 Xcode 边界、采用指南直链、实测耗时）
 - [ ] Phase 4 发布 + 外部验证（v1.0.0 tag/release + 非作者首访）
 - [ ] Phase 5 `harness-kit` 模板抽取（含首个外部试点）
@@ -543,7 +544,11 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（Phase 2.5 复核 / 首访整改 / 发布证据 / release notes 已提交）。
+- `.github/ISSUE_TEMPLATE/bug_report.md` / 开源包装与计划记录
+- `.github/ISSUE_TEMPLATE/config.yml` / 开源包装与计划记录
+- `.github/ISSUE_TEMPLATE/feature_request.md` / 开源包装与计划记录
+- `.github/PULL_REQUEST_TEMPLATE.md` / 开源包装与计划记录
+- `harness/plans/2026-11-06-benchmark-opensource.md` / 开源包装与计划记录
 
 ## 下一步
 
