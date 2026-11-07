@@ -21,7 +21,7 @@
   "verdict": "PASS",
   "verifier": "tools/evidence.py@1",
   "git": {
-    "commit": "5a6fd752db35",
+    "commit": "dde3f32ff5a4",
     "dirty": false
   },
   "createdAt": "2026-11-05T05:56:10Z",

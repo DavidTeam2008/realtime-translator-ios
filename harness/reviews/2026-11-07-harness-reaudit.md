@@ -1,6 +1,6 @@
 # 2026-11-07 Harness 独立复评（Phase 2.3）
 
-> 审查者：独立只读复评（非作者；auditor-instructions）。对象：`main` @ `8d07075` + Phase 2 未提交工作树；复评期间工作树有并发编辑（如 `harness/evidence/README.md` 中途被改），下文行号/状态以我读取时为准。
+> 审查者：独立只读复评（非作者；auditor-instructions）。对象：`main` @ `77277c7` + Phase 2 未提交工作树；复评期间工作树有并发编辑（如 `harness/evidence/README.md` 中途被改），下文行号/状态以我读取时为准。
 > 方法：只读。实际运行 `make check`、`make verify-static`、`make verify-claim`、`make adapters-check`、`make doctor`、`make resume`、`make handoff` 与只读 git/统计命令；未跑 xcodebuild/模拟器/真机；唯一写入为本报告。
 > 证据格式：`file:line` + 命令输出。改造前对照：`harness/runs/harness-audit/02-audit-instructions.md`、`03-audit-verification.md`（本机 gitignore）。
 
@@ -34,7 +34,7 @@
 | `make adapters-check` | PASS（6 skills；hooks/CLAUDE/agent 示例就绪） |
 | `make doctor` | OK 7 / FAIL 0 / exit 0：Xcode 27.1、iOS 26.4.1、mobilebuildmcp、python 3.14.7 |
 
-**自评/未验证（不能当作已核实）：** 构建/单元/UI/真机"通过"——3 条 evidence 分别绑定旧 commit `5a6fd75`/`d147f05`/`b00f3f2`，当前工作树 dirty 且无新证据；首访 4/5 为作者自测（`harness/plans/2026-11-06-benchmark-opensource.md:436-437`），无陌生人记录；Claude Code 适配未实测（`HARNESS.md:115`、plan:457）；17/35 基线为上一轮外部口径，未独立复现。
+**自评/未验证（不能当作已核实）：** 构建/单元/UI/真机"通过"——3 条 evidence 分别绑定旧 commit `dde3f32`/`a5dd4a9`/`f2a1644`，当前工作树 dirty 且无新证据；首访 4/5 为作者自测（`harness/plans/2026-11-06-benchmark-opensource.md:436-437`），无陌生人记录；Claude Code 适配未实测（`HARNESS.md:115`、plan:457）；17/35 基线为上一轮外部口径，未独立复现。
 
 ## 4. "完成声明可否证"：3 个 agent 可能蒙混的声明
 

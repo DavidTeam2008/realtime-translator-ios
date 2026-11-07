@@ -4,7 +4,7 @@ status: <active|done|blocked|archived>
 level: <L0|L1|L2>
 owner: <owner>
 updated: <YYYY-MM-DD>
-# submitted 只在 status: done 时填：逗号分隔的提交短 hash，如 c412aff,306a9f3
+# submitted 只在 status: done 时填：逗号分隔的提交短 hash，如 a431bd7,9473b90
 submitted:
 scope:              # 允许/禁止改动的文件或目录；越界先停并更新计划
   allow:            # 允许

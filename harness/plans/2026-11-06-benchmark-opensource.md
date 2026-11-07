@@ -56,7 +56,7 @@ verify:
 
 # 标杆开源化与文档信息架构重构 · 执行计划（L2）
 
-> 状态：**方案待确认（本轮未执行任何删除/迁移）**　|　级别：L2　|　日期：2026-11-06
+> 状态：**执行中（Phase 2.5 整改；阶段进度见 §4）**　|　级别：L2　|　日期：2026-11-06
 > 上游：`harness/plans/2026-11-05-harness-engineering.md`（Phase 0/1 已完成并提交；Phase 2/3 未执行，见本文 §9 交接）
 > 定位：把「Harness Engineering 落地」升级为「可被陌生人看懂、复现、采用的开源标杆」；核心动作是**减法**，不是继续加机制。
 > 计划入库规则：不写本机绝对路径、密钥、设备 UDID；只写仓库相对路径。
@@ -422,7 +422,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 9. 与上游计划的交接（2026-11-05 harness-engineering）
 
-- 已完成并提交：Phase 0（`7522757`：预算修正/嵌套 AGENTS/静态门禁/状态机）、Phase 1（`5a6fd75` 等：evidence/verify-claim/CI/skills/HARNESS）。
+- 已完成并提交：Phase 0（`27a89fc`：预算修正/嵌套 AGENTS/静态门禁/状态机）、Phase 1（`dde3f32` 等：evidence/verify-claim/CI/skills/HARNESS）。
 - 未执行、移出本计划范围：
   - Phase 2：P0-1/P0-2/P0-3 行为测试 + 翻译夹具 → 本计划 Phase 6（独立排期）。
   - Phase 3：maker-checker、月度审计自动打分、指标 → 只保留"月度人工审计 + scorecard"（本计划 Ongoing），不做自动化。
@@ -457,7 +457,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
-| `git ls-files '*.md' \| wc -l`；`git ls-files` | 40 个入库 markdown / 194 个入库文件 | 本机，HEAD `968e3bf` | —（基线盘点） |
+| `git ls-files '*.md' \| wc -l`；`git ls-files` | 40 个入库 markdown / 194 个入库文件 | 本机，HEAD `e5047b3` | —（基线盘点） |
 | `find harness/runs -type f \| wc -l`；`du -sh harness` | 447 个忽略文件 / 6.8MB；`harness/runs` 3.9MB | 本机 | —（基线盘点） |
 | `wc -l docs/14..docs/21` | 8 篇历史记录共 897 行；HANDOFF 483 行 | 本机 | —（基线盘点） |
 | `make check` | **PASS**（docs/架构/计数/harness/计划；1 个历史 WARN 不阻断） | 本机，Xcode 27.1 | —（基线门禁） |
@@ -468,8 +468,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 首访 5 分钟测试（改造前，作者自测，Phase 1.1） | **1/5 可答 + 2 项部分**：是什么 ✅；为什么值得看 ❌；怎么跑 ⚠️（缺无 Xcode 路径）；怎么验证 ⚠️（README 门禁描述过期）；怎么复制 harness ❌（HARNESS 从 README 不可达） | 本机，仅按 README → docs/README 阅读 | —（基线，不是完成声明） |
 | 首访 5 分钟测试（改造后，作者自测，Phase 1.9） | **4/5 可答 + 1 项部分**：是什么✅ / 为什么值得看✅ / 怎么跑✅ / 怎么验证✅ / 怎么复制 harness⚠️（有机制但缺 10 步采用指南，Phase 2 补）；用时约 3 分钟 | 本机，仅按 README → docs/README 阅读 | —（Phase 1.9） |
 | 独立 Harness 复评（改造后，Phase 2.3） | **≈3.6/5**（Instructions 4.0 / State 3.5 / Verification 4.0 / Scope 3.0 / Lifecycle 3.5）；对外标杆 ≈24/35；L3 条件成立 | 独立复跑 check/verify-static/verify-claim/adapters-check；未跑真机/clean clone | `harness/reviews/2026-11-07-harness-reaudit.md` |
-| 历史清理（2026-11-07） | `git filter-repo` 重写 43 个 commit；敏感项 0 命中（树/历史/消息）；强推 `main` 成功；备份 `/tmp/duiyi-pre-filter.bundle`（本地） | 本机 + GitHub（refs 已更新） | —（历史清理） |
-| CI 绿（2026-11-07） | 强推 `865e55b` 未触发 run；普通提交 `26037a9` 触发 run `42344278003`：**static gates success；unit-tests skipped（按设计）** | GitHub Actions 公开 API；本地 pre-push `verify-static` PASS | —（CI） |
+| 历史清理·敏感信息（2026-11-07） | `git filter-repo` 重写 43 个 commit；Team/设备 ID/本机路径 0 命中（树/历史/消息）；强推 `main`；备份 `/tmp/duiyi-pre-filter.bundle` | 本机 + GitHub（refs 已更新） | —（历史清理） |
+| 历史清理·作者邮箱（2026-11-07） | `git filter-repo --mailmap` 二次重写 48 个 commit（作者/提交者邮箱 → GitHub noreply）；树内 7 文件 / 16 个被引用 commit 逐条按 subject 校验回填；强推 `main`；备份 `/tmp/duiyi-pre-email-filter.bundle` | 本机 + GitHub（refs 已更新） | —（历史清理） |
+| CI 绿（2026-11-07） | 强推 `a243173` 未触发 run；普通提交 `47fd6c4` 触发 run `42344278003`：**static gates success；unit-tests skipped（按设计）** | GitHub Actions 公开 API；本地 pre-push `verify-static` PASS | —（CI） |
 | 干净 clone 复现（Phase 3.1） | `git clone . /tmp/duiyi-fresh` → `make check` **PASS 0.33s**；`make verify-static` **PASS 4.65s**（42 单测） | /tmp 干净 clone，无 Xcode；仅 python3+git+make | —（Phase 3.1） |
 | CI 合并与徽章（Phase 3.3） | `docs.yml` 删除；`verify.yml` 增加 `**/*.md`；README 徽章（verify/MIT/iOS） | 本机文件检查；CI 未触发新 run | —（Phase 3.3） |
 | `make adapters-check`（2026-11-07） | **PASS**（6 个 skills 单源；hooks 示例/CLAUDE 模板/red-team agent 就绪） | 本机 | —（适配层） |
@@ -491,10 +492,10 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，发布前补实测或标未验证。
 - 真机未在脱敏/脚本改动后重跑；现有 device evidence 指向旧 commit，不代表本轮 project 改动后的真机结果。
 - 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
-- **git 历史仍含旧 commit 的 Team/UDID/本机路径**；本轮只清理工作树。公开发布前需评估 `git filter-repo` 或明确接受历史泄露（需用户决策）。
+- 历史敏感信息/作者邮箱已用 `git filter-repo` 两轮清理（2026-11-07），本地与远端分支历史 0 命中；远端 unreachable 旧对象仍可按 SHA 访问（用户已接受现状，不再联系 GitHub Support）。
 - DSH hooks 能力随版本变化（0.2.1-rc.5 未打包）；模板按「门禁 + CI + 适配层」设计，不依赖 hooks 可用。
-- Phase 2.5 待做项：evidence commit==HEAD/计划 submitted 硬绑定、证据 ID 硬失败、done 严格、§ 引用扫描扩展、token 余量再平衡（AGENTS 余 24、refs 余 18–25）。
-- 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；彻底清除需 GitHub Support 或删除重建仓库（需用户操作）。
+- Phase 2.5 剩余项进行中：evidence commit==HEAD/计划 submitted 硬绑定、证据 ID 硬失败、done 严格、§ 引用扫描扩展、token 余量再平衡（AGENTS 余 24、refs 余 18–25）。
+- 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；用户已接受「分支干净、旧对象不可达」状态（2026-11-07 决策）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
 ## 参考（外部事实核对，2026-11-07）
@@ -516,19 +517,26 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 3 | 盘点敏感信息与 evidence xcresult 路径 | Team/UDID/绝对路径已定位到 file:line；evidence 的 xcresultPath 已是仓库相对路径（换机器会 UNVERIFIED，属设计） | 2026-11-06 |
 | 4 | 执行 Phase 1 第一批（HANDOFF 拆分、README/LICENSE/CONTRIBUTING/decisions、脱敏、白名单） | 完成；`make check` / `verify-static` PASS、`make build` BUILD SUCCEEDED；额外清掉 10 个文件的真实硬件 UDID | 2026-11-07 |
 | 5 | 计划"未提交改动"与 git status 不一致（scope.allow 缺嵌套 AGENTS、目录通配解析问题） | 已修：补齐 allow + 改精确路径；`make check-plan` PASS | 2026-11-07 |
+| 6 | 作者邮箱从 git 历史移除（用户确认） | `git filter-repo --mailmap` 重写 48 commit；commit-map 混入首轮旧映射，改用「提交顺序 + subject 全等」index-map 回填 7 文件 / 16 引用并逐条校验；强推 `main` | 2026-11-07 |
 
 ## 未提交改动
 
-- 无未提交改动（历史清理、CI 验证与计划均已提交）。
+- `docs/case-startup-performance.md` / commit 引用回填（邮箱重写后）
+- `harness/evidence/20261105T055610Z-unit-tests-pass.json` / 同上
+- `harness/evidence/20261105T055845Z-ui-tests-pass.json` / 同上
+- `harness/evidence/20261106T053620Z-device-tests-pass.json` / 同上
+- `harness/plans/2026-11-06-benchmark-opensource.md` / 同上 + 计划记录更新（本文件）
+- `harness/plans/_template.md` / 同上
+- `harness/reviews/2026-11-07-harness-reaudit.md` / 同上
 
 ## 下一步
 
-1. Phase 2.5 剩余 P0：evidence commit==HEAD/计划 submitted 硬绑定、证据 ID 硬失败、done 严格、`§` 扫描扩展、token 余量。
+1. Phase 2.5 剩余 P0（进行中）：evidence `commit==HEAD`/计划 `submitted` 硬绑定、证据 ID 硬失败、done 计划严格、`§` 扫描扩展、token 余量再平衡。
 2. Phase 3 收尾：CONTRIBUTING 分层复核、doctor 友好化、CI 说明与首次真实 PR。
 3. Phase 4：发布 + 真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试。
 
 ## 待确认
 
-- 远端旧 commit 仍可按 SHA 访问；是否联系 GitHub Support 清除 unreachable objects，或删除重建仓库。
+- 远端旧 commit 仍可按 SHA 访问；用户已接受现状（2026-11-07），不联系 GitHub Support。
 - GitHub Actions 已在新普通提交上验证；如后续仍不触发，检查仓库 Actions 设置/额度。
 - D-B6 仓库改名、D-B7 发布节奏仍待发布阶段再定。
