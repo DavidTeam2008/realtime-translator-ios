@@ -38,6 +38,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [`case-startup-performance.md`](case-startup-performance.md) | 启动 200ms 目标证伪：口径区分、真机 A/B、空壳对照、分段归因、排除方向与可复核线索；启动微优化已暂停 |
+| [`harness-scorecard.md`](harness-scorecard.md) | 五子系统评分卡：分数、证据、与改造前对比、独立复评记录、评分局限 |
 
 > 早期过程记录（原 `docs/14`–`docs/21`）已蒸馏/删除；原始全文可从 git 历史取回（`git log --diff-filter=D -- docs/`）。
 

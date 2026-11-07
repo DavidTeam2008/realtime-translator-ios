@@ -47,7 +47,10 @@
     "git": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commit", "dirty"],
+      "required": [
+        "commit",
+        "dirty"
+      ],
       "properties": {
         "commit": {
           "type": "string",
@@ -68,56 +71,129 @@
     "environment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["xcode", "simulator", "device"],
+      "required": [
+        "xcode",
+        "simulator",
+        "device"
+      ],
       "properties": {
         "xcode": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Xcode 版本行；静态/无 Xcode 场景可为 null"
         },
         "simulator": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "模拟器 runtime（如 iOS 26.4.1）；真机/静态场景为 null"
         },
         "device": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "真机标识：只写型号/系统或物理设备占位（如 physical）；不写 UDID/CoreDevice ID"
         },
         "build": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "构建配置（Debug/Release）；未知为 null"
         },
         "host": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "主机/系统描述（可选）；不写用户名或绝对路径"
+        },
+        "agent": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "执行验证的 agent/tool（如 dsh 0.2.1 / claude-code）；未知为 null（v2 可选字段，向后兼容）"
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "执行验证所用模型（如 deepseek-flash / deepseek-v4-pro）；未知为 null"
+        },
+        "harnessVersion": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "harness 版本或 scheme 标识（如 harness/2026-11）；未知为 null"
         }
       }
     },
     "result": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "passed", "failed", "skipped", "durationSec"],
+      "required": [
+        "status",
+        "passed",
+        "failed",
+        "skipped",
+        "durationSec"
+      ],
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["SUCCEEDED", "FAILED", "SKIPPED", "UNVERIFIED"]
+          "enum": [
+            "SUCCEEDED",
+            "FAILED",
+            "SKIPPED",
+            "UNVERIFIED"
+          ]
         },
-        "passed": {"type": "integer", "minimum": 0},
-        "failed": {"type": "integer", "minimum": 0},
-        "skipped": {"type": "integer", "minimum": 0},
-        "durationSec": {"type": "number", "minimum": 0},
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durationSec": {
+          "type": "number",
+          "minimum": 0
+        },
         "xcresultPath": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "xcresult 路径；仓库相对或 ~/ 相对；机器不可达时 verify-claim 判 UNVERIFIED"
         },
         "metricsPath": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "性能 metrics.json 路径；仓库相对或 ~/ 相对"
         }
       }
     },
     "verdict": {
       "type": "string",
-      "enum": ["PASS", "FAIL", "UNVERIFIED"]
+      "enum": [
+        "PASS",
+        "FAIL",
+        "UNVERIFIED"
+      ]
     },
     "verifier": {
       "type": "string",

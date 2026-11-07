@@ -503,6 +503,9 @@ def diff_uncommitted(plan: Plan, active_only: bool = True) -> UncommittedDiff:
         return diff
     allow = meta_list(plan.meta, "scope.allow")
     scoped_actual = sorted(path for path in actual if in_allow(path, allow))
+    # scope.allow 之外的改动必须报错，而不是被静默过滤（防止越界假绿）。
+    for outside in sorted(path for path in actual if not in_allow(path, allow)):
+        diff.mismatches.append(f"git 有 scope 外未提交改动（不在 allow）：{outside}")
     for declared_path in sorted(declared):
         base = declared_path.rstrip("/")
         if declared_path.endswith("/"):

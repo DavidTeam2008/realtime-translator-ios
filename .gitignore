@@ -26,3 +26,7 @@ CLAUDE.local.md
 # Python 检查脚本缓存
 __pycache__/
 *.pyc
+
+# Claude Code 适配生成物（skills 单源在 .dsh/skills）
+.claude/skills/
+.claude/settings.local.json

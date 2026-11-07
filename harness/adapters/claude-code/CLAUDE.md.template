@@ -1,0 +1,11 @@
+@AGENTS.md
+
+# Claude Code 适配说明
+
+- **规则唯一源是 `AGENTS.md` 指令树**（本文件通过 `@AGENTS.md` 引入）；不要把规则复制到这里。
+- 动作卡在 `.dsh/skills/`；运行 `make adapters-sync` 生成 `.claude/skills/`（本机生成物，gitignore）。
+- 建议把 `harness/adapters/claude-code/settings.hooks.example.json` 合并到 `.claude/settings.json`：
+  - `PostToolUse`（Edit/Write）→ `make check`（约 0.3s，秒级拦截）
+  - `Stop` → `make verify-static`（约 4.3s，每轮结束全量静态）
+- 模型与凭据不写入仓库；DeepSeek 通过 Anthropic 兼容环境变量接入。
+- 状态/证据仍以仓库 `harness/plans/` 与 `harness/evidence/` 为准；完成声明先跑 `make verify-claim`。

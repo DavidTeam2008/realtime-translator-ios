@@ -29,8 +29,9 @@ PUBLIC_DOCS = frozenset({
     "04-roadmap.md",
     "decisions.md",
     "case-startup-performance.md",
+    "harness-scorecard.md",
 })
-PUBLIC_DOCS_BUDGET = 9
+PUBLIC_DOCS_BUDGET = 10
 ROOT_MD_ALLOWED = frozenset(ROOT_DOCS) | {"AGENTS.local.md", "CLAUDE.local.md"}
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 FENCE_RE = re.compile(r"^\s*```", re.M)

@@ -61,6 +61,16 @@ verify:
 > 定位：把「Harness Engineering 落地」升级为「可被陌生人看懂、复现、采用的开源标杆」；核心动作是**减法**，不是继续加机制。
 > 计划入库规则：不写本机绝对路径、密钥、设备 UDID；只写仓库相对路径。
 
+## 目标与非目标
+
+**目标**：把 Duiyi 从「内部工程仓」升级为可理解、可复现、可复制的 Harness Engineering 开源标杆，同时保持"完成声明可被机器否证"。
+
+**非目标**：不新增业务功能；不重启启动优化；不在本轮做产品行为测试（Phase 6）；不做完整英文文档；不引入新的 harness 机制（除已列防回归门禁）。
+
+## 验收（摘要）
+
+完整判据见 front matter `acceptance`；分阶段验收见 §4；最终对外标准见 §4 Phase 4。
+
 ## 0. 结论摘要（TL;DR）
 
 1. **Harness 评估结论（2026-11-06 现状）**：五子系统 **Instructions 4 / State 4 / Verification 4 / Scope 3.5 / Session Lifecycle 4**（满分 5，综合约 **78–80%**）。改造前独立审计为 **2.5/5**；本轮已把「文档型 harness」升级为「静态门禁 + 结构化证据 + 三值判定 + 四层验证」的可运行闭环。另有一次独立只读审计（2026-11-06，docs 子代理）按「对外标杆成熟度」评 **17/35 = 2.4/5**，并把「证据可审计」压到 3/5：README 头条数字未逐条链到 evidence、部分 evidence 产物换机器不可复核。
@@ -286,6 +296,22 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 **验收**：`make check` PASS；HARNESS 读完能回答"这套东西怎么复制"；独立复评分数与自评差异有解释。
 
+### Phase 2.5 · 独立复评整改（P0，Phase 3 前）
+
+> 来源：`harness/reviews/2026-11-07-harness-reaudit.md`（独立复评：综合 ≈3.6/5；L3 标记为"条件成立"）。
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| 2.5.1 | `make end` 默认跑 `verify-claim --all` | 已完成（本批） |
+| 2.5.2 | 计划 `scope.allow` 之外的未提交改动必须 FAIL（不再静默过滤） | 已完成（本批） |
+| 2.5.3 | 计划补充「目标与非目标」「验收」节，修正 `make resume` 输出 | 已完成（本批） |
+| 2.5.4 | evidence.commit 必须 == HEAD 或在计划 `submitted`；旧证据对当前 claim 至少 WARN | 待做 |
+| 2.5.5 | 计划"证据ID"列必填并解析到 `harness/evidence/*.json`（verdict=PASS）；done 与 active 同等严格 | 待做 |
+| 2.5.6 | `§` 引用扫描扩展到嵌套 AGENTS / 支持"第 N 节"；token 预算余量再平衡（AGENTS 24、refs 18–25） | 待做 |
+| 2.5.7 | CI 合并 `docs.yml` 进 `verify.yml`；clean clone 复现（Phase 3） | 待做（Phase 3） |
+
+**负向验收（待做项完成后）**：无新 evidence 的"已完成"应 FAIL/UNVERIFIED；scope 外改动应 FAIL；嵌套 AGENTS 错误节号应 FAIL。
+
 ### Phase 3 · 外部可复现性（预计 1 个工作会话）
 
 | # | 任务 | 产出 | 验收 |
@@ -352,7 +378,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | D-B10 | 过程区目录名 | **原 APM 目录 `.apm/` → `harness/`（git mv，可见，与模板同名）** | 保持原目录；改隐藏目录 | 公开可解释性 vs 迁移成本 |
 | D-B11 | 多 Agent 适配 | **单源 AGENTS + skills 同步 `make adapters-check` + Claude hooks 示例（不默认加载）** | 只支持 DSH；或双份维护 | 标杆可复制性 vs 维护成本 |
 | D-B12 | 模板抽取 | **Phase 5 做成独立 `harness-kit`（profiles + 脚手架 + 首个外部试点）** | 暂不抽取；只写采用指南 | 其它项目改造成本 |
-| D-B13 | 证据 schema v2 | **加可选 `agent`/`model`/`harnessVersion` 字段（向后兼容）** | 不改，证据只记环境 | 跨 agent/模型对比能力 |
+| D-B13 | 证据 schema v2 | **加可选 `agent`/`model`/`harnessVersion` 字段（向后兼容；不 bump schemaVersion，避免破坏既有证据）** | 不改，证据只记环境 | 跨 agent/模型对比能力 |
 
 默认按"推荐"执行；用户只需回复 `D-B1..D-B13` 的覆盖项（不回复即按推荐）。
 
@@ -412,7 +438,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 1 第一批（1.2/1.3/1.5/1.7/1.10）：入口与 LICENSE、README 重写、HANDOFF 拆分删除、门禁引用同步、脱敏与白名单
 - [x] Phase 1 第二批：1.4 历史文档蒸馏删除、1.6 目录更名 `harness/` + 瘦身、1.8 截图
 - [x] Phase 1.9 改造后首访测试：4/5 可答（复制指南仍部分，Phase 2 补）
-- [ ] Phase 2 标杆叙事 + 独立复评 + Agent 适配层
+- [x] Phase 2.1/2.2/2.4/2.6/2.7：HARNESS 重写、评分卡、互链、Claude Code 适配层、evidence 可选字段
+- [x] Phase 2.3 独立复评：综合 ≈3.6/5（Instructions 4 / State 3.5 / Verification 4 / Scope 3 / Lifecycle 3.5）；L3 条件成立；报告 `harness/reviews/2026-11-07-harness-reaudit.md`
 - [ ] Phase 3 外部可复现
 - [ ] Phase 4 发布 + 外部验证
 - [ ] Phase 5 `harness-kit` 模板抽取（含首个外部试点）
@@ -434,7 +461,10 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 工具能力核对（2026-11-07） | Claude Code 原生读 AGENTS.md（v2.1.277+）、hooks 生命周期与 `.claude/settings.json` 可提交、skills/subagents；DeepSeek 提供 Anthropic 兼容 API 与 Claude Code 官方集成 | 官方文档（见 §参考）；本机未安装 Claude Code，未实测 | —（外部事实） |
 | 首访 5 分钟测试（改造前，作者自测，Phase 1.1） | **1/5 可答 + 2 项部分**：是什么 ✅；为什么值得看 ❌；怎么跑 ⚠️（缺无 Xcode 路径）；怎么验证 ⚠️（README 门禁描述过期）；怎么复制 harness ❌（HARNESS 从 README 不可达） | 本机，仅按 README → docs/README 阅读 | —（基线，不是完成声明） |
 | 首访 5 分钟测试（改造后，作者自测，Phase 1.9） | **4/5 可答 + 1 项部分**：是什么✅ / 为什么值得看✅ / 怎么跑✅ / 怎么验证✅ / 怎么复制 harness⚠️（有机制但缺 10 步采用指南，Phase 2 补）；用时约 3 分钟 | 本机，仅按 README → docs/README 阅读 | —（Phase 1.9） |
-| 独立 Harness 复评（改造后） | 待执行（Phase 2.3） | — | — |
+| 独立 Harness 复评（改造后，Phase 2.3） | 进行中（独立审查者只读复评） | — | 待 `harness/reviews/2026-11-07-harness-reaudit.md` |
+| `make adapters-check`（2026-11-07） | **PASS**（6 个 skills 单源；hooks 示例/CLAUDE 模板/red-team agent 就绪） | 本机 | —（适配层） |
+| `make verify-static`（Phase 2 工作树） | **PASS**（新增 adapters-check 后 42 单测仍过） | 本机 | —（静态门禁） |
+| HARNESS/评分卡指标 | HARNESS 190 行；scorecard 新建；root/README 已互链 | 本机 `wc -l` | —（文档） |
 | `make check`（2026-11-07，Phase 1 第一批） | **PASS**（0 error / 0 warn；公开文档白名单 docs 15/16、根 4 个 md） | 本机 macOS + python3 | —（静态门禁） |
 | `make verify-static`（2026-11-07） | **PASS**（+证据 schema/42 单测/语法；约 4.3s） | 本机 macOS | —（静态门禁） |
 | `make build`（模拟器 Debug，脱敏后） | **BUILD SUCCEEDED**（`xcodebuild -list` 也能解析工程） | Xcode 27.1 | —（构建验证） |
@@ -443,20 +473,17 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未验证项
 
-- 首访测试尚未由真实陌生人执行（Phase 1.1/4.3 补）；当前判断来自作者自测 + 一次子代理只读审计（2026-11-06）。
-- 独立审计为静态只读（未复跑动态门禁/测试），不等同 Phase 2.3 的正式独立复评；其 17/35 是"对外标杆"口径，与本计划五子系统自评不冲突。
-- 五子系统评分 4/5 为自评，未经独立复评（Phase 2.3 补）。
-- 干净 clone 可复现性未实测（Phase 3.1 补）；本机为已配置开发环境。
-- GitHub 仓库元数据/发布权限、仓库改名影响未验证（Phase 4）。
-- 历史文档删除不会丢失未被蒸馏的隐含信息：需在 Phase 1.4/1.5 逐篇对照检查（当前只做了标题级盘点）。
-- `Order/` 是否被 Release 构建配置引用未核实（Phase 1 再查；不影响文档主线）。
-- Claude Code 环境实测未做（本机未安装）；hooks 示例与 adapters-check 为设计成果，Phase 2.6 补实测或标未验证。
-- 1.9 已做作者自测（4/5）；仍缺真实陌生人走查（Phase 4）。
-- 脱敏/脚本改动后未重跑真机测试（清空 Team + `APM_DEVICE` 必填；需本机签名与设备）；现有 device evidence 指向改造前 commit，不代表本轮 project 改动后的真机结果。
-- 真机签名构建未验证（本机无 Team；只验证了模拟器 Debug 构建）。
-- **git 历史仍含旧 commit 的 Team/UDID/本机路径**；本轮只清理工作树。公开发布前必须评估 `git filter-repo` 重写或明确接受历史泄露（不可逆，需用户决策）。
-- DSH hooks 能力随版本变化（当前 0.2.1-rc.5 未打包），未来版本可能改变适配策略；模板按"仓库门禁 + CI + 适配层"设计，不依赖 hooks 可用。
-- `harness` → `harness/` 重命名的完整影响面（工具/测试/文档 30+ 处引用）尚未逐一盘点，Phase 1.6/1.7 执行时以 `git grep` 清单为准。
+- 首访：作者自测 4/5；仍缺真实陌生人走查（Phase 4），不作为「标杆达成」证据。
+- 独立复评为只读：未跑 xcodebuild/模拟器/真机/clean clone；3.6/5 与 24/35 为当前口径，不证明动态行为正确。
+- 干净 clone 可复现性未实测（Phase 3.1 将补）；当前工作树在复评时未提交，clone 不可复现 Phase 2。
+- GitHub 元数据/发布权限、仓库改名影响未验证（Phase 4）。
+- Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，Phase 3 补实测或标未验证。
+- 真机未在脱敏/脚本改动后重跑；现有 device evidence 指向旧 commit，不代表本轮 project 改动后的真机结果。
+- 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
+- **git 历史仍含旧 commit 的 Team/UDID/本机路径**；本轮只清理工作树。公开发布前需评估 `git filter-repo` 或明确接受历史泄露（需用户决策）。
+- DSH hooks 能力随版本变化（0.2.1-rc.5 未打包）；模板按「门禁 + CI + 适配层」设计，不依赖 hooks 可用。
+- Phase 2.5 待做项：evidence HEAD/时效绑定、计划证据 ID 校验、done 严格、§ 引用扫描扩展、token 余量再平衡（AGENTS 余 24、refs 余 18–25）。
+- `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
 ## 参考（外部事实核对，2026-11-07）
 
@@ -480,19 +507,25 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（Phase 1 两批已提交 `b88910b`、`98b8247`；进入 Phase 2 前工作区 clean）。
+> Phase 2（2.1/2.2/2.6/2.7 + 2.3 独立复评）待提交。
+
+- `HARNESS.md` / 重写为实践地图+采用指南 / 可提交
+- `README.md` / 新增评分卡与适配层入口 / 可提交
+- `docs/` / 评分卡与索引更新 / 可提交
+- `harness/` / 适配层（claude-code/dsh）、evidence 可选字段 / 可提交
+- `tools/` / 适配器脚本与 check-docs 白名单 / 可提交
+- `Makefile` / adapters 命令 / 可提交
+- `.gitignore` / 生成物忽略 / 可提交
 
 ## 下一步
 
-1. 等用户授权提交 Phase 1 第一批（当前 34 个文件改动 + 3 个新增 + HANDOFF 删除）。
-2. 提交后立刻做 1.9（改造后首访测试），再进入第二批：1.4 历史文档蒸馏、1.6 `harness` 瘦身 + `harness/` 改名、1.8 截图。
-3. 第二批完成后进入 Phase 2（HARNESS 重写 + 独立复评 + Agent 适配层）。
-4. 公开发布前单独做 git 历史敏感信息评估（`git filter-repo` 会改写历史，需用户确认）。
-5. Phase 5（harness-kit 模板）在 Phase 1–3 稳定后启动；Phase 6 产品测试始终独立排期。
+1. 提交 Phase 2（HARNESS/评分卡/适配层/schema 可选字段/独立复评报告/门禁接线）。
+2. Phase 3：clean clone 仅用 python3 跑 `make check`；合并 `docs.yml` 到 `verify.yml`；README 徽章；doctor 对陌生人友好化。
+3. 同步完成 Phase 2.5 剩余 P0：evidence HEAD/时效绑定、证据 ID 校验、done 严格、§ 引用扫描扩展、token 余量再平衡。
+4. Phase 4：发布与真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试独立排期。
 
 ## 待确认
 
-- 是否授权提交 Phase 1 第一批（含 HANDOFF 删除、README/LICENSE/CONTRIBUTING/decisions、脱敏）。
-- 第二批范围是否按 §4：1.4 历史文档蒸馏 + 1.6 `harness`→`harness/` 改名 + 1.8 截图 + 1.9 首访复测。
-- 公开发布前是否要求清理 git 历史中的敏感信息（`git filter-repo`，会改写历史，高风险）。
+- 是否继续 Phase 3（clean clone / CI 合并 / 徽章）与 Phase 2.5 剩余 P0 整改。
+- 公开发布前是否要求清理 git 历史敏感信息（`git filter-repo`，改写历史，高风险）。
 - D-B6 仓库改名、D-B7 发布节奏仍待发布阶段再定。

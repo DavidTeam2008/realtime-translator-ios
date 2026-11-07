@@ -9,7 +9,7 @@ DERIVED_DEVICE ?= $(DERIVED)-device
 TEAM_RULES ?= ../../agent/template
 N ?= 10
 
-.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan check-evidence test-tools check check-all verify-static verify verify-claim evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
+.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools check check-all verify-static verify verify-claim evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -89,7 +89,7 @@ doctor: ## 环境自检（Xcode / 模拟器 / mobilebuildmcp / python / 模板�
 resume: ## 接手：active 计划 + git 状态 + 下一步 + 建议阅读
 	python3 tools/plan.py resume
 
-end: verify-static ## 收尾：门禁 + 计划检查 + git 状态 + 未验证项
+end: verify-static verify-claim ## 收尾：静态门禁 + 证据判定 + 计划检查 + git 状态
 	@python3 tools/plan.py end
 
 check-agents: ## 校验团队基线（无模板仓时 SKIP）
@@ -100,7 +100,13 @@ check-agents: ## 校验团队基线（无模板仓时 SKIP）
 		python3 "$(TEAM_RULES)/scripts/sync_team_baseline.py" --check AGENTS.md; \
 	fi
 
-check: check-docs check-arch check-tests check-harness check-plan ## 本地门禁（不依赖模板仓）
+adapters-sync: ## 生成 Agent 适配（.dsh/skills → .claude/skills；本机生成物）
+	python3 tools/adapters.py sync
+
+adapters-check: ## 校验 Agent 适配层（skills 单源 / hooks 示例 / 适配文档）
+	python3 tools/adapters.py check
+
+check: check-docs check-arch check-tests check-harness check-plan adapters-check ## 本地门禁（不依赖模板仓）
 check-all: verify-static check-agents ## 本地门禁 + 团队基线
 
 plan: ## 新建跨会话计划：make plan TOPIC=speech-gate

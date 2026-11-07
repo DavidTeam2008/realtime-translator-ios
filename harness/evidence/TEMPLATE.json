@@ -12,7 +12,10 @@
     "xcode": null,
     "simulator": "iOS X.Y",
     "device": null,
-    "build": "Debug"
+    "build": "Debug",
+    "agent": null,
+    "model": null,
+    "harnessVersion": null
   },
   "result": {
     "status": "SUCCEEDED",

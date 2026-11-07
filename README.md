@@ -78,6 +78,7 @@ Order/            Release 二进制重排符号表（生成物，启动优化已
 | **Sensors（反馈）** | 静态门禁 → 单元/UI → 真机；测试计数、架构铁律、文档预算、计划状态都可机检 | `make check` / `make verify-static` |
 | **Evidence（证据）** | 完成声明写 `harness/evidence/*.json`，`make verify-claim` 输出 **PASS / FAIL / UNVERIFIED** | [`HARNESS.md`](HARNESS.md) §5 |
 | **独立审查** | 并发/持久化/发布工程改走只读红队；月度 harness 审计 | `.dsh/skills/red-team`、`make harness-audit` |
+| **工具适配** | 规则/门禁/证据不绑定工具；DSH 与 Claude Code 适配层 | [`harness/adapters/`](harness/adapters/)、`make adapters-check` |
 
 设计原则：**没有执行载体的规则不写；完成声明必须可证伪；一个事实只有一个真源；能机检就不靠自觉。**
 
@@ -100,6 +101,7 @@ Order/            Release 二进制重排符号表（生成物，启动优化已
 | [`docs/03-tech-choices.md`](docs/03-tech-choices.md) | 系统框架选型、理由与明确不选 |
 | [`docs/04-roadmap.md`](docs/04-roadmap.md) | P0–P3 问题、验收标准与排期（唯一排期源） |
 | [`docs/decisions.md`](docs/decisions.md) | 决策表 D1–D7 与 2026-11 工程决策（唯一决策源） |
+| [`docs/harness-scorecard.md`](docs/harness-scorecard.md) | Harness 五子系统评分卡与独立复评记录 |
 | [`AGENTS.md`](AGENTS.md) | AI Agent 冷启动入口 |
 
 ## 当前状态

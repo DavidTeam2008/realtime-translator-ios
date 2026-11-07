@@ -4,6 +4,8 @@
 > 规则：无 evidence 的「已验证」按**未验证**处理；`UNVERIFIED` 不是 `PASS`。
 > 事实源：schema 见 [schema.json](schema.json)，起稿见 [TEMPLATE.json](TEMPLATE.json)，测试基线见 [harness/test-baseline.json](../test-baseline.json)。
 
+> environment 还支持可选 `agent` / `model` / `harnessVersion` 字段（跨 agent/模型对比用；不改变 schemaVersion，向后兼容）。
+
 ## 1. 目录与入库策略
 
 | 文件 | 说明 | 入库 |

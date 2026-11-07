@@ -1,159 +1,165 @@
-# HARNESS.md · Harness 系统地图（对译 Duiyi）
+# HARNESS.md · Harness Engineering 实践地图（对译 Duiyi）
 
-> 一句话：本项目把"agent 该做什么"（**guides**，前馈）和"仓库怎么否证 agent 的完成声明"（**sensors**，反馈）都固化进仓库；本文是这张地图的运行手册与索引，**不是事实真源**。
-> 真源优先级见 [`docs/README.md`](docs/README.md)；规则入口 [`AGENTS.md`](AGENTS.md)；人读接手 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
-> 状态：**Phase 1（2026-11-05）**。Phase 2 行为传感器（P0 对应测试）与 Phase 3 自动审计/指标尚未完成，未做的能力在文中显式标注。
+> 一句话：把"agent 该做什么"（**guides**，前馈）和"仓库怎么否证 agent 的完成声明"（**sensors**，反馈）固化进仓库，让"做完了/已验证"变成可被脚本判定的声明。
+> 这是**系统地图与实践案例**，不是事实真源。真源优先级见 [`docs/README.md`](docs/README.md)；规则入口 [`AGENTS.md`](AGENTS.md)；本地开发 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+> 状态：Phase 0/1 已完成（静态门禁、证据三值、CI、skills、目录治理）；Phase 2 完成（适配层 + 评分卡 + 独立复评 ≈3.6/5）；Phase 2.5 接线补强与 Phase 3 可复现进行中；未做的能力在 §8 显式标注。
 
-## 1. 目标与边界
+## 1. 问题：为什么需要 harness
 
-**目标**：任意一个 agent 新会话进入仓库后，能在 ≤3 次读取内知道"我是谁、做到哪、下一步、怎么算完成"；任意"完成/已验证"声明都能被仓库脚本判 **PASS / FAIL / UNVERIFIED**，而不是自由文字。
+一个真实 iOS 项目用 AI Coding Agent 开发时，最常见的失败不是"不会写代码"，而是：
 
-**分层门禁**（成本与可信度匹配）：
+- **完成声明不可验证**：agent 说"测试通过/已修复"，但仓库里没有任何可复核的证据；
+- **上下文每次重建**：新会话不知道项目约束、上一轮做到哪、哪些坑已踩过；
+- **验证成本错配**：真机/性能验证很慢，agent 倾向用"看起来对"代替"已验证"；
+- **过程文档淹没主线**：计划、问题单、历史记录与产品文档混在一起，人和 agent 都找不到真相；
+- **模型/工具换代成本高**：规则写死在某个 agent 的私有配置里，换模型或换 shell 就要重写。
+
+Harness Engineering 的回答：**模型之外的一切工程设施都是 harness；目标不是让模型更聪明，而是提高一次做对的概率，并让错误在到达人眼之前被自纠或显性化。**
+
+## 2. 概念：五子系统与两条回路
+
+| 概念 | 含义 | 在本仓库的落点 |
+|---|---|---|
+| **Agent = Model + Harness** | 模型能力 ≠ 交付能力；harness 决定能力兑现率 | 整个仓库的规则/门禁/证据 |
+| **Guides（前馈）** | 约束、路由、动作卡、结构约束 | `AGENTS.md` 树、`references/`、`.dsh/skills/` |
+| **Sensors（反馈）** | 测试、静态检查、架构规则、证据判定 | `make check` / `make verify-static` / 单元 / UI / 真机 |
+| **Instructions** | "该做什么、去哪读" | 根 + 嵌套 `AGENTS.md`（token 预算内，指路不抄写） |
+| **State** | "做到哪、证据在哪、下一步" | `harness/plans/` active 计划 + `harness/evidence/` |
+| **Verification** | "怎么算完成、能否否证" | 四层验证 + PASS/FAIL/UNVERIFIED 三值 |
+| **Scope** | "一次只做什么、边界在哪" | L0/L1/L2、计划 `scope.allow/deny`、红队限定场景 |
+| **Session Lifecycle** | "开工/交接/收尾" | `make resume/end`、6 个 skills、handoff 协议 |
+
+**计算型优先**：能用脚本、schema、hashes 判定的，不靠模型自觉；推断型控制（人审、红队、AI 评审）只用于无法机检的语义/体验层，并用 L0/L1/L2 分级控制流程税。
+
+## 3. 本仓库落地矩阵
+
+| 子系统 | 机制（可复跑） | 入口 | 类别 |
+|---|---|---|---|
+| Instructions | AGENTS ≈1576/1600 token；6 个嵌套 AGENTS；敏感信息/§ 引用机检 | `make check-harness` | 前馈+机检 |
+| State | 计划 front matter/status；唯一 active；未提交改动与 git 交叉核对 | `make check-plan`、`make resume` | 状态 |
+| Verification | 文档/架构/计数/harness/计划 5 组门禁；证据 schema + 三值判定；42 个脚本单测 | `make check` / `make verify-static` / `make verify-claim` | 反馈 |
+| Scope | 计划 `scope.allow/deny`；L0/L1/L2；并发/持久化/发布工程强制独立红队 | `references/workflow.md`、`red-team` skill | 作用域 |
+| Lifecycle | 6 个 skills：bootstrap / verify-change / handoff / red-team / harness-audit / device-verify | `.dsh/skills/`、`make resume/end` | 会话 |
+| 证据层 | 单元/UI/真机 evidence JSON；三值判定；commit/dirty 校验 | `harness/evidence/` | 可审计 |
+| 目录分层 | `docs/`（事实）· `references/`（规则）· `harness/`（过程与证据）· `tools/`（门禁） | `docs/README.md`、`harness/README.md` | 信息架构 |
+
+**门禁分层（成本与可信度匹配）**：
 
 | 层 | 内容 | 何时跑 |
-| --- | --- | --- |
-| 静态（约 3–5s，无 Xcode） | 文档/架构/计数/harness/计划/证据 lint + 41 个脚本单测 | 每次改动；CI ubuntu；pre-push |
-| 动态（分钟级） | 模拟器单元/UI 测试 | 对应代码改动后；可选 self-hosted macOS CI |
-| 人工（真机） | 语音/翻译/TTS/音频/持久化/SwiftData | 相关改动与发版前；不可替代 |
+|---|---|---|
+| 静态（约 0.3–4.3s，无 Xcode） | docs/架构/计数/harness/计划/证据 + 脚本单测 | 每次改动；CI ubuntu；pre-push |
+| 动态（分钟级） | 模拟器单元 / UI 测试 | 对应代码改动后；可选 self-hosted macOS CI |
+| 人工（真机） | 语音 / 翻译 / TTS / 音频 / 持久化 / SwiftData | 相关改动与发版前；不可替代 |
+| 月度 | harness 审计 + 评分卡更新 | 每月或大改后 |
 
-**诚实边界**：静态门禁不能证明行为正确；evidence 只提高说谎成本、不绝对防伪（仍需独立审查）；profile/会话级能力（Agent Teams、worktree、MCP、hooks）不是仓库能强制的东西，见 §8。
+## 4. 证据怎么验（可审计性是本仓库的差异点）
 
-## 2. `harness/` 是什么，为什么计划与证据放这里
-
-**定义**：`harness/` 是**项目自定义的 Agent 工作区目录**。它不是 App 运行时目录、不是构建产物，也**不是 DSH 框架要求**。目录名来自 2026-09「启动性能自主闭环演练」的 APM 测量工作区，2026-11 更名并收敛为跨会话计划、证据与工具的统一位置；产品文档仍在 `docs/`。
-
-**为什么放这里**：
-
-1. **单一真源 + 可恢复**：与仓库一起版本化，换 agent / 换机器只靠仓库就能恢复任务与证据。
-2. **与产品文档分层**：`docs/` 写"当前规范与理由"；`harness/` 写"某次任务的执行状态、证据与审查"。项目阶段与路线图写 `docs/04-roadmap.md`。
-3. **体积可控**：原始测量/日志/trace 全部 gitignore，入库的只有摘要（JSON/Markdown）。
-
-| 子目录 | 职责 | 入库 |
-| --- | --- | --- |
-| `harness/plans/` | 跨会话计划（唯一进度真源）；`_template.md` | 是 |
-| `harness/evidence/` | 可复核证据（schema、TEMPLATE、摘要 JSON） | 是（1–3KB/条） |
-| `harness/tools/` | 真机测试/启动测量脚本 | 是 |
-| `harness/test-baseline.json` | 测试计数与 skip 白名单基线 | 是 |
-| `harness/runs/`、日志/截图/trace | 原始测量产物 | **否**（gitignore，可由脚本重建） |
-
-`harness/` 的目录级协议见 [`harness/AGENTS.md`](harness/AGENTS.md)；工作区索引见 [`harness/README.md`](harness/README.md)；证据规范见 [`harness/evidence/README.md`](harness/evidence/README.md)。
-
-## 3. Guides / Sensors 矩阵
-
-| 类型 | 资产 | 作用 | 入口 |
-| --- | --- | --- | --- |
-| Guide | [`AGENTS.md`](AGENTS.md) + 6 个嵌套 `AGENTS.md` | 冷启动定位、铁律、路由、执行协议 | 自动注入（DSH）；其他工具当 Markdown 读 |
-| Guide | [`docs/README.md`](docs/README.md)、`docs/01`–`04` | 真源优先级、产品/架构/选型/排期 | 按任务读段落 |
-| Guide | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 本地环境、签名、测试入口与已知坑 | 接手第一篇 |
-| Guide | [`references/contracts.md`](references/contracts.md)、[`verification.md`](references/verification.md)、[`workflow.md`](references/workflow.md) | 契约细则、验证矩阵、任务分级/红队 | 按任务按需读 |
-| Guide | [`.dsh/skills/`](.dsh/skills/) | 6 个可调用动作（见 §6） | `skill` 工具（DSH） |
-| Sensor | `make check-docs` | 链接 / 围栏 / docs 索引 / token 预算 | 静态 |
-| Sensor | `make check-arch` | 架构铁律 R1–R6（依赖单向/翻译锚 View/单引擎/内存为准） | 静态 |
-| Sensor | `make check-tests` | 测试计数下限 + skip 白名单（防删测试变绿） | 静态 |
-| Sensor | `make check-harness` | 预算 / § 引用 / 嵌套 AGENTS / skills / 敏感路径 | 静态 |
-| Sensor | `make check-plan` | 计划状态机与必填字段 / 未提交改动 vs git | 静态 |
-| Sensor | `make verify-static` | 以上全部 + 证据 schema 校验 + harness 脚本单测 + 脚本语法 | 静态（约 3–5s） |
-| Sensor | [`harness/evidence/`](harness/evidence/README.md) + `tools/evidence.py` / `tools/verify-claim.py` | 证据摘要与三值判定 | 声明前 |
-| Sensor | [`.githooks/pre-push`](.githooks/pre-push) | push 前自动跑 `make verify-static` | 本地 git |
-| Sensor | [`.github/workflows/verify.yml`](.github/workflows/verify.yml) | CI：ubuntu 静态 + 可选 self-hosted macOS 单测 | 远程 |
-| Sensor | `harness/tools/device-test.sh`、`measure-launch.sh` | 真机测试 / 启动测量（写 evidence） | 人工真机 |
-| Sensor | `red-team` skill / 只读子 agent | L2 中并发·持久化·发布工程的独立审查 | 人工触发 |
-
-## 4. 运行手册
-
-| 场景 | 命令 | 说明 |
-| --- | --- | --- |
-| 环境自检 | `make doctor` | Xcode/模拟器 runtime/真机工具/模板仓；exit 2 = 动态验证不可用 → 结论"未验证" |
-| 接手 / 开工 | `make resume` | active 计划 + git 状态 + 下一步 1 条 + 建议阅读 |
-| 秒级门禁 | `make check` / `make verify-static` | 前者 5 项静态；后者加证据校验 + 脚本单测 + 脚本语法 |
-| 按类型验证 | `make test` / `make test-ui` / `make device-test` | 见 [`references/verification.md`](references/verification.md) |
-| 证据 | 写：`python3 tools/evidence.py write ...`（真机/测量脚本自动写）；查：`make evidence`（ls）/ `make check-evidence`（validate） | 手写示例见证据 README |
-| 判定声明 | `make verify-claim CLAIM=<证据路径>` | 缺省 `--all`；PASS/FAIL/UNVERIFIED 三值 |
-| 收尾 | `make check-plan` → `make end` → `make handoff` | 计划更新后跑；提交前询问 |
-| 安装 hook | `make hooks-install` | 等价 `git config core.hooksPath .githooks`；每克隆一次 |
-| 月度审计 | `make harness-audit` | `check-all` + `doctor` + `evidence`，再按 §9 清单**人工打分**（Phase 3 前不自动判绿） |
-| 红队 | `red-team` skill（或只读子 agent） | 仅 L2 并发/持久化/发布工程强制 |
-
-## 5. 证据政策
-
-- **三值判定**：`PASS`(exit 0) / `FAIL`(exit 1) / `UNVERIFIED`(exit 2)；UNVERIFIED 不绿。
-- **摘要入库、原始不入库**：`harness/evidence/*.json`（1–3KB/条）随仓库提交；xcresult、日志、截图、trace 不进库（可由命令重跑）。
-- **无 evidence id = 未验证**：完成声明必须能指向 evidence id / 可复核命令；Phase 0 之前的历史记录保留当时口径。
-- **测试类 claim**：`passed ≥` 基线 floor、`failed=0`、`skipped == expected`、xcresult 指纹存在，否则 UNVERIFIED；不得用旧结论当新验证。
-- **文档/架构 claim**：`verify-claim` 直接复跑对应静态门禁。
-- **性能 claim**：必须同 context、n≥10、CV/显著性达标；否则 UNVERIFIED；性能结论不能由模拟器或单次样本得出。
-- **commit 校验**：证据的 commit 必须是 HEAD 或 HEAD 祖先且 `dirty=false`；过期/伪造证据判 FAIL 或 UNVERIFIED。
-- **不绝对防伪**：证据可以被伪造；高风险改动仍走独立审查 + 人工真机体验。
-
-## 6. 项目级 skills（`.dsh/skills/`）
-
-| Skill | 触发 | 动作 |
-| --- | --- | --- |
-| `session-bootstrap` | 新会话/接手 | `make doctor` → `make resume` → 只输出"一个下一步 + 建议阅读" |
-| `verify-change` | 任何完成声明前 | 按变更类型选验证 → 记录证据 → 给 PASS/FAIL/UNVERIFIED |
-| `handoff` | 中断/收工/交接 | 更新计划 → `make check-plan` → `make end` → `make handoff` |
-| `red-team` | L2 并发/持久化/发布工程 | 只读独立审查：P0/P1/P2 表 + 被挑战假设 + 最小验证清单 |
-| `harness-audit` | 月度/大改后 | 跑门禁与证据命令，按 §9 打分（Phase 3 前人工） |
-| `device-verify` | 真机验收 | `device-test.sh` 流程；处理 exit 2/74/密码弹窗；失败写"未验证 + 手动步骤" |
-
-说明：`.dsh/skills/` 是**仓库内真实文件**、DSH 原生发现（项目 skill 根）；其他 agent 工具可当 Markdown 动作卡读，但不保证自动加载。机器本地覆盖（签名 Team、设备 ID）用 `AGENTS.local.md`（gitignore，模板 [`AGENTS.local.md.example`](AGENTS.local.md.example)）。
-
-## 7. CI 与 hooks
-
-- **CI** [`.github/workflows/verify.yml`](.github/workflows/verify.yml)：`static`（ubuntu-latest，`make verify-static`，约 3–5s）+ `unit-tests`（self-hosted macOS，`make test`，`needs: static`）。后者默认跳过，仓库变量 `MACOS_CI_ENABLED=true` 才启用；失败也上传 xcresult/日志（保留 7 天）。GitHub 托管 macOS 是否带 iOS 26.4 runtime **未验证**，故默认自托管。
-- **旧** `.github/workflows/docs.yml` 保留（只查文档），static job 已覆盖全量静态门禁。
-- **hooks** [`.githooks/pre-push`](.githooks/pre-push)：push 前跑 `make verify-static`，失败退出 1；`SKIP_HARNESS_HOOK=1` 可跳过（须在计划/PR 记录原因）。
-- **分层**：CI 不跑真机/性能；`device-test.sh`、`measure-launch.sh` 只在本地人工执行。
-
-## 8. DSH 用户级配置建议（**非仓库强制**）
-
-以下全部配置在**用户自己的 `~/.dsh`**，本仓库不提供、不校验、**不承诺自动生效**；仓库内能固化的只有 AGENTS.md 谱系与 `.dsh/skills/`。
-
-**（1）profile patch 片段**（`~/.dsh/profiles/<profile>/cordis.patch.yml`，以本机 DSH 0.2.1-rc.5 的层序为例）：
-
-```yaml
-- id: agent-default-model
-  name: "@deepseek-ai/dsh-agent-default-model"
-  config:
-    provider: deepseek-official
-    model: deepseek-v4-flash-vision-exp
-    reasoningEffort: high
-
-- id: subagent-model-selection-settings
-  name: "@deepseek-ai/dsh-tool-subagent/model-selection-settings"
-  config:
-    enabled: true
-    allowedModels:
-      - provider: deepseek-official
-        model: deepseek-flash
-```
-
-**（2）启用实验能力**（Agent Teams / worktree，按版本语法可能变化）：
+**三值判定**：`PASS`(exit 0) / `FAIL`(exit 1) / `UNVERIFIED`(exit 2)；UNVERIFIED 不算绿。
 
 ```bash
-dsh plugin --profile <profile> add @deepseek-ai/dsh-experimental-agent-team-profile
-dsh plugin --profile <profile> add @deepseek-ai/dsh-experimental-tool-worktree
+make evidence        # 列出证据
+make verify-claim    # 校验全部证据（默认 --all）
+make check-evidence  # 只做 schema/语义校验
 ```
 
-**（3）建议用法**：长任务用 goal / `make plan`；L2 复核用 Agent Teams 或只读子 agent（maker-checker）；并行实验用 worktree；月度审计可用 `schedule` 提醒。以上是**会话级操作**，不写进仓库规则。**（4）未验证**：hooks / MCP 在 DSH 0.2.1-rc.5 未随包启用，不要假设存在；不同 DSH 版本以 `dsh plugin list` / `--help` 为准。
+**evidence JSON**（`harness/evidence/*.json`，1–3KB/条）必须包含：claim 类型、命令、环境、通过/失败/skip 计数、commit、`dirty=false`、xcresult/指标路径、verdict。规则：
 
-## 9. 月度 harness 审计清单
+- 无 evidence id 的"已验证"按未验证处理；换机器 xcresult 不可达 → UNVERIFIED（不伪造）；
+- 测试类 claim 必须满足 floor（`passed ≥ 基线`）、`failed=0`、`skipped == 预期`；
+- 性能 claim 必须同 context、n≥10、CV/显著性达标；模拟器与单次样本不构成性能证据；
+- 文档/架构 claim 由 `verify-claim` 直接复跑对应静态门禁；
+- **不绝对防伪**：证据可以被伪造；高风险改动仍走独立审查 + 人工真机体验。
 
-每月或大改后按 §4 跑命令，逐项给 PASS/WARN/FAIL，输出 `harness/reviews/harness-YYYY-MM.md`（目录按需创建），失败模式回写计划或改进项（Phase 3 前人工）。
+**四层验证矩阵**：静态 → 单元/UI → 真机 → 人工体验；变更类型对应的最低验证见 [`references/verification.md`](references/verification.md)。
 
-- **Instructions**：`AGENTS.md` ≤1600；6 个嵌套 AGENTS 存在且未膨胀；§ 引用命中目标标题；规则未在 references/docs 重复。
-- **State**：同一时间只有一个 active 计划；front matter 与证据四列完整；done 计划已归档；`make resume` 只靠仓库能答"下一步"。
-- **Verification**：`make verify-static` PASS；负向测试仍红（删 1 个 `@Test`、Domain 加 `import SwiftUI`、伪造 UDID）；`evidence validate` 无错；未验证声明被显式记录。
-- **Scope**：计划 `scope.allow/deny` 与实际改动一致；越界有记录与更新。
-- **Lifecycle**：`make doctor` 结论被正确解读（环境问题 ≠ 代码问题）；hook 已安装；CI static 绿、unit-tests 按开关状态如实说明。
+## 5. 我们踩过的坑与取舍（诚实记录）
 
-**三指标**（月度对比，不看文档数量）：① 首次门禁通过率；② 同一失败返工轮次（2 次停止规则）；③ 未验证声明覆盖率（目标 100%）。
+- **假绿比失败更贵**：UI 测试"存在但不可点击"、模拟器语音 skip 被当作通过、handoff 输出与 git 事实相反——这些都不能靠"更努力的 agent"解决，只能靠机检和可证伪证据。
+- **流程税必须分层**：小改动强制全套流程会让 agent（和人）绕过规则；因此 L0/L1/L2 + 秒级/分钟级/真机/月度四层。
+- **规则会漂移**：同一事实写两处必漂移；用 token 预算 + 单一源 + 链接取代复制。
+- **工具能力不是仓库能力**：DSH/Claude Code 的 hooks、subagents、teams、worktrees 都是 profile/会话级；仓库内真正可固化的只有 `AGENTS.md` 谱系、skills、CLI 门禁与证据。
+- **诚实负结果也是资产**：启动 200ms 目标被对照组地板证伪（p50=210ms），完整证据链见 [`docs/case-startup-performance.md`](docs/case-startup-performance.md)，避免下一棒重复劳动。
+- **CI 有边界**：ubuntu static 全绿成本极低；macOS 单测依赖自托管 runner，托管 runtime 未验证，默认按设计跳过。
+- **证据路径与隐私**：本机绝对路径、设备 ID、Team ID 不入库；机器事实写 `AGENTS.local.md`（gitignore）。旧 commit 历史中仍可能残留，公开发布前需单独评估（见 §8）。
 
-## 10. Changelog
+## 6. 复制到你的仓库（最小起步 → 进阶）
+
+不要求一次做全；按项目风险逐步加。**核心三件套**：AGENTS 指令树 + 秒级静态门禁 + 可复核证据；其余按需。
+
+1. **写冷启动入口**：根 `AGENTS.md` 只做定位/路由/铁律（目标 ≤200 行）；细节放 `references/` 或 skills。
+2. **加第一个 sensor**：`tools/check-docs.py` 式文档/链接/围栏检查，`make check` 秒级可跑。
+3. **让完成可证伪**：定义 1–2 种 claim（如 `unit-tests-pass`），加 evidence JSON + `verify-claim` 三值判定。
+4. **状态外置**：`harness/plans/` 模板 + active 唯一 + `make resume/end`；会话不再靠聊天记忆。
+5. **架构 fitness**：用 grep/AST/依赖图把最重要的 3–6 条架构铁律变成秒级检查。
+6. **测试基线**：计数下限 + skip 白名单，防"删测试变绿"。
+7. **CI 分层**：ubuntu 跑静态；昂贵/平台相关测试放自托管或手动，并写清"未验证"。
+8. **skills**：把重复动作（验证/交接/真机/红队）写成 `SKILL.md`，按需加载，省 context。
+9. **接入你的 agent**：保持规则在 `AGENTS.md`；用适配层提供工具差异（见 §9 / [`harness/adapters/`](harness/adapters/)）。
+10. **周期修剪**：月度审计（评分卡）+ 季度文档修剪；过程只留结论+证据，原始记录进 git 历史。
+
+> 完整模板（profiles + 脚手架 + adapters）在 Phase 5 抽成 `harness-kit`；本项目是它的第一个案例。
+
+## 7. 评分卡与独立复评
+
+- 评分方法与当前分数：[`docs/harness-scorecard.md`](docs/harness-scorecard.md)（五子系统 1–5 分 + 证据）。
+- 当前独立复评（2026-11-07）：Instructions 4.0 / State 3.5 / Verification 4.0 / Scope 3.0 / Lifecycle 3.5，综合 **≈3.6 / 5（72%）**；改造前独立审计为 2.5/5。
+- L3 判定：**条件成立**——`verify-claim` 已接入 `make end`，但尚未接入 pre-push/CI，且 evidence 时效/ID 校验待补（Phase 2.5）。
+- 独立复评报告：[`harness/reviews/2026-11-07-harness-reaudit.md`](harness/reviews/2026-11-07-harness-reaudit.md)。复评规则：每月或大改后由**非作者**只读复评；分数变化必须附证据；自评与复评分差异要解释。
+
+## 8. 局限与未验证（不要当成能力）
+
+- **行为正确性**：静态门禁不能证明语义正确；P0-1 并发仲裁 / P0-3 持久化的行为测试尚未做（独立排期）。
+- **动态 CI**：macOS 单测默认跳过，需自托管 runner；GitHub 托管 macOS 是否有 iOS 26.4 runtime 未验证。
+- **真机依赖**：语音/翻译/持久化必须在真机验收；不能操作设备时只能写"未验证 + 手动步骤"。
+- **性能**：启动优化已暂停；无性能回归门禁；性能结论只认真机 n≥10 同口径。
+- **架构强制**：单 target，无编译期模块边界；`check-arch` 是文本规则，可被绕过；无覆盖率门槛。
+- **工具适配**：Claude Code 的 hooks 示例、skills 同步为设计资产，未在本机实测（本机未装 Claude Code）。
+- **git 历史**：旧 commit 可能含 Team/设备 ID/本机路径；当前树已脱敏，历史清理需 `git filter-repo`（改写历史，需单独决策）。
+- **证据可伪造**：三值判定提高说谎成本，不提供密码学保证；高风险仍需独立审查。
+- **验证接线**：`verify-claim` 已接入 `make end`，但尚未进入 pre-push/CI；旧 evidence 只要 commit 是 HEAD 祖先即可 PASS（时效/HEAD 绑定待补）。
+- **scope 越界**：`scope.allow` 已能报「allow 外改动」，但 allow 本身可由执行者修改；范围正确性仍是半自动。
+- **§ 引用 sensor**：目前对根 AGENTS 的 `§` 形式引用做检查；嵌套 AGENTS 的节号漂移尚未覆盖。
+- **clean clone**：Phase 3 前未实测；当前工作树（Phase 2 未提交）不能由 clone 复现。
+
+## 9. 运行手册与工具适配
+
+| 场景 | 命令 | 说明 |
+|---|---|---|
+| 环境自检 | `make doctor` | Xcode/模拟器/真机工具；exit 2 = 动态验证不可用 → "未验证" |
+| 接手 / 开工 | `make resume` | active 计划 + git 状态 + 下一步 1 条 |
+| 秒级门禁 | `make check` / `make verify-static` | 前者 5 组静态；后者加证据/脚本单测/语法 |
+| 按类型验证 | `make test` / `make test-ui` / `make device-test` | 见 [`references/verification.md`](references/verification.md) |
+| 证据 | `make evidence` / `make verify-claim` | 三值判定 |
+| 收尾 | `make check-plan` → `make end` → `make handoff` | 提交前询问 |
+| 月度审计 | `make harness-audit` | 人工打分，结果写 `harness/reviews/` |
+| Agent 适配 | `make adapters-sync` / `make adapters-check` | 单源 skills → `.claude/skills`；hooks 示例见 [`harness/adapters/`](harness/adapters/) |
+
+**工具无关核心**：规范在 `AGENTS.md`（DSH 与 Claude Code 均可原生读取）；动作在 skills；门禁在 `Makefile`/`tools/`；证据在 `harness/evidence/`。**工具差异只放在适配层**：
+
+| 能力 | DSH（0.2.1-rc.5） | Claude Code |
+|---|---|---|
+| 指令 | 原生 AGENTS 链（含嵌套/预算） | v2.1.277+ 原生读取 AGENTS.md |
+| Skills | `.dsh/skills/` 自动发现 | `.claude/skills/`（由 `make adapters-sync` 生成） |
+| 自动执行 | 无仓库级 hooks；用 skills + pre-push + CI | `PostToolUse`/`Stop` hooks（示例配置） |
+| 状态 | 仓库计划 + 会话 goal/plan | 仓库计划 + plan mode |
+| 模型 | profile 配置（用户级） | `ANTHROPIC_BASE_URL` 等环境变量（DeepSeek 官方支持） |
+
+**CI 与 hooks**：`.github/workflows/verify.yml` = ubuntu static + 可选 self-hosted macOS 单测；`.githooks/pre-push` 推送前跑 `make verify-static`；真机/性能只在本地人工执行。
+**项目级 skills**：`.dsh/skills/` 6 个（bootstrap / verify-change / handoff / red-team / harness-audit / device-verify），详见 [(skills)](.dsh/skills/)。
+
+## 10. 来源与版本
+
+- Claude Code：Hooks <https://code.claude.com/docs/en/hooks>；Memory / AGENTS.md <https://code.claude.com/docs/en/memory>；扩展总览 <https://code.claude.com/docs/en/features-overview>。
+- DeepSeek：Anthropic API 兼容 <https://api-docs.deepseek.com/guides/anthropic_api>；Claude Code 集成 <https://api-docs.deepseek.com/quick_start/agent_integrations/claude_code>。
+- DeepSeek Harness 文档 <https://deepseek-harness.github.io/deepseek-harness/en/guide/quickstart>；本机能力盘点（0.2.1-rc.5）见 `harness/runs/harness-audit/01-research.md`（gitignore）。
+- 方法论来源：Fowler/Thoughtworks（guides + sensors）、OpenAI（repo-as-spec）、Anthropic（外置状态 / maker-checker）、CAICT（驾驭工程）、learn-harness-engineering（五子系统）。
+
+## Changelog
 
 | 日期 | 变更 |
 | --- | --- |
 | 2026-11-05 | Phase 0：AGENTS 压缩+嵌套、静态门禁（arch/tests/harness）、计划状态机（resume/end/doctor）、单一真源清理（D1–D7） |
 | 2026-11-05 | Phase 1：evidence 三值判定、6 个 `.dsh/skills`、CI `verify.yml` + pre-push、HARNESS.md 初版、`AGENTS.local.md` 模板 |
-| 2026-11-07 | Phase 1 第一批：HANDOFF 拆分（CONTRIBUTING + docs/decisions）、LICENSE/README 重写、脱敏（Team/设备 ID/路径）、公开文档白名单门禁 |
-| 2026-11-07 | 第二阶段：历史文档蒸馏为案例并删除、原 APM 工作区更名 `harness/` 并瘦身、新增 `harness/README.md` |
+| 2026-11-07 | Phase 1 第一批：HANDOFF 拆分（CONTRIBUTING + docs/decisions）、LICENSE/README 重写、脱敏、公开文档白名单门禁 |
+| 2026-11-07 | Phase 1 第二批：历史文档蒸馏为案例并删除、原 APM 工作区更名 `harness/` 并瘦身、截图 |
+| 2026-11-07 | Phase 2：HARNESS 重写（案例+方法+采用指南+评分卡+适配层）、独立复评、evidence schema v2 |
