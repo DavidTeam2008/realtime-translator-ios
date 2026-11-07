@@ -329,8 +329,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | # | 任务 | 产出 | 验收 |
 | --- | --- | --- | --- |
 | 4.1 | GitHub 元数据 | 仓库 description / topics（`ios`, `swift`, `on-device`, `harness-engineering`, `ai-agent`, `translation`, `deepseek-harness`）/ social preview | 由用户在 GitHub 设置（我提供文案） |
-| 4.2 | Release | `v1.0.0` tag + release notes（中英，含"如何 10 分钟验证 harness"） | release 页面可访问；tag 在 HEAD 或指定提交 |
-| 4.3 | 外部首访测试 | 1–2 名非作者按 README + CONTRIBUTING 走；记录卡点 | 5/5 问可答且 10 分钟复现 PASS（或记录失败并回写） |
+| 4.2 | Release | `v1.0.0` tag + `harness/release-notes-v1.0.0.md`（中英，含"如何 10 分钟验证 harness"）；release 文案由该文件提供 | release 页面可访问；tag 在 HEAD 或指定提交 |
+| 4.3 | 外部首访测试 | AI 代理按公开 clone 走查（已完成，见 review）；再招募 1 名人类非作者按 README + CONTRIBUTING 走 | 5/5 问可答且 10 分钟复现 PASS（当前 AI 代理 4/5；人类待验证） |
 | 4.4 | 可选：仓库改名 | 建议改 `duiyi`（品牌化）；改前确认 remote/链接影响 | 由用户决定；本轮默认不改 |
 
 **验收**：release 发布 + 至少 1 次真实外部走查；不通过则回 Phase 1/3 修，不强行发布。
@@ -450,7 +450,10 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 2.5.5–2.5.8：证据 ID 硬失败 / done 严格 / `submitted` 绑定、§/第N节 扫描扩展（13 文件）、token 余量再平衡（1650/975）
 - [x] Phase 3.1/3.2/3.3/3.4：clean clone 复现、CONTRIBUTING 三层（10 分钟/完整 iOS/真机）、CI 单 workflow + 徽章、doctor 失败建议区
 - [ ] Phase 3 剩余：首次真实 PR / 分支保护设置（需仓库管理员或可用 token；当前 PAT 受组织策略 403）
-- [ ] Phase 4 发布 + 外部验证（v1.0.0 + 非作者首访）
+- [x] Phase 4 发布准备：unit/UI 发布前重跑证据（`20261107T062204Z` / `20261107T062205Z`）；`harness/release-notes-v1.0.0.md` 起草
+- [x] Phase 2.5 独立复核（2026-11-07）：P0×3 关闭；综合 ≈4.0/5；L3「达成（有条件）」；报告 `harness/reviews/2026-11-07-phase2.5-reaudit.md`
+- [x] 外部首访（AI 代理，公开 clone）：4/5 可答；发现浅克隆 P0 → 已修（skip + README/CONTRIBUTING unshallow、无 Xcode 边界、采用指南直链、实测耗时）
+- [ ] Phase 4 发布 + 外部验证（v1.0.0 tag/release + 非作者首访）
 - [ ] Phase 5 `harness-kit` 模板抽取（含首个外部试点）
 - [ ] Phase 6（可选）产品可信度
 
@@ -485,28 +488,33 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | `make build`（模拟器 Debug，脱敏后） | **BUILD SUCCEEDED**（`xcodebuild -list` 也能解析工程） | Xcode 27.1 | —（过程记录：构建验证） |
 | 脱敏扫描（2026-11-07） | 真实 Team ID / CoreDevice ID / 硬件 UDID / `/Users/` 实际路径 **0 命中**；baseline/issues 已占位符化 | 本机 `git grep` | —（发布红线） |
 | 公开面指标（2026-11-07） | 根 md 4 个；README 133 行、CONTRIBUTING 79 行、docs/README 68 行、docs/decisions 34 行 | 本机 `wc -l` + check-docs | —（结构门禁） |
-| `make test`（历史 clean-tree 证据） | **PASS**：passed=120 ≥ floor=120；failed=0；skipped=0 | 模拟器 iOS 26.4.1 | `20261105T055610Z-unit-tests-pass` |
-| `make test-ui`（历史 clean-tree 证据） | **PASS**：executed=3 ≥ floor=3；failed=0；skipped=1（预期） | 模拟器 iOS 26.4.1 | `20261105T055845Z-ui-tests-pass` |
-| `make device-test`（历史 clean-tree 证据） | **PASS**：passed=123 ≥ floor=123；failed=0；skipped=0 | 真机 iPhone 13 / iOS 26.7 | `20261106T053620Z-device-tests-pass` |
+| `make test DERIVED=build/evidence-unit`（发布前重跑 2026-11-07） | **PASS**：passed=120 ≥ floor=120；failed=0；skipped=0；31.9s | 模拟器 iPhone 17 Pro Max / iOS 26.4.1 | `20261107T062204Z-unit-tests-pass` |
+| `make test-ui DERIVED=build/evidence-ui`（发布前重跑 2026-11-07） | **PASS**：executed=3 ≥ floor=3；failed=0；skipped=1（预期）；53.9s | 模拟器 iPhone 17 Pro Max / iOS 26.4.1 | `20261107T062205Z-ui-tests-pass` |
+| `make device-test`（生成时 PASS；对 HEAD 已 STALE） | passed=123 ≥ floor=123；failed=0；skipped=0（2026-11-06 生成，未重跑） | 真机 iPhone 13 / iOS 26.7 | `20261106T053620Z-device-tests-pass` |
 | `python3 -m unittest tools.tests.test_plan -v` | **PASS**：14 用例（tmp git fixture）；done 缺 `submitted`/token 不存在或非祖先、证据 ID 缺失或非 PASS、PASS+占位无白名单 → FAIL；`—（过程记录：…）` → OK | 本机 python3 | —（负向验证） |
 | `python3 -m unittest tools.tests.test_check_harness.py -v` | **PASS**：12 用例；嵌套 AGENTS 错节号/无法定位/错范围 → exit 1；根 AGENTS 自引用、skill→根 AGENTS → exit 0 | 本机 python3 | —（负向验证） |
 | `python3 -m unittest tools.tests.test_doctor -v` | **PASS**：20 用例；缺 Xcode/runtime → exit 2 + 必需建议；可选缺失 → exit 0 | 本机 python3 | —（负向验证） |
 | `make check-harness`（预算/§ 扫描） | **PASS**：AGENTS 1576/1650（余 74）；refs 932/925/929 对 975（余 43–50）；§/第N节 7 处命中（13 指令文件） | 本机 | —（过程记录：预算与 sensor） |
+| `python3 tools/verify-claim.py --all --fresh --strict`（发布门禁演练） | exit 2：历史证据 3 条 STALE 判 UNVERIFIED；发布前重跑的新证据未受影响（各自行有 evidence id） | 本机 | —（过程记录：发布门禁） |
+| Phase 2.5 独立复核（2026-11-07，非作者只读） | **P0×3 关闭**（验证接线/证据绑定/状态准确性）；上轮 P1 scope/§/token 关闭；新发现 3 个 P1（freshness 不看工作树、end 对 STALE 非阻断、旁注绕过）→ 本轮修 2 项；综合 **≈4.0/5**、L3 达成（有条件） | 独立复跑 HEAD `631d334` + 临时 clone 负向验证；CI run `42346447496` success | —（外部记录：独立复核） |
+| 外部首访（2026-11-07，公开 clone @ `631d334`，AI 代理陌生人协议） | 5 问可答 **4/5**（Q5 采用指南在 HARNESS.md，属第 4 文件）；`make check` exit 0（≈1s）；`make verify-static` 浅克隆 exit 2 → `git fetch --unshallow` 后 exit 0（88 单测，≈15s） | 公开 clone；macOS 27.0.1 / python 3.14.7 / make 3.81，无 Xcode | —（外部记录：AI 代理，非人类） |
+| 首访整改（2026-11-07） | **PASS**：浅克隆（`--is-shallow-repository=true`）跳过父提交用例；`--depth 1` 模拟提交后 `make check` / `verify-static` exit 0（88 tests，1 skipped）；README/CONTRIBUTING 增加 unshallow、无 Xcode 边界、harness 10 步指南直链与实测耗时 | 本机 /tmp 浅克隆 | —（过程记录：首访整改） |
 
 ## 未验证项
 
-- 首访：作者自测 4/5；仍缺真实陌生人走查（Phase 4），不作为「标杆达成」证据。
+- 首访：作者自测 4/5；Phase 4 由无上下文 AI 代理按公开 clone 复测 4/5；仍缺**人类**陌生人走查（AI 代理不计入最终“陌生人”达标），需用户招募 1 人。
 - 独立复评为只读：未跑 xcodebuild/模拟器/真机/clean clone；3.6/5 与 24/35 为当前口径，不证明动态行为正确。
 - clean clone 已实测（Phase 3.1，PASS）；独立复评时的未提交状态已提交，clone 可复现。
 - GitHub 元数据/发布权限、仓库改名影响未验证（Phase 4）。
 - Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，发布前补实测或标未验证。
 - 首次真实 PR / 分支保护（PR 强制 static）未验证：当前 PAT 受组织策略 403，无法用 API 配置；需仓库管理员在 GitHub Settings 设置或提供可用凭据。
-- Phase 4 发布权限（release 创建）未验证：`gh` PAT 无仓库访问权限（403）；已准备 release notes 与 tag 方案，需用户授权/操作。
-- 真机未在脱敏/脚本改动后重跑；3 条 evidence 对当前 HEAD 已 STALE（freshness 仅告警），不代表本轮 project 改动后的真机结果。发布前需在 release commit 重跑并生成新证据（真机需设备 + 签名环境）。
+- Phase 4 发布权限（release 创建）未验证：`gh` PAT 受组织策略 403；annotated tag 可经 SSH 推送，GitHub Release 对象需用户在 UI 创建或更换可用 PAT。
+- 真机未在脱敏/脚本改动后重跑：device evidence 生成于 2026-11-06，对 HEAD 已 STALE；unit/UI 已于 2026-11-07 重跑并 fresh。发布不据此声称“真机当前通过”，`make release-check` 会因 device UNVERIFIED 返回 2（预期，已记录）。
 - 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
 - 历史敏感信息/作者邮箱已用 `git filter-repo` 两轮清理（2026-11-07），本地与远端分支历史 0 命中；远端 unreachable 旧对象仍可按 SHA 访问（用户已接受现状，不再联系 GitHub Support）。
 - DSH hooks 能力随版本变化（0.2.1-rc.5 未打包）；模板按「门禁 + CI + 适配层」设计，不依赖 hooks 可用。
 - Phase 2.5 已完成（2.5.1–2.5.8）；其中 done 的 `submitted`/证据绑定目前只在单测负向 fixture 演练，本计划尚未 done，Phase 4 收尾时以本计划走一遍真实 done 演练。
+- P1 残留（Phase 2.5 独立复核）：`make end` 对 STALE 只告警（`release-check` strict 阻断，设计保留）；CI/pre-push 不跑 verify-claim 判定；P0-1/P0-3 行为测试与性能门禁仍缺（Phase 6）。
 - 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；用户已接受「分支干净、旧对象不可达」状态（2026-11-07 决策）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
@@ -531,15 +539,29 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5 | 计划"未提交改动"与 git status 不一致（scope.allow 缺嵌套 AGENTS、目录通配解析问题） | 已修：补齐 allow + 改精确路径；`make check-plan` PASS | 2026-11-07 |
 | 6 | 作者邮箱从 git 历史移除（用户确认） | `git filter-repo --mailmap` 重写 48 commit；commit-map 混入首轮旧映射，改用「提交顺序 + subject 全等」index-map 回填 7 文件 / 16 引用并逐条校验；强推 `main` | 2026-11-07 |
 | 7 | Phase 2.5 P0 工具整改（3 个并行 agent：plan.py / check-harness / doctor） | 全部完成：plan.py +198/−47（14 用例）、check-harness +151/−33（12 用例）、doctor +146（20 用例）；Lead 集成、计划记录、负向验证 | 2026-11-07 |
+| 8 | Phase 2.5 后独立复核 + 外部首访（并行 2 个 agent） | 复核：P0×3 关闭、综合 ≈4.0/5、L3 达成（有条件）；首访：4/5 可答、浅克隆 P0 → 已修并浅克隆复核；报告见 `harness/reviews/2026-11-07-phase2.5-reaudit.md`、`harness/reviews/2026-11-07-external-first-visit.md` | 2026-11-07 |
 
 ## 未提交改动
 
-- 无未提交改动（Phase 2.5 工具整改、文档事实更新与计划记录已提交）。
+- `CONTRIBUTING.md` / 首访整改 / 评分与事实更新
+- `HARNESS.md` / 首访整改 / 评分与事实更新
+- `README.md` / 首访整改 / 评分与事实更新
+- `docs/harness-scorecard.md` / 首访整改 / 评分与事实更新
+- `harness/plans/2026-11-06-benchmark-opensource.md` / 记录更新（本文件）
+- `tools/plan.py` / 工具/单测修改
+- `tools/tests/test_plan.py` / 工具/单测修改
+- `tools/tests/test_verify_claim.py` / 工具/单测修改
+- `tools/verify-claim.py` / 工具/单测修改
+- `harness/evidence/20261107T062204Z-unit-tests-pass.json` / 发布前重跑 evidence
+- `harness/evidence/20261107T062205Z-ui-tests-pass.json` / 发布前重跑 evidence
+- `harness/release-notes-v1.0.0.md` / v1.0.0 release notes（中英）
+- `harness/reviews/2026-11-07-external-first-visit.md` / 独立复核 / 外部首访报告
+- `harness/reviews/2026-11-07-phase2.5-reaudit.md` / 独立复核 / 外部首访报告
 
 ## 下一步
 
-1. Phase 4 发布：提交本批 → 本地 `make release-check` → 推 `v1.0.0` tag + release notes；GitHub 元数据/release 需仓库权限（当前 PAT 受组织策略 403，需用户操作或改 PAT）。
-2. Phase 4 外部首访：先由无项目上下文的 agent 代理跑 5 问 + clean clone 复现（记录 AI 代理局限），再由用户招募 1 名人类非作者复核；卡点回写计划。
+1. Phase 4 发布：提交本批 → `make release-check`（预期 device STALE → exit 2，记录）→ 推 `v1.0.0` annotated tag → 请用户在 GitHub UI 创建 release（notes 用 `harness/release-notes-v1.0.0.md`）并设置 description/topics/social preview（当前 PAT 403）。
+2. Phase 4 外部验证：请用户招募 1 名人类非作者按 README/CONTRIBUTING 走查并回填卡点（AI 代理报告已记录，不能替代人类结论）。
 3. Phase 4：发布 + 真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试。
 
 ## 待确认

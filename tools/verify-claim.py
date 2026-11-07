@@ -46,8 +46,9 @@ PERF_CLAIMS = ("perf-measurement", "perf-no-regression", "perf-improved")
 
 PASS, FAIL, UNVERIFIED = "PASS", "FAIL", "UNVERIFIED"
 
-# 证据时效（freshness）：按 claim 的相关路径，比较 evidence.commit..HEAD 是否有变更。
-# 用途：旧证据跨 commit 复用时给出 STALE 信号；--strict 时判 UNVERIFIED（发布门禁用）。
+# 证据时效（freshness）：按 claim 的相关路径，比较 evidence.commit 与**当前工作树**
+# （HEAD + 未提交/未跟踪文件）是否有变更。用途：旧证据跨 commit 复用、或取证后继续改代码时
+# 给出 STALE 信号；--strict 时判 UNVERIFIED（发布门禁用）。
 FRESH_SCOPES: dict[str, tuple[str, ...]] = {
     "unit-tests-pass": ("Duiyi/*.swift", "DuiyiTests/*.swift", "Duiyi.xcodeproj/*"),
     "ui-tests-pass": ("Duiyi/*.swift", "DuiyiTests/*.swift", "DuiyiUITests/*.swift", "Duiyi.xcodeproj/*"),
@@ -111,13 +112,17 @@ def load_baseline(root: Path) -> tuple[dict[str, Any] | None, str | None]:
 
 # ── 证据时效（freshness） ──────────────────────────────────────────────────
 def changed_paths_since(root: Path, commit: str) -> set[str] | None:
-    """返回 evidence.commit..HEAD 的变更路径集合；git 不可用或不可比较时返回 None。"""
+    """返回 evidence.commit 与当前工作树（含未提交/未跟踪文件）的变更路径；不可比较时 None。"""
     if not re.fullmatch(r"[0-9a-f]{7,40}", commit):
         return None
-    out = run_git(root, "diff", "--name-only", f"{commit}..HEAD")
+    out = run_git(root, "diff", "--name-only", commit)
     if out.returncode != 0:
         return None
-    return {line.strip() for line in out.stdout.splitlines() if line.strip()}
+    changed = {line.strip() for line in out.stdout.splitlines() if line.strip()}
+    untracked = run_git(root, "ls-files", "--others", "--exclude-standard")
+    if untracked.returncode == 0:
+        changed.update(line.strip() for line in untracked.stdout.splitlines() if line.strip())
+    return changed
 
 
 def freshness_reasons(root: Path, doc: dict[str, Any]) -> list[str]:
@@ -129,17 +134,14 @@ def freshness_reasons(root: Path, doc: dict[str, Any]) -> list[str]:
     if not isinstance(git, dict):
         return []
     commit = str(git.get("commit") or "").strip()
-    head = run_git(root, "rev-parse", "HEAD")
-    if head.returncode == 0 and head.stdout.strip().lower().startswith(commit.lower()):
-        return []  # 证据就是 HEAD
     changed = changed_paths_since(root, commit)
     if changed is None:
-        return [f"STALE：无法比较证据 commit {commit} 与 HEAD 的变更"]
+        return [f"STALE：无法比较证据 commit {commit} 与当前工作树"]
     relevant = sorted(path for path in changed if _under(path, scopes))
     if not relevant:
         return []
     sample = "、".join(relevant[:4]) + ("…" if len(relevant) > 4 else "")
-    return [f"STALE：证据生成后相关文件有变更（{commit}..HEAD）：{sample}（重跑验证或使用 make release-check 要求 fresh）"]
+    return [f"STALE：证据生成后相关文件有变更（{commit} 之后，含未提交工作树）：{sample}（重跑验证或使用 make release-check 要求 fresh）"]
 
 
 # ── git 证据有效性 ─────────────────────────────────────────────────────────

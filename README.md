@@ -35,11 +35,13 @@
 
 ```bash
 git clone <repo-url> && cd realtimeTranslatorOptimize
-make check          # 文档 / 架构 / 测试计数 / harness / 计划门禁，约 0.3s
-make verify-static  # 再加证据校验 + 脚本单测 + 语法检查，约 4.3s
+make check          # 6 组静态门禁（docs/架构/计数/harness/计划/adapters），约 1s
+make verify-static  # 再加证据 schema + 91 个脚本单测 + 语法检查，约 5–15s
 ```
 
-只依赖 `python3`、`make`、`git`。这一步能验证仓库的规则、结构、证据与代码边界没有被破坏。
+只依赖 `python3`、`make`、`git`，不需要 Xcode——因此这里能验证规则/结构/证据/代码边界，但**不能运行 App、模拟器或真机**。用 `git clone --depth 1` 浅克隆时先 `git fetch --unshallow`（脚本单测会读取提交历史）。
+
+想把整套 harness 用到自己项目：见 [`HARNESS.md`](HARNESS.md) 的「10 步采用指南」。
 
 ## 完整 iOS 环境
 
@@ -138,8 +140,8 @@ It also serves as an **auditable Harness Engineering case study** for AI coding 
 No Xcode needed to check the repository:
 
 ```bash
-make check          # static gates, ~0.3s
-make verify-static  # static gates + evidence + script tests, ~4.3s
+make check          # 6 static gate groups, ~1s
+make verify-static  # + evidence schema + 91 script tests, ~5-15s (use a full clone)
 ```
 
 Full iOS build requires macOS + Xcode 26.4+ and an iPhone running iOS 26.4+; see [`CONTRIBUTING.md`](CONTRIBUTING.md). Start with [`HARNESS.md`](HARNESS.md) for the harness map, [`docs/02-architecture.md`](docs/02-architecture.md) for the architecture, and [`docs/04-roadmap.md`](docs/04-roadmap.md) for the roadmap.

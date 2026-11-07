@@ -776,6 +776,8 @@ EVIDENCE_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[a-z0-9][a-z0-9-]*$")
 EVIDENCE_COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
 # 结果单元格里的“完成声明”词；命中时必须绑定可解析 evidence id 或白名单占位。
 PASS_WORD_RE = re.compile(r"\bPASS\b|\bSUCCEEDED\b|通过|已验证|已完成")
+# 动态测试声明（真机/模拟器/测试计数）：不允许仅靠“过程记录”旁注绕过 evidence id。
+DYNAMIC_CLAIM_RE = re.compile(r"真机|device|DuiyiTests|DuiyiUITests|模拟器|xcresult|passed\s*=|skipped\s*=", re.I)
 # 证据ID 占位白名单：命中即视为“非机器证据”的过程记录，允许不绑定 evidence id。
 EVIDENCE_ANNOTATION_WORDS = ("基线", "过程", "外部", "历史", "未验证", "负向")
 HARD_EVIDENCE_STATUSES = ("active", "done", "blocked")
@@ -924,7 +926,15 @@ def evidence_audit(plan: Plan) -> tuple[list[str], list[str]]:
             continue
         if not PASS_WORD_RE.search(result_cell):
             continue
-        if any(word in evidence_cell for word in EVIDENCE_ANNOTATION_WORDS):
+        annotated = any(word in evidence_cell for word in EVIDENCE_ANNOTATION_WORDS)
+        if annotated and not DYNAMIC_CLAIM_RE.search(result_cell):
+            continue
+        if annotated and DYNAMIC_CLAIM_RE.search(result_cell):
+            message = (
+                f"结果声称动态测试完成（{_result_excerpt(result_cell)}）但用“过程记录”旁注绕过证据 ID："
+                "真机/模拟器/测试计数类 claim 必须绑定 verdict=PASS 的 evidence id"
+            )
+            (errors if hard else warnings).append(message)
             continue
         if not evidence_id:
             message = (

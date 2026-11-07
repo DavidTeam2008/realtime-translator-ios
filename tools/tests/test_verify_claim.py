@@ -163,9 +163,38 @@ class VerifyClaimTests(unittest.TestCase):
         self.assert_verdict(self.verify(doc, root=root), 0, "PASS")
 
     def test_ancestor_commit_pass(self) -> None:
+        if git(REPO_ROOT, "rev-parse", "--is-shallow-repository").strip() == "true":
+            self.skipTest("浅克隆缺少父提交；先 `git fetch --unshallow` 再跑 verify-static")
         doc = base_evidence(commit=git(REPO_ROOT, "rev-parse", "HEAD~1"))
         doc["result"]["xcresultPath"] = str(self.xcresult)
         self.assert_verdict(self.verify(doc), 0, "PASS")
+
+    def test_fresh_detects_dirty_worktree_in_claim_scope(self) -> None:
+        root = self.tmp / "repo"
+        init_repo(root)
+        (root / "harness").mkdir(exist_ok=True)
+        (root / "harness" / "test-baseline.json").write_text(
+            (REPO_ROOT / "harness" / "test-baseline.json").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        source = root / "Duiyi" / "App.swift"
+        source.parent.mkdir()
+        source.write_text("// v1\n", encoding="utf-8")
+        for args in (("add", "-A"), ("commit", "-q", "-m", "v1")):
+            proc = run(["git", "-C", str(root), "-c", "user.name=test", "-c", "user.email=test@example.invalid", *args])
+            if proc.returncode != 0:
+                raise AssertionError(f"git {args} 失败：{proc.stderr}")
+        doc = base_evidence(commit=git(root, "rev-parse", "HEAD"))
+        doc["result"]["xcresultPath"] = str(self.xcresult)
+        clean = self.verify(doc, root=root, extra=("--fresh",))
+        self.assertEqual(clean.returncode, 0, clean.stdout)
+        self.assertNotIn("STALE", clean.stdout)
+        source.write_text("// v2\n", encoding="utf-8")
+        dirty = self.verify(doc, root=root, extra=("--fresh",))
+        self.assertEqual(dirty.returncode, 0, dirty.stdout)
+        self.assertIn("STALE", dirty.stdout)
+        strict = self.verify(doc, root=root, extra=("--fresh", "--strict"))
+        self.assertEqual(strict.returncode, 2, strict.stdout)
 
     def test_ui_simulator_expected_skip_one_pass(self) -> None:
         # 真实模拟器结果：3 executed = 2 passed + 1 expected skip；floor 是"用例总数"。

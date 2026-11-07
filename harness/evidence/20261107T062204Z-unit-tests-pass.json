@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "claim": "unit-tests-pass",
+  "command": "make test DERIVED=build/evidence-unit",
+  "environment": {
+    "xcode": "Xcode 27.1 (27A9275)",
+    "simulator": "iPhone 17 Pro Max / iOS 26.4.1",
+    "device": null,
+    "build": "Debug",
+    "host": null
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "passed": 120,
+    "failed": 0,
+    "skipped": 0,
+    "durationSec": 31.9,
+    "xcresultPath": "build/evidence-unit/Logs/Test/Test-Duiyi-2026.11.07_14-20-09-+0800.xcresult",
+    "metricsPath": null
+  },
+  "verdict": "PASS",
+  "verifier": "tools/evidence.py@1",
+  "notes": "发布前重跑：120 unit tests passed，0 skipped",
+  "git": {
+    "commit": "631d33424968",
+    "dirty": false
+  },
+  "createdAt": "2026-11-07T06:22:04Z",
+  "id": "20261107T062204Z-unit-tests-pass"
+}

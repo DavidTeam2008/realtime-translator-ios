@@ -171,6 +171,24 @@ class PlanCheckTest(unittest.TestCase):
         self.commit_all()
         self.assert_pass(self.check())
 
+    def test_pass_with_process_annotation_but_dynamic_claim_fails(self) -> None:
+        self.write_plan(
+            body=body_with_rows(
+                "| `make test` | **PASS**：passed=120；unit-tests 全绿 | 本机 | —（过程记录：单测） |"
+            ),
+        )
+        self.commit_all()
+        self.assert_fail(self.check(), "绕过证据 ID")
+
+    def test_pass_with_process_annotation_static_claim_passes(self) -> None:
+        self.write_plan(
+            body=body_with_rows(
+                "| `make check` | **PASS**（6 组门禁） | 本机 | —（过程记录：静态门禁） |"
+            ),
+        )
+        self.commit_all()
+        self.assert_pass(self.check())
+
     def test_done_missing_submitted_fails(self) -> None:
         self.write_evidence(commit=self.base)
         self.write_plan(
