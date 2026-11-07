@@ -546,7 +546,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `harness/plans/2026-11-06-benchmark-opensource.md` / v1.0.0 tag 与发布状态记录
+- 无未提交改动（v1.0.0 tag 与发布状态已记录）。
 
 ## 下一步
 
