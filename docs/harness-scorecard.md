@@ -7,9 +7,9 @@
 
 | 子系统 | 自评 | 独立复评 | 判据与证据 |
 | --- | --- | --- | --- |
-| Instructions | **4.0** | **4.0** | `AGENTS.md` ≈1576/1600 token；6 个嵌套 AGENTS；6 个 skills frontmatter；`make check-harness` 19 项 |
+| Instructions | **4.0** | **4.0** | `AGENTS.md` ≈1576/1650 token；6 个嵌套 AGENTS；6 个 skills frontmatter；`make check-harness` 19 项（§/第N节 引用 7 处 / 13 文件） |
 | State | **4.0** | **3.5** | 计划 front matter/唯一 active/未提交交叉核对（`make check-plan`）；`make resume/end`；`harness/README.md` |
-| Verification | **4.5** | **4.0** | `make check` 5 组门禁；`verify-static` 含 42 个脚本单测；3 条 clean-tree evidence PASS；`verify-claim` 三值；四层验证矩阵 |
+| Verification | **4.5** | **4.0** | `make check` 6 组门禁；`verify-static` 含 88 个脚本单测；3 条 clean-tree evidence PASS；`verify-claim` 三值 + 时效/ID/done 绑定硬校验；四层验证矩阵 |
 | Scope | **3.5** | **3.0** | L0/L1/L2；计划 `scope.allow/deny`；并发/持久化/发布工程强制红队；无"改动 vs 声明范围"自动机检 |
 | Session Lifecycle | **4.0** | **3.5** | 6 个 skills；`make doctor/resume/end`；handoff 协议；未验证项单列 |
 | **综合** | **≈4.0 / 5（80%）** | **≈3.6 / 5（72%）** | 等级判定：**L3 条件成立**——`verify-claim` 已接入 `make end`（fresh 告警）与 `make release-check`（strict）；仍缺 commit==HEAD 绑定、证据 ID 硬校验与 pre-push/CI 接线；未达 L4/L5 |
@@ -24,7 +24,7 @@
 
 ## 证据索引
 
-- 静态门禁：`make check`（6 组，约 0.3s）/ `make verify-static`（约 4.3s，含 42 个脚本单测）。
+- 静态门禁：`make check`（6 组，约 0.3s）/ `make verify-static`（约 4.3s，含 88 个脚本单测）。
 - 证据链：`harness/evidence/*.json`（unit / UI / device 三条 PASS，`make verify-claim`）。
 - 规则机检：`tools/check-harness.py`（预算/嵌套/引用/skills/敏感信息）。
 - 证据 schema：`harness/evidence/schema.json`（含可选 `agent` / `model` / `harnessVersion` 字段；schemaVersion 仍为 1，向后兼容）。

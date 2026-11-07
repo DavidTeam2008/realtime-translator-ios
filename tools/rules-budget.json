@@ -1,10 +1,10 @@
 {
   "estimator": "v2: CJK/全角标点=1 token, ASCII=1/4 token",
   "tokenBudgets": {
-    "AGENTS.md": 1600,
-    "references/contracts.md": 950,
-    "references/verification.md": 950,
-    "references/workflow.md": 950
+    "AGENTS.md": 1650,
+    "references/contracts.md": 975,
+    "references/verification.md": 975,
+    "references/workflow.md": 975
   },
   "nestedAgents": {
     "maxBytes": 8192,
@@ -19,7 +19,10 @@
   },
   "skills": {
     "root": ".dsh/skills",
-    "requiredFields": ["name", "description"],
+    "requiredFields": [
+      "name",
+      "description"
+    ],
     "namePattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
   }
 }

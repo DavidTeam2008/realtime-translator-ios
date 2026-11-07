@@ -18,7 +18,11 @@
     1. tokenBudgets 中每个文件存在且 estimate_tokens ≤ 预算
     2. nestedAgents.files 中每个嵌套 AGENTS 存在且字节数 ≤ maxBytes
     3. 根/嵌套 AGENTS 与 .dsh/skills 不得出现 /Users/、UDID/UUID、sk- 密钥
-    4. 根 AGENTS.md 的 § 引用能命中目标文件与对应编号标题（范围校验两端）
+    4. 指令文件（根 AGENTS.md + nestedAgents.files + .dsh/skills/*/SKILL.md）的
+       §/第N节 引用能命中目标文件与对应编号标题（范围校验两端）；支持 `§N`/`§N–§M`、
+       `第 N 节`/`第N节`/`第 N–M 节`。目标按优先级解析：同一行 match 之前最近的
+       .md 路径 token（相对被扫描文件目录，再回退根目录/常见目录）→ 唯一文档简写
+       （如 `docs/02`）→ 行内「根 AGENTS」→ 根 AGENTS.md 自引用；都解析不到则 FAIL。
     5. 根 AGENTS.md 提到的仓库内 .md 文件必须存在
     6. .dsh/skills/* 存在时校验 YAML frontmatter（name kebab-case / description 非空）
 """
@@ -58,7 +62,15 @@ SENSITIVE_PATTERNS = (
 
 URL_RE = re.compile(r"https?://\S+")
 SECTION_RE = re.compile(r"§\s*(\d+(?:\.\d+)?)(?:\s*[–—~-]\s*§?\s*(\d+(?:\.\d+)?))?")
+# 「第 7 节」「第3节」「第 3–4 节」「第 3–第 4 节」；范围只校验给出的编号两端。
+CN_SECTION_RE = re.compile(
+    r"第\s*(\d+(?:\.\d+)?)\s*(?:[–—~-]\s*(?:第\s*)?(\d+(?:\.\d+)?))?\s*节"
+)
 MD_PATH_RE = re.compile(r"[A-Za-z0-9_.\-/]+\.md")
+INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+# 文档简写（如 `docs/02`）：无 .md 后缀，按唯一前缀解析到具体文件。
+SHORTHAND_RE = re.compile(r"^(?:\.\./)*(?:docs|references|harness)/[A-Za-z0-9_.\-/]+$")
+SECTION_PATTERNS = ((SECTION_RE, "§"), (CN_SECTION_RE, "第N节"))
 
 
 class Report:
@@ -235,17 +247,47 @@ def check_sensitive(root: Path, agents_rel: str, nested_rel_paths: list[str],
         report.ok(f"敏感信息：扫描 {scanned} 个指令文件，0 命中")
 
 
-def resolve_md_path(root: Path, token: str) -> Path | None:
+def resolve_md_path(root: Path, token: str, base: Path | None = None) -> Path | None:
+    """解析 .md 路径 token：优先相对被扫描文件目录（base），再回退根目录/常见目录。"""
     token = token.replace("\\", "/")
     while token.startswith("./"):
         token = token[2:]
-    candidates = [root / token]
+    if token.startswith("/"):
+        return None
+    directories = (base, root) if base is not None else (root,)
+    candidates = [directory / token for directory in directories]
     if "/" not in token:
         candidates += [root / directory / token for directory in BARE_NAME_FALLBACK_DIRS]
     for candidate in candidates:
         if candidate.is_file():
-            return candidate
+            return candidate.resolve()
     return None
+
+
+def nearest_shorthand(text_before: str) -> str | None:
+    """取 §/第N节 之前最近的文档简写 token（反引号包裹，如 `docs/02`）。"""
+    for match in reversed(list(INLINE_CODE_RE.finditer(text_before))):
+        token = match.group(1).strip().rstrip("/")
+        if not token or token.endswith(".md"):
+            continue
+        if SHORTHAND_RE.match(token):
+            return token
+    return None
+
+
+def resolve_shorthand(root: Path, token: str, base: Path | None = None) -> Path | None:
+    """把文档简写解析成唯一文件：`docs/02` → docs/02-architecture.md；多义则 None。"""
+    token = token.replace("\\", "/").strip().rstrip("/")
+    directories = [base, root] if base is not None else [root]
+    hits: list[Path] = []
+    for directory in directories:
+        for candidate in (directory / token, directory / (token + ".md")):
+            if candidate.is_file() and candidate not in hits:
+                hits.append(candidate)
+        for candidate in sorted(directory.glob(token + "*.md")):
+            if candidate not in hits:
+                hits.append(candidate)
+    return hits[0].resolve() if len(hits) == 1 else None
 
 
 def has_heading(text: str, number: str) -> bool:
@@ -253,31 +295,106 @@ def has_heading(text: str, number: str) -> bool:
     return pattern.search(text) is not None
 
 
-def check_section_refs(root: Path, agents: Path, report: Report) -> None:
-    lines = agents.read_text(encoding="utf-8", errors="replace").splitlines()
+def section_ref_files(root: Path, nested_rel_paths: list[str],
+                      skills: list[tuple[Path, str]]) -> list[Path]:
+    """§/第N节 扫描对象：根 AGENTS + 嵌套 AGENTS + skills（去重，只取存在文件）。"""
+    candidates: list[Path] = []
+    agents = root / "AGENTS.md"
+    if agents.is_file():
+        candidates.append(agents)
+    candidates += [root / rel for rel in nested_rel_paths]
+    candidates += [path for path, _ in skills]
+    files: list[Path] = []
+    seen: set[Path] = set()
+    for path in candidates:
+        if not path.is_file():
+            continue
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        files.append(path)
+    return files
+
+
+def ref_label(kind: str, number: str) -> str:
+    return f"§{number}" if kind == "§" else f"第 {number} 节"
+
+
+def locate_section_target(root: Path, scanned: Path, line: str, start: int,
+                          kind: str) -> tuple[Path | None, str | None]:
+    """按优先级定位一条 §/第N节 引用的目标文件；返回 (target, error)。"""
+    # a) 同一行 match 之前最近的 .md 路径 token（保留既有逻辑；嵌套文件先按自身目录解析）
+    md_tokens = list(MD_PATH_RE.finditer(line[:start]))
+    if md_tokens:
+        token = md_tokens[-1].group(0)
+        target = resolve_md_path(root, token, base=scanned.parent)
+        if target is None:
+            return None, f"引用目标文件不存在：{token}"
+        return target, None
+    # a′) 文档简写（如 `docs/02`）：仅在唯一解析到文件时接受（真实仓库嵌套 AGENTS 用法）
+    shorthand = nearest_shorthand(line[:start])
+    if shorthand is not None:
+        target = resolve_shorthand(root, shorthand, base=scanned.parent)
+        if target is None:
+            return None, f"引用目标文件不存在或无法唯一解析：{shorthand}"
+        return target, None
+    # b) 行内出现「根 AGENTS」→ 根 AGENTS.md
+    if "根 AGENTS" in line:
+        target = root / "AGENTS.md"
+        if target.is_file():
+            return target, None
+        return None, "引用目标文件不存在：AGENTS.md"
+    # c) 被扫描文件就是根 AGENTS.md → 自引用（如「覆盖只写第 7 节」）
+    if scanned.resolve() == (root / "AGENTS.md").resolve():
+        return scanned, None
+    return None, "无法定位 §/第N节 引用目标"
+
+
+def check_section_refs(root: Path, files: list[Path], report: Report) -> None:
     checked = 0
     failed = 0
-    for lineno, raw in enumerate(lines, 1):
-        line = URL_RE.sub(" ", raw)
-        for match in SECTION_RE.finditer(line):
-            paths = list(MD_PATH_RE.finditer(line[: match.start()]))
-            if not paths:
-                continue
-            token = paths[-1].group(0)
-            target = resolve_md_path(root, token)
-            if target is None:
-                report.fail(f"{agents.name}:{lineno}: § 引用目标文件不存在：{token}")
-                failed += 1
-                continue
-            numbers = [group for group in match.groups() if group]
-            missing = [number for number in numbers if not has_heading(target.read_text(encoding="utf-8", errors="replace"), number)]
-            checked += 1
-            if missing:
-                holes = "、".join(f"§{number}" for number in missing)
-                report.fail(f"{agents.name}:{lineno}: {token} 缺少 {holes} 对应的编号标题")
-                failed += 1
-    if failed == 0:
-        report.ok(f"§ 引用：{checked} 处命中文件 + 编号标题")
+    hit_files: set[Path] = set()
+    for scanned in files:
+        display = scanned.relative_to(root).as_posix()
+        text = scanned.read_text(encoding="utf-8", errors="replace")
+        for lineno, raw in enumerate(text.splitlines(), 1):
+            line = URL_RE.sub(" ", raw)
+            matches: list[tuple[int, str, re.Match[str]]] = []
+            for pattern, kind in SECTION_PATTERNS:
+                for match in pattern.finditer(line):
+                    matches.append((match.start(), kind, match))
+            for start, kind, match in sorted(matches, key=lambda item: item[0]):
+                numbers = [group for group in match.groups() if group]
+                target, error = locate_section_target(root, scanned, line, start, kind)
+                if error is not None:
+                    report.fail(f"{display}:{lineno}: {error}（原文：{match.group(0)}）")
+                    failed += 1
+                    continue
+                assert target is not None
+                checked += 1
+                hit_files.add(scanned)
+                try:
+                    target_display = target.relative_to(root).as_posix()
+                except ValueError:
+                    target_display = target.name
+                target_text = target.read_text(encoding="utf-8", errors="replace")
+                missing = [number for number in numbers if not has_heading(target_text, number)]
+                if missing:
+                    holes = "、".join(ref_label(kind, number) for number in missing)
+                    report.fail(f"{display}:{lineno}: {target_display} 缺少 {holes} 对应的编号标题")
+                    failed += 1
+    scanned_count = len(files)
+    if failed:
+        report.fail(f"§/第N节 引用：通过 {checked} 处、失败 {failed} 处（扫描 {scanned_count} 个指令文件）")
+    elif checked:
+        report.ok(
+            f"§/第N节 引用：{checked} 处命中（{len(hit_files)} 个指令文件，扫描 {scanned_count} 个）"
+        )
+    else:
+        report.warn(
+            f"§/第N节 引用：扫描 {scanned_count} 个指令文件，0 处命中（疑似空转：检查引用语法是否变化）"
+        )
 
 
 def check_mentioned_paths(root: Path, agents: Path, report: Report) -> None:
@@ -369,15 +486,16 @@ def main(argv: list[str] | None = None) -> int:
     data = load_budget(root, report)
     estimator = load_estimator(root)
 
+    nested_rel_paths: list[str] = []
     if data:
         check_token_budgets(root, data, estimator, report)
         nested_rel_paths = nested_agent_files(root, data, report)
-        skills = skill_files(root, data)
-        if agents.is_file():
-            check_sensitive(root, "AGENTS.md", nested_rel_paths, skills, report)
-            check_section_refs(root, agents, report)
-            check_mentioned_paths(root, agents, report)
-        check_skills(root, data, report)
+    skills = skill_files(root, data)
+    if agents.is_file():
+        check_sensitive(root, "AGENTS.md", nested_rel_paths, skills, report)
+        check_section_refs(root, section_ref_files(root, nested_rel_paths, skills), report)
+        check_mentioned_paths(root, agents, report)
+    check_skills(root, data, report)
 
     if report.problems:
         print(f"[FAIL] check-harness 未通过：{len(report.problems)} 个问题（exit 1）")

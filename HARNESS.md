@@ -35,9 +35,9 @@ Harness Engineering 的回答：**模型之外的一切工程设施都是 harnes
 
 | 子系统 | 机制（可复跑） | 入口 | 类别 |
 |---|---|---|---|
-| Instructions | AGENTS ≈1576/1600 token；6 个嵌套 AGENTS；敏感信息/§ 引用机检 | `make check-harness` | 前馈+机检 |
+| Instructions | AGENTS ≈1576/1650 token；6 个嵌套 AGENTS；敏感信息 / §·第N节 引用机检（13 个指令文件） | `make check-harness` | 前馈+机检 |
 | State | 计划 front matter/status；唯一 active；未提交改动与 git 交叉核对 | `make check-plan`、`make resume` | 状态 |
-| Verification | 文档/架构/计数/harness/计划 5 组门禁；证据 schema + 三值判定；42 个脚本单测 | `make check` / `make verify-static` / `make verify-claim` | 反馈 |
+| Verification | 文档/架构/计数/harness/计划/adapters 6 组门禁；证据 schema + 三值判定 + 证据 ID/done submitted 硬校验；88 个脚本单测 | `make check` / `make verify-static` / `make verify-claim` | 反馈 |
 | Scope | 计划 `scope.allow/deny`；L0/L1/L2；并发/持久化/发布工程强制独立红队 | `references/workflow.md`、`red-team` skill | 作用域 |
 | Lifecycle | 6 个 skills：bootstrap / verify-change / handoff / red-team / harness-audit / device-verify | `.dsh/skills/`、`make resume/end` | 会话 |
 | 证据层 | 单元/UI/真机 evidence JSON；三值判定；commit/dirty 校验 | `harness/evidence/` | 可审计 |
@@ -65,6 +65,7 @@ make check-evidence  # 只做 schema/语义校验
 **evidence JSON**（`harness/evidence/*.json`，1–3KB/条）必须包含：claim 类型、命令、环境、通过/失败/skip 计数、commit、`dirty=false`、xcresult/指标路径、verdict。规则：
 
 - 无 evidence id 的"已验证"按未验证处理；换机器 xcresult 不可达 → UNVERIFIED（不伪造）；
+- 计划声称 PASS/已完成时，证据 ID 必须解析到 verdict=PASS 的 evidence（或显式标注基线/过程/外部记录）；done 计划的证据 commit 必须绑定 `submitted` 或 HEAD（`make check-plan` 硬校验）；
 - 测试类 claim 必须满足 floor（`passed ≥ 基线`）、`failed=0`、`skipped == 预期`；
 - 性能 claim 必须同 context、n≥10、CV/显著性达标；模拟器与单次样本不构成性能证据；
 - 文档/架构 claim 由 `verify-claim` 直接复跑对应静态门禁；
@@ -114,12 +115,12 @@ make check-evidence  # 只做 schema/语义校验
 - **性能**：启动优化已暂停；无性能回归门禁；性能结论只认真机 n≥10 同口径。
 - **架构强制**：单 target，无编译期模块边界；`check-arch` 是文本规则，可被绕过；无覆盖率门槛。
 - **工具适配**：Claude Code 的 hooks 示例、skills 同步为设计资产，未在本机实测（本机未装 Claude Code）。
-- **git 历史**：旧 commit 可能含 Team/设备 ID/本机路径；当前树已脱敏，历史清理需 `git filter-repo`（改写历史，需单独决策）。
+- **git 历史**：两轮 `git filter-repo`（敏感信息、作者邮箱）后，本地/远端分支历史 0 命中；GitHub 仍保留 unreachable 旧对象（按 SHA 可访问），已由用户接受，不联系 Support 彻底清除。
 - **证据可伪造**：三值判定提高说谎成本，不提供密码学保证；高风险仍需独立审查。
-- **验证接线**：`verify-claim` 已接入 `make end`（`--fresh` 告警）与 `make release-check`（`--fresh --strict`，STALE 判 UNVERIFIED）；尚未进入 pre-push/CI，`commit==HEAD` 绑定仍待补。
+- **验证接线**：`verify-claim` 已接入 `make end`（`--fresh` 告警）与 `make release-check`（`--fresh --strict`，STALE 判 UNVERIFIED）；证据 ID/占位、done 的 `submitted` 与证据 commit 绑定由 `make check-plan` 硬校验；旧证据跨 commit 会 STALE，发布前需在 release commit 重跑。
 - **scope 越界**：`scope.allow` 已能报「allow 外改动」，但 allow 本身可由执行者修改；范围正确性仍是半自动。
-- **§ 引用 sensor**：目前对根 AGENTS 的 `§` 形式引用做检查；嵌套 AGENTS 的节号漂移尚未覆盖。
-- **clean clone**：Phase 3 前未实测；当前工作树（Phase 2 未提交）不能由 clone 复现。
+- **§ 引用 sensor**：已覆盖根/嵌套 AGENTS 与 skills（`§N` 与 `第 N 节`，13 个指令文件 7 处命中）；references 文档之间的节号引用尚未纳入。
+- **clean clone**：Phase 3.1 已实测（`make check` 0.33s PASS，无 Xcode）；动态层仍无法在 clone 中验证。
 
 ## 9. 运行手册与工具适配
 
@@ -127,7 +128,7 @@ make check-evidence  # 只做 schema/语义校验
 |---|---|---|
 | 环境自检 | `make doctor` | Xcode/模拟器/真机工具；exit 2 = 动态验证不可用 → "未验证" |
 | 接手 / 开工 | `make resume` | active 计划 + git 状态 + 下一步 1 条 |
-| 秒级门禁 | `make check` / `make verify-static` | 前者 5 组静态；后者加证据/脚本单测/语法 |
+| 秒级门禁 | `make check` / `make verify-static` | 前者 6 组静态；后者加证据/脚本单测/语法 |
 | 按类型验证 | `make test` / `make test-ui` / `make device-test` | 见 [`references/verification.md`](references/verification.md) |
 | 证据 | `make evidence` / `make verify-claim` | 三值判定 |
 | 证据时效 | `make verify-claim-fresh` | 相关文件在证据 commit 后变更 → STALE 告警（不阻断） |

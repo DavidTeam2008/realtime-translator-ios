@@ -305,10 +305,11 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 2.5.1 | `make end` 默认跑 `verify-claim --all` | 已完成（本批） |
 | 2.5.2 | 计划 `scope.allow` 之外的未提交改动必须 FAIL（不再静默过滤） | 已完成（本批） |
 | 2.5.3 | 计划补充「目标与非目标」「验收」节，修正 `make resume` 输出 | 已完成（本批） |
-| 2.5.4 | 证据时效：按 claim 相关路径比较 `evidence.commit..HEAD`；`--fresh` 告警，`--strict` 判 UNVERIFIED；接入 `make end` 与 `make release-check` | 已完成（`commit==HEAD/计划 submitted` 硬绑定仍待补） |
-| 2.5.5 | 计划证据 ID 校验：形如 evidence id 的值必须存在且 verdict=PASS；声称 PASS 但 ID 为空 → WARN | 部分完成（WARN 级；硬失败与 done 严格待补） |
-| 2.5.6 | `§` 引用扫描扩展到嵌套 AGENTS / 支持"第 N 节"；token 预算余量再平衡（AGENTS 24、refs 18–25） | 待做 |
-| 2.5.7 | CI 合并 `docs.yml` 进 `verify.yml`；clean clone 复现（Phase 3） | 待做（Phase 3） |
+| 2.5.4 | 证据时效：按 claim 相关路径比较 `evidence.commit..HEAD`；`--fresh` 告警，`--strict` 判 UNVERIFIED；接入 `make end` 与 `make release-check` | 已完成（本批补 `commit==HEAD/计划 submitted` 硬绑定，见 2.5.8） |
+| 2.5.5 | 计划证据 ID 校验：形如 evidence id 的值必须存在且 verdict=PASS；声称 PASS 但 ID 为空 → WARN | 已完成（本批：硬失败 + 占位白名单 + done 严格） |
+| 2.5.6 | `§` 引用扫描扩展到嵌套 AGENTS / 支持"第 N 节"；token 预算余量再平衡（AGENTS 24、refs 18–25） | 已完成（本批：13 个指令文件 7 处命中；预算帽 1650/975，余量 43–74） |
+| 2.5.7 | CI 合并 `docs.yml` 进 `verify.yml`；clean clone 复现（Phase 3） | 已完成（Phase 3.1/3.3） |
+| 2.5.8 | 证据与计划绑定：done 计划必须填 `submitted`，被引用证据 `git.commit` 须等于 HEAD 或前缀匹配 submitted；`make release-check` = 静态（含计划硬校验）+ fresh strict | 已完成（本批；负向验证见验证证据表） |
 
 **负向验收（待做项完成后）**：无新 evidence 的"已完成"应 FAIL/UNVERIFIED；scope 外改动应 FAIL；嵌套 AGENTS 错误节号应 FAIL。
 
@@ -393,7 +394,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 标杆叙事变成"自夸" | 中 / 高 | 评分卡必须由独立复评；HARNESS 必须写局限与未验证；负结果（200ms 不可达）作为案例正面展示 |
 | 范围蔓延到产品测试/英文全量翻译 | 中 / 中 | 本计划 scope.deny 锁代码；Phase 6 独立计划；语言决策 D-B2 控制 |
 | 删除 raw baseline 后无法复现性能结论 | 低 / 中 | 脚本 `harness/tools/measure-launch.sh` 可重建；案例页写清口径与命令；关键摘要保留 |
-| token 预算/文档注入超限 | 低 / 低 | 新文档不进 AGENTS 预算；AGENTS 仅改路由（≤1600 token 不变） |
+| token 预算/文档注入超限 | 低 / 低 | 新文档不进 AGENTS 预算；AGENTS 仅改路由（预算帽 1650，当前 ≈1576） |
 | DSH / Claude Code 行为差异导致同一规则效果不同 | 中 / 中 | 适配矩阵写清"工具特性 vs 仓库门禁"边界；`make adapters-check`；门禁不依赖 hooks 可用 |
 | 模板抽取把本项目专用假设带出去 | 中 / 高 | Phase 5 验收含"0 个 Duiyi 专用引用"；首个外部试点回写卡点；profiles 按最小起步设计 |
 
@@ -442,12 +443,14 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 2.3 独立复评：综合 ≈3.6/5（Instructions 4 / State 3.5 / Verification 4 / Scope 3 / Lifecycle 3.5）；L3 条件成立；报告 `harness/reviews/2026-11-07-harness-reaudit.md`
 - [x] Phase 3.1 clean clone 复现：`make check` 0.33s PASS；`make verify-static` 4.65s PASS（42 单测，无 Xcode）
 - [x] Phase 3.3（部分）：`docs.yml` 合并进 `verify.yml`（`**/*.md`）；README 徽章（verify/MIT/iOS）
-- [x] 历史清理：`git filter-repo` 重写 43 commits，敏感项在树/历史/提交消息中 0 命中；强推远程 main
+- [x] 历史清理·敏感信息：`git filter-repo` 重写 43 commits，敏感项在树/历史/提交消息中 0 命中；强推远程 main
+- [x] 历史清理·作者邮箱：`git filter-repo --mailmap` 二次重写 48 commits → GitHub noreply；树内 7 文件 / 16 处 commit 引用按 subject 校验回填；强推 main
 - [x] CI 验证：普通推送触发 `verify` run `42344278003`，static gates success，unit-tests skipped（按设计）
-- [ ] Phase 3 其余：CONTRIBUTING 分层复核、doctor 对陌生人友好化、CI 说明
 - [x] Phase 2.5.1–2.5.4：end 接线、scope 越界 FAIL、计划节修正、证据时效 `--fresh/--strict` + `make release-check`
-- [x] Phase 2.5.5：证据 ID WARN 校验（硬失败待补）
-- [ ] Phase 4 发布 + 外部验证
+- [x] Phase 2.5.5–2.5.8：证据 ID 硬失败 / done 严格 / `submitted` 绑定、§/第N节 扫描扩展（13 文件）、token 余量再平衡（1650/975）
+- [x] Phase 3.1/3.2/3.3/3.4：clean clone 复现、CONTRIBUTING 三层（10 分钟/完整 iOS/真机）、CI 单 workflow + 徽章、doctor 失败建议区
+- [ ] Phase 3 剩余：首次真实 PR / 分支保护设置（需仓库管理员或可用 token；当前 PAT 受组织策略 403）
+- [ ] Phase 4 发布 + 外部验证（v1.0.0 + 非作者首访）
 - [ ] Phase 5 `harness-kit` 模板抽取（含首个外部试点）
 - [ ] Phase 6（可选）产品可信度
 
@@ -470,18 +473,25 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 独立 Harness 复评（改造后，Phase 2.3） | **≈3.6/5**（Instructions 4.0 / State 3.5 / Verification 4.0 / Scope 3.0 / Lifecycle 3.5）；对外标杆 ≈24/35；L3 条件成立 | 独立复跑 check/verify-static/verify-claim/adapters-check；未跑真机/clean clone | `harness/reviews/2026-11-07-harness-reaudit.md` |
 | 历史清理·敏感信息（2026-11-07） | `git filter-repo` 重写 43 个 commit；Team/设备 ID/本机路径 0 命中（树/历史/消息）；强推 `main`；备份 `/tmp/duiyi-pre-filter.bundle` | 本机 + GitHub（refs 已更新） | —（历史清理） |
 | 历史清理·作者邮箱（2026-11-07） | `git filter-repo --mailmap` 二次重写 48 个 commit（作者/提交者邮箱 → GitHub noreply）；树内 7 文件 / 16 个被引用 commit 逐条按 subject 校验回填；强推 `main`；备份 `/tmp/duiyi-pre-email-filter.bundle` | 本机 + GitHub（refs 已更新） | —（历史清理） |
-| CI 绿（2026-11-07） | 强推 `a243173` 未触发 run；普通提交 `47fd6c4` 触发 run `42344278003`：**static gates success；unit-tests skipped（按设计）** | GitHub Actions 公开 API；本地 pre-push `verify-static` PASS | —（CI） |
-| 干净 clone 复现（Phase 3.1） | `git clone . /tmp/duiyi-fresh` → `make check` **PASS 0.33s**；`make verify-static` **PASS 4.65s**（42 单测） | /tmp 干净 clone，无 Xcode；仅 python3+git+make | —（Phase 3.1） |
+| CI 绿（2026-11-07） | 强推 `a243173` 未触发 run；普通提交 `47fd6c4` 触发 run `42344278003`：**static gates success；unit-tests skipped（按设计）** | GitHub Actions 公开 API；本地 pre-push `verify-static` PASS | —（外部记录：GitHub Actions run 42344278003） |
+| 干净 clone 复现（Phase 3.1） | `git clone . /tmp/duiyi-fresh` → `make check` **PASS 0.33s**；`make verify-static` **PASS 4.65s**（42 单测） | /tmp 干净 clone，无 Xcode；仅 python3+git+make | —（过程记录：Phase 3.1 clean clone） |
 | CI 合并与徽章（Phase 3.3） | `docs.yml` 删除；`verify.yml` 增加 `**/*.md`；README 徽章（verify/MIT/iOS） | 本机文件检查；CI 未触发新 run | —（Phase 3.3） |
-| `make adapters-check`（2026-11-07） | **PASS**（6 个 skills 单源；hooks 示例/CLAUDE 模板/red-team agent 就绪） | 本机 | —（适配层） |
-| `make verify-static`（Phase 2 工作树） | **PASS**（新增 adapters-check 后 42 单测仍过） | 本机 | —（静态门禁） |
+| `make adapters-check`（2026-11-07） | **PASS**（6 个 skills 单源；hooks 示例/CLAUDE 模板/red-team agent 就绪） | 本机 | —（过程记录：适配层） |
+| `make verify-static`（Phase 2 工作树） | **PASS**（新增 adapters-check 后 42 单测仍过） | 本机 | —（过程记录：静态门禁） |
 | HARNESS/评分卡指标 | HARNESS 165 行；scorecard 53 行；root/README 已互链 | 本机 `wc -l` | —（文档） |
 | 证据时效负向验证（Phase 2.5.4） | `make verify-claim-fresh`：3 条证据均 **STALE**（pbxproj / UI 测试文件变更）但 exit 0；`--fresh --strict` → **UNVERIFIED×3，exit 2** | 本机 | —（负向验证） |
-| `make check`（2026-11-07，Phase 1 第一批） | **PASS**（0 error / 0 warn；公开文档白名单 docs 15/16、根 4 个 md） | 本机 macOS + python3 | —（静态门禁） |
-| `make verify-static`（2026-11-07） | **PASS**（+证据 schema/42 单测/语法；约 4.3s） | 本机 macOS | —（静态门禁） |
-| `make build`（模拟器 Debug，脱敏后） | **BUILD SUCCEEDED**（`xcodebuild -list` 也能解析工程） | Xcode 27.1 | —（构建验证） |
+| `make check`（2026-11-07，Phase 1 第一批） | **PASS**（0 error / 0 warn；公开文档白名单 docs 15/16、根 4 个 md） | 本机 macOS + python3 | —（过程记录：静态门禁） |
+| `make verify-static`（2026-11-07） | **PASS**（+证据 schema/42 单测/语法；约 4.3s） | 本机 macOS | —（过程记录：静态门禁） |
+| `make build`（模拟器 Debug，脱敏后） | **BUILD SUCCEEDED**（`xcodebuild -list` 也能解析工程） | Xcode 27.1 | —（过程记录：构建验证） |
 | 脱敏扫描（2026-11-07） | 真实 Team ID / CoreDevice ID / 硬件 UDID / `/Users/` 实际路径 **0 命中**；baseline/issues 已占位符化 | 本机 `git grep` | —（发布红线） |
 | 公开面指标（2026-11-07） | 根 md 4 个；README 133 行、CONTRIBUTING 79 行、docs/README 68 行、docs/decisions 34 行 | 本机 `wc -l` + check-docs | —（结构门禁） |
+| `make test`（历史 clean-tree 证据） | **PASS**：passed=120 ≥ floor=120；failed=0；skipped=0 | 模拟器 iOS 26.4.1 | `20261105T055610Z-unit-tests-pass` |
+| `make test-ui`（历史 clean-tree 证据） | **PASS**：executed=3 ≥ floor=3；failed=0；skipped=1（预期） | 模拟器 iOS 26.4.1 | `20261105T055845Z-ui-tests-pass` |
+| `make device-test`（历史 clean-tree 证据） | **PASS**：passed=123 ≥ floor=123；failed=0；skipped=0 | 真机 iPhone 13 / iOS 26.7 | `20261106T053620Z-device-tests-pass` |
+| `python3 -m unittest tools.tests.test_plan -v` | **PASS**：14 用例（tmp git fixture）；done 缺 `submitted`/token 不存在或非祖先、证据 ID 缺失或非 PASS、PASS+占位无白名单 → FAIL；`—（过程记录：…）` → OK | 本机 python3 | —（负向验证） |
+| `python3 -m unittest tools.tests.test_check_harness.py -v` | **PASS**：12 用例；嵌套 AGENTS 错节号/无法定位/错范围 → exit 1；根 AGENTS 自引用、skill→根 AGENTS → exit 0 | 本机 python3 | —（负向验证） |
+| `python3 -m unittest tools.tests.test_doctor -v` | **PASS**：20 用例；缺 Xcode/runtime → exit 2 + 必需建议；可选缺失 → exit 0 | 本机 python3 | —（负向验证） |
+| `make check-harness`（预算/§ 扫描） | **PASS**：AGENTS 1576/1650（余 74）；refs 932/925/929 对 975（余 43–50）；§/第N节 7 处命中（13 指令文件） | 本机 | —（过程记录：预算与 sensor） |
 
 ## 未验证项
 
@@ -490,11 +500,13 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - clean clone 已实测（Phase 3.1，PASS）；独立复评时的未提交状态已提交，clone 可复现。
 - GitHub 元数据/发布权限、仓库改名影响未验证（Phase 4）。
 - Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，发布前补实测或标未验证。
-- 真机未在脱敏/脚本改动后重跑；现有 device evidence 指向旧 commit，不代表本轮 project 改动后的真机结果。
+- 首次真实 PR / 分支保护（PR 强制 static）未验证：当前 PAT 受组织策略 403，无法用 API 配置；需仓库管理员在 GitHub Settings 设置或提供可用凭据。
+- Phase 4 发布权限（release 创建）未验证：`gh` PAT 无仓库访问权限（403）；已准备 release notes 与 tag 方案，需用户授权/操作。
+- 真机未在脱敏/脚本改动后重跑；3 条 evidence 对当前 HEAD 已 STALE（freshness 仅告警），不代表本轮 project 改动后的真机结果。发布前需在 release commit 重跑并生成新证据（真机需设备 + 签名环境）。
 - 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
 - 历史敏感信息/作者邮箱已用 `git filter-repo` 两轮清理（2026-11-07），本地与远端分支历史 0 命中；远端 unreachable 旧对象仍可按 SHA 访问（用户已接受现状，不再联系 GitHub Support）。
 - DSH hooks 能力随版本变化（0.2.1-rc.5 未打包）；模板按「门禁 + CI + 适配层」设计，不依赖 hooks 可用。
-- Phase 2.5 剩余项进行中：evidence commit==HEAD/计划 submitted 硬绑定、证据 ID 硬失败、done 严格、§ 引用扫描扩展、token 余量再平衡（AGENTS 余 24、refs 余 18–25）。
+- Phase 2.5 已完成（2.5.1–2.5.8）；其中 done 的 `submitted`/证据绑定目前只在单测负向 fixture 演练，本计划尚未 done，Phase 4 收尾时以本计划走一遍真实 done 演练。
 - 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；用户已接受「分支干净、旧对象不可达」状态（2026-11-07 决策）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
@@ -518,15 +530,25 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 4 | 执行 Phase 1 第一批（HANDOFF 拆分、README/LICENSE/CONTRIBUTING/decisions、脱敏、白名单） | 完成；`make check` / `verify-static` PASS、`make build` BUILD SUCCEEDED；额外清掉 10 个文件的真实硬件 UDID | 2026-11-07 |
 | 5 | 计划"未提交改动"与 git status 不一致（scope.allow 缺嵌套 AGENTS、目录通配解析问题） | 已修：补齐 allow + 改精确路径；`make check-plan` PASS | 2026-11-07 |
 | 6 | 作者邮箱从 git 历史移除（用户确认） | `git filter-repo --mailmap` 重写 48 commit；commit-map 混入首轮旧映射，改用「提交顺序 + subject 全等」index-map 回填 7 文件 / 16 引用并逐条校验；强推 `main` | 2026-11-07 |
+| 7 | Phase 2.5 P0 工具整改（3 个并行 agent：plan.py / check-harness / doctor） | 全部完成：plan.py +198/−47（14 用例）、check-harness +151/−33（12 用例）、doctor +146（20 用例）；Lead 集成、计划记录、负向验证 | 2026-11-07 |
 
 ## 未提交改动
 
-- 无未提交改动（邮箱重写、commit 引用回填与计划记录已提交）。
+- `HARNESS.md` / 事实更新（6 组门禁、88 单测、§ 扫描、历史/接线/局限）
+- `docs/harness-scorecard.md` / 同上
+- `harness/plans/2026-11-06-benchmark-opensource.md` / Phase 2.5 记录与证据（本文件）
+- `tools/check-harness.py` / §/第N节 引用扫描扩展到 13 个指令文件
+- `tools/doctor.py` / 失败建议区（影响/如何补/必需性）
+- `tools/plan.py` / 证据 ID 硬失败 + done 严格 + submitted 绑定
+- `tools/rules-budget.json` / 预算帽 1650/975
+- `tools/tests/test_check_harness.py` / 12 用例（新增）
+- `tools/tests/test_doctor.py` / 20 用例（新增）
+- `tools/tests/test_plan.py` / 14 用例（新增）
 
 ## 下一步
 
-1. Phase 2.5 剩余 P0（进行中）：evidence `commit==HEAD`/计划 `submitted` 硬绑定、证据 ID 硬失败、done 计划严格、`§` 扫描扩展、token 余量再平衡。
-2. Phase 3 收尾：CONTRIBUTING 分层复核、doctor 友好化、CI 说明与首次真实 PR。
+1. Phase 4 发布：提交本批 → 本地 `make release-check` → 推 `v1.0.0` tag + release notes；GitHub 元数据/release 需仓库权限（当前 PAT 受组织策略 403，需用户操作或改 PAT）。
+2. Phase 4 外部首访：先由无项目上下文的 agent 代理跑 5 问 + clean clone 复现（记录 AI 代理局限），再由用户招募 1 名人类非作者复核；卡点回写计划。
 3. Phase 4：发布 + 真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试。
 
 ## 待确认

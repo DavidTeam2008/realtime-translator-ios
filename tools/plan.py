@@ -28,12 +28,18 @@ status 只取 active | done | blocked | archived。
 
 无 front matter 的旧计划按 legacy 处理：mtime 兜底 + WARN，不直接失败。
 
+验证证据（check）：表头须含「证据ID」；证据 id 必须对应 harness/evidence/<id>.json 且
+verdict=PASS；结果声称完成（PASS/通过/SUCCEEDED/已验证/已完成）时必须绑定可解析证据ID，
+或使用白名单占位（基线/过程/外部/历史/未验证/负向）；done 计划必须有 submitted，
+且被引用证据的 git.commit 绑定 HEAD 或 submitted。
+
 退出码：0 = 通过（允许 WARN）；1 = 校验失败 / 缺少 active 计划；2 = 用法错误。
 """
 from __future__ import annotations
 
 import datetime as dt
 import fnmatch
+import json
 import re
 import subprocess
 import sys
@@ -533,6 +539,16 @@ def _is_separator(cells: list[str]) -> bool:
     return bool(stripped) and all(re.fullmatch(r":?-{2,}:?", cell) for cell in stripped)
 
 
+def split_table_row(line: str) -> list[str]:
+    """拆分 markdown 表格行：转义的 `\\|` 不当作列分隔（命令里的管道符常见）。"""
+    text = line.strip()
+    if text.startswith("|"):
+        text = text[1:]
+    if text.endswith("|") and not text.endswith("\\|"):
+        text = text[:-1]
+    return [cell.strip().replace("\\|", "|") for cell in re.split(r"(?<!\\)\|", text)]
+
+
 def evidence_table(plan: Plan, sec: Section) -> tuple[list[str] | None, list[list[str]]]:
     """返回 (表头单元格, 数据行)；表头/数据行都没有时返回 (None, [])。"""
     lines = section_raw_lines(plan, sec)
@@ -541,7 +557,7 @@ def evidence_table(plan: Plan, sec: Section) -> tuple[list[str] | None, list[lis
     for line in lines:
         stripped = line.strip()
         if stripped.startswith("|"):
-            cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+            cells = split_table_row(stripped)
             if header is None:
                 header = cells
                 continue
@@ -723,7 +739,7 @@ def check_plan(plan: Plan) -> tuple[list[str], list[str]]:
     updated = str(plan.meta.get("updated") or "")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", updated):
         warnings.append(f"updated 缺失或格式非 YYYY-MM-DD：{updated!r}")
-    if status in ("active", "blocked"):
+    if status in ("active", "done", "blocked"):
         for label, keywords in (("目标", ("目标与非目标", "目标与验收", "目标")),
                                 ("验收", ("验收",)),
                                 ("下一步", ("下一步",))):
@@ -735,19 +751,20 @@ def check_plan(plan: Plan) -> tuple[list[str], list[str]]:
         allow = meta_list(plan.meta, "scope.allow")
         if not allow:
             errors.append(f"{status} 计划缺少 scope.allow（允许改动的文件/目录）")
-    strict = status == "active"
+    evidence_strict = status in ("active", "done")
     state, detail = evidence_status(plan)
     if state == "missing":
-        message = "缺少“验证证据”节（至少 1 行：命令/结果/环境）"
-        (errors if strict else warnings).append(message)
+        message = "缺少“验证证据”节（至少 1 行：命令/结果/环境/证据ID）"
+        (errors if evidence_strict else warnings).append(message)
     elif state == "no-rows":
-        message = "“验证证据”表缺失或没有数据行（需要 命令/结果/环境）"
-        (errors if strict else warnings).append(message)
+        message = "“验证证据”表缺失或没有数据行（需要 命令/结果/环境/证据ID）"
+        (errors if evidence_strict else warnings).append(message)
     elif state == "bad-columns":
         message = f"“验证证据”表缺列：{'、'.join(detail)}（至少需要 命令/结果/环境）"
-        (errors if strict else warnings).append(message)
-    if status == "done" and not plan.meta.get("submitted"):
-        warnings.append("done 计划建议在 front matter 填 submitted（提交短 hash）")
+        (errors if evidence_strict else warnings).append(message)
+    evidence_errors, evidence_warnings = evidence_audit(plan)
+    errors.extend(evidence_errors)
+    warnings.extend(evidence_warnings)
     if status == "active":
         diff = diff_uncommitted(plan)
         errors.extend(diff.mismatches)
@@ -756,51 +773,187 @@ def check_plan(plan: Plan) -> tuple[list[str], list[str]]:
 
 
 EVIDENCE_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[a-z0-9][a-z0-9-]*$")
+EVIDENCE_COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
+# 结果单元格里的“完成声明”词；命中时必须绑定可解析 evidence id 或白名单占位。
+PASS_WORD_RE = re.compile(r"\bPASS\b|\bSUCCEEDED\b|通过|已验证|已完成")
+# 证据ID 占位白名单：命中即视为“非机器证据”的过程记录，允许不绑定 evidence id。
+EVIDENCE_ANNOTATION_WORDS = ("基线", "过程", "外部", "历史", "未验证", "负向")
+HARD_EVIDENCE_STATUSES = ("active", "done", "blocked")
 
 
-def evidence_id_warnings(plan: Plan) -> list[str]:
-    """计划“验证证据”表的证据 ID 校验（WARN；不阻断）。
+def evidence_doc(evidence_id: str) -> tuple[str, dict | None]:
+    """读取 harness/evidence/<id>.json：("ok", doc) / ("missing", None) / ("invalid", None)。"""
+    path = ROOT / "harness" / "evidence" / f"{evidence_id}.json"
+    if not path.is_file():
+        return "missing", None
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "invalid", None
+    if not isinstance(doc, dict):
+        return "invalid", None
+    return "ok", doc
 
-    - 形如 evidence id 的值必须能在 harness/evidence/<id>.json 找到且 verdict=PASS；
-    - 声称 PASS 但证据 ID 为空 → WARN（历史基线行用 “—” 占位，不告警）。
+
+def _git_sha(rev: str) -> str | None:
+    code, out, _ = git(["rev-parse", "--verify", f"{rev}^{{commit}}"])
+    return out.strip() if code == 0 and out.strip() else None
+
+
+def _git_is_ancestor(rev: str) -> bool:
+    code, _, _ = git(["merge-base", "--is-ancestor", rev, "HEAD"])
+    return code == 0
+
+
+def submitted_tokens(plan: Plan) -> list[str]:
+    """front matter `submitted` 的短 hash 列表（逗号/空格分隔；兼容字符串与内联列表）。"""
+    raw = plan.meta.get("submitted")
+    values: list[str] = []
+    if isinstance(raw, list):
+        values = [str(item) for item in raw]
+    elif isinstance(raw, str):
+        values = [raw]
+    tokens: list[str] = []
+    for value in values:
+        for token in re.split(r"[,，\s]+", value.strip().strip("`")):
+            token = token.strip().strip("`")
+            if token:
+                tokens.append(token)
+    return tokens
+
+
+def _submitted_errors(tokens: list[str]) -> list[str]:
+    errors: list[str] = []
+    for token in tokens:
+        if not re.fullmatch(r"[0-9a-fA-F]{4,40}", token):
+            errors.append(f"submitted 中的 commit 不是短 hash：{token!r}")
+            continue
+        if _git_sha(token) is None:
+            errors.append(f"submitted 中的 commit 不存在：{token}")
+            continue
+        if not _git_is_ancestor(token):
+            errors.append(f"submitted 中的 commit 不是 HEAD 或其祖先：{token}")
+    return errors
+
+
+def _commit_bound(commit: str, tokens: list[str]) -> bool:
+    """证据 commit 等于 HEAD，或与 submitted 某个 token 前缀匹配。"""
+    candidates: list[str] = []
+    head = _git_sha("HEAD")
+    if head:
+        candidates.append(head)
+    for token in tokens:
+        sha = _git_sha(token)
+        if sha:
+            candidates.append(sha)
+    for candidate in candidates:
+        if candidate.startswith(commit) or commit.startswith(candidate):
+            return True
+    return False
+
+
+def _result_excerpt(cell: str, limit: int = 60) -> str:
+    text = re.sub(r"\s+", " ", cell.replace("**", "")).strip()
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def evidence_audit(plan: Plan) -> tuple[list[str], list[str]]:
+    """验证证据硬校验（active/done/blocked 硬失败；archived 降级为 WARN）。
+
+    1. 「验证证据」表头必须含「证据ID」列（含“证据”即可）；
+    2. 可解析证据 ID 必须存在 harness/evidence/<id>.json 且 verdict=PASS；
+    3. 结果含完成声明（PASS/通过/SUCCEEDED/已验证/已完成）时，证据ID 必须是可解析 id，
+       或命中白名单占位（基线/过程/外部/历史/未验证/负向；空单元格 → ERROR）；
+    4. active 无 PASS 证据 → WARN；done 无 PASS 证据 → ERROR；
+    （5. 结构必填/证据节缺失由 check_plan 统一硬校验）
+    6. done 必须有 submitted，且 token 可解析、是 HEAD 祖先；
+    7. done 被引用证据的 git.commit 必须绑定 HEAD 或 submitted。
     """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if plan.legacy:
+        return errors, warnings
+    status = plan.status
+    hard = status in HARD_EVIDENCE_STATUSES
+    done_tokens: list[str] = []
+    if status == "done":
+        done_tokens = submitted_tokens(plan)
+        if not done_tokens:
+            errors.append("done 计划缺少 front matter submitted（提交短 hash，逗号/空格分隔）")
+        else:
+            errors.extend(_submitted_errors(done_tokens))
     sec = plan.section("验证证据")
     if sec is None:
-        return []
-    warnings: list[str] = []
-    seen_header: list[str] | None = None
-    for raw in section_raw_lines(plan, sec):
-        stripped = raw.strip()
-        if not stripped.startswith("|"):
-            if seen_header is not None:
-                break
-            continue
-        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
-        if seen_header is None:
-            seen_header = cells
-            id_index = next((i for i, cell in enumerate(cells) if "证据" in cell), None)
-            continue
-        if _is_separator(cells):
-            continue
-        if id_index is None or id_index >= len(cells):
-            return warnings
-        evidence_id = cells[id_index].strip("`")
-        result = cells[1] if len(cells) > 1 else ""
+        return errors, warnings
+    header, rows = evidence_table(plan, sec)
+    if not header or not rows:
+        return errors, warnings
+    id_index = next((index for index, cell in enumerate(header) if "证据" in cell), None)
+    if id_index is None:
+        message = (
+            "“验证证据”表缺少「证据ID」列（表头需含“证据”；"
+            "结果中的 PASS/通过/已完成 必须绑定 evidence id）"
+        )
+        (errors if hard else warnings).append(message)
+        return errors, warnings
+    result_index = next((index for index, cell in enumerate(header) if "结果" in cell), 1)
+    pass_ids: list[str] = []
+    referenced: dict[str, dict] = {}
+    for row in rows:
+        cells = list(row) + [""] * max(0, len(header) - len(row))
+        evidence_cell = cells[id_index] if id_index < len(cells) else ""
+        result_cell = cells[result_index] if result_index < len(cells) else ""
+        evidence_id = evidence_cell.strip().strip("`").strip()
         if EVIDENCE_ID_RE.fullmatch(evidence_id):
-            path = ROOT / "harness" / "evidence" / f"{evidence_id}.json"
-            if not path.is_file():
-                warnings.append(f"证据 ID 不存在：{evidence_id}（{rel(plan.path)}）")
+            state, doc = evidence_doc(evidence_id)
+            if state == "missing":
+                message = f"证据 ID 不存在：{evidence_id}（harness/evidence/{evidence_id}.json 缺失）"
+                (errors if hard else warnings).append(message)
                 continue
-            try:
-                doc = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                warnings.append(f"证据 ID 无法读取：{evidence_id}")
+            if state == "invalid" or doc is None:
+                message = f"证据 JSON 无法解析：{evidence_id}"
+                (errors if hard else warnings).append(message)
                 continue
-            if doc.get("verdict") != "PASS":
-                warnings.append(f"证据 verdict 非 PASS：{evidence_id} = {doc.get('verdict')!r}")
-        elif "PASS" in result and evidence_id not in {"", "—", "-", "N/A"} and "—" not in evidence_id:
-            warnings.append(f"结果声称 PASS 但证据 ID 不是可解析的 evidence id：{evidence_id or '<空>'}")
-    return warnings
+            referenced[evidence_id] = doc
+            verdict = doc.get("verdict")
+            if verdict == "PASS":
+                pass_ids.append(evidence_id)
+            else:
+                message = f"证据 verdict 非 PASS：{evidence_id} = {verdict!r}"
+                (errors if hard else warnings).append(message)
+            continue
+        if not PASS_WORD_RE.search(result_cell):
+            continue
+        if any(word in evidence_cell for word in EVIDENCE_ANNOTATION_WORDS):
+            continue
+        if not evidence_id:
+            message = (
+                f"结果声称完成（{_result_excerpt(result_cell)}）但「证据ID」为空："
+                "补 evidence id，或标注 —（过程记录：…）"
+            )
+        else:
+            message = (
+                f"结果声称完成（{_result_excerpt(result_cell)}）但证据 ID 不是可解析的 evidence id："
+                f"{evidence_id}；补 evidence id，或标注 —（过程记录：…）"
+            )
+        (errors if hard else warnings).append(message)
+    if status == "active" and not pass_ids:
+        warnings.append("验证证据表中没有可解析且 verdict=PASS 的 evidence id（完成前补一条真实证据）")
+    elif status == "done" and not pass_ids:
+        errors.append("done 计划没有任何可解析且 verdict=PASS 的 evidence id（不能无证据收尾）")
+    if status == "done":
+        for evidence_id, doc in referenced.items():
+            git_meta = doc.get("git")
+            commit = ""
+            if isinstance(git_meta, dict):
+                commit = str(git_meta.get("commit") or "").strip().lower()
+            if not commit:
+                errors.append(f"证据缺 git.commit，无法绑定 submitted/HEAD：{evidence_id}")
+            elif not EVIDENCE_COMMIT_RE.fullmatch(commit):
+                errors.append(f"证据 git.commit 非法（应为 7–40 位短 hash）：{evidence_id} = {commit!r}")
+            elif not _commit_bound(commit, done_tokens):
+                errors.append(f"证据 commit 未绑定 submitted/HEAD：{evidence_id}（commit={commit}）")
+    return errors, warnings
 
 
 def run_check(verbose: bool = True) -> tuple[int, int]:
@@ -818,7 +971,6 @@ def run_check(verbose: bool = True) -> tuple[int, int]:
     total_warnings = 0
     for plan in plans:
         errors, warnings = check_plan(plan)
-        warnings += evidence_id_warnings(plan)
         tag = "FAIL" if errors else "OK"
         if verbose:
             print(f"[{tag}]  {rel(plan.path)}  status={plan.status or ('legacy' if plan.legacy else '缺失')}")
