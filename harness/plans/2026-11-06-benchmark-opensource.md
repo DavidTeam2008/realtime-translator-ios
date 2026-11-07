@@ -534,16 +534,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `HARNESS.md` / 事实更新（6 组门禁、88 单测、§ 扫描、历史/接线/局限）
-- `docs/harness-scorecard.md` / 同上
-- `harness/plans/2026-11-06-benchmark-opensource.md` / Phase 2.5 记录与证据（本文件）
-- `tools/check-harness.py` / §/第N节 引用扫描扩展到 13 个指令文件
-- `tools/doctor.py` / 失败建议区（影响/如何补/必需性）
-- `tools/plan.py` / 证据 ID 硬失败 + done 严格 + submitted 绑定
-- `tools/rules-budget.json` / 预算帽 1650/975
-- `tools/tests/test_check_harness.py` / 12 用例（新增）
-- `tools/tests/test_doctor.py` / 20 用例（新增）
-- `tools/tests/test_plan.py` / 14 用例（新增）
+- 无未提交改动（Phase 2.5 工具整改、文档事实更新与计划记录已提交）。
 
 ## 下一步
 
