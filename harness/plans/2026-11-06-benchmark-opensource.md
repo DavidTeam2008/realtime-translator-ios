@@ -515,7 +515,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 下一步
 
-1. 提交 Phase 3.1/3.3（部分）与计划记录。
+1. Phase 2.5 剩余 P0：evidence HEAD/时效绑定、证据 ID 校验、done 严格、`§` 扫描扩展、token 余量（发布前建议完成）。
 2. 处理 Phase 2.5 剩余 P0：evidence HEAD/时效绑定、证据 ID 校验、done 严格、§ 引用扫描扩展、token 余量再平衡（发布前建议完成）。
 3. Phase 3 收尾：CONTRIBUTING 分层复核、doctor 友好化、CI 说明与首次真实 PR 验证。
 4. Phase 4：发布与真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试独立排期。
