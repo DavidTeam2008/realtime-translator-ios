@@ -328,7 +328,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | # | 任务 | 产出 | 验收 |
 | --- | --- | --- | --- |
-| 4.1 | GitHub 元数据 | 仓库 description / topics（`ios`, `swift`, `on-device`, `harness-engineering`, `ai-agent`, `translation`, `deepseek-harness`）/ social preview；issue/PR 模板已随仓库提供 | 由用户在 GitHub 设置（我提供文案） |
+| 4.1 | GitHub 元数据 | 仓库 description / topics（`ios`, `swift`, `on-device`, `harness-engineering`, `ai-agent`, `translation`, `deepseek-harness`）/ social preview（素材：`docs/images/social-preview.png`，1280×640）；issue/PR 模板已随仓库提供 | 由用户在 GitHub 设置（我提供文案） |
 | 4.2 | Release | `v1.0.0` tag + `harness/release-notes-v1.0.0.md`（中英，含"如何 10 分钟验证 harness"）；release 文案由该文件提供 | release 页面可访问；tag 在 HEAD 或指定提交 |
 | 4.3 | 外部首访测试 | AI 代理按公开 clone 走查（已完成，见 review）；再招募 1 名人类非作者按 README + CONTRIBUTING 走 | 5/5 问可答且 10 分钟复现 PASS（当前 AI 代理 4/5；人类待验证） |
 | 4.4 | 可选：仓库改名 | 建议改 `duiyi`（品牌化）；改前确认 remote/链接影响 | 由用户决定；本轮默认不改 |
@@ -546,7 +546,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（v1.0.0 tag 与发布状态已记录）。
+- `docs/images/social-preview.png` / GitHub 社交预览素材
+- `harness/plans/2026-11-06-benchmark-opensource.md` / 发布素材记录
 
 ## 下一步
 
