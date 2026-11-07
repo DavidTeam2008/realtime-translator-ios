@@ -346,7 +346,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5.2 | 脚手架 | `harness-init`：探测语言/命令、按 profile 生成文件、dry-run + 备份、不覆盖已有文件、运行首次 `make check` | 在空白测试仓（或 fork）10 分钟内 init + `make check` PASS | 已完成（三档空白仓 init + 首次 `make check` PASS） |
 | 5.3 | profiles 与采用指南 | minimal（AGENTS + 静态门禁）/ standard（+计划/证据/CI）/ strict（+红队/scorecard/月度审计）；`docs/playbook.md` 五步改造法 | 每个 profile 有独立验收脚本；playbook 可由非作者照做 | 已完成（`make kit-check` 66 用例覆盖三档；playbook 已写，非作者试点见 5.4） |
 | 5.4 | 首个外部试点 | 在作者另一个项目上真实改造一次，记录卡点并回写模板 | 试点项目 1 天内完成接入；卡点进入模板 issue/plan | 已完成（代理试点：空白 Python 项 standard 接入成功、首次 check 一次 PASS、执行 ≈80s；卡点已回写；**真实项目未验证**） |
-| 5.5 | 发布模板 | 独立仓库（推荐 `harness-kit`）或本仓 `harness-kit/`；README 说明与 Duiyi 案例的关系；License 一致 | 模板仓 0 个 Duiyi 专用引用；外部可 clone | 已完成（本仓 `harness-kit/`；0 专有引用；独立仓库拆分待权限） |
+| 5.5 | 发布模板 | 独立仓库（推荐 `harness-kit`）或本仓 `harness-kit/`；README 说明与 Duiyi 案例的关系；License 一致 | 模板仓 0 个 Duiyi 专用引用；外部可 clone | 已完成（本仓 `harness-kit/` + 独立仓拆分包；推送见 5.6） |
+| 5.6 | 语言/平台覆盖试点 | Node（`node --test`/`npm test`）与 SwiftPM（`swift test`）接入试点；语言支持矩阵；`harness-init` 推断改进（node scripts.test、xcodeproj 提示） | 每语言端到端：init + `make check`/`verify-static` + 证据三值；矩阵写明实测/未实测 | 已完成（Node 24 / Swift 6.4 均 PASS；Go 未安装、Xcode iOS 工程未实测，已入矩阵） |
 
 ### Phase 6（可选，独立排期）· 产品可信度
 
@@ -459,7 +460,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [ ] Phase 4 发布 + 外部验证（v1.0.0 tag/release + 非作者首访）
 - [x] Phase 5.1–5.3：SPEC/config schema/profiles/`harness-init`/core 脚本/模板/adapters/README/playbook + 66 个 kit 端到端测试
 - [x] Phase 5.4：外部试点（AI 代理、空白 Python 仓、standard）：接入成功、首次 check 一次 PASS、执行 ≈80s；3 个文档卡点已回写；报告 `harness/reviews/2026-11-07-kit-pilot.md`（真实项目未验证）
-- [x] Phase 5.5：模板发布形态 = 本仓可复制 `harness-kit/`（0 Duiyi 专有引用；独立仓库拆分待仓库权限）
+- [x] Phase 5.5：模板发布形态 = 本仓可复制 `harness-kit/`（0 Duiyi 专有引用）+ 独立仓拆分包（LICENSE/CHANGELOG/CI/standalone 测试）
+- [x] Phase 5.6：语言覆盖试点（Node 24 / SwiftPM 均端到端 PASS；Go 未装、Xcode iOS 工程未实测）；推断改进 + 语言支持矩阵
 - [ ] Phase 6（可选）产品可信度
 
 ## 验证证据
@@ -509,7 +511,10 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 三档 demo 人工试用（2026-11-07） | minimal/standard/strict 各 init 到 /tmp 空白仓：created 14/26/37 文件；`make check` 全部 exit 0（init 内置首次检查）；standard `verify-static` exit 0；strict 写 tests-pass 证据后 `verify-claim`/`release-check` PASS | 本机 /tmp；无 Xcode | —（过程记录：kit 试用） |
 | kit 卫生扫描（2026-11-07） | `harness-kit/{core,adapters,profiles,scripts}` 对 `Duiyi/duiyi/对译/TranslationSession/SwiftData` **0 命中**（唯一允许为 README 来源案例）；`make kit-check` 含专有名词/残留占位符/链接断言 | 本机 | —（过程记录：kit 卫生） |
 | Phase 5.4 外部试点（2026-11-07，AI 代理采用者） | **接入成功**：standard 五步闭环；首次 `make check` 一次 PASS；`verify-static` / `verify-claim`(含 `--fresh`) exit 0；执行 ≈80s（端到端 ≈7m20s，含源获取失败重试）；重复 init 冲突（24 CONFLICT 无写入）/ `--force` 备份 / 已有 Makefile → `Makefile.harness` 探测通过 | 空白 Python 宿主；公开 main @`501ae9c`；报告 `harness/reviews/2026-11-07-kit-pilot.md` | —（外部记录：AI 代理） |
-| `make verify-static`（Phase 5 集成后，2026-11-07） | **PASS**，约 17s：91 个 Duiyi 脚本单测 + 67 个 kit 端到端测试 + docs/架构/计数/harness/计划/证据/adapters 全过 | 本机 python3 3.14.7 / make 3.81 | —（过程记录：集成门禁） |
+| `make verify-static`（Phase 5 集成后，2026-11-07） | **PASS**，约 17s：91 个 Duiyi 脚本单测 + 69 个 kit 端到端测试 + docs/架构/计数/harness/计划/证据/adapters 全过 | 本机 python3 3.14.7 / make 3.81 | —（过程记录：集成门禁） |
+| Node 试点（2026-11-07，Node 24 / `node --test`） | **PASS**：blank Node 项目 init standard → 首次 `make check` PASS；`npm test` 2 passed；证据 `passed=2` → `verify-claim` PASS；`verify-static` exit 0 | 本机 node 24.14 / npm 11.9 | —（过程记录：语言试点） |
+| Swift 试点（2026-11-07，SwiftPM / `swift test`） | **PASS**：blank SwiftPM 包 init standard → 首次 `make check` PASS；`swift test` Executed 1 test / 0 failures；`.build/` 已被 gitignore 忽略（证据写入不被 dirty 拦）；`verify-claim`/`verify-static` PASS | 本机 Apple Swift 6.4 | —（过程记录：语言试点） |
+| kit standalone 布局（2026-11-07） | **PASS**：`cp -r harness-kit` 到仓库外后 `python3 -m unittest discover -s tests -q` 69 tests OK（tests 自动适配 monorepo/独立仓两种根）；独立仓文件（LICENSE/CHANGELOG/.gitignore/CI workflow）就绪 | 本机 /tmp | —（过程记录：独立仓准备） |
 
 ## 未验证项
 
@@ -529,7 +534,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；用户已接受「分支干净、旧对象不可达」状态（2026-11-07 决策）。
 - Phase 5 外部试点已由 AI 代理在空白 Python 项目完成（standard 接入成功，报告见上）；作者另一个真实项目、人类采用者、已有历史文档的冲突整合仍未验证。
 - Phase 5 独立模板仓未创建：PAT 受组织策略 403；当前交付为仓库内 `harness-kit/` 可复制目录（`git clone` 后 `cp -r`/subtree 拆分）。
-- kit 的非 Python 语言链路未实测：`--test-command` 与 config 由宿主提供，node/go/swift 的建议命令未逐个验证；strict 档与 CI/hooks 远端触发未由试点覆盖（kit 自身测试覆盖 strict 与 release-check）。
+- kit 语言覆盖：Python/Node/SwiftPM 已端到端实测；**Go 未安装未实测、Xcode iOS 工程未实测**（需显式 `--test-command` 给 xcodebuild 参数）；测试计数由宿主写入 evidence（kit 不解析测试输出）。
+- 独立仓推送后其 CI workflow 尚未由本机验证（依赖 GitHub Actions 权限/网络）；strict 档与 hooks 远端触发未由外部试点覆盖（kit 自身测试覆盖 strict/release-check）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
 ## 参考（外部事实核对，2026-11-07）
@@ -557,7 +563,11 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（Phase 5 试点回写与文档修正已提交）。
+- `harness-kit/` / Phase 5.6 语言试点与独立仓准备
+- `HARNESS.md` / Phase 5.6 语言试点与独立仓准备
+- `README.md` / Phase 5.6 语言试点与独立仓准备
+- `docs/harness-scorecard.md` / Phase 5.6 语言试点与独立仓准备
+- `harness/plans/2026-11-06-benchmark-opensource.md` / Phase 5.6 语言试点与独立仓准备
 
 ## 下一步
 

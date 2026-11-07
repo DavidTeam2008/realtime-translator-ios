@@ -16,8 +16,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-TOOLS = REPO_ROOT / "harness-kit" / "core" / "tools"
+KIT_ROOT = Path(__file__).resolve().parents[1]
+TOOLS = KIT_ROOT / "core" / "tools"
 CHECK_PLAN = TOOLS / "check_plan.py"
 EVIDENCE = TOOLS / "evidence.py"
 VERIFY_CLAIM = TOOLS / "verify_claim.py"

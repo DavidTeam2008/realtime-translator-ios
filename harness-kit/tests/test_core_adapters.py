@@ -9,8 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-ADAPTERS = REPO_ROOT / "harness-kit" / "core" / "tools" / "adapters.py"
+KIT_ROOT = Path(__file__).resolve().parents[1]
+ADAPTERS = KIT_ROOT / "core" / "tools" / "adapters.py"
 
 
 def run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:

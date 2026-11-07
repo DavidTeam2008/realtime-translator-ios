@@ -15,8 +15,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-KIT = REPO_ROOT / "harness-kit"
+KIT = Path(__file__).resolve().parents[1]
 INIT = KIT / "scripts" / "harness-init"
 PROFILES = ("minimal", "standard", "strict")
 PLACEHOLDER_LEFT = re.compile(r"\{\{[A-Z0-9_]+\}\}")
@@ -60,7 +59,7 @@ class HarnessInitProfileTests(unittest.TestCase):
     def invoke(self, *args: str, target: Path) -> subprocess.CompletedProcess[str]:
         return run(
             [sys.executable, str(INIT), "--target", str(target), *args],
-            cwd=REPO_ROOT,
+            cwd=KIT,
         )
 
     def test_profiles_init_and_check(self) -> None:
@@ -108,6 +107,51 @@ class HarnessInitProfileTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn("post-init check: PASS", proc.stdout)
+
+    def test_test_command_inference(self) -> None:
+        """--language inference: node scripts.test / node --test / swift Package.swift / xcodeproj."""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        cases = []
+        node_with_script = self.tmp / "node-with-script"
+        node_with_script.mkdir()
+        (node_with_script / "package.json").write_text(
+            json.dumps({"name": "x", "scripts": {"test": "node --test"}}), encoding="utf-8"
+        )
+        cases.append((node_with_script, "node", "test=npm test", "scripts.test"))
+        node_no_script = self.tmp / "node-no-script"
+        node_no_script.mkdir()
+        (node_no_script / "package.json").write_text(json.dumps({"name": "x"}), encoding="utf-8")
+        cases.append((node_no_script, "node", "test=node --test", "no scripts.test"))
+        swift_pkg = self.tmp / "swift-pkg"
+        swift_pkg.mkdir()
+        (swift_pkg / "Package.swift").write_text("// swift-tools-version:5.9\n", encoding="utf-8")
+        cases.append((swift_pkg, "swift", "test=swift test", "Package.swift"))
+        xcode = self.tmp / "xcode-app"
+        xcode.mkdir()
+        (xcode / "App.xcodeproj").mkdir()
+        (xcode / "App.xcodeproj" / "project.pbxproj").write_text("// stub\n", encoding="utf-8")
+        cases.append((xcode, "swift", "test=xcodebuild test", "cannot infer the scheme"))
+        for target, language, expected, note in cases:
+            with self.subTest(case=target.name):
+                proc = self.invoke(
+                    "--profile", "minimal", "--language", language, "--dry-run", target=target
+                )
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertIn(expected, proc.stdout)
+                self.assertIn(note, proc.stdout)
+
+    def test_gitignore_covers_common_build_artifacts(self) -> None:
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        target = init_target(self.tmp / "ignore")
+        proc = self.invoke(
+            "--profile", "minimal", "--name", "Ignore", "--test-command", "echo ok", target=target
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        gitignore = (target / ".gitignore").read_text(encoding="utf-8")
+        for entry in ("node_modules/", ".build/", ".swiftpm/", "__pycache__/"):
+            self.assertIn(entry, gitignore)
 
     def test_standard_evidence_lifecycle(self) -> None:
         """standard/strict 的「测试 → 证据 → 三值判定」链路必须端到端可用。"""

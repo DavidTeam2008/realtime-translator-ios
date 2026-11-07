@@ -25,13 +25,39 @@ from pathlib import Path
 DEFAULT_KIT_ROOT = Path(__file__).resolve().parent.parent
 PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 BACKUP_DIRNAME = ".harness-init-backup"
-TEST_COMMAND_SUGGESTIONS = {
-    "python": "python3 -m unittest discover -s tests -q",
-    "node": "npm test",
-    "go": "go test ./...",
-    "swift": "swift test",
-    "other": "make test",
-}
+def suggest_test_command(target: Path, language: str) -> tuple[str, str]:
+    """Return (command, source_note). The kit does not parse test output; counts are host-provided."""
+    if language == "python":
+        return (
+            "python3 -m unittest discover -s tests -q",
+            "python default; adjust for pytest or another test layout",
+        )
+    if language == "node":
+        package_json = target / "package.json"
+        if package_json.is_file():
+            try:
+                data = json.loads(package_json.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                data = {}
+            scripts = data.get("scripts") if isinstance(data, dict) else None
+            if isinstance(scripts, dict) and str(scripts.get("test") or "").strip():
+                return "npm test", "from package.json scripts.test"
+            return "node --test", "package.json has no scripts.test; using node --test (Node 18+)"
+        return "node --test", "no package.json; using node --test (Node 18+)"
+    if language == "swift":
+        if (target / "Package.swift").is_file():
+            return "swift test", "from Package.swift (SwiftPM)"
+        if any(target.glob("*.xcodeproj")):
+            return (
+                "xcodebuild test",
+                "Xcode project detected: pass --test-command with -scheme/-destination "
+                '(e.g. "xcodebuild test -scheme App -destination platform=iOS Simulator,name=iPhone 17"); '
+                "the kit cannot infer the scheme",
+            )
+        return "swift test", "no Package.swift; using swift test (adjust if this is an Xcode project)"
+    if language == "go":
+        return "go test ./...", "go default"
+    return "make test", "unknown language; edit commands.test in harness/config.json"
 
 
 class InitError(Exception):
@@ -94,6 +120,8 @@ def load_adapter_files(kit_root: Path, adapters: list[str]) -> list[dict]:
 
 def detect_language(target: Path) -> str:
     if (target / "Package.swift").exists():
+        return "swift"
+    if any(target.glob("*.xcodeproj")):
         return "swift"
     if (target / "package.json").exists():
         return "node"
@@ -389,13 +417,12 @@ def main(argv: list[str] | None = None) -> int:
         adapter_files = load_adapter_files(kit_root, adapters)
         language = detect_language(target) if args.language == "auto" else args.language
         project_name = args.name or target.name
-        test_command = args.test_command or TEST_COMMAND_SUGGESTIONS.get(
-            language, TEST_COMMAND_SUGGESTIONS["other"]
-        )
+        inferred_command, command_note = suggest_test_command(target, language)
+        test_command = args.test_command or inferred_command
         if not args.test_command:
             print(
                 f"NOTE: test command was inferred for language={language!r}: "
-                f"{test_command!r} (edit harness/config.json if wrong)"
+                f"{test_command!r} ({command_note}); edit harness/config.json if wrong"
             )
         subs = substitutions(project_name, language, test_command, version, detect_branch(target))
         actions = collect_actions(kit_root, target, profile, adapter_files, force=args.force)

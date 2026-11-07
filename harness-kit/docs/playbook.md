@@ -102,6 +102,7 @@ python3 tools/verify_claim.py --all
 ```
 
 - 证据是**可被反驳的对象**：test-count 类 claim 由基线（`harness/test-baseline.json`）约束门槛与 skip；static 类 claim 复跑静态脚本。
+- **kit 不解析测试输出**：`passed/failed/skipped` 要由宿主写进 evidence 草稿（如 `swift test` 的 `Executed N test`、`node --test` 的 `# pass N`）；不同测试框架的计数口径以宿主为准。
 - 伪造不可行：`write` 要求 clean tree，证据绑定 git commit；`verify-claim --fresh` 会比较证据 commit 与工作树，`--strict` 下 STALE/缺失一律不能判 PASS。
 
 **退出信号**：`verify_claim --all`：全 PASS → 0；任一 FAIL → 1；否则任一 UNVERIFIED → 2（exit 2 不是通过）。strict 档发布前用 `make release-check` 收口。

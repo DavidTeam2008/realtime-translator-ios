@@ -72,6 +72,18 @@ python3 harness-kit/scripts/harness-init --profile strict --target ../myapp --na
 
 > 表格按 `profiles/*.json` 与 SPEC §5 整理；`dsh` 适配器当前为预留（manifest 为空列表），`claude-code` 提供 `CLAUDE.md` 与 hooks 示例。
 
+## 语言与测试框架（实测矩阵）
+
+| 语言/生态 | 语言探测依据 | init 建议的测试命令 | kit 实测 |
+| --- | --- | --- | --- |
+| Python | `pyproject.toml` / `setup.py` / `requirements.txt` / `*.py` | `python3 -m unittest discover -s tests -q` | ✅ 空白 Python 项目（unittest）+ 外部代理试点 |
+| Node | `package.json` | 有 `scripts.test` → `npm test`；无 → `node --test`（Node 18+） | ✅ Node 24 / `node --test` + `npm test` |
+| Swift | `Package.swift` → SwiftPM；`*.xcodeproj` → Xcode 工程 | `swift test`；Xcode 工程提示必须用 `--test-command` 显式给 `xcodebuild test -scheme …` | ✅ SwiftPM（Apple Swift 6.4）；**Xcode iOS 工程未实测** |
+| Go | `go.mod` | `go test ./...` | ❌ 本机未安装 Go，未实测 |
+| 其他 | 手动 `--language other` | `make test` | — |
+
+> 语言支持的边界：kit 只负责**指令/门禁/计划/证据流程**，不解析业务测试输出。测试计数（`passed/failed/skipped`）由宿主用 `tools/evidence.py write --from-json` 提供（例如把 `swift test` 的 `Executed N test` 或 `node --test` 的 `# pass N` 填入）；需要更紧的集成时可在宿主加一层薄 wrapper。`gitignore` 模板已包含 `node_modules/`、`.build/`、`.swiftpm/`、`__pycache__/`，避免构建产物让证据写入被 dirty tree 拦住。
+
 ## 目录结构
 
 kit 源（本模板，不进入宿主运行时）：
@@ -145,7 +157,7 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 
 ## 局限与未验证（别当成能力）
 
-- **外部试点仅有代理结果**：首个外部试点由 AI 代理在空白 Python 项目完成（standard 档接入成功，执行耗时 ≈80s，首次 `make check` 一次通过；报告见 [`../harness/reviews/2026-11-07-kit-pilot.md`](../harness/reviews/2026-11-07-kit-pilot.md)）。**作者另一个真实项目、人类采用者、历史文档冲突整合仍未验证**。
+- **外部试点仅有代理结果**：首个外部试点由 AI 代理在空白 Python 项目完成（standard 档接入成功，执行耗时 ≈80s，首次 `make check` 一次通过；报告见 [`kit pilot report`](https://github.com/DavidTeam2008/realtimeTranslatorOptimize/blob/main/harness/reviews/2026-11-07-kit-pilot.md)）。**作者另一个真实项目、人类采用者、历史文档冲突整合仍未验证**。
 - **语言/测试框架需要你提供**：不同语言只有建议命令；`{{TEST_COMMAND}}` 与 `harness/config.json.commands.test` 必须由你填真实命令，kit 不验证测试语义。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：kit 生成的空白脚手架本身可通过；若目标已有 `AGENTS.md`/`docs/`/`Makefile`，需按预算与白名单调整（看 `FAIL` 提示，不要删检查绕过）。
 - **kit 自身测试**：`harness-kit/tests/` 含 67 个端到端用例（三档 init、`make check`/`verify-static`、证据三值、strict `release-check`、dry-run/冲突/备份、无专有引用）；已接入来源仓库的 `make verify-static`，本地执行 PASS，CI 随来源仓库 `verify` workflow 运行。
@@ -154,4 +166,4 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 
 ## License
 
-与仓库根 [LICENSE](../LICENSE) 一致：**MIT**。kit 版本 `0.1.0`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.1.0`；向后兼容策略见 [SPEC §10](SPEC.md)。

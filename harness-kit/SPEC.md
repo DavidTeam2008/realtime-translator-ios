@@ -207,9 +207,10 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
 行为：
 
 1. 校验 `--profile` 存在、manifest schema 合法、所有 `src` 存在、目标目录存在（否则报错）。
-2. 探测/推断：语言（`Package.swift`→swift、`package.json`→node、`pyproject.toml|setup.py|requirements.txt`→python、`go.mod`→go，否则 other）；`--test-command` 缺省按语言给建议并打印（不写死假命令）。
+2. 探测/推断：语言（`Package.swift` / `*.xcodeproj`→swift、`package.json`→node、`pyproject.toml|setup.py|requirements.txt|*.py`→python、`go.mod`→go，否则 other）；`--test-command` 缺省按语言/工具链推断并打印来源提示：node（有 `scripts.test`→`npm test`，否则 `node --test`）、swift（`Package.swift`→`swift test`；`*.xcodeproj`→提示必须用 `--test-command` 显式给 `xcodebuild test -scheme …`）、其他→`make test`。kit 不解析测试输出，计数由宿主写入 evidence。
 3. 冲突：目标已有同名文件 → 默认 `fail` 并列出；`--force` 时把被覆盖文件备份到 `<target>/.harness-init-backup/<UTC>/` 后写入。
 4. `--dry-run`：只打印 `CREATE / SKIP / CONFLICT / RENDER` 计划，不写文件、不跑 check。
+   `.gitignore` 追加块包含通用构建产物（`node_modules/`、`.build/`、`.swiftpm/`、`__pycache__/`），保证测试后的 clean tree 可用于写证据。
 5. 写完后打印「下一步」；非 `--no-check` 时在目标目录执行 `make check`（或 `python3 tools/check_docs.py` 等按 profile 的命令链），透传退出码。
 6. 幂等：重复 init（无 `--force`）应报冲突而不是重复追加；`gitignore.append` 需去重。
 7. 安全：不打印/写入密钥；不访问网络；不修改 git 历史。

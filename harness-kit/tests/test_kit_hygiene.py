@@ -10,8 +10,7 @@ import re
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-KIT = REPO_ROOT / "harness-kit"
+KIT = Path(__file__).resolve().parents[1]
 FORBIDDEN = re.compile(r"(?i)duiyi|对译|TranslationSession|SwiftData|DuiyiTests")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 # Top-level kit docs whose relative links must resolve inside the kit.
