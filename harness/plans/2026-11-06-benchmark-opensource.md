@@ -546,8 +546,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `docs/images/social-preview.png` / GitHub 社交预览素材
-- `harness/plans/2026-11-06-benchmark-opensource.md` / 发布素材记录
+- 无未提交改动（社交预览素材与记录已提交）。
 
 ## 下一步
 
