@@ -440,7 +440,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 1.9 改造后首访测试：4/5 可答（复制指南仍部分，Phase 2 补）
 - [x] Phase 2.1/2.2/2.4/2.6/2.7：HARNESS 重写、评分卡、互链、Claude Code 适配层、evidence 可选字段
 - [x] Phase 2.3 独立复评：综合 ≈3.6/5（Instructions 4 / State 3.5 / Verification 4 / Scope 3 / Lifecycle 3.5）；L3 条件成立；报告 `harness/reviews/2026-11-07-harness-reaudit.md`
-- [ ] Phase 3 外部可复现
+- [x] Phase 3.1 clean clone 复现：`make check` 0.33s PASS；`make verify-static` 4.65s PASS（42 单测，无 Xcode）
+- [x] Phase 3.3（部分）：`docs.yml` 合并进 `verify.yml`（`**/*.md`）；README 徽章（verify/MIT/iOS）
+- [ ] Phase 3 其余：CONTRIBUTING 分层复核、doctor 对陌生人友好化、CI 说明
 - [ ] Phase 4 发布 + 外部验证
 - [ ] Phase 5 `harness-kit` 模板抽取（含首个外部试点）
 - [ ] Phase 6（可选）产品可信度
@@ -461,7 +463,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 工具能力核对（2026-11-07） | Claude Code 原生读 AGENTS.md（v2.1.277+）、hooks 生命周期与 `.claude/settings.json` 可提交、skills/subagents；DeepSeek 提供 Anthropic 兼容 API 与 Claude Code 官方集成 | 官方文档（见 §参考）；本机未安装 Claude Code，未实测 | —（外部事实） |
 | 首访 5 分钟测试（改造前，作者自测，Phase 1.1） | **1/5 可答 + 2 项部分**：是什么 ✅；为什么值得看 ❌；怎么跑 ⚠️（缺无 Xcode 路径）；怎么验证 ⚠️（README 门禁描述过期）；怎么复制 harness ❌（HARNESS 从 README 不可达） | 本机，仅按 README → docs/README 阅读 | —（基线，不是完成声明） |
 | 首访 5 分钟测试（改造后，作者自测，Phase 1.9） | **4/5 可答 + 1 项部分**：是什么✅ / 为什么值得看✅ / 怎么跑✅ / 怎么验证✅ / 怎么复制 harness⚠️（有机制但缺 10 步采用指南，Phase 2 补）；用时约 3 分钟 | 本机，仅按 README → docs/README 阅读 | —（Phase 1.9） |
-| 独立 Harness 复评（改造后，Phase 2.3） | 进行中（独立审查者只读复评） | — | 待 `harness/reviews/2026-11-07-harness-reaudit.md` |
+| 独立 Harness 复评（改造后，Phase 2.3） | **≈3.6/5**（Instructions 4.0 / State 3.5 / Verification 4.0 / Scope 3.0 / Lifecycle 3.5）；对外标杆 ≈24/35；L3 条件成立 | 独立复跑 check/verify-static/verify-claim/adapters-check；未跑真机/clean clone | `harness/reviews/2026-11-07-harness-reaudit.md` |
+| 干净 clone 复现（Phase 3.1） | `git clone . /tmp/duiyi-fresh` → `make check` **PASS 0.33s**；`make verify-static` **PASS 4.65s**（42 单测） | /tmp 干净 clone，无 Xcode；仅 python3+git+make | —（Phase 3.1） |
+| CI 合并与徽章（Phase 3.3） | `docs.yml` 删除；`verify.yml` 增加 `**/*.md`；README 徽章（verify/MIT/iOS） | 本机文件检查；CI 未触发新 run | —（Phase 3.3） |
 | `make adapters-check`（2026-11-07） | **PASS**（6 个 skills 单源；hooks 示例/CLAUDE 模板/red-team agent 就绪） | 本机 | —（适配层） |
 | `make verify-static`（Phase 2 工作树） | **PASS**（新增 adapters-check 后 42 单测仍过） | 本机 | —（静态门禁） |
 | HARNESS/评分卡指标 | HARNESS 190 行；scorecard 新建；root/README 已互链 | 本机 `wc -l` | —（文档） |
@@ -475,9 +479,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 - 首访：作者自测 4/5；仍缺真实陌生人走查（Phase 4），不作为「标杆达成」证据。
 - 独立复评为只读：未跑 xcodebuild/模拟器/真机/clean clone；3.6/5 与 24/35 为当前口径，不证明动态行为正确。
-- 干净 clone 可复现性未实测（Phase 3.1 将补）；当前工作树在复评时未提交，clone 不可复现 Phase 2。
+- clean clone 已实测（Phase 3.1，PASS）；独立复评时的未提交状态已提交，clone 可复现。
 - GitHub 元数据/发布权限、仓库改名影响未验证（Phase 4）。
-- Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，Phase 3 补实测或标未验证。
+- Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，发布前补实测或标未验证。
 - 真机未在脱敏/脚本改动后重跑；现有 device evidence 指向旧 commit，不代表本轮 project 改动后的真机结果。
 - 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
 - **git 历史仍含旧 commit 的 Team/UDID/本机路径**；本轮只清理工作树。公开发布前需评估 `git filter-repo` 或明确接受历史泄露（需用户决策）。
@@ -507,17 +511,19 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（Phase 2 已提交 `0f82598`；工作区 clean）。
+> Phase 2 结论与 Phase 3.1/3.3 记录待提交（仅计划文件）。
+
+- `harness/` / 计划记录（本文件）/ 可提交
 
 ## 下一步
 
-1. 提交 Phase 2（HARNESS/评分卡/适配层/schema 可选字段/独立复评报告/门禁接线）。
-2. Phase 3：clean clone 仅用 python3 跑 `make check`；合并 `docs.yml` 到 `verify.yml`；README 徽章；doctor 对陌生人友好化。
-3. 同步完成 Phase 2.5 剩余 P0：evidence HEAD/时效绑定、证据 ID 校验、done 严格、§ 引用扫描扩展、token 余量再平衡。
+1. 提交 Phase 3.1/3.3（部分）与计划记录。
+2. 处理 Phase 2.5 剩余 P0：evidence HEAD/时效绑定、证据 ID 校验、done 严格、§ 引用扫描扩展、token 余量再平衡（发布前建议完成）。
+3. Phase 3 收尾：CONTRIBUTING 分层复核、doctor 友好化、CI 说明与首次真实 PR 验证。
 4. Phase 4：发布与真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试独立排期。
 
 ## 待确认
 
-- 是否继续 Phase 3（clean clone / CI 合并 / 徽章）与 Phase 2.5 剩余 P0 整改。
+- 是否继续 Phase 2.5 剩余 P0（证据时效/ID 校验）与 Phase 3 收尾。
 - 公开发布前是否要求清理 git 历史敏感信息（`git filter-repo`，改写历史，高风险）。
 - D-B6 仓库改名、D-B7 发布节奏仍待发布阶段再定。
