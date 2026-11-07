@@ -1,9 +1,10 @@
 ---
 id: 2026-11-05-harness-engineering
-status: active
+status: done
 level: L2
 owner: david
 updated: 2026-11-05
+submitted: d83bb05,3935e60,fb217f6,74485d3,58d7fee,b800830,71bec62,023dc02
 phase0_commit: d83bb05
 phase1_commit: 3935e60
 phase1_state: committed-evidence-recorded-pushed
@@ -53,7 +54,7 @@ verify:               # Phase 0 完成前必须跑的命令
 
 # Harness Engineering 研发工程体系落地 · 改造方案（L2 计划）
 
-> 状态：**Phase 0 已实施（未提交）；Phase 1–3 待做**　|　级别：L2（流程 + 仓库结构）　|　日期：2026-11-05
+> 状态：**已完成（Phase 0/1 已提交；Phase 2/3 移交 `.apm/plans/2026-11-06-benchmark-opensource.md`）**　|　级别：L2（流程 + 仓库结构）　|　日期：2026-11-05
 > 用户已确认第 8 节全部决策并授权 Phase 0；本文是方案 + 执行计划 + 实施记录。规则/流程类改动按决策 6 仅红队场景强制独立复核。
 > 计划入库规则：不写本机绝对路径、密钥、设备 UDID；本文件使用仓库相对路径。
 
@@ -731,14 +732,13 @@ verify:                   # 完成前必须跑的命令
 - [ ] Phase 2：P0-1/P0-2/P0-3 行为测试 + 翻译夹具（建议 P0-1/P0-3 先做；P0-2 依赖 D5/D7 决策）
 - [ ] Phase 3：maker-checker、月度 harness 审计自动打分、失败回写、指标（建议只做最小人工闭环）
 
-### 下一步
+### 下一步（已移交）
 
-1. **Harness Engineering 评估已完成**（Phase 0/1 + 静态/unit/UI/真机四层证据 + CI static 绿）；等你确认是否进入 Phase 2；
-2. Phase 2 建议先做 P0-1（并发仲裁）红测 + P0-3（持久化）测试；P0-2 等 D5/D7 产品决策；
-3. Phase 3 不做完整自动化：保留 HARNESS.md 月度人工审计 + red-team 场景强制；
-4. 可选：配 `MACOS_CI_ENABLED=true` + 自托管 macOS runner 让 CI 跑单测；应用 HARNESS.md §8 的用户级 DSH 配置（非必需）。
+1. 本计划的 Phase 0/1 已完成并提交；Harness Engineering 评估结项（静态/unit/UI/真机四层证据 + CI static 绿）。
+2. 未执行的 Phase 2（P0-1/P0-2/P0-3 行为测试）与 Phase 3（maker-checker/自动打分）移交新计划：
+   `.apm/plans/2026-11-06-benchmark-opensource.md`（Phase 5 独立排期；Ongoing 只保留月度人工审计 + scorecard）。
+3. 后续交接以新计划为唯一 active 计划的进度真源；本计划归档保留。
 
-### 待确认
+### 待确认（已移交）
 
-- Phase 2 是否按"P0-1 + P0-3 先行、P0-2 等 D5/D7"开始？
-- 是否需要我配置自托管 macOS runner / DSH 用户级 profile（均为可选，不影响 Harness 评估结论）？
+- 见新计划 §5 决策表 D-B1–D-B8。
