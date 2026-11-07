@@ -19,7 +19,7 @@
   "notes": "mode=all；设备 ID 不写入证据；skipped 期望=0",
   "schemaVersion": 1,
   "git": {
-    "commit": "71bec62606b3",
+    "commit": "b00f3f29e3c6",
     "dirty": false
   },
   "createdAt": "2026-11-06T05:36:20Z",

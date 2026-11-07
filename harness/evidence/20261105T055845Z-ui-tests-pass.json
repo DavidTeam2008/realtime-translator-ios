@@ -22,7 +22,7 @@
   "verifier": "tools/evidence.py@1",
   "notes": "1 skipped = testSimultaneousListeningPressure（模拟器无 SpeechTranscriber，预期）",
   "git": {
-    "commit": "fb217f6cdbd7",
+    "commit": "d147f05a50ca",
     "dirty": false
   },
   "createdAt": "2026-11-05T05:58:45Z",

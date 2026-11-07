@@ -29,7 +29,7 @@
 
 ## 2. 方法与实验设计
 
-1. **真机 A/B（验证上一轮优化）**：对照 `4e9dbd2`（优化前，HEAD~2）vs 优化后 `3e22adb`（当时 HEAD），Release/iphoneos/arm64，同一台真机；给旧版本补上**完全相同**的埋点与终点定义后再比，用置换检验判断显著性。
+1. **真机 A/B（验证上一轮优化）**：对照 `0d24dc0`（优化前，HEAD~2）vs 优化后 `5606db3`（当时 HEAD），Release/iphoneos/arm64，同一台真机；给旧版本补上**完全相同**的埋点与终点定义后再比，用置换检验判断显著性。
 2. **可行性对照（回答"目标能否达成"）**：临时 detached worktree 中只把首页内容替换为 `Text("x")` 做 control，**保留** App 生命周期、埋点（`AppLaunchTracker`/`EarlyLaunchMark`）、根视图、`onAppear`、`task`、`sheet` 等外围，以及 Release 构建与同一测量命令；control 与 candidate 同设备、同 profile：iPhone 13 / iOS 26.7 / physical / Release / **warmup 3（不计入样本）/ n=20 / 间隔 5s**，指标 `startup.cold.first_frame`。
 3. **分段与归因**：C 构造函数测 pre-main；`STORE open took Nms` 直接测真实开库（区别于后台调度延迟）；`body` 首次求值打点（`beginOnce`）拆视图树；另建**空白 SwiftUI App** 在最细粒度上做对照。
 4. **消融实验**（真机，每组 3–4 次取中位数）：`NavigationStack`、SF Symbols + 卡片结构、无障碍修饰、首页内容换 `Text("x")` 四项分别验证。
@@ -114,7 +114,7 @@ candidate（当前首页）      n=20，p50=262.5ms，CV=8.3%，usable
 
 ## 5. 可复核线索
 
-- **commit**：`ac5974c`（被验证的那轮启动优化）、对照 `4e9dbd2`（优化前）、优化后 `3e22adb`。
+- **commit**：`b96fde4`（被验证的那轮启动优化）、对照 `0d24dc0`（优化前）、优化后 `5606db3`。
 - **测量产物（不入库，需重跑）**：`harness/runs/` 下的可行性/control 运行目录（脚本与口径见正文）。
 - **机器结论**：可行性 JSON 随本批治理从树中移除，摘要即本文 §3.4；原始记录见 git 历史。
 - **埋点入口**：`EarlyLaunchMark.c`（C 构造函数测 pre-main）、`AppLaunchTracker`（分阶段 + 首帧日志）、`DeferredTaskStore`（`STORE open took Nms`）。

@@ -422,7 +422,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 9. 与上游计划的交接（2026-11-05 harness-engineering）
 
-- 已完成并提交：Phase 0（`d83bb05`：预算修正/嵌套 AGENTS/静态门禁/状态机）、Phase 1（`3935e60` 等：evidence/verify-claim/CI/skills/HARNESS）。
+- 已完成并提交：Phase 0（`7522757`：预算修正/嵌套 AGENTS/静态门禁/状态机）、Phase 1（`5a6fd75` 等：evidence/verify-claim/CI/skills/HARNESS）。
 - 未执行、移出本计划范围：
   - Phase 2：P0-1/P0-2/P0-3 行为测试 + 翻译夹具 → 本计划 Phase 6（独立排期）。
   - Phase 3：maker-checker、月度审计自动打分、指标 → 只保留"月度人工审计 + scorecard"（本计划 Ongoing），不做自动化。
@@ -455,7 +455,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
-| `git ls-files '*.md' \| wc -l`；`git ls-files` | 40 个入库 markdown / 194 个入库文件 | 本机，HEAD `023dc02` | —（基线盘点） |
+| `git ls-files '*.md' \| wc -l`；`git ls-files` | 40 个入库 markdown / 194 个入库文件 | 本机，HEAD `968e3bf` | —（基线盘点） |
 | `find harness/runs -type f \| wc -l`；`du -sh harness` | 447 个忽略文件 / 6.8MB；`harness/runs` 3.9MB | 本机 | —（基线盘点） |
 | `wc -l docs/14..docs/21` | 8 篇历史记录共 897 行；HANDOFF 483 行 | 本机 | —（基线盘点） |
 | `make check` | **PASS**（docs/架构/计数/harness/计划；1 个历史 WARN 不阻断） | 本机，Xcode 27.1 | —（基线门禁） |
@@ -514,7 +514,10 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（Phase 2.5 部分已提交 `1e28792`；历史清理前工作区 clean）。
+> 历史清理后的 commit hash 重映射（旧 hash 已不存在）。
+
+- `docs/` / 案例中的 commit 引用重映射 / 可提交
+- `harness/` / 证据、计划、复评报告中的 commit 引用重映射 / 可提交
 
 ## 下一步
 
