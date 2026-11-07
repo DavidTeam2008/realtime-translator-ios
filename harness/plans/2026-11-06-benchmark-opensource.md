@@ -442,7 +442,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 2.3 独立复评：综合 ≈3.6/5（Instructions 4 / State 3.5 / Verification 4 / Scope 3 / Lifecycle 3.5）；L3 条件成立；报告 `harness/reviews/2026-11-07-harness-reaudit.md`
 - [x] Phase 3.1 clean clone 复现：`make check` 0.33s PASS；`make verify-static` 4.65s PASS（42 单测，无 Xcode）
 - [x] Phase 3.3（部分）：`docs.yml` 合并进 `verify.yml`（`**/*.md`）；README 徽章（verify/MIT/iOS）
-- [x] 历史清理：`git filter-repo` 重写 43 commits，Team/设备 ID/UDID/绝对路径在**树+历史+提交消息**中 0 命中；强推远程 main
+- [x] 历史清理：`git filter-repo` 重写 43 commits，敏感项在树/历史/提交消息中 0 命中；强推远程 main
+- [x] CI 验证：普通推送触发 `verify` run `42344278003`，static gates success，unit-tests skipped（按设计）
 - [ ] Phase 3 其余：CONTRIBUTING 分层复核、doctor 对陌生人友好化、CI 说明
 - [x] Phase 2.5.1–2.5.4：end 接线、scope 越界 FAIL、计划节修正、证据时效 `--fresh/--strict` + `make release-check`
 - [x] Phase 2.5.5：证据 ID WARN 校验（硬失败待补）
@@ -468,7 +469,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 首访 5 分钟测试（改造后，作者自测，Phase 1.9） | **4/5 可答 + 1 项部分**：是什么✅ / 为什么值得看✅ / 怎么跑✅ / 怎么验证✅ / 怎么复制 harness⚠️（有机制但缺 10 步采用指南，Phase 2 补）；用时约 3 分钟 | 本机，仅按 README → docs/README 阅读 | —（Phase 1.9） |
 | 独立 Harness 复评（改造后，Phase 2.3） | **≈3.6/5**（Instructions 4.0 / State 3.5 / Verification 4.0 / Scope 3.0 / Lifecycle 3.5）；对外标杆 ≈24/35；L3 条件成立 | 独立复跑 check/verify-static/verify-claim/adapters-check；未跑真机/clean clone | `harness/reviews/2026-11-07-harness-reaudit.md` |
 | 历史清理（2026-11-07） | `git filter-repo` 重写 43 个 commit；敏感项 0 命中（树/历史/消息）；强推 `main` 成功；备份 `/tmp/duiyi-pre-filter.bundle`（本地） | 本机 + GitHub（refs 已更新） | —（历史清理） |
-| 强推后 CI 状态（2026-11-07） | GitHub 未为新 HEAD 生成 workflow run（`actions/runs?head_sha` total=0；push 事件待验证）→ 用后续普通提交验证 CI | GitHub API；本地 pre-push `verify-static` PASS | —（CI 待验证） |
+| CI 绿（2026-11-07） | 强推 `865e55b` 未触发 run；普通提交 `26037a9` 触发 run `42344278003`：**static gates success；unit-tests skipped（按设计）** | GitHub Actions 公开 API；本地 pre-push `verify-static` PASS | —（CI） |
 | 干净 clone 复现（Phase 3.1） | `git clone . /tmp/duiyi-fresh` → `make check` **PASS 0.33s**；`make verify-static` **PASS 4.65s**（42 单测） | /tmp 干净 clone，无 Xcode；仅 python3+git+make | —（Phase 3.1） |
 | CI 合并与徽章（Phase 3.3） | `docs.yml` 删除；`verify.yml` 增加 `**/*.md`；README 徽章（verify/MIT/iOS） | 本机文件检查；CI 未触发新 run | —（Phase 3.3） |
 | `make adapters-check`（2026-11-07） | **PASS**（6 个 skills 单源；hooks 示例/CLAUDE 模板/red-team agent 就绪） | 本机 | —（适配层） |
@@ -492,7 +493,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
 - **git 历史仍含旧 commit 的 Team/UDID/本机路径**；本轮只清理工作树。公开发布前需评估 `git filter-repo` 或明确接受历史泄露（需用户决策）。
 - DSH hooks 能力随版本变化（0.2.1-rc.5 未打包）；模板按「门禁 + CI + 适配层」设计，不依赖 hooks 可用。
-- Phase 2.5 待做项：evidence HEAD/时效绑定、计划证据 ID 校验、done 严格、§ 引用扫描扩展、token 余量再平衡（AGENTS 余 24、refs 余 18–25）。
+- Phase 2.5 待做项：evidence commit==HEAD/计划 submitted 硬绑定、证据 ID 硬失败、done 严格、§ 引用扫描扩展、token 余量再平衡（AGENTS 余 24、refs 余 18–25）。
+- 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；彻底清除需 GitHub Support 或删除重建仓库（需用户操作）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
 ## 参考（外部事实核对，2026-11-07）
@@ -517,17 +519,16 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（工作区 clean）。
+- 无未提交改动（历史清理、CI 验证与计划均已提交）。
 
 ## 下一步
 
-1. 推一个普通提交验证 CI（force push 未触发 run）；若 CI 仍不触发，排查仓库 Actions 设置/额度。
-2. Phase 2.5 剩余 P0：commit==HEAD/计划 submitted 硬绑定、证据 ID 硬失败、done 严格、`§` 扫描扩展、token 余量。
-3. Phase 3 收尾：CONTRIBUTING 分层复核、doctor 友好化、CI 说明与首次真实 PR。
-4. Phase 4：发布 + 真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试。
+1. Phase 2.5 剩余 P0：evidence commit==HEAD/计划 submitted 硬绑定、证据 ID 硬失败、done 严格、`§` 扫描扩展、token 余量。
+2. Phase 3 收尾：CONTRIBUTING 分层复核、doctor 友好化、CI 说明与首次真实 PR。
+3. Phase 4：发布 + 真实陌生人首访；Phase 5：`harness-kit` 模板；Phase 6 产品行为测试。
 
 ## 待确认
 
-- GitHub Actions 是否需要调整设置/额度（强推后未触发 run；gh token 因组织策略 403）。
-- 公开发布前是否已在远端彻底清理旧 commit（GitHub 可能仍可通过旧 SHA 访问一段时间，必要时联系 GitHub 支持）。
+- 远端旧 commit 仍可按 SHA 访问；是否联系 GitHub Support 清除 unreachable objects，或删除重建仓库。
+- GitHub Actions 已在新普通提交上验证；如后续仍不触发，检查仓库 Actions 设置/额度。
 - D-B6 仓库改名、D-B7 发布节奏仍待发布阶段再定。
