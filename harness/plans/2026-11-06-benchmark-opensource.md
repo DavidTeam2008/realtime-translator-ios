@@ -514,13 +514,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-> Phase 2.5（部分）待提交。
-
-- `Makefile` / `verify-claim-fresh`、`release-check`、end 接线 / 可提交
-- `tools/` / 证据时效与计划证据 ID 校验 / 可提交
-- `HARNESS.md` / 证据时效与发布门禁说明 / 可提交
-- `docs/` / scorecard L3 条件更新 / 可提交
-- `harness/` / 计划记录（本文件）/ 可提交
+- 无未提交改动（Phase 2.5 部分已提交 `1e28792`；历史清理前工作区 clean）。
 
 ## 下一步
 
