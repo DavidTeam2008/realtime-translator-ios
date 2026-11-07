@@ -52,11 +52,12 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp --
 
 **退出信号**：init 的退出码约定（见脚本 header）= `0` 成功；`1` 用法/配置/冲突（写文件前失败）；其他非 0 = 首次 `make check` 失败（文件已写入）。`--no-check` 时成功只代表“文件已生成”。失败可回滚：`git checkout -- .` + 删除本次新增的未跟踪产物（或直接删除新增的 `harness/`、`docs/` 等目录，先看 diff）。
 
-## 第 4 步：填规则与真实命令（让门禁对得起你的项目）
+## 第 4 步：确认规则与真实命令（让门禁对得起你的项目）
 
 ```bash
-# 1) 填真实测试命令（不能留示例命令，也不要写假命令）
-${EDITOR:-vi} harness/config.json     # commands.test → 你们的真实命令，如 "make test"
+# 1) 确认真实测试命令：init 会按 --language 自动推断并在 stdout 打 NOTE；
+#    与项目不符时再改，或 init 时用 --test-command 显式指定（不要为了“填”而改对的值）
+grep -n '"test"' harness/config.json       # 与项目真实命令对照
 
 # 2) 检查没有遗留占位符（渲染后不得出现 {{）
 grep -rn "{{" AGENTS.md HARNESS.md CONTRIBUTING.md docs/ references/ harness/ 2>/dev/null || echo "OK 无残留"
@@ -76,7 +77,12 @@ git config core.hooksPath .githooks
 
 # 2) CI：认领生成的 .github/workflows/verify.yml（静态门禁；昂贵测试按项目另行分层）
 
-# 3) 跑真实测试 → 写证据（证据要求 clean tree；claim 定义在 harness/config.json）
+# 3a) 先提交 scaffold（证据写入要求 clean tree）
+git add -A && git commit -m "harness scaffold"
+#    然后新建计划：填必填节 + 提交（草稿未填/未提交时 make check 红是预期）
+make plan TOPIC=<topic>        # 补目标/验收/下一步/scope.allow 后提交
+
+# 3b) 跑真实测试 → 写证据（证据要求 clean tree；claim 定义在 harness/config.json）
 <你的测试命令>
 cat > /tmp/evidence-draft.json <<'JSON'
 {
@@ -108,6 +114,7 @@ python3 tools/verify_claim.py --all
 4. **`§` 引用错节号**：引用 `§6` 但目标文件没有 `## 6.` 标题 → `check_agents` 报错；改引用或补标题，不要删校验。
 5. **伪造证据不可行也不划算**：无产物/命令记录、dirty tree、commit 不可达都会被判 FAIL/UNVERIFIED；如实写“未验证 + 手动步骤”。
 6. **别把 kit 文件当产品代码**：生成物是研发流程约束（规则/门禁/证据），不要 import 进业务运行时，也不要让 CI 依赖宿主语言之外的解释器。
+7. **新建计划草稿会让 `make check` 变红**：`make plan` 生成的是待填草稿；先补「目标/验收/下一步/scope.allow」并删掉占位符，或删除草稿，再继续。
 
 ## profile 升级路径
 

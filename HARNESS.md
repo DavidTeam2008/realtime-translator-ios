@@ -37,7 +37,7 @@ Harness Engineering 的回答：**模型之外的一切工程设施都是 harnes
 |---|---|---|---|
 | Instructions | AGENTS ≈1576/1650 token；6 个嵌套 AGENTS；敏感信息 / §·第N节 引用机检（13 个指令文件） | `make check-harness` | 前馈+机检 |
 | State | 计划 front matter/status；唯一 active；未提交改动与 git 交叉核对 | `make check-plan`、`make resume` | 状态 |
-| Verification | 文档/架构/计数/harness/计划/adapters 6 组门禁；证据 schema + 三值判定 + 证据 ID/done submitted 硬校验；91 个脚本单测 + 66 个 kit 端到端测试 | `make check` / `make verify-static` / `make verify-claim` | 反馈 |
+| Verification | 文档/架构/计数/harness/计划/adapters 6 组门禁；证据 schema + 三值判定 + 证据 ID/done submitted 硬校验；91 个脚本单测 + 67 个 kit 端到端测试 | `make check` / `make verify-static` / `make verify-claim` | 反馈 |
 | Scope | 计划 `scope.allow/deny`；L0/L1/L2；并发/持久化/发布工程强制独立红队 | `references/workflow.md`、`red-team` skill | 作用域 |
 | Lifecycle | 6 个 skills：bootstrap / verify-change / handoff / red-team / harness-audit / device-verify | `.dsh/skills/`、`make resume/end` | 会话 |
 | 证据层 | 单元/UI/真机 evidence JSON；三值判定；commit/dirty 校验 | `harness/evidence/` | 可审计 |

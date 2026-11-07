@@ -345,8 +345,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5.1 | 定义模板分层 | `harness-kit/`：`core/`（AGENTS 模板、references 模板、docs IA 模板、`harness/` 工作区、`config.json`、通用门禁脚本）+ `adapters/`（dsh / claude-code / ci / githooks）+ `profiles/`（minimal / standard / strict）+ `scripts/harness-init` | 目录与配置能表达"项目路径、命令、预算、claims、adapters" | 已完成（2026-11-07；SPEC/config schema/profiles/adapters） |
 | 5.2 | 脚手架 | `harness-init`：探测语言/命令、按 profile 生成文件、dry-run + 备份、不覆盖已有文件、运行首次 `make check` | 在空白测试仓（或 fork）10 分钟内 init + `make check` PASS | 已完成（三档空白仓 init + 首次 `make check` PASS） |
 | 5.3 | profiles 与采用指南 | minimal（AGENTS + 静态门禁）/ standard（+计划/证据/CI）/ strict（+红队/scorecard/月度审计）；`docs/playbook.md` 五步改造法 | 每个 profile 有独立验收脚本；playbook 可由非作者照做 | 已完成（`make kit-check` 66 用例覆盖三档；playbook 已写，非作者试点见 5.4） |
-| 5.4 | 首个外部试点 | 在作者另一个项目上真实改造一次，记录卡点并回写模板 | 试点项目 1 天内完成接入；卡点进入模板 issue/plan | 部分：改用无上下文 AI 代理在空白仓试点并回写（真实项目未验证） |
-| 5.5 | 发布模板 | 独立仓库（推荐 `harness-kit`）或本仓 `harness-kit/`；README 说明与 Duiyi 案例的关系；License 一致 | 模板仓 0 个 Duiyi 专用引用；外部可 clone | 部分：本仓 `harness-kit/` 可复制（0 专有引用）；独立仓库待权限 |
+| 5.4 | 首个外部试点 | 在作者另一个项目上真实改造一次，记录卡点并回写模板 | 试点项目 1 天内完成接入；卡点进入模板 issue/plan | 已完成（代理试点：空白 Python 项 standard 接入成功、首次 check 一次 PASS、执行 ≈80s；卡点已回写；**真实项目未验证**） |
+| 5.5 | 发布模板 | 独立仓库（推荐 `harness-kit`）或本仓 `harness-kit/`；README 说明与 Duiyi 案例的关系；License 一致 | 模板仓 0 个 Duiyi 专用引用；外部可 clone | 已完成（本仓 `harness-kit/`；0 专有引用；独立仓库拆分待权限） |
 
 ### Phase 6（可选，独立排期）· 产品可信度
 
@@ -458,8 +458,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] 外部首访（AI 代理，公开 clone）：4/5 可答；发现浅克隆 P0 → 已修（skip + README/CONTRIBUTING unshallow、无 Xcode 边界、采用指南直链、实测耗时）
 - [ ] Phase 4 发布 + 外部验证（v1.0.0 tag/release + 非作者首访）
 - [x] Phase 5.1–5.3：SPEC/config schema/profiles/`harness-init`/core 脚本/模板/adapters/README/playbook + 66 个 kit 端到端测试
-- [ ] Phase 5.4：作者另一项目真实试点（改用无上下文 AI 代理在空白仓试点，卡点回写待完成；真实项目未验证）
-- [ ] Phase 5.5：独立模板仓（PAT 403；暂以本仓可复制 `harness-kit/` 交付）
+- [x] Phase 5.4：外部试点（AI 代理、空白 Python 仓、standard）：接入成功、首次 check 一次 PASS、执行 ≈80s；3 个文档卡点已回写；报告 `harness/reviews/2026-11-07-kit-pilot.md`（真实项目未验证）
+- [x] Phase 5.5：模板发布形态 = 本仓可复制 `harness-kit/`（0 Duiyi 专有引用；独立仓库拆分待仓库权限）
 - [ ] Phase 6（可选）产品可信度
 
 ## 验证证据
@@ -508,7 +508,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | `make kit-check`（2026-11-07） | **PASS**：66 用例；3 个 profile 在空白 git 仓 init 后 `make check`/`verify-static` PASS；证据写入→`verify-claim` PASS；strict `release-check` PASS；dry-run/冲突/备份/无 Duiyi 专有引用 | 本机 python3 3.14.7 | —（过程记录：kit 验收） |
 | 三档 demo 人工试用（2026-11-07） | minimal/standard/strict 各 init 到 /tmp 空白仓：created 14/26/37 文件；`make check` 全部 exit 0（init 内置首次检查）；standard `verify-static` exit 0；strict 写 tests-pass 证据后 `verify-claim`/`release-check` PASS | 本机 /tmp；无 Xcode | —（过程记录：kit 试用） |
 | kit 卫生扫描（2026-11-07） | `harness-kit/{core,adapters,profiles,scripts}` 对 `Duiyi/duiyi/对译/TranslationSession/SwiftData` **0 命中**（唯一允许为 README 来源案例）；`make kit-check` 含专有名词/残留占位符/链接断言 | 本机 | —（过程记录：kit 卫生） |
-| `make verify-static`（Phase 5 集成后，2026-11-07） | **PASS**，约 17s：91 个 Duiyi 脚本单测 + 66 个 kit 端到端测试 + docs/架构/计数/harness/计划/证据/adapters 全过 | 本机 python3 3.14.7 / make 3.81 | —（过程记录：集成门禁） |
+| Phase 5.4 外部试点（2026-11-07，AI 代理采用者） | **接入成功**：standard 五步闭环；首次 `make check` 一次 PASS；`verify-static` / `verify-claim`(含 `--fresh`) exit 0；执行 ≈80s（端到端 ≈7m20s，含源获取失败重试）；重复 init 冲突（24 CONFLICT 无写入）/ `--force` 备份 / 已有 Makefile → `Makefile.harness` 探测通过 | 空白 Python 宿主；公开 main @`501ae9c`；报告 `harness/reviews/2026-11-07-kit-pilot.md` | —（外部记录：AI 代理） |
+| `make verify-static`（Phase 5 集成后，2026-11-07） | **PASS**，约 17s：91 个 Duiyi 脚本单测 + 67 个 kit 端到端测试 + docs/架构/计数/harness/计划/证据/adapters 全过 | 本机 python3 3.14.7 / make 3.81 | —（过程记录：集成门禁） |
 
 ## 未验证项
 
@@ -526,9 +527,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - Phase 2.5 已完成（2.5.1–2.5.8）；其中 done 的 `submitted`/证据绑定目前只在单测负向 fixture 演练，本计划尚未 done，Phase 4 收尾时以本计划走一遍真实 done 演练。
 - P1 残留（Phase 2.5 独立复核）：`make end` 对 STALE 只告警（`release-check` strict 阻断，设计保留）；CI/pre-push 不跑 verify-claim 判定；P0-1/P0-3 行为测试与性能门禁仍缺（Phase 6）。
 - 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；用户已接受「分支干净、旧对象不可达」状态（2026-11-07 决策）。
-- Phase 5 外部试点未按原始要求完成：作者另一项目未实际改造（改用无上下文 AI 代理在空白仓试点，报告待回写）；真实人类项目接入仍未验证。
+- Phase 5 外部试点已由 AI 代理在空白 Python 项目完成（standard 接入成功，报告见上）；作者另一个真实项目、人类采用者、已有历史文档的冲突整合仍未验证。
 - Phase 5 独立模板仓未创建：PAT 受组织策略 403；当前交付为仓库内 `harness-kit/` 可复制目录（`git clone` 后 `cp -r`/subtree 拆分）。
-- kit 的非 Python 语言链路未实测：`--test-command` 与 config 由宿主提供，node/go/swift 的建议命令未逐个验证。
+- kit 的非 Python 语言链路未实测：`--test-command` 与 config 由宿主提供，node/go/swift 的建议命令未逐个验证；strict 档与 CI/hooks 远端触发未由试点覆盖（kit 自身测试覆盖 strict 与 release-check）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
 ## 参考（外部事实核对，2026-11-07）
@@ -556,11 +557,16 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（Phase 5 harness-kit 与集成文档已提交）。
+- `harness-kit/` / Phase 5 试点回写与记录
+- `harness/reviews/2026-11-07-kit-pilot.md` / Phase 5 试点回写与记录
+- `HARNESS.md` / Phase 5 试点回写与记录
+- `README.md` / Phase 5 试点回写与记录
+- `docs/harness-scorecard.md` / Phase 5 试点回写与记录
+- `harness/plans/2026-11-06-benchmark-opensource.md` / Phase 5 试点回写与记录
 
 ## 下一步
 
-1. Phase 5 收尾：无上下文代理按 kit README/playbook 在空白仓完成一次接入试点 → 卡点回写模板/README → 提交推送。
+1. Phase 5 收尾：提交试点回写与文档修正 → 推送并确认 CI（verify-static 含 kit-check）→ Phase 5 完成。
 2. Phase 4 收尾（需用户）：创建 GitHub Release（tag `v1.0.0`，notes 用 `harness/release-notes-v1.0.0.md`）；设置 description/topics/social preview；招募人类非作者首访。
 3. Phase 6（可选）：P0-1 并发 / P0-3 持久化行为测试，独立排期。
 

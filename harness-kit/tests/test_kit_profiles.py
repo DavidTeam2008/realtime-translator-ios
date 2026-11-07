@@ -94,6 +94,21 @@ class HarnessInitProfileTests(unittest.TestCase):
                         self.assertIsNone(PLACEHOLDER_LEFT.search(text), f"placeholder left in {path}")
                     self.assertNotRegex(text, r"(?i)duiyi|对译|TranslationSession|SwiftData", f"Duiyi reference in {path}")
 
+    def test_standalone_copy_init(self) -> None:
+        """Kit 目录复制到仓库外后仍可 init（无来源仓库依赖）。"""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        standalone = self.tmp / "standalone-kit"
+        shutil.copytree(KIT, standalone, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        target = init_target(self.tmp / "standalone-target")
+        proc = run(
+            [sys.executable, str(standalone / "scripts" / "harness-init"),
+             "--profile", "minimal", "--target", str(target), "--name", "Standalone"],
+            cwd=self.tmp,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("post-init check: PASS", proc.stdout)
+
     def test_standard_evidence_lifecycle(self) -> None:
         """standard/strict 的「测试 → 证据 → 三值判定」链路必须端到端可用。"""
         if not INIT.is_file():

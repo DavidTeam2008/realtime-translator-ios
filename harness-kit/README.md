@@ -58,7 +58,9 @@ python3 harness-kit/scripts/harness-init --profile strict --target ../myapp --na
 
 - 目标已有 `Makefile` 时**不覆盖**：写入 `Makefile.harness`，并提示你在原 `Makefile` 末尾加 `include Makefile.harness`。
 - 冲突默认 `fail` 并列出文件；重复 init 不会重复追加 `.gitignore`（去重）；`--force` 前先 `--dry-run` 复核是推荐姿势。
-- init 结束后按提示执行 `make check`；通过即完成最小接入（标准/严格档再按 playbook 第 4–5 步接入测试与证据）。
+- init 会**自动执行首次 `make check` 并透传退出码**；exit 0 即最小接入完成（标准/严格档再按 playbook 第 4–5 步接入测试与证据）。
+- 推荐顺序：`init` → 首次 `make check`(自动) → `git commit`（证据写入要求 clean tree）→ 真实测试 → `evidence.py write` → `verify-claim`；`make plan` 生成的草稿在填完必填节并提交前会让 `make check` 变红（预期）。
+- kit 目录**自包含**：`cp -r harness-kit /path/to/kit` 到仓库外后，`scripts/harness-init` 仍可直接使用（不依赖来源仓库的路径/历史）；拆分独立仓库时复制该目录即可。
 
 ## profiles 对比
 
@@ -112,6 +114,7 @@ harness-kit/
 
 1. **每次改动后**：`make check`（静态门禁，必须 0）。
 2. **做任务前**：`make plan TOPIC=<topic>` 建计划；完成后更新计划并写证据，而不是在聊天里记状态。
+   > 新建的计划草稿在填完「目标/验收/下一步/scope.allow」前会让 `make check` 失败——这是设计：未填完的计划不算通过。
 3. **完成声明前**：`make verify-static`（standard+ 含证据校验）；测试类声明先 `python3 tools/evidence.py write` 写证据（参数以 `--help` 为准，claim 定义在 `harness/config.json`），再 `make verify-claim` 取 PASS / FAIL / UNVERIFIED。
 4. **发布前（strict）**：`make release-check`——要求证据 fresh 且 strict，STALE/缺证据一律不能绿。
 5. **交接/中断**：更新计划（进度、证据、未验证、未提交、下一步），用 `python3 tools/check_plan.py brief` 生成交接摘要。
@@ -142,10 +145,10 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 
 ## 局限与未验证（别当成能力）
 
-- **真实外部项目试点尚未完成**：当前没有“在 N 个外部项目接入”的证据；Phase 5.4 的首个外部试点仍在进行，接入耗时与首次通过率均属**待验证**。
+- **外部试点仅有代理结果**：首个外部试点由 AI 代理在空白 Python 项目完成（standard 档接入成功，执行耗时 ≈80s，首次 `make check` 一次通过；报告见 [`../harness/reviews/2026-11-07-kit-pilot.md`](../harness/reviews/2026-11-07-kit-pilot.md)）。**作者另一个真实项目、人类采用者、历史文档冲突整合仍未验证**。
 - **语言/测试框架需要你提供**：不同语言只有建议命令；`{{TEST_COMMAND}}` 与 `harness/config.json.commands.test` 必须由你填真实命令，kit 不验证测试语义。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：kit 生成的空白脚手架本身可通过；若目标已有 `AGENTS.md`/`docs/`/`Makefile`，需按预算与白名单调整（看 `FAIL` 提示，不要删检查绕过）。
-- **kit 自身测试**：`harness-kit/tests/` 含 66 个端到端用例（三档 init、`make check`/`verify-static`、证据三值、strict `release-check`、dry-run/冲突/备份、无专有引用）；已接入来源仓库的 `make verify-static`，本地执行 PASS，CI 随来源仓库 `verify` workflow 运行。
+- **kit 自身测试**：`harness-kit/tests/` 含 67 个端到端用例（三档 init、`make check`/`verify-static`、证据三值、strict `release-check`、dry-run/冲突/备份、无专有引用）；已接入来源仓库的 `make verify-static`，本地执行 PASS，CI 随来源仓库 `verify` workflow 运行。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前 manifest 为空（预留）。
 - **未做外部安全审计**：kit 只承诺不联网、不写目标之外文件（SPEC §8.7），但未在第三方 CI/受限沙箱验证。
 
