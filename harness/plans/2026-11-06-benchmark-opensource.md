@@ -514,10 +514,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-> 历史清理后的 commit hash 重映射（旧 hash 已不存在）。
-
-- `docs/` / 案例中的 commit 引用重映射 / 可提交
-- `harness/` / 证据、计划、复评报告中的 commit 引用重映射 / 可提交
+- 无未提交改动（历史清理 + hash 重映射已提交 `987ab0f`；工作区 clean）。
 
 ## 下一步
 
