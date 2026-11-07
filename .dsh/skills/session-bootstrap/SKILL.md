@@ -15,7 +15,7 @@ whenToUse: 新会话第一轮；用户说接手/继续/做到哪了/下一步做
    - 退出码 0 也不代表代码已验证：doctor 只查环境，不跑测试。
 2. `make resume`
    - 取 active 计划、三问速答、验证证据、未验证项、未提交改动、建议阅读。
-3. 打开 active 计划（`.apm/plans/` 中 `status: active`）核对目标/验收/DoD/下一步；上一轮没有 evidence id 的"已完成"按未验证处理。
+3. 打开 active 计划（`harness/plans/` 中 `status: active`）核对目标/验收/DoD/下一步；上一轮没有 evidence id 的"已完成"按未验证处理。
 4. 只读核对 `git status --short` 与 `git log -5 --oneline`；计划"未提交改动"节与实际不一致时先报告，不擅自 stash/reset/清理。
 
 ## 输出（固定 5 行）

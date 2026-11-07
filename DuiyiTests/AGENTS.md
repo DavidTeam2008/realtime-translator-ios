@@ -24,7 +24,7 @@
 ## 4. 只增不减
 
 - 测试只增不减：不删除、不改既有测试与断言；不得改期望值让失败变绿。
-- 新增测试后同步 `.apm/test-baseline.json` 的 unit floor（计数）与 skip 白名单；计数口径唯一源 [`references/verification.md`](../references/verification.md)。
+- 新增测试后同步 `harness/test-baseline.json` 的 unit floor（计数）与 skip 白名单；计数口径唯一源 [`references/verification.md`](../references/verification.md)。
 - `make check-tests` 比对 floor，删测试/计数下降会非 0 退出；`make test` 跑模拟器单元。
 - 方向性翻转（真·行为变更）必须在计划/PR 说明理由；修 bug 先补红测再修。
 

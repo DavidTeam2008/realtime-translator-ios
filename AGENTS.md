@@ -24,11 +24,11 @@
 
 ## 3. 阅读路由（按任务读段落）
 
-- 接手：`make resume` → active 计划（`.apm/plans/`）→ `README.md` / `CONTRIBUTING.md`（环境、签名、已知坑）。
+- 接手：`make resume` → active 计划（`harness/plans/`）→ `README.md` / `CONTRIBUTING.md`（环境、签名、已知坑）。
 - 产品/架构/排期：`docs/01`–`04`；验收与排期唯一源 `docs/04-roadmap.md`。
 - 语音/翻译/音频/持久化/导出：`references/contracts.md`、`Duiyi/Services/AGENTS.md`、`Duiyi/Features/AGENTS.md`。
 - 测试/真机/性能：`references/verification.md`、`DuiyiTests/AGENTS.md`、`DuiyiUITests/AGENTS.md`。
-- 分级/红队/计划：`references/workflow.md`、`.apm/AGENTS.md`；文档 `docs/AGENTS.md`；流程动作走 `.dsh/skills`。
+- 分级/红队/计划：`references/workflow.md`、`harness/AGENTS.md`；文档 `docs/AGENTS.md`；流程动作走 `.dsh/skills`。
 
 ## 4. 铁律（理由 → `references/contracts.md`）
 
@@ -46,7 +46,7 @@
 - 开工：`make resume`；计划写改动范围，越界先停；一次一个 active 任务。
 - 分级：L0 直接做；L1 5–10 行短方案；L2 完整方案 + 确认；改规则/工具/CI 至少 L1。
 - 小步：每步一个可验证点；完成前跑 `make verify-static` + 对应测试，失败先定位。
-- 证据：完成声明附命令/退出码/环境；未运行写“未验证”；evidence id 见 `.apm/evidence/`，无 id 即未验证。
+- 证据：完成声明附命令/退出码/环境；未运行写“未验证”；evidence id 见 `harness/evidence/`，无 id 即未验证。
 - 收尾：更新计划 → `make check-plan` → `make end`；提交前询问。
 - 停止：同一失败 2 次 / 子任务 3 轮无进展 → 按 `references/workflow.md` 上报。
 
@@ -59,10 +59,10 @@
 
 | 覆盖项 | 项目规则 |
 |---|---|
-| 知识库 | `docs/`+`CONTRIBUTING`+`HARNESS`+`.apm/`；不建 `MEMORY/Wiki/Resources` |
+| 知识库 | `docs/`+`CONTRIBUTING`+`HARNESS`+`harness/`；不建 `MEMORY/Wiki/Resources` |
 | 测试计数 | 数字只在 `references/verification.md` |
 | 红队 | 仅并发/持久化/发布工程；其他 L2 自检 + 确认 |
-| 计划 | 仅 L2/跨会话，`.apm/plans/`，需 front matter + status |
+| 计划 | 仅 L2/跨会话，`harness/plans/`，需 front matter + status |
 | 决策 | 唯一表 `docs/decisions.md`（D1–D7）；其他只引用 ID |
 | CI | 本地静态门禁；macOS 动态测试 Phase 1 起 |
 | 提交语言 | 英文，跟随近 5 条非 merge commit |

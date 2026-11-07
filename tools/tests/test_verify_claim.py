@@ -151,9 +151,9 @@ class VerifyClaimTests(unittest.TestCase):
     def test_unit_pass_with_temp_repo_relative_xcresult(self) -> None:
         root = self.tmp / "repo"
         init_repo(root)
-        (root / ".apm").mkdir()
-        (root / ".apm" / "test-baseline.json").write_text(
-            (REPO_ROOT / ".apm" / "test-baseline.json").read_text(encoding="utf-8"),
+        (root / "harness").mkdir()
+        (root / "harness" / "test-baseline.json").write_text(
+            (REPO_ROOT / "harness" / "test-baseline.json").read_text(encoding="utf-8"),
             encoding="utf-8",
         )
         (root / "artifacts").mkdir()
@@ -274,7 +274,7 @@ class VerifyClaimTests(unittest.TestCase):
             "context": {
                 "commit": context_commit if context_commit is not None else head_short(),
                 "build": context_build,
-                "command": ".apm/tools/measure-launch.sh",
+                "command": "harness/tools/measure-launch.sh",
             },
             "metrics": [
                 {

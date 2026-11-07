@@ -7,7 +7,7 @@
 
 - 用 XCTest（`XCTestCase`），不是 Swift Testing；`continueAfterFailure = false`。
 - 现有用例集中在 `LaunchPerformanceTests.swift` / `SimultaneousFlowTests.swift`；后者含需要真机 `SpeechTranscriber` 的压力用例。
-- 模拟器入口 `make test-ui`；真机入口 `.apm/tools/device-test.sh`（`make device-test-ui`）。
+- 模拟器入口 `make test-ui`；真机入口 `harness/tools/device-test.sh`（`make device-test-ui`）。
 
 ## 2. 启动前置
 

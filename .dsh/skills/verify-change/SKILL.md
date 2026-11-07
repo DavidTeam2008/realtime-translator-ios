@@ -25,7 +25,7 @@ whenToUse: 任何"完成/修好/已验证/测试通过"声明之前；提交前�
 ## 2. 记录（可复核才算证据）
 
 每条验证记录四元组：命令 | 结果（退出码、passed/failed/skipped） | 环境（Xcode 版本 + 模拟器 runtime 或真机型号 + iOS） | 证据 id。
-Phase 1 起 evidence id 唯一：真机由 `.apm/tools/device-test.sh` 自动写 `.apm/evidence/`；其他用 `python3 tools/evidence.py write ...` 生成（`make evidence` 只列出，`make check-evidence` 校验 schema）。
+Phase 1 起 evidence id 唯一：真机由 `harness/tools/device-test.sh` 自动写 `harness/evidence/`；其他用 `python3 tools/evidence.py write ...` 生成（`make evidence` 只列出，`make check-evidence` 校验 schema）。
 有证据文件后跑 `make verify-claim` 取三值判定，并把 evidence id / 命令原文回填计划"验证证据"表。
 
 ## 3. 判定与声明

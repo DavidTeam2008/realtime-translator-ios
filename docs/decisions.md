@@ -7,7 +7,7 @@
 
 | ID | 决策点 | 当前事实 / 已实现 | 未定问题 | 影响 |
 | --- | --- | --- | --- | --- |
-| D1 | 启动目标与口径 | 真机冷启动 240–280ms（`AppLaunchTracker`：进程创建 → 首帧提交）；XCTest 口径 0.31–0.33s；200ms 经对照判定不可达（最小对照 p50=210ms，[`18`](18-startup-feasibility-verification.md)） | 200ms 是硬指标还是"尽量快"？改判 p50≤300ms 则当前已达标，但需先写入口径 | 性能验收标准；是否重启启动优化（当前暂停） |
+| D1 | 启动目标与口径 | 真机冷启动 240–280ms（`AppLaunchTracker`：进程创建 → 首帧提交）；XCTest 口径 0.31–0.33s；200ms 经对照判定不可达（最小对照 p50=210ms，见 [`case-startup-performance.md`](case-startup-performance.md)） | 200ms 是硬指标还是"尽量快"？改判 p50≤300ms 则当前已达标，但需先写入口径 | 性能验收标准；是否重启启动优化（当前暂停） |
 | D2 | 发布形态 | App Store / TestFlight / 企业分发均未定；无 Archive/Export 流程、无 PrivacyInfo、无发布 CI | 首发走哪种分发？ | 发布工程、隐私清单、发版验收 |
 | D3 | 设备矩阵 | 最低 iOS 26.4、仅 iPhone 竖屏；参考机 iPhone 13（无 Apple 智能），总结走本地回退是预期 | 最低版本是否下调？是否必须覆盖 iPhone 13 与全部六语？ | Speech/Translation 可用性与 UI 适配、真机矩阵 |
 | D4 | 语言优先级 | 6 语（中/英/日/韩/泰/越）；听写/翻译依赖系统资源，泰/越需真机抽测 | 六语是否都首发？还是中英先行？ | 质量工作优先级、发布范围与验收 |
@@ -28,7 +28,7 @@
 | D-B7 | 发布节奏 | 文档 / 叙事 / 可复现完成后发 `v1.0.0` |
 | D-B8 | 产品行为测试 | 独立排期，不阻塞标杆化 |
 | D-B9 | 脱敏 | 移除 Team / 设备 ID / 绝对路径；Bundle ID 保留为示例 |
-| D-B10 | 过程区目录 | `.apm/` 更名为 `harness/`（可见、与模板一致） |
+| D-B10 | 过程区目录 | 原 APM 工作区 `.apm/` 更名为 `harness/`（可见、与模板一致） |
 | D-B11 | 多 Agent 适配 | 单源 AGENTS + skills 同步 + Claude Code hooks 示例 |
 | D-B12 | 模板抽取 | 抽出独立 `harness-kit`（profiles + 脚手架 + 外部试点） |
 | D-B13 | 证据 schema v2 | 增加可选 `agent` / `model` / `harnessVersion` 字段 |

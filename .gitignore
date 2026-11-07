@@ -11,11 +11,11 @@ build/
 .swiftpm/xcode/package.xcworkspace/xcuserdata/
 
 # APM 临时测量产物：可由命令重建，不进入版本库
-.apm/runs/
-.apm/**/*.log
-.apm/**/*.png
-.apm/**/*.jpg
-.apm/**/*.jpeg
+harness/runs/
+harness/**/*.log
+harness/**/*.png
+harness/**/*.jpg
+harness/**/*.jpeg
 Launch_*.trace/
 .hvigor/
 

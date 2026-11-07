@@ -35,7 +35,7 @@
 ## 5. 导出与产物
 
 - 导出（P1-2 未修前）不要删除全部 `Duiyi-*.txt`；文件名带 taskID + 时间戳；不改 `TranscriptExportService` 的共享语义。
-- 测试用临时目录；不写仓库内路径；不提交 build/trace/`.apm/runs/`。
+- 测试用临时目录；不写仓库内路径；不提交 build/trace/`harness/runs/`。
 
 ## 6. 完成判据
 

@@ -82,7 +82,7 @@ RootView.body
        └─ rebuildViewModelsIfNeeded()       // 四个常驻 VM
 ```
 
-启动优化已暂停，结论见 [`15`](15-startup-optimization.md)–[`18`](18-startup-feasibility-verification.md)。当前不重启微优化，也不用模拟器证明性能。
+启动优化已暂停，结论与证据链见 [`case-startup-performance.md`](case-startup-performance.md)。当前不重启微优化，也不用模拟器证明性能。
 
 ### 2.3 导航
 
@@ -377,7 +377,7 @@ MeetingRecognition.languages(multilingual:pinned:display:)
 | ViewModel | 三模块状态机、翻译过期丢弃、清屏、任务恢复、TTS 队列 | `make test` |
 | 音频策略 | 路由快照/回声判定 | `make test` |
 | UI | 冷启动、首页导航、同传听写压力 | `make test-ui` / `make device-test` |
-| 真机 | 语音、翻译、TTS、持久化、长会话 | `.apm/tools/device-test.sh` |
+| 真机 | 语音、翻译、TTS、持久化、长会话 | `harness/tools/device-test.sh` |
 
 基线：120 个单元测试 + 3 个 UI 用例 = 真机 123。模拟器没有 `SpeechTranscriber`，`testSimultaneousListeningPressure` 会 skip，这是预期行为。精确口径见 [`references/verification.md`](../references/verification.md)。
 

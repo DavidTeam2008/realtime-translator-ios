@@ -1,6 +1,6 @@
 ---
 name: device-verify
-description: 对译 Duiyi 真机验收入口：用 .apm/tools/device-test.sh（强制先预热再单元/UI）跑真机，处理 exit 2（锁屏/未连接）、exit 74 与 automation 超时、Enable UI Automation 密码弹窗；成功后写 .apm/evidence/ 并回填计划，无法操作设备时写"未验证 + 手动步骤"。
+description: 对译 Duiyi 真机验收入口：用 harness/tools/device-test.sh（强制先预热再单元/UI）跑真机，处理 exit 2（锁屏/未连接）、exit 74 与 automation 超时、Enable UI Automation 密码弹窗；成功后写 harness/evidence/ 并回填计划，无法操作设备时写"未验证 + 手动步骤"。
 whenToUse: 语音/翻译/TTS/音频/SwiftData 留存等必须真机验证的改动；UI 真机验收；模拟器结果不足以判定时。
 ---
 
@@ -35,7 +35,7 @@ whenToUse: 语音/翻译/TTS/音频/SwiftData 留存等必须真机验证的改�
 ## 成功后的证据
 
 1. 确认计数符合预期（真机 skip 应为 0；基线数字只在 `references/verification.md`，此处不复制）。
-2. Phase 1 起真机脚本自动写 `.apm/evidence/`；若未自动写，用 `python3 tools/evidence.py write ...` 生成（`make evidence` 只列出），记录命令 / 设备 / 计数 / 耗时。
+2. Phase 1 起真机脚本自动写 `harness/evidence/`；若未自动写，用 `python3 tools/evidence.py write ...` 生成（`make evidence` 只列出），记录命令 / 设备 / 计数 / 耗时。
 3. `make verify-claim` 确证 PASS；把 evidence id + 环境回填计划"验证证据"表并更新"未验证项"。
 4. 只有拿到证据后，才允许在交付里写"真机已验证"。
 

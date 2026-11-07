@@ -9,7 +9,7 @@
         {
           "estimator": "...",
           "tokenBudgets": {"AGENTS.md": 1600, "references/contracts.md": 950, ...},
-          "nestedAgents": {"maxBytes": 8192, "files": [".apm/AGENTS.md", ...]},
+          "nestedAgents": {"maxBytes": 8192, "files": ["harness/AGENTS.md", ...]},
           "skills": {"root": ".dsh/skills", "requiredFields": ["name", "description"],
                      "namePattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
         }
@@ -41,7 +41,7 @@ DEFAULT_NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 # 不在版本库 / 允许不存在的机器本地文件（AGENTS.md 只写“如存在”）。
 OPTIONAL_MD_PATHS = frozenset({"AGENTS.local.md", "CLAUDE.local.md"})
 # 裸文件名解析兜底目录（AGENTS.md 常写 `contracts.md` 这类简写）。
-BARE_NAME_FALLBACK_DIRS = ("docs", "references", ".apm", ".apm/plans")
+BARE_NAME_FALLBACK_DIRS = ("docs", "references", "harness", "harness/plans")
 
 SENSITIVE_PATTERNS = (
     ("绝对路径 /Users/", re.compile(r"/Users/")),

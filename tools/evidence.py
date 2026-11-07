@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""证据链工具（纯标准库）：列出 / 查看 / 校验 / 写入 `.apm/evidence/*.json`。
+"""证据链工具（纯标准库）：列出 / 查看 / 校验 / 写入 `harness/evidence/*.json`。
 
 用法：
     python3 tools/evidence.py                       # 默认 = ls + validate（便利入口）
@@ -14,7 +14,7 @@
 
 通用参数：--root PATH（默认脚本上级目录，供 fixture/测试使用）。
 退出码：0 成功；1 校验/写入失败；2 用法错误。
-写入前按 `.apm/evidence/schema.json` 校验并自动填 id/createdAt/git/verifier；
+写入前按 `harness/evidence/schema.json` 校验并自动填 id/createdAt/git/verifier；
 路径按"仓库相对 或 ~/ 相对"归一化，不在仓库/主目录内的产物路径置 null 并告警。
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_ROOT = Path(__file__).resolve().parent.parent
-EVIDENCE_REL = ".apm/evidence"
+EVIDENCE_REL = "harness/evidence"
 SCHEMA_NAME = "schema.json"
 TEMPLATE_NAME = "TEMPLATE.json"
 README_NAME = "README.md"
@@ -288,7 +288,7 @@ def cmd_ls(root: Path, args: argparse.Namespace) -> int:
         print(json.dumps(entries, ensure_ascii=False, indent=2))
         return 0
     if not files:
-        print("（无 evidence 文件；先在 .apm/evidence/ 生成或写入）")
+        print("（无 evidence 文件；先在 harness/evidence/ 生成或写入）")
         return 0
     for path in files:
         try:
@@ -511,7 +511,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_root_option(show)
     show.add_argument("target")
 
-    validate = sub.add_parser("validate", help="校验 .apm/evidence/*.json（schema + 语义）")
+    validate = sub.add_parser("validate", help="校验 harness/evidence/*.json（schema + 语义）")
     _add_root_option(validate)
     validate.set_defaults(command="validate")
 

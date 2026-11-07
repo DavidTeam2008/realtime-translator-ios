@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "urn:duiyi:evidence:schema:1",
   "title": "Duiyi 验证证据（evidence）",
-  "description": "一条证据 = 一次可复核的验证摘要。入库的是 1–3KB 摘要，不放大产物（.apm/runs/ 保持 gitignore）。schema 用 draft-07 语法；tools/evidence.py 实现其子集，无第三方依赖。",
+  "description": "一条证据 = 一次可复核的验证摘要。入库的是 1–3KB 摘要，不放大产物（harness/runs/ 保持 gitignore）。schema 用 draft-07 语法；tools/evidence.py 实现其子集，无第三方依赖。",
   "type": "object",
   "additionalProperties": true,
   "required": [
@@ -122,7 +122,7 @@
     "verifier": {
       "type": "string",
       "minLength": 1,
-      "description": "生成者/版本。例：tools/evidence.py@1 或 .apm/tools/device-test.sh"
+      "description": "生成者/版本。例：tools/evidence.py@1 或 harness/tools/device-test.sh"
     },
     "notes": {
       "type": "string",

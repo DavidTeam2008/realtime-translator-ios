@@ -19,6 +19,14 @@
 - **任务历史**：只有点"结束任务"才写入本机，可回看、总结、导出分享。
 - **语言**：中 / 英 / 日 / 韩 / 泰 / 越；仅 iPhone、竖屏。
 
+## 界面
+
+| 首页 | 面对面 | 同声传译 | 设置 |
+| --- | --- | --- | --- |
+| ![首页](docs/images/home.png) | ![面对面](docs/images/conversation.png) | ![同声传译](docs/images/interpretation.png) | ![设置](docs/images/settings.png) |
+
+> 截图来自 iPhone 17 Pro Max / iOS 26.4.1 模拟器；语音链路仍需真机验证。
+
 ## 10 分钟快速开始（不需要 Xcode）
 
 ```bash
@@ -39,7 +47,7 @@ make verify-static  # 再加证据校验 + 脚本单测 + 语法检查，约 4.3
 make build
 make test                   # 模拟器单元测试
 make test-ui                # 模拟器 UI 测试（语音用例按预期 skip）
-.apm/tools/device-test.sh   # 真机完整套件（先预热 testmanagerd）
+harness/tools/device-test.sh   # 真机完整套件（先预热 testmanagerd）
 ```
 
 签名、真机、已知坑与验证矩阵：[`CONTRIBUTING.md`](CONTRIBUTING.md)、[`references/verification.md`](references/verification.md)。
@@ -58,7 +66,7 @@ DuiyiUITests/     启动性能 + 导航 + 同传监听 UI 测试
 docs/             产品 / 架构 / 选型 / 路线图 / 决策
 references/       Agent 规则细则：契约 / 验证 / 分级与红队
 tools/            静态门禁与脚本（docs / 架构 / 计数 / harness / 计划 / 证据）
-.apm/             计划、证据、审查与真机脚本（过程档案，见 HARNESS.md）
+harness/             计划、证据、审查与真机脚本（过程档案，见 HARNESS.md）
 Order/            Release 二进制重排符号表（生成物，启动优化已暂停）
 ```
 
@@ -68,7 +76,7 @@ Order/            Release 二进制重排符号表（生成物，启动优化已
 | --- | --- | --- |
 | **Guides（前馈）** | `AGENTS.md` 指令树（根 + 嵌套）、`references/` 规则、`.dsh/skills/` 动作卡 | [`AGENTS.md`](AGENTS.md)、[`HARNESS.md`](HARNESS.md) |
 | **Sensors（反馈）** | 静态门禁 → 单元/UI → 真机；测试计数、架构铁律、文档预算、计划状态都可机检 | `make check` / `make verify-static` |
-| **Evidence（证据）** | 完成声明写 `.apm/evidence/*.json`，`make verify-claim` 输出 **PASS / FAIL / UNVERIFIED** | [`HARNESS.md`](HARNESS.md) §5 |
+| **Evidence（证据）** | 完成声明写 `harness/evidence/*.json`，`make verify-claim` 输出 **PASS / FAIL / UNVERIFIED** | [`HARNESS.md`](HARNESS.md) §5 |
 | **独立审查** | 并发/持久化/发布工程改走只读红队；月度 harness 审计 | `.dsh/skills/red-team`、`make harness-audit` |
 
 设计原则：**没有执行载体的规则不写；完成声明必须可证伪；一个事实只有一个真源；能机检就不靠自觉。**
@@ -77,8 +85,8 @@ Order/            Release 二进制重排符号表（生成物，启动优化已
 
 - 验证矩阵（哪些改动必须真机、性能口径、skip 白名单）唯一源：[`references/verification.md`](references/verification.md)；
 - 测试计数下限与 skip 白名单由 `make check-tests` 机检，删测试会红；
-- 真机测试统一入口：`.apm/tools/device-test.sh`（先预热 `testmanagerd`，解决 exit 74 / automation 超时）；
-- 当前验证状态与证据：见 [`HARNESS.md`](HARNESS.md) §5 与 `.apm/evidence/`。
+- 真机测试统一入口：`harness/tools/device-test.sh`（先预热 `testmanagerd`，解决 exit 74 / automation 超时）；
+- 当前验证状态与证据：见 [`HARNESS.md`](HARNESS.md) §5 与 `harness/evidence/`。
 
 ## 文档
 
@@ -98,7 +106,7 @@ Order/            Release 二进制重排符号表（生成物，启动优化已
 
 - 三个模块、任务历史、总结、导出、6 语种、引导流程均已落地；
 - 主要技术债：语音引擎全局仲裁、长会话数据留存、SwiftData 写放大、翻译队列积压、导出竞态（详见 [`docs/04-roadmap.md`](docs/04-roadmap.md)）；
-- 启动 200ms 目标经对照实验判定不可达（空壳 App 地板约 210ms），启动微优化已暂停；
+- 启动 200ms 目标经对照实验判定不可达（空壳 App 地板约 210ms），启动微优化已暂停；完整证据链见 [`docs/case-startup-performance.md`](docs/case-startup-performance.md)；
 - Harness 侧已完成 Phase 0/1（静态门禁、证据三值、CI、skills），Phase 2+ 在做（见 [`HARNESS.md`](HARNESS.md)）。
 
 ## 隐私

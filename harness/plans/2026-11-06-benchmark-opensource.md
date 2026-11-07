@@ -13,21 +13,23 @@ scope:
     - AGENTS.md
     - AGENTS.local.md.example
     - HANDOFF.md
+    - .apm/            # 重命名源目录（git mv 后的删除记录）
     - docs/
     - references/
-    - .apm/
+    - harness/
     - .dsh/
     - tools/
     - .github/
     - .githooks/
     - Makefile
     - .gitignore
-    - prototype/
     - Order/
+    - prototype/        # 删除（视觉稿由截图替代）
     - Duiyi/Services/AGENTS.md
     - Duiyi/Features/AGENTS.md
     - DuiyiTests/AGENTS.md
     - DuiyiUITests/AGENTS.md
+    - DuiyiUITests/SimultaneousFlowTests.swift   # 仅注释路径同步
     - Duiyi.xcodeproj/project.pbxproj   # 仅脱敏：移除 DEVELOPMENT_TEAM / 真实签名信息（D-B9）
   deny:
     - Duiyi/**/*.swift
@@ -55,7 +57,7 @@ verify:
 # 标杆开源化与文档信息架构重构 · 执行计划（L2）
 
 > 状态：**方案待确认（本轮未执行任何删除/迁移）**　|　级别：L2　|　日期：2026-11-06
-> 上游：`.apm/plans/2026-11-05-harness-engineering.md`（Phase 0/1 已完成并提交；Phase 2/3 未执行，见本文 §9 交接）
+> 上游：`harness/plans/2026-11-05-harness-engineering.md`（Phase 0/1 已完成并提交；Phase 2/3 未执行，见本文 §9 交接）
 > 定位：把「Harness Engineering 落地」升级为「可被陌生人看懂、复现、采用的开源标杆」；核心动作是**减法**，不是继续加机制。
 > 计划入库规则：不写本机绝对路径、密钥、设备 UDID；只写仓库相对路径。
 
@@ -64,7 +66,7 @@ verify:
 1. **Harness 评估结论（2026-11-06 现状）**：五子系统 **Instructions 4 / State 4 / Verification 4 / Scope 3.5 / Session Lifecycle 4**（满分 5，综合约 **78–80%**）。改造前独立审计为 **2.5/5**；本轮已把「文档型 harness」升级为「静态门禁 + 结构化证据 + 三值判定 + 四层验证」的可运行闭环。另有一次独立只读审计（2026-11-06，docs 子代理）按「对外标杆成熟度」评 **17/35 = 2.4/5**，并把「证据可审计」压到 3/5：README 头条数字未逐条链到 evidence、部分 evidence 产物换机器不可复核。
 2. **等级判定**：已达到「L3 可审计」——agent 的完成声明可被 `make verify-claim` 三值否证；尚未达到「L4 自我改进」（审计未自动打分、无固定指标）与「L5 可复制/可传播」（陌生人看不懂、跑不起来、复制不走）。
 3. **距标杆目标的距离**：**内部工程 ≈80%，对外标杆 ≈49%（17/35），加权综合约 60%**。标杆不看"体系是否存在"，只看"陌生人 5 分钟能否理解、10 分钟能否复现、30 分钟能否复制"——这三项目前都不成立。差距不是门禁机制，而是首访入口、开源治理、文档 IA、脱敏与叙事。
-4. **最大问题不是缺能力，而是缺减法 + 缺脱敏**：40 个入库 markdown 中约 1/3 是过程/历史文档；HANDOFF 483 行与 docs/21 重复；docs/14–21 共 897 行历史记录混在主线；`.apm` 6.8MB/447 个忽略产物 + 3 个 raw baseline JSON（3114 行）入库；根目录无 LICENSE/CONTRIBUTING/截图/英文概览。**更严重的是：真实签名 Team、设备 CoreDevice ID、`/Users/...` 绝对路径已入库（违反自身铁律 8），开源发布前必须脱敏。**
+4. **最大问题不是缺能力，而是缺减法 + 缺脱敏**：40 个入库 markdown 中约 1/3 是过程/历史文档；HANDOFF 483 行与 docs/21 重复；docs/14–21 共 897 行历史记录混在主线；`harness` 6.8MB/447 个忽略产物 + 3 个 raw baseline JSON（3114 行）入库；根目录无 LICENSE/CONTRIBUTING/截图/英文概览。**更严重的是：真实签名 Team、设备 CoreDevice ID、`/Users/...` 绝对路径已入库（违反自身铁律 8），开源发布前必须脱敏。**
 5. **优化主线（一句话）**：**先做减法（文档 IA）→ 再做叙事（Harness 案例与方法）→ 再做复现（干净环境 10 分钟验证）→ 最后发布与外部验证**；产品行为测试（P0-1/P0-3）独立排期，不阻塞标杆化。
 6. **本轮范围**：只改公开面、文档、过程档案与门禁引用；**不改业务代码**（scope.deny 已锁）。分 4 个可回滚阶段，预计 **4–6 个工作会话（约 4–5 人日）**。
 7. **待确认**：许可证、HANDOFF 处置、历史文档删除方式、仓库改名与发布节奏，见 §5 决策表；确认后从 Phase 1 开始执行。
@@ -104,16 +106,16 @@ verify:
 
 ### 1.3 文档面事实（"混乱"的量化证据）
 
-- 入库 markdown **40 个**：根入口 4（README/HANDOFF/HARNESS/AGENTS）、`docs/` 14、`references/` 3、`.apm/` 9、`.dsh/skills/` 6、代码目录嵌套 AGENTS 4。
+- 入库 markdown **40 个**：根入口 4（README/HANDOFF/HARNESS/AGENTS）、`docs/` 14、`references/` 3、`harness/` 9、`.dsh/skills/` 6、代码目录嵌套 AGENTS 4。
 - `docs/14–21` 是带日期的过程/历史记录，共 **897 行**，但放在文档主线同一层，首访者无法区分「当前规范」与「历史证据」。
-- `HANDOFF.md` **483 行**，与 `docs/21-cross-session-handoff.md`（78 行）职责重叠；两者又都与 `.apm/plans/` 的交接职责重叠 → 三处状态源。
-- `.apm` 工作区 **6.8MB**：`.apm/runs` 3.9MB/447 个忽略文件；3 个 raw baseline JSON 共 3114 行入库；另有 `report.md`、`issues/`、`reviews/`、`feasibility/`、`white-screen/` 等已过期产物。
+- `HANDOFF.md` **483 行**，与 `docs/21-cross-session-handoff.md`（78 行）职责重叠；两者又都与 `harness/plans/` 的交接职责重叠 → 三处状态源。
+- `harness` 工作区 **6.8MB**：`harness/runs` 3.9MB/447 个忽略文件；3 个 raw baseline JSON 共 3114 行入库；另有 `report.md`、`issues/`、`reviews/`、`feasibility/`、`white-screen/` 等已过期产物。
 - 根目录无 `LICENSE`、`CONTRIBUTING.md`、`.github/ISSUE_TEMPLATE`、真实截图；README 依赖「先读 HANDOFF」，且状态数字有漂移（如设备 iOS 版本）。
 - `prototype/` 是 2026-08 的 HTML 视觉稿，已与实现脱节；`docs/diagrams/` 7 张 SVG 有「可能滞后」声明但仍作为事实入口。
 - `build/` 705MB（已忽略）与 `Order/`（启动优化暂停后的生成物）属于本机/历史遗留，不影响仓库但影响"简洁"观感。
 - **多真源**：3 套文档地图（README / docs/README / HANDOFF §7）、5 套命令表、13 行重复测试计数（违反自身"数字只在 references/verification"规则）、真源优先级口号 3 个版本。
 - **发布红线（脱敏）**：真实签名 Team ID（4 个文件）、设备 CoreDevice ID（5 个文件）、`/Users/<name>` 绝对路径（3 个 baseline JSON）已入库；`project.pbxproj` 仍写原开发者 Team/Bundle ID——与根 `AGENTS.md` 铁律 8「签名属本地环境」直接矛盾。
-- **命名不可迁移**：`.apm/` 是项目历史缩写（早期 APM 测量），公开/模板无法解释；通用模板需改为可见的 `harness/`（D-B10），并与 `harness-kit` 模板同名，避免"一套方法、两种目录"。
+- **命名不可迁移**：`harness/` 是项目历史缩写（早期 APM 测量），公开/模板无法解释；通用模板需改为可见的 `harness/`（D-B10），并与 `harness-kit` 模板同名，避免"一套方法、两种目录"。
 
 ### 1.4 当前流程的"自我阻碍"（为什么必须现在做）
 
@@ -132,7 +134,7 @@ verify:
 | **L1 叙事层** | 首次访问者 / 外部采用者 | README、HARNESS、案例、评分卡 | ≤300 行/篇；一个事实只出现一次；必须能回答"为什么看/怎么跑/怎么复制" |
 | **L2 主线层** | 开发者 / 接手者 | docs/01–04、decisions、CONTRIBUTING | 只写当前事实与理由；过程结论压缩成"结论 + 证据 id"，不保留原始记录 |
 | **L3 规则层** | AI agent | AGENTS 树、references、skills | 保留；token 预算内；指路不抄写 |
-| **L4 档案层** | 维护者 / 审计 | `.apm/`：active plan、evidence、tools、test-baseline、reviews | 不进首屏文档地图；原始产物 gitignore；历史记录只留摘要 |
+| **L4 档案层** | 维护者 / 审计 | `harness/`：active plan、evidence、tools、test-baseline、reviews | 不进首屏文档地图；原始产物 gitignore；历史记录只留摘要 |
 
 ### 2.2 目标文件树（公开面）
 
@@ -164,11 +166,10 @@ tools/                    # 保留门禁脚本（标杆展示"可机检"）
 Makefile                  # 保留命令入口
 .githooks/pre-push        # 保留
 .github/workflows/        # 保留（Phase 3 合并为单一 verify.yml 并加徽章）
-harness/                  # 由 .apm/ git mv 重命名（D-B10）；可见、与模板同名
+harness/                  # 原 APM 工作区（.apm/）2026-11 更名；可见、与模板同名
   README.md               # 档案层索引（与 L1–L3 的边界说明）
   AGENTS.md               # 目录协议
-  config.json             # 新增：工具无关配置（路径/预算/命令/evidence claims/adapters）
-  plans/                  # active + _template + _archive（旧计划/旧 review 归档）
+  plans/                  # active + _template（历史计划已删除，git 历史保留）
   evidence/               # schema/TEMPLATE/README + 最近证据摘要
   reviews/                # 只保留与当前/最近复评相关的报告
   tools/                  # device-test.sh / measure-launch.sh（把坑固化成脚本，是标杆资产）
@@ -187,17 +188,17 @@ harness/                  # 由 .apm/ git mv 重命名（D-B10）；可见、与
 | `docs/19`（持久化修复） | 删除 | 结论进 `docs/04` 已完成区 + evidence id；修复过程留 git 历史 |
 | `docs/20`（UI 测试假绿） | 蒸馏后删除 | 设备预热/自动化密码/模拟器能力结论并入 `references/verification.md`；流程案例进 HARNESS 的"坑"一节 |
 | `docs/15` 等引用的启动优化原始数据 | 删除入库 JSON | raw baseline 3 个 JSON（3114 行）→ 删；摘要/方法进案例页；原始数据由脚本可重建 |
-| `.apm/report.md`、`.apm/feasibility/`、`.apm/white-screen/README.md` | 删除 | 已被 docs/17/18 结论取代；原始记录留 git 历史 |
-| `.apm/issues/*.json`（7 个） | 删除 | 问题结论进 docs/04 与 case；issue JSON 可作为历史记录留在 git |
-| `.apm/reviews/2026-10-30-*.md`、`.apm/plans/2026-10-30-*.md` | 移入 `.apm/plans/_archive/` | 保留可追溯，不占首屏 |
-| `.apm/plans/2026-11-05-harness-engineering.md` | `status: done` + 归档 | Phase 0/1 已完成；Phase 2/3 移交本计划 §9 |
-| `.apm/` 目录名 | **重命名 `harness/`（`git mv`，D-B10）** | 公开/模板可解释；与 `harness-kit` 同名；同步更新 tools/plan.py/check-docs/CI/AGENTS 路径 |
+| 原 `harness/report.md`、`baseline/`、`feasibility/`、`white-screen/` | 已删除 | 结论由启动案例与 evidence 承载；原始记录留 git 历史 |
+| 原 `harness/issues/*.json`（7 个） | 已删除 | 结论进 `docs/04` 与启动案例；原始记录留 git 历史 |
+| 历史计划/审查（2 计划 + 1 审查） | 已删除 | 内容已完成/移交本计划；原始记录留 git 历史 |
+| `harness/plans/2026-11-05-harness-engineering.md` | `status: done` + 归档 | Phase 0/1 已完成；Phase 2/3 移交本计划 §9 |
+| 原 APM 工作区目录 | **已更名 `harness/`（`git mv`，D-B10）** | 公开/模板可解释；与 `harness-kit` 同名；已同步 tools/CI/AGENTS 路径 |
 | 无（新增） | **`.claude/` + `harness/adapters/claude-code/`（D-B11）** | Claude Code hooks/skills 薄适配，不默认加载；`make adapters-check` 防漂移 |
 | `prototype/`（3 个 HTML） | 删除 | 2026-08 视觉稿，与实现脱节；截图替代 |
 | `Order/App.order` + `tools/generate-order-file.sh` | 保留（P2 再议） | 启动优化已暂停但 Release 配置可能引用；不在文档首屏 |
 | `docs/diagrams/` 7 张 SVG | 精简为 2–3 张 | 保留准确的分层/链路图；滞后图删除或重绘（Phase 1 校验） |
 
-> 净效果：对外可见 markdown（根 + docs + references）**21 → 约 16**；`docs/` 从 14 篇降到 9 篇（历史文档 8 篇 897 行清零，新增 decisions/case/scorecard 3 篇）；全仓库入库 markdown 40 → 约 30–32（`.dsh/skills` 6 篇、`harness/` 过程档案与 adapters 保留）；根目录文档从 4 个内部/混合文档 → 4 个清晰入口 + LICENSE/CONTRIBUTING。
+> 净效果：对外可见 markdown（根 + docs + references）**21 → 15**；`docs/` 从 14 篇降到 **8 篇**（历史 8 篇 897 行清零，新增 decisions/case 2 篇）；全仓库入库 markdown 40 → 约 27；根目录文档 4 个清晰入口 + LICENSE/CONTRIBUTING。
 
 ---
 
@@ -225,7 +226,7 @@ harness/                  # 由 .apm/ git mv 重命名（D-B10）；可见、与
 ```text
 Phase 1 文档 IA 重构（做减法）      ← 用户痛点；最大收益；所有后续阶段的地基
    ├─ 1a 新增入口（README/CONTRIBUTING/LICENSE/decisions）
-   ├─ 1b 蒸馏 + 删除历史文档 / HANDOFF / prototype / .apm 过期产物
+   ├─ 1b 蒸馏 + 删除历史文档 / HANDOFF / prototype / harness 过期产物
    ├─ 1c 同步引用与门禁（check-docs/check-harness/CI/AGENTS/skills）
    └─ 1d 真实截图 + 首访测试
 Phase 2 标杆叙事（HARNESS 重写 + 评分卡 + 独立复评 + 案例）   ← 决定"像不像标杆"
@@ -257,13 +258,13 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 1.1 | 基线冻结与首访测试（改造前） | 首访 5 问答案 + 卡点清单（写入本计划 §验证证据） | 5 问中可答数 ≤2（记录失败证据） |
 | 1.2 | 新增入口文件 | `LICENSE`、`CONTRIBUTING.md`、`docs/decisions.md`（D1–D7 迁移）、`.github/ISSUE_TEMPLATE.md` + `PULL_REQUEST_TEMPLATE.md` | 内容 ≤ 目标行数；链接可解析 |
 | 1.3 | README 重写 | 新 `README.md`（≤120 行）：定位 / 3 个看点（端侧隐私、Harness 实践、可审计证据）/ 截图 / quickstart（无需 Xcode 先跑 `make check`）/ 文档地图 / 许可证 | 首访 5 问中 5 问可答（自测） |
-| 1.4 | 蒸馏历史文档 | `docs/case-startup-performance.md`（≤150 行：目标 → 方法 → A/B → 归因 → 结论"不可达"→ 为什么不继续）；删除 docs/14–21 | 结论与数字可追溯到 evidence id / git commit |
+| 1.4 | 蒸馏历史文档（已完成） | `docs/case-startup-performance.md`（130 行：目标 → 口径 → 方法 → A/B → 归因 → 结论"不可达"→ 排除方向 → 证据线索）；已删除 docs/14–21 | 数字与 commit 可追溯；8 篇历史文档清零 |
 | 1.5 | 拆分 HANDOFF | 决策 → `docs/decisions.md`；构建/签名/测试 → `CONTRIBUTING.md`；坑 → `references/verification.md`；会话状态 → active plan；删除 `HANDOFF.md`（D-B4） | `git grep HANDOFF` 仅剩历史记录/archive |
-| 1.6 | `.apm` 减法 + 改名 | `.apm/` → **`harness/`**（`git mv`，D-B10）；新建 `harness/README.md` + `harness/config.json`；删除 report/baseline raw/feasibility/issues/white-screen；旧计划/review 移入 `_archive/`；更新目录职责 | `harness/` 入库文件数下降 ≥40%；`make evidence`/`verify-claim` 仍 PASS；全仓库无 `.apm` 路径残留（git 历史除外） |
+| 1.6 | 目录改名 + 瘦身（已完成） | 原 APM 目录 → **`harness/`**（`git mv`，D-B10）；新增 `harness/README.md`；删除 report/baseline raw/feasibility/issues/white-screen 与历史计划/审查；更新目录职责与全部引用 | `harness/` 入库文件数下降 ≥60%；`make evidence`/`verify-claim` PASS；`git grep` 无旧路径（git 历史除外） |
 | 1.7 | 页面与引用同步 | 重写 `docs/README.md`（唯一索引：Start / Reference / Archive / Harness）；去重：3 套文档地图合一、5 套命令表收敛到 Makefile + CONTRIBUTING、13 行重复测试计数改为引用 `references/verification.md`；更新 docs/01–04 交叉引用；更新根/嵌套 AGENTS、references、skills、HARNESS 链接；更新 tools：`check-docs.py` 扫描根（新增 HARNESS/CONTRIBUTING、移除 HANDOFF）**并增加公开文档白名单 + 数量上限（防删了又长回来）**、`plan.py` 建议阅读、`check-harness.py`、`.github/workflows/verify.yml` 路径过滤 | `make verify-static` PASS；0 死链；`git grep -nE 'HANDOFF|docs/(1[4-9]\|2[01])'` 无有效引用（archive 除外）；测试计数只在 references/verification；新增/删除公开文档未改白名单 → 门禁红 |
-| 1.8 | 真实截图 | 模拟器/真机截图 3–5 张（首页、面对面、同传、历史/总结）→ `docs/images/`；README 引用 | 图片存在、路径正确、无隐私信息（无设备 UDID/签名） |
+| 1.8 | 真实截图（已完成） | 4 张模拟器截图（首页/面对面/同传/设置）→ `docs/images/`；README 引用；来源 iPhone 17 Pro Max / iOS 26.4.1 | 图片存在、README 渲染正常、无隐私信息 |
 | 1.9 | 改造后首访测试 | 同一 5 问 + 卡点复测 | 5/5 可答；记录耗时与卡点 → 本计划证据 |
-| 1.10 | **脱敏（发布红线，P0）** | 移除/占位：`project.pbxproj` 的 `DEVELOPMENT_TEAM` 与真实签名信息；HANDOFF/docs/scripts/baseline/issues 中的 CoreDevice ID、UDID、`/Users/...` 绝对路径；`.apm/tools/*.sh` 改为从环境变量/`AGENTS.local.md` 读取设备参数；Bundle ID 保留但注明"示例，替换为你自己的"（若选 D-B9b 则一并替换） | `git grep` 0 命中真实 Team/设备 ID/绝对路径；`make verify-static` PASS；构建/测试仍可跑（或明确记未验证） |
+| 1.10 | **脱敏（发布红线，P0）** | 移除/占位：`project.pbxproj` 的 `DEVELOPMENT_TEAM` 与真实签名信息；HANDOFF/docs/scripts/baseline/issues 中的 CoreDevice ID、UDID、`/Users/...` 绝对路径；`harness/tools/*.sh` 改为从环境变量/`AGENTS.local.md` 读取设备参数；Bundle ID 保留但注明"示例，替换为你自己的"（若选 D-B9b 则一并替换） | `git grep` 0 命中真实 Team/设备 ID/绝对路径；`make verify-static` PASS；构建/测试仍可跑（或明确记未验证） |
 
 **门禁与回滚**：
 - 每一步后跑 `make check`；1.7 后跑 `make verify-static`；1.9 后跑全量。
@@ -330,7 +331,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 - 月度：`make harness-audit` + 更新 `docs/harness-scorecard.md`（评分变化要有证据）。
 - 季度：文档修剪（公开文档是否仍 ≤300 行/篇；索引是否 100%；死链 0）。
-- 证据保留：`.apm/evidence/` 只保留最近 10 条摘要 + 关键基线；更早的移入 `_archive` 或 git 历史。
+- 证据保留：`harness/evidence/` 只保留最近 10 条摘要 + 关键基线；更早的移入 `_archive` 或 git 历史。
 - 红队：仅并发/持久化/发布工程（维持 AGENTS §7 现约定）。
 
 ---
@@ -348,7 +349,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | D-B7 | 发布节奏 | **Phase 1–3 完成后再发 v1.0.0** | 先发 0.x 试水 | 外部第一印象 |
 | D-B8 | Phase 6 产品测试 | **独立排期、不阻塞本轮** | 本轮一起做 | 范围与周期 |
 | D-B9 | 脱敏范围 | **移除 Team / 设备 ID / 绝对路径；Bundle ID 保留并注明"示例，替换为你自己的"** | (b) Bundle ID 也换 `com.example.duiyi`（需改 pbxproj + 少量源码 + 重跑测试） | 开源合规 vs 改动量/验证成本 |
-| D-B10 | 过程区目录名 | **`.apm/` → `harness/`（git mv，可见，与模板同名）** | 保持 `.apm/`；改 `.harness/`（隐藏） | 公开可解释性 vs 迁移成本 |
+| D-B10 | 过程区目录名 | **原 APM 目录 `.apm/` → `harness/`（git mv，可见，与模板同名）** | 保持原目录；改隐藏目录 | 公开可解释性 vs 迁移成本 |
 | D-B11 | 多 Agent 适配 | **单源 AGENTS + skills 同步 `make adapters-check` + Claude hooks 示例（不默认加载）** | 只支持 DSH；或双份维护 | 标杆可复制性 vs 维护成本 |
 | D-B12 | 模板抽取 | **Phase 5 做成独立 `harness-kit`（profiles + 脚手架 + 首个外部试点）** | 暂不抽取；只写采用指南 | 其它项目改造成本 |
 | D-B13 | 证据 schema v2 | **加可选 `agent`/`model`/`harnessVersion` 字段（向后兼容）** | 不改，证据只记环境 | 跨 agent/模型对比能力 |
@@ -365,7 +366,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 首访测试"自测通过、外人仍不懂" | 中 / 高 | Phase 4 必须找 1–2 名非作者真实走查；不通过回 Phase 1 |
 | 标杆叙事变成"自夸" | 中 / 高 | 评分卡必须由独立复评；HARNESS 必须写局限与未验证；负结果（200ms 不可达）作为案例正面展示 |
 | 范围蔓延到产品测试/英文全量翻译 | 中 / 中 | 本计划 scope.deny 锁代码；Phase 6 独立计划；语言决策 D-B2 控制 |
-| 删除 raw baseline 后无法复现性能结论 | 低 / 中 | 脚本 `.apm/tools/measure-launch.sh` 可重建；案例页写清口径与命令；关键摘要保留 |
+| 删除 raw baseline 后无法复现性能结论 | 低 / 中 | 脚本 `harness/tools/measure-launch.sh` 可重建；案例页写清口径与命令；关键摘要保留 |
 | token 预算/文档注入超限 | 低 / 低 | 新文档不进 AGENTS 预算；AGENTS 仅改路由（≤1600 token 不变） |
 | DSH / Claude Code 行为差异导致同一规则效果不同 | 中 / 中 | 适配矩阵写清"工具特性 vs 仓库门禁"边界；`make adapters-check`；门禁不依赖 hooks 可用 |
 | 模板抽取把本项目专用假设带出去 | 中 / 高 | Phase 5 验收含"0 个 Duiyi 专用引用"；首个外部试点回写卡点；profiles 按最小起步设计 |
@@ -409,7 +410,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 1.1 改造前首访测试（结果 1/5，基线已记录）
 - [x] 用户确认 §5 决策 D-B1–D-B13（2026-11-07，全量按推荐）
 - [x] Phase 1 第一批（1.2/1.3/1.5/1.7/1.10）：入口与 LICENSE、README 重写、HANDOFF 拆分删除、门禁引用同步、脱敏与白名单
-- [ ] Phase 1 第二批（1.4 历史文档蒸馏、1.6 `.apm` 瘦身 + `harness/` 改名、1.8 截图、1.9 首访复测）
+- [x] Phase 1 第二批：1.4 历史文档蒸馏删除、1.6 目录更名 `harness/` + 瘦身、1.8 截图
+- [x] Phase 1.9 改造后首访测试：4/5 可答（复制指南仍部分，Phase 2 补）
 - [ ] Phase 2 标杆叙事 + 独立复评 + Agent 适配层
 - [ ] Phase 3 外部可复现
 - [ ] Phase 4 发布 + 外部验证
@@ -423,14 +425,15 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
 | `git ls-files '*.md' \| wc -l`；`git ls-files` | 40 个入库 markdown / 194 个入库文件 | 本机，HEAD `023dc02` | —（基线盘点） |
-| `find .apm/runs -type f \| wc -l`；`du -sh .apm` | 447 个忽略文件 / 6.8MB；`.apm/runs` 3.9MB | 本机 | —（基线盘点） |
+| `find harness/runs -type f \| wc -l`；`du -sh harness` | 447 个忽略文件 / 6.8MB；`harness/runs` 3.9MB | 本机 | —（基线盘点） |
 | `wc -l docs/14..docs/21` | 8 篇历史记录共 897 行；HANDOFF 483 行 | 本机 | —（基线盘点） |
 | `make check` | **PASS**（docs/架构/计数/harness/计划；1 个历史 WARN 不阻断） | 本机，Xcode 27.1 | —（基线门禁） |
 | `make resume` | 正常输出 active 计划与下一步；`git status` clean | 本机 | —（基线状态） |
-| 独立只读审计（docs 子代理，2026-11-06） | **17/35（2.4/5）**；首访 5 问仅 1 问可答；3 套文档地图/5 套命令表/13 行重复计数；真实 Team/UDID/绝对路径入库 | 本机只读，未构建未改文件；底稿 `.apm/runs/benchmark-audit/notes.md`（gitignore） | —（外部审计） |
+| 独立只读审计（docs 子代理，2026-11-06） | **17/35（2.4/5）**；首访 5 问仅 1 问可答；3 套文档地图/5 套命令表/13 行重复计数；真实 Team/UDID/绝对路径入库 | 本机只读，未构建未改文件；底稿 `harness/runs/benchmark-audit/notes.md`（gitignore） | —（外部审计） |
 | 敏感信息扫描（2026-11-06） | Team ID 命中 4 文件；CoreDevice ID 5 文件；`/Users/` 路径 3 个 JSON；Bundle ID 17 文件 | 本机 `git grep` | —（基线盘点） |
 | 工具能力核对（2026-11-07） | Claude Code 原生读 AGENTS.md（v2.1.277+）、hooks 生命周期与 `.claude/settings.json` 可提交、skills/subagents；DeepSeek 提供 Anthropic 兼容 API 与 Claude Code 官方集成 | 官方文档（见 §参考）；本机未安装 Claude Code，未实测 | —（外部事实） |
 | 首访 5 分钟测试（改造前，作者自测，Phase 1.1） | **1/5 可答 + 2 项部分**：是什么 ✅；为什么值得看 ❌；怎么跑 ⚠️（缺无 Xcode 路径）；怎么验证 ⚠️（README 门禁描述过期）；怎么复制 harness ❌（HARNESS 从 README 不可达） | 本机，仅按 README → docs/README 阅读 | —（基线，不是完成声明） |
+| 首访 5 分钟测试（改造后，作者自测，Phase 1.9） | **4/5 可答 + 1 项部分**：是什么✅ / 为什么值得看✅ / 怎么跑✅ / 怎么验证✅ / 怎么复制 harness⚠️（有机制但缺 10 步采用指南，Phase 2 补）；用时约 3 分钟 | 本机，仅按 README → docs/README 阅读 | —（Phase 1.9） |
 | 独立 Harness 复评（改造后） | 待执行（Phase 2.3） | — | — |
 | `make check`（2026-11-07，Phase 1 第一批） | **PASS**（0 error / 0 warn；公开文档白名单 docs 15/16、根 4 个 md） | 本机 macOS + python3 | —（静态门禁） |
 | `make verify-static`（2026-11-07） | **PASS**（+证据 schema/42 单测/语法；约 4.3s） | 本机 macOS | —（静态门禁） |
@@ -448,12 +451,12 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - 历史文档删除不会丢失未被蒸馏的隐含信息：需在 Phase 1.4/1.5 逐篇对照检查（当前只做了标题级盘点）。
 - `Order/` 是否被 Release 构建配置引用未核实（Phase 1 再查；不影响文档主线）。
 - Claude Code 环境实测未做（本机未安装）；hooks 示例与 adapters-check 为设计成果，Phase 2.6 补实测或标未验证。
-- Phase 1 第一批后未做"改造后首访 5 分钟复测"（1.9，第二批或提交后立即补）；当前只有改造前 1/5 基线。
+- 1.9 已做作者自测（4/5）；仍缺真实陌生人走查（Phase 4）。
 - 脱敏/脚本改动后未重跑真机测试（清空 Team + `APM_DEVICE` 必填；需本机签名与设备）；现有 device evidence 指向改造前 commit，不代表本轮 project 改动后的真机结果。
 - 真机签名构建未验证（本机无 Team；只验证了模拟器 Debug 构建）。
 - **git 历史仍含旧 commit 的 Team/UDID/本机路径**；本轮只清理工作树。公开发布前必须评估 `git filter-repo` 重写或明确接受历史泄露（不可逆，需用户决策）。
 - DSH hooks 能力随版本变化（当前 0.2.1-rc.5 未打包），未来版本可能改变适配策略；模板按"仓库门禁 + CI + 适配层"设计，不依赖 hooks 可用。
-- `.apm` → `harness/` 重命名的完整影响面（工具/测试/文档 30+ 处引用）尚未逐一盘点，Phase 1.6/1.7 执行时以 `git grep` 清单为准。
+- `harness` → `harness/` 重命名的完整影响面（工具/测试/文档 30+ 处引用）尚未逐一盘点，Phase 1.6/1.7 执行时以 `git grep` 清单为准。
 
 ## 参考（外部事实核对，2026-11-07）
 
@@ -463,26 +466,46 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - DeepSeek API：Anthropic API 兼容（`base_url=https://api.deepseek.com/anthropic`）：https://api-docs.deepseek.com/guides/anthropic_api
 - DeepSeek × Claude Code 官方集成（环境变量/模型映射）：https://api-docs.deepseek.com/quick_start/agent_integrations/claude_code
 - DeepSeek Harness 文档入口：https://deepseek-harness.github.io/deepseek-harness/en/guide/quickstart
-- DSH 可编程面盘点（本机 0.2.1-rc.5 安装包核查，仓库外底稿）：`.apm/runs/harness-audit/01-research.md`（gitignore，不随仓库发布）
+- DSH 可编程面盘点（本机 0.2.1-rc.5 安装包核查，仓库外底稿）：`harness/runs/harness-audit/01-research.md`（gitignore，不随仓库发布）
 
 ## 尝试记录
 
 | 尝试# | 动作 | 结果 | 时间 |
 | --- | --- | --- | --- |
 | 1 | 盘点文档面/门禁现状 + 读取上游计划与模板 | 完成，事实写入 §1.3 | 2026-11-06 |
-| 2 | 派生独立审计员做双视角首访/标杆评估 | 团队席位已满（8/8）；复用 docs 子代理完成只读审计（17/35；底稿 `.apm/runs/benchmark-audit/notes.md`，未改 tracked 文件） | 2026-11-06 |
+| 2 | 派生独立审计员做双视角首访/标杆评估 | 团队席位已满（8/8）；复用 docs 子代理完成只读审计（17/35；底稿 `harness/runs/benchmark-audit/notes.md`，未改 tracked 文件） | 2026-11-06 |
 | 3 | 盘点敏感信息与 evidence xcresult 路径 | Team/UDID/绝对路径已定位到 file:line；evidence 的 xcresultPath 已是仓库相对路径（换机器会 UNVERIFIED，属设计） | 2026-11-06 |
 | 4 | 执行 Phase 1 第一批（HANDOFF 拆分、README/LICENSE/CONTRIBUTING/decisions、脱敏、白名单） | 完成；`make check` / `verify-static` PASS、`make build` BUILD SUCCEEDED；额外清掉 10 个文件的真实硬件 UDID | 2026-11-07 |
 | 5 | 计划"未提交改动"与 git status 不一致（scope.allow 缺嵌套 AGENTS、目录通配解析问题） | 已修：补齐 allow + 改精确路径；`make check-plan` PASS | 2026-11-07 |
 
 ## 未提交改动
 
-- 无未提交改动（Phase 1 第一批已提交 `b88910b`；工作区 clean）。
+> Phase 1 第二批（1.4/1.6/1.8 + 1.9 待补）待提交；第一批已提交 `b88910b`。
+
+- `README.md` / 截图与案例入口 / 可提交
+- `CONTRIBUTING.md` / 启动案例链接与设备参数说明 / 可提交
+- `HARNESS.md` / 目录更名与审计入口 / 可提交
+- `docs/` / 新索引、case、历史文档删除、链接同步、截图 / 可提交
+- `references/` / 案例与目录路径同步 / 可提交
+- `harness/` / 目录更名、瘦身、README、证据/计划/工具路径 / 可提交
+- `.apm/` / 重命名源（git 记录）/ 可提交
+- `.dsh/` / skills 路径同步 / 可提交
+- `tools/` / 门禁与证据路径同步 / 可提交
+- `Makefile` / 命令入口路径同步 / 可提交
+- `.github/` / CI 路径过滤同步 / 可提交
+- `.gitignore` / 忽略规则更名 / 可提交
+- `AGENTS.md` / 路由路径同名更新 / 可提交
+- `Duiyi/Services/AGENTS.md` / 嵌套路径同步 / 可提交
+- `DuiyiTests/AGENTS.md` / 嵌套路径同步 / 可提交
+- `DuiyiUITests/AGENTS.md` / 嵌套路径同步 / 可提交
+- `DuiyiUITests/SimultaneousFlowTests.swift` / 仅注释路径同步 / 可提交
+- `harness/plans/2026-11-06-benchmark-opensource.md` / 计划记录（本文件）/ 可提交
+- `prototype/` / 已删除（视觉稿由截图替代）/ 可提交
 
 ## 下一步
 
 1. 等用户授权提交 Phase 1 第一批（当前 34 个文件改动 + 3 个新增 + HANDOFF 删除）。
-2. 提交后立刻做 1.9（改造后首访测试），再进入第二批：1.4 历史文档蒸馏、1.6 `.apm` 瘦身 + `harness/` 改名、1.8 截图。
+2. 提交后立刻做 1.9（改造后首访测试），再进入第二批：1.4 历史文档蒸馏、1.6 `harness` 瘦身 + `harness/` 改名、1.8 截图。
 3. 第二批完成后进入 Phase 2（HARNESS 重写 + 独立复评 + Agent 适配层）。
 4. 公开发布前单独做 git 历史敏感信息评估（`git filter-repo` 会改写历史，需用户确认）。
 5. Phase 5（harness-kit 模板）在 Phase 1–3 稳定后启动；Phase 6 产品测试始终独立排期。
@@ -490,6 +513,6 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 ## 待确认
 
 - 是否授权提交 Phase 1 第一批（含 HANDOFF 删除、README/LICENSE/CONTRIBUTING/decisions、脱敏）。
-- 第二批范围是否按 §4：1.4 历史文档蒸馏 + 1.6 `.apm`→`harness/` 改名 + 1.8 截图 + 1.9 首访复测。
+- 第二批范围是否按 §4：1.4 历史文档蒸馏 + 1.6 `harness`→`harness/` 改名 + 1.8 截图 + 1.9 首访复测。
 - 公开发布前是否要求清理 git 历史中的敏感信息（`git filter-repo`，会改写历史，高风险）。
 - D-B6 仓库改名、D-B7 发布节奏仍待发布阶段再定。

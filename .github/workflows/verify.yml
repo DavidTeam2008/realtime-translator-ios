@@ -32,8 +32,8 @@ on:
       - "Duiyi.xcodeproj/**"
       - "tools/**"
       - "Makefile"
-      - ".apm/test-baseline.json"
-      - ".apm/evidence/**"
+      - "harness/test-baseline.json"
+      - "harness/evidence/**"
       - ".dsh/**"
       - "references/**"
       - "HARNESS.md"
@@ -51,8 +51,8 @@ on:
       - "Duiyi.xcodeproj/**"
       - "tools/**"
       - "Makefile"
-      - ".apm/test-baseline.json"
-      - ".apm/evidence/**"
+      - "harness/test-baseline.json"
+      - "harness/evidence/**"
       - ".dsh/**"
       - "references/**"
       - "HARNESS.md"
@@ -120,6 +120,6 @@ jobs:
           path: |
             ${{ runner.temp }}/duiyi-ci/**/*.xcresult
             ${{ runner.temp }}/duiyi-ci/Logs/**/*.log
-            .apm/runs/
+            harness/runs/
           if-no-files-found: ignore
           retention-days: 7

@@ -10,7 +10,7 @@ whenToUse: 长任务中断、收工、提交前、换 agent 或换会话、用�
 
 ## 动作（按序）
 
-1. 更新 active 计划（`.apm/plans/<topic>.md`，front matter + 正文）：
+1. 更新 active 计划（`harness/plans/<topic>.md`，front matter + 正文）：
    - `status`：active | done | blocked | archived；同一时刻只允许 1 个 active。
    - 进度：已完成项勾选；"已排除（勿重试）"写方案 / 失败原因 / 证据。
    - 验证证据表：命令 | 结果 | 环境 | 证据 id（每条"已完成"都要有）。
@@ -20,12 +20,12 @@ whenToUse: 长任务中断、收工、提交前、换 agent 或换会话、用�
 2. `make check-plan`：计划机检（front matter / 必填节 / 证据 / 未提交交叉比对）；红了先修计划，不改门禁。
 3. `make end`：verify-static + 计划检查 + git 状态 + 未验证项 + 提交前提醒。
 4. `make handoff`：输出交接摘要，粘贴给用户或下一棒；可 `PLAN=<path>` 指定。
-5. 完成（done）计划：front matter 改 `status: done` 并填 `submitted: <hash,...>`，移入 `.apm/plans/_archive/`（不存在则创建）。
+5. 完成（done）计划：front matter 改 `status: done` 并填 `submitted: <hash,...>`，移入 `harness/plans/_archive/`（不存在则创建）。
 
 ## 提交（仅当用户确认；未确认不提交）
 
 - 先问用户再 commit；提交信息用英文、跟随近 5 条非 merge commit 风格、不加 AI 署名。
-- 不提交 build/、`.apm/runs/`、trace、他人签名信息、本机 `AGENTS.local.md`。
+- 不提交 build/、`harness/runs/`、trace、他人签名信息、本机 `AGENTS.local.md`。
 - 提交后把 short hash 回填计划 `submitted`。
 
 ## 硬约束

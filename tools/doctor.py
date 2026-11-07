@@ -131,7 +131,7 @@ def check_mobilebuildmcp(report: Report) -> None:
         report.add(
             WARN,
             "mobilebuildmcp",
-            "不在 PATH；make device-test / .apm/tools/device-test.sh 不可用（真机验证结论=未验证）",
+            "不在 PATH；make device-test / harness/tools/device-test.sh 不可用（真机验证结论=未验证）",
         )
 
 

@@ -25,11 +25,11 @@
 #   所以把它固化成脚本：**没有预热就不允许进入 UI 阶段**。
 #
 # 用法：
-#   .apm/tools/device-test.sh                 # 预热 + 完整真机套件
-#   .apm/tools/device-test.sh ui              # 预热 + 只跑 UI 套件
-#   .apm/tools/device-test.sh unit            # 只跑单元套件（仍先预热）
-#   .apm/tools/device-test.sh one <Target/Class/test>   # 预热 + 单个用例
-#   APM_DEVICE=<CoreDevice ID> .apm/tools/device-test.sh # 换设备
+#   harness/tools/device-test.sh                 # 预热 + 完整真机套件
+#   harness/tools/device-test.sh ui              # 预热 + 只跑 UI 套件
+#   harness/tools/device-test.sh unit            # 只跑单元套件（仍先预热）
+#   harness/tools/device-test.sh one <Target/Class/test>   # 预热 + 单个用例
+#   APM_DEVICE=<CoreDevice ID> harness/tools/device-test.sh # 换设备
 #
 # 退出码：0 全绿；1 有失败；2 环境前置不满足（设备锁屏/未连接等）
 
@@ -42,7 +42,7 @@ DEVICE="${APM_DEVICE:-}"
 if [ -z "$DEVICE" ]; then
   echo "⛔ 缺少 APM_DEVICE（设备 CoreDevice ID）" >&2
   echo "   查看：xcrun devicectl list devices / mobilebuildmcp device list" >&2
-  echo "   本机值写 AGENTS.local.md，或：APM_DEVICE=<id> .apm/tools/device-test.sh" >&2
+  echo "   本机值写 AGENTS.local.md，或：APM_DEVICE=<id> harness/tools/device-test.sh" >&2
   exit 2
 fi
 # 预热目标：故意选一组又快又稳的纯单元测试，它的作用不是测覆盖率，而是把
@@ -137,8 +137,8 @@ PY
 }
 
 # ── 证据与 skip 断言（Phase 1）────────────────────────────────
-# 目标测试完成后自动写 .apm/evidence/；skipped 必须等于真机预期（基线读自
-# .apm/test-baseline.json）。证据写入失败不覆盖测试结论，但会显式告警。
+# 目标测试完成后自动写 harness/evidence/；skipped 必须等于真机预期（基线读自
+# harness/test-baseline.json）。证据写入失败不覆盖测试结论，但会显式告警。
 write_evidence() {
   local mode="$1" summary="$2"
   [ -s "$summary" ] || { echo "  （无测试摘要，跳过 evidence）"; return 0; }
@@ -154,7 +154,7 @@ claims = {"all": "device-tests-pass", "ui": "ui-tests-pass", "unit": "unit-tests
 claim = claims.get(mode)
 if claim is None:
     sys.exit(0)
-baseline = json.loads((root / ".apm/test-baseline.json").read_text(encoding="utf-8"))
+baseline = json.loads((root / "harness/test-baseline.json").read_text(encoding="utf-8"))
 summary = json.loads(summary_path.read_text(encoding="utf-8"))
 counts = summary.get("counts") or {}
 status = summary.get("status", "UNKNOWN")
@@ -175,7 +175,7 @@ verdict = "PASS" if (
 ) else "FAIL"
 draft = {
     "claim": claim,
-    "command": f".apm/tools/device-test.sh {mode}",
+    "command": f"harness/tools/device-test.sh {mode}",
     "environment": {
         "xcode": xcode,
         "simulator": None,
@@ -225,7 +225,7 @@ root, summary_path = Path(sys.argv[1]), Path(sys.argv[2])
 summary = json.loads(summary_path.read_text(encoding="utf-8"))
 counts = summary.get("counts") or {}
 skipped = int(counts.get("skipped", 0) or 0)
-baseline = json.loads((root / ".apm/test-baseline.json").read_text(encoding="utf-8"))
+baseline = json.loads((root / "harness/test-baseline.json").read_text(encoding="utf-8"))
 expected = int(baseline["expectedSkipped"]["device"])
 if skipped != expected:
     print(f"    ⛔ skipped={skipped} 与真机预期 {expected} 不符（skip 白名单漂移，按失败处理）")

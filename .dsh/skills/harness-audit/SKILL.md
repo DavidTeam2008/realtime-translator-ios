@@ -1,6 +1,6 @@
 ---
 name: harness-audit
-description: 对译 Duiyi 的 harness 月度/大改后自审：跑 make check-all、make doctor、make evidence、make verify-static，按 HARNESS.md 审计清单给五子系统打分并输出改进项；Phase 3 前人工执行、不自动判绿，结果写 .apm/reviews/ 并回写 issue。
+description: 对译 Duiyi 的 harness 月度/大改后自审：跑 make check-all、make doctor、make evidence、make verify-static，按 HARNESS.md 审计清单给五子系统打分并输出改进项；Phase 3 前人工执行、不自动判绿，结果写 harness/reviews/ 并回写 issue。
 whenToUse: 每月一次；改 AGENTS/嵌套 AGENTS/skills/tools/Makefile/CI/evidence 之后；用户问"harness 还健康吗/门禁还有效吗"。
 ---
 
@@ -15,7 +15,7 @@ whenToUse: 每月一次；改 AGENTS/嵌套 AGENTS/skills/tools/Makefile/CI/evid
 3. `make evidence`：证据可列、schema 校验（子命令语义见 `make help`）。
 4. `make verify-static`：必须 PASS，且无脚本语法 / 编译检查输出。
 5. 按 `HARNESS.md` 审计清单逐项打分；该文件由 Phase 1 交付，若不存在则用下方降级清单，每项写 PASS/WARN/FAIL + 证据（命令或文件）。
-6. 结论写入 `.apm/reviews/harness-YYYY-MM.md`；改进项转 `.apm/issues/`（带 missingGuide / missingSensor / action 字段）或计划下一步。
+6. 结论写入 `harness/reviews/harness-YYYY-MM.md`（目录按需创建）；改进项写计划下一步（带 missingGuide / missingSensor / action 字段）。
 
 ## 五子系统降级清单（HARNESS.md 缺失时）
 

@@ -35,7 +35,7 @@ make verify-static  # 再加证据 schema、脚本单测、语法检查，约 4.
 make build                  # 模拟器构建
 make test                   # 模拟器单元测试
 make test-ui                # 模拟器 UI 测试（语音用例按预期 skip）
-APM_DEVICE=<CoreDevice ID> .apm/tools/device-test.sh   # 真机完整套件（先预热 testmanagerd）
+APM_DEVICE=<CoreDevice ID> harness/tools/device-test.sh   # 真机完整套件（先预热 testmanagerd）
 ```
 
 设备 CoreDevice ID 用 `xcrun devicectl list devices` 或 `mobilebuildmcp device list` 查（本机值可写 `AGENTS.local.md`）；真机预热、`exit 74`、`Enable UI Automation` 密码弹窗等坑见 [`references/verification.md`](references/verification.md)。
@@ -51,12 +51,12 @@ APM_DEVICE=<CoreDevice ID> .apm/tools/device-test.sh   # 真机完整套件（�
 | 语音 / 翻译 / TTS / 音频 / 持久化 | 真机（`device-test.sh`），模拟器不能替代 |
 | 文档 / 规则 / 工具 | `make verify-static` |
 
-完成声明必须附：命令、退出码、环境、证据 ID（`.apm/evidence/`）。未运行就写“未验证”，不能把“环境跑不了”写成“代码通过”。
+完成声明必须附：命令、退出码、环境、证据 ID（`harness/evidence/`）。未运行就写“未验证”，不能把“环境跑不了”写成“代码通过”。
 
 ## 5. Agent 协作
 
 - 冷启动：`AGENTS.md`；动作卡：`.dsh/skills/`；
-- 跨会话任务：active 计划（`.apm/plans/`），用 `make resume` / `make end` / `make handoff`；
+- 跨会话任务：active 计划（`harness/plans/`），用 `make resume` / `make end` / `make handoff`；
 - 证据：`make evidence` 查看，`make verify-claim` 做 PASS / FAIL / UNVERIFIED 三值判定；
 - 变更分级见 [`references/workflow.md`](references/workflow.md)（L0 / L1 / L2），L2 先方案后执行。
 
@@ -64,13 +64,13 @@ APM_DEVICE=<CoreDevice ID> .apm/tools/device-test.sh   # 真机完整套件（�
 
 - 提交前跑 `make verify-static`；`make hooks-install` 装上 pre-push 钩子；
 - 一次提交只做一件事；提交信息用英文，跟随仓库近 5 条非 merge commit；不加 AI 署名；
-- 不提交：`build/`、xcuserdata、`.apm/runs/`、日志、签名/设备信息、本机绝对路径；
+- 不提交：`build/`、xcuserdata、`harness/runs/`、日志、签名/设备信息、本机绝对路径；
 - PR 请写清：变更、验证命令与结果、未验证项。
 
 ## 7. 已知限制
 
 - 模拟器不提供 `SpeechTranscriber`，语音链路必须在真机验收；不得 mock 能力检查来“修绿”；
-- 启动优化已暂停：200ms 目标经对照实验判定不可达（[`docs/17`](docs/17-startup-optimization-paused.md)、[`docs/18`](docs/18-startup-feasibility-verification.md)）；
+- 启动优化已暂停：200ms 目标经对照实验判定不可达（完整案例见 [`docs/case-startup-performance.md`](docs/case-startup-performance.md)）；
 - 免费开发者账号有自签名 App 数量上限（UI Test Runner 也占一个名额）。
 
 ## 8. 安全与隐私

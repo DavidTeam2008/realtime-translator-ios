@@ -2,7 +2,7 @@
 """文档自检：相对链接、代码围栏、docs 索引覆盖、公开文档白名单、token 预算。
 
 只扫当前事实源：根 README/AGENTS/HARNESS/CONTRIBUTING、docs/*.md、references/*.md、
-.apm/**/*.md；跳过 .apm/runs/ 与 _archive/。公开文档白名单与数量上限用于防止
+harness/**/*.md；跳过 harness/runs/ 与 _archive/。公开文档白名单与数量上限用于防止
 "删了又长回来"：新增/删除公开文档必须显式修改本文件。
 token 预算从 tools/rules-budget.json 读取，估算口径见 tools/token_estimate.py；
 每次运行都打印每个受控文件的已用/预算/余量。
@@ -19,7 +19,7 @@ from token_estimate import estimate_tokens
 
 ROOT = Path(__file__).resolve().parent.parent
 ROOT_DOCS = ("README.md", "AGENTS.md", "HARNESS.md", "CONTRIBUTING.md")
-# 公开 docs 白名单：第二批历史文档归档后，需同步缩短本集合并把上限降到 9。
+# 公开 docs 白名单：新增/删除公开文档必须显式修改本集合与数量上限。
 PUBLIC_DOCS = frozenset({
     "README.md",
     "AGENTS.md",
@@ -28,16 +28,9 @@ PUBLIC_DOCS = frozenset({
     "03-tech-choices.md",
     "04-roadmap.md",
     "decisions.md",
-    "14-device-test-iphone13.md",
-    "15-startup-optimization.md",
-    "16-startup-measurement-verification.md",
-    "17-startup-optimization-paused.md",
-    "18-startup-feasibility-verification.md",
-    "19-ended-translation-persistence-fix.md",
-    "20-ui-test-hittable-fix.md",
-    "21-cross-session-handoff.md",
+    "case-startup-performance.md",
 })
-PUBLIC_DOCS_BUDGET = 16
+PUBLIC_DOCS_BUDGET = 9
 ROOT_MD_ALLOWED = frozenset(ROOT_DOCS) | {"AGENTS.local.md", "CLAUDE.local.md"}
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 FENCE_RE = re.compile(r"^\s*```", re.M)
@@ -50,7 +43,7 @@ def targets() -> list[Path]:
     files = [ROOT / name for name in ROOT_DOCS]
     files += sorted((ROOT / "docs").glob("*.md"))
     files += sorted((ROOT / "references").glob("*.md"))
-    for path in sorted((ROOT / ".apm").rglob("*.md")):
+    for path in sorted((ROOT / "harness").rglob("*.md")):
         if "runs" in path.parts or "_archive" in path.parts:
             continue
         files.append(path)

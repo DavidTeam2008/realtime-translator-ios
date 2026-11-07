@@ -2,7 +2,7 @@
 
 > 目的：把「已验证 / 测试通过 / 真机通过 / 性能没退化」从**自由文本**变成**可被脚本反驳的对象**。
 > 规则：无 evidence 的「已验证」按**未验证**处理；`UNVERIFIED` 不是 `PASS`。
-> 事实源：schema 见 [schema.json](schema.json)，起稿见 [TEMPLATE.json](TEMPLATE.json)，测试基线见 [.apm/test-baseline.json](../test-baseline.json)。
+> 事实源：schema 见 [schema.json](schema.json)，起稿见 [TEMPLATE.json](TEMPLATE.json)，测试基线见 [harness/test-baseline.json](../test-baseline.json)。
 
 ## 1. 目录与入库策略
 
@@ -11,7 +11,7 @@
 | `schema.json` | draft-07 证据 schema（`tools/evidence.py` 实现其子集，无第三方依赖） | 是 |
 | `TEMPLATE.json` | 起稿模板；`id` 必须改成文件名 stem | 是 |
 | `<UTC 时间>Z-<claim>.json` | 每次验证 1 条摘要，1–3KB，不含大产物 | 是 |
-| 原始产物（xcresult / 日志 / trace） | 留在本机或 `.apm/runs/`（已 gitignore） | **否** |
+| 原始产物（xcresult / 日志 / trace） | 留在本机或 `harness/runs/`（已 gitignore） | **否** |
 
 不写本机绝对路径、设备 UDID/CoreDevice ID、密钥。机器本地事实写 `AGENTS.local.md`（gitignore）。
 **dirty 工作树生成的证据不能判 PASS**：正确顺序是 clean tree → 跑验证 → 生成证据 `/ 提交`；提交后证据里的 commit 变成新 HEAD 的祖先，仍可复核。
@@ -42,8 +42,8 @@
 真机与测量自动写（推荐）：
 
 ```bash
-make device-test          # 成功后自动写 .apm/evidence/<UTC>-device-tests-pass.json
-.apm/tools/measure-launch.sh 10
+make device-test          # 成功后自动写 harness/evidence/<UTC>-device-tests-pass.json
+harness/tools/measure-launch.sh 10
 ```
 
 其他验证手工写（示例，命令按实际改动替换）：
@@ -83,4 +83,4 @@ python3 tools/verify-claim.py --all          # = make verify-claim（缺省 --al
 
 - 提高撒谎成本 ≠ 绝对防伪：evidence JSON 可被伪造；但 commit 祖先校验、计数、xcresult/metrics 存在性、CI 复跑静态门禁会显著提高成本。
 - 行为质量（翻译/听写正确性、UI 手感）本目录无法自动判定；夹具 eval 就绪前，此类声明一律 UNVERIFIED。
-- `.apm/runs/` 保持 gitignore：入库的是摘要；xcresult/metrics 路径跨机器不可达时，verify-claim 正确地判 UNVERIFIED，而不是绿。
+- `harness/runs/` 保持 gitignore：入库的是摘要；xcresult/metrics 路径跨机器不可达时，verify-claim 正确地判 UNVERIFIED，而不是绿。

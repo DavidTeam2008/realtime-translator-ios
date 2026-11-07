@@ -108,7 +108,7 @@ class EvidenceToolTests(unittest.TestCase):
         return run([*cmd, "--root", str(self.repo)])
 
     def evidence_files(self) -> list[Path]:
-        directory = self.repo / ".apm" / "evidence"
+        directory = self.repo / "harness" / "evidence"
         return sorted(directory.glob("*.json")) if directory.is_dir() else []
 
     # ── write ─────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ class EvidenceToolTests(unittest.TestCase):
         self.assertIs(data["git"]["dirty"], False)
         self.assertEqual(data["verifier"], "tools/evidence.py@1")
         self.assertEqual(data["schemaVersion"], 1)
-        self.assertIn(f".apm/evidence/{files[0].name}", proc.stdout)
+        self.assertIn(f"harness/evidence/{files[0].name}", proc.stdout)
 
     def test_write_marks_dirty_worktree(self) -> None:
         (self.repo / "untracked.txt").write_text("x", encoding="utf-8")
@@ -171,7 +171,7 @@ class EvidenceToolTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 1)
         self.assertIn("git", proc.stderr)
-        self.assertFalse((plain / ".apm" / "evidence").exists())
+        self.assertFalse((plain / "harness" / "evidence").exists())
 
     def test_write_rejects_invalid_schema(self) -> None:
         data = draft()

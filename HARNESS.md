@@ -18,27 +18,25 @@
 
 **诚实边界**：静态门禁不能证明行为正确；evidence 只提高说谎成本、不绝对防伪（仍需独立审查）；profile/会话级能力（Agent Teams、worktree、MCP、hooks）不是仓库能强制的东西，见 §8。
 
-## 2. `.apm/` 是什么，为什么计划与证据放这里
+## 2. `harness/` 是什么，为什么计划与证据放这里
 
-**定义**：`.apm/` 是**项目自定义的 Agent 工作区目录**。它不是 App 运行时目录、不是构建产物，也**不是 DSH 框架要求**；目录名沿用 2026-09「启动性能自主闭环演练」的工作区（APM 的英文展开未在本仓库正式定义；按提交历史推断为启动性能测量 / Application Performance Monitoring），后来扩展为跨会话计划、证据、审查与工具的统一位置。
+**定义**：`harness/` 是**项目自定义的 Agent 工作区目录**。它不是 App 运行时目录、不是构建产物，也**不是 DSH 框架要求**。目录名来自 2026-09「启动性能自主闭环演练」的 APM 测量工作区，2026-11 更名并收敛为跨会话计划、证据与工具的统一位置；产品文档仍在 `docs/`。
 
 **为什么放这里**：
 
 1. **单一真源 + 可恢复**：与仓库一起版本化，换 agent / 换机器只靠仓库就能恢复任务与证据。
-2. **与产品文档分层**：`docs/` 写"当前规范与理由"；`.apm/` 写"某次任务的执行状态、证据与审查"。项目阶段与路线图写 `docs/04-roadmap.md`。
+2. **与产品文档分层**：`docs/` 写"当前规范与理由"；`harness/` 写"某次任务的执行状态、证据与审查"。项目阶段与路线图写 `docs/04-roadmap.md`。
 3. **体积可控**：原始测量/日志/trace 全部 gitignore，入库的只有摘要（JSON/Markdown）。
 
 | 子目录 | 职责 | 入库 |
 | --- | --- | --- |
-| `.apm/plans/` | 跨会话计划（唯一进度真源）；`_template.md`、`_archive/` | 是 |
-| `.apm/evidence/` | 可复核证据（schema、TEMPLATE、摘要 JSON） | 是（1–3KB/条） |
-| `.apm/reviews/` | 独立审查报告（结论与回应写回计划） | 是 |
-| `.apm/issues/` | 问题单（根因、证据、状态） | 是 |
-| `.apm/baseline/`、`report.md` | 性能口径与历史复盘 | 是（只读结论） |
-| `.apm/tools/` | 真机测试/启动测量脚本 | 是 |
-| `.apm/runs/`、日志/截图/trace | 原始测量产物 | **否**（gitignore，可由脚本重建） |
+| `harness/plans/` | 跨会话计划（唯一进度真源）；`_template.md` | 是 |
+| `harness/evidence/` | 可复核证据（schema、TEMPLATE、摘要 JSON） | 是（1–3KB/条） |
+| `harness/tools/` | 真机测试/启动测量脚本 | 是 |
+| `harness/test-baseline.json` | 测试计数与 skip 白名单基线 | 是 |
+| `harness/runs/`、日志/截图/trace | 原始测量产物 | **否**（gitignore，可由脚本重建） |
 
-`.apm/` 的目录级协议见 [`.apm/AGENTS.md`](.apm/AGENTS.md)；证据规范见 [`.apm/evidence/README.md`](.apm/evidence/README.md)。
+`harness/` 的目录级协议见 [`harness/AGENTS.md`](harness/AGENTS.md)；工作区索引见 [`harness/README.md`](harness/README.md)；证据规范见 [`harness/evidence/README.md`](harness/evidence/README.md)。
 
 ## 3. Guides / Sensors 矩阵
 
@@ -55,10 +53,10 @@
 | Sensor | `make check-harness` | 预算 / § 引用 / 嵌套 AGENTS / skills / 敏感路径 | 静态 |
 | Sensor | `make check-plan` | 计划状态机与必填字段 / 未提交改动 vs git | 静态 |
 | Sensor | `make verify-static` | 以上全部 + 证据 schema 校验 + harness 脚本单测 + 脚本语法 | 静态（约 3–5s） |
-| Sensor | [`.apm/evidence/`](.apm/evidence/README.md) + `tools/evidence.py` / `tools/verify-claim.py` | 证据摘要与三值判定 | 声明前 |
+| Sensor | [`harness/evidence/`](harness/evidence/README.md) + `tools/evidence.py` / `tools/verify-claim.py` | 证据摘要与三值判定 | 声明前 |
 | Sensor | [`.githooks/pre-push`](.githooks/pre-push) | push 前自动跑 `make verify-static` | 本地 git |
 | Sensor | [`.github/workflows/verify.yml`](.github/workflows/verify.yml) | CI：ubuntu 静态 + 可选 self-hosted macOS 单测 | 远程 |
-| Sensor | `.apm/tools/device-test.sh`、`measure-launch.sh` | 真机测试 / 启动测量（写 evidence） | 人工真机 |
+| Sensor | `harness/tools/device-test.sh`、`measure-launch.sh` | 真机测试 / 启动测量（写 evidence） | 人工真机 |
 | Sensor | `red-team` skill / 只读子 agent | L2 中并发·持久化·发布工程的独立审查 | 人工触发 |
 
 ## 4. 运行手册
@@ -79,7 +77,7 @@
 ## 5. 证据政策
 
 - **三值判定**：`PASS`(exit 0) / `FAIL`(exit 1) / `UNVERIFIED`(exit 2)；UNVERIFIED 不绿。
-- **摘要入库、原始不入库**：`.apm/evidence/*.json`（1–3KB/条）随仓库提交；xcresult、日志、截图、trace 不进库（可由命令重跑）。
+- **摘要入库、原始不入库**：`harness/evidence/*.json`（1–3KB/条）随仓库提交；xcresult、日志、截图、trace 不进库（可由命令重跑）。
 - **无 evidence id = 未验证**：完成声明必须能指向 evidence id / 可复核命令；Phase 0 之前的历史记录保留当时口径。
 - **测试类 claim**：`passed ≥` 基线 floor、`failed=0`、`skipped == expected`、xcresult 指纹存在，否则 UNVERIFIED；不得用旧结论当新验证。
 - **文档/架构 claim**：`verify-claim` 直接复跑对应静态门禁。
@@ -141,7 +139,7 @@ dsh plugin --profile <profile> add @deepseek-ai/dsh-experimental-tool-worktree
 
 ## 9. 月度 harness 审计清单
 
-每月或大改后按 §4 跑命令，逐项给 PASS/WARN/FAIL，输出 `.apm/reviews/harness-YYYY-MM.md`，失败模式回写 `.apm/issues/*.json`（Phase 3 前人工）。
+每月或大改后按 §4 跑命令，逐项给 PASS/WARN/FAIL，输出 `harness/reviews/harness-YYYY-MM.md`（目录按需创建），失败模式回写计划或改进项（Phase 3 前人工）。
 
 - **Instructions**：`AGENTS.md` ≤1600；6 个嵌套 AGENTS 存在且未膨胀；§ 引用命中目标标题；规则未在 references/docs 重复。
 - **State**：同一时间只有一个 active 计划；front matter 与证据四列完整；done 计划已归档；`make resume` 只靠仓库能答"下一步"。
@@ -158,3 +156,4 @@ dsh plugin --profile <profile> add @deepseek-ai/dsh-experimental-tool-worktree
 | 2026-11-05 | Phase 0：AGENTS 压缩+嵌套、静态门禁（arch/tests/harness）、计划状态机（resume/end/doctor）、单一真源清理（D1–D7） |
 | 2026-11-05 | Phase 1：evidence 三值判定、6 个 `.dsh/skills`、CI `verify.yml` + pre-push、HARNESS.md 初版、`AGENTS.local.md` 模板 |
 | 2026-11-07 | Phase 1 第一批：HANDOFF 拆分（CONTRIBUTING + docs/decisions）、LICENSE/README 重写、脱敏（Team/设备 ID/路径）、公开文档白名单门禁 |
+| 2026-11-07 | 第二阶段：历史文档蒸馏为案例并删除、原 APM 工作区更名 `harness/` 并瘦身、新增 `harness/README.md` |

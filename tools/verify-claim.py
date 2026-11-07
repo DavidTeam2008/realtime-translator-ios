@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """完成声明的三值判定：PASS(0) / FAIL(1) / UNVERIFIED(2)。
 
-输入：一条 evidence JSON 路径，或 `--all` 扫描 `.apm/evidence/*.json`。
+输入：一条 evidence JSON 路径，或 `--all` 扫描 `harness/evidence/*.json`。
 判定顺序：schema/语义 → git（HEAD 或其祖先、dirty=false）→ 按 claim 类型复核：
 
     unit-tests-pass    passed≥baseline.unit.floor；failed=0；skipped=0；
@@ -36,7 +36,7 @@ if str(TOOLS_DIR) not in sys.path:
 import evidence as evidence_tool  # noqa: E402
 
 DEFAULT_ROOT = Path(__file__).resolve().parent.parent
-BASELINE_REL = ".apm/test-baseline.json"
+BASELINE_REL = "harness/test-baseline.json"
 MIN_PERF_SAMPLES = 10
 MAX_PERF_CV_PERCENT = 10.0
 STATIC_TIMEOUT_SEC = 120
@@ -339,9 +339,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="完成声明三值判定：PASS(0) / FAIL(1) / UNVERIFIED(2)",
     )
     parser.add_argument("claim", nargs="?", help="evidence JSON 路径（省略时等价 --all）")
-    parser.add_argument("--all", action="store_true", help="校验 .apm/evidence/*.json 全部证据")
+    parser.add_argument("--all", action="store_true", help="校验 harness/evidence/*.json 全部证据")
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help="仓库根（默认脚本上级目录）")
-    parser.add_argument("--evidence-dir", type=Path, help="证据目录（默认 <root>/.apm/evidence）")
+    parser.add_argument("--evidence-dir", type=Path, help="证据目录（默认 <root>/harness/evidence）")
     return parser
 
 
@@ -353,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
         print_result(claim_id, verdict, reasons)
         return exit_code([verdict])
 
-    directory = Path(args.evidence_dir) if args.evidence_dir else root / ".apm" / "evidence"
+    directory = Path(args.evidence_dir) if args.evidence_dir else root / "harness" / "evidence"
     if not directory.is_dir():
         print_result("(none)", FAIL, [f"未验证的声明：缺少证据目录 {directory.name}"])
         return 1

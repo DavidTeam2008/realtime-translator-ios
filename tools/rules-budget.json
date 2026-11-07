@@ -9,7 +9,7 @@
   "nestedAgents": {
     "maxBytes": 8192,
     "files": [
-      ".apm/AGENTS.md",
+      "harness/AGENTS.md",
       "Duiyi/Services/AGENTS.md",
       "Duiyi/Features/AGENTS.md",
       "DuiyiTests/AGENTS.md",

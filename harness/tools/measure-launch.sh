@@ -6,8 +6,8 @@
 #   同测量命令、同样本量。手敲必然会漂移，脚本才能保证可比。
 #
 # 用法：
-#   .apm/tools/measure-launch.sh [次数] [输出文件]
-# 默认 5 次，输出 .apm/runs/<时间戳>/metrics.json
+#   harness/tools/measure-launch.sh [次数] [输出文件]
+# 默认 5 次，输出 harness/runs/<时间戳>/metrics.json
 
 set -euo pipefail
 
@@ -15,12 +15,12 @@ UDID="${APM_UDID:-}"
 if [ -z "$UDID" ]; then
   echo "⛔ 缺少 APM_UDID（硬件 UDID）" >&2
   echo "   查看：xcrun devicectl list devices" >&2
-  echo "   本机值写 AGENTS.local.md，或：APM_UDID=<udid> .apm/tools/measure-launch.sh" >&2
+  echo "   本机值写 AGENTS.local.md，或：APM_UDID=<udid> harness/tools/measure-launch.sh" >&2
   exit 2
 fi
 BID="${APM_BUNDLE_ID:-com.david.Duiyi}"
 N="${1:-5}"
-RUN_DIR="${2:-.apm/runs/$(date +%Y%m%d-%H%M%S)-launch}"
+RUN_DIR="${2:-harness/runs/$(date +%Y%m%d-%H%M%S)-launch}"
 APP="${APM_APP:-/tmp/duiyi-t1/Build/Products/Release-iphoneos/Duiyi.app}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -128,7 +128,7 @@ if len(slow) >= 2:
         "commit": commit,
         "device": "iPhone 13 (iPhone14,5) / iOS 26.7 / 真机",
         "build": "Release",
-        "command": ".apm/tools/measure-launch.sh",
+        "command": "harness/tools/measure-launch.sh",
         "method": "terminate + launch, idevicesyslog 抓 first-frame（延迟一个 runloop）",
         "stratify": f"按 pre-main 分层：fast_env ≤ {FAST_MAX}ms，slow_env > {FAST_MAX}ms",
     },
@@ -150,7 +150,7 @@ cv_all = (st.stdev(allff) / st.mean(allff) * 100) if n_valid > 1 else 0.0
 verdict = "PASS" if n_valid >= 10 and cv_all <= 10.0 else "UNVERIFIED"
 draft = {
     "claim": "perf-measurement",
-    "command": f".apm/tools/measure-launch.sh {requested} {run.as_posix()}",
+    "command": f"harness/tools/measure-launch.sh {requested} {run.as_posix()}",
     "environment": {
         "xcode": xcode,
         "simulator": None,
@@ -169,13 +169,13 @@ draft = {
     "verdict": verdict,
     "notes": (
         f"n={n_valid} CV={cv_all:.1f}%；PASS 仅表示测量可用且 context 一致，"
-        "A/B 显著性/最小效应属后续阶段；分层口径与 .apm/report.md 的历史结论存在差异（已知项）"
+        "A/B 显著性/最小效应属后续阶段；分层口径与 docs/case-startup-performance.md 的结论存在差异（已知项）"
     ),
 }
 (run / "evidence-draft.json").write_text(json.dumps(draft, ensure_ascii=False), encoding="utf-8")
 PY
 
-# Phase 1：写 evidence 摘要（原始产物仍在 .apm/runs/，不入库；本文件是 1–3KB 摘要）。
+# Phase 1：写 evidence 摘要（原始产物仍在 harness/runs/，不入库；本文件是 1–3KB 摘要）。
 DRAFT="$RUN_DIR/evidence-draft.json"
 if [ -f "$DRAFT" ] && [ -f "$EVIDENCE_TOOL" ]; then
   if EV_PATH=$(python3 "$EVIDENCE_TOOL" write --from-json "$DRAFT" --root "$ROOT"); then

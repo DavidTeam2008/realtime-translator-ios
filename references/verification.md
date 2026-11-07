@@ -32,7 +32,7 @@
 ## 计数与预期
 
 - 基线 **120 单元 + 3 UI**；真机 **123**。只增不减；改计数同步本文件。
-- 计数与 skip 由 `make check-tests`（`tools/check-test-baseline.py` + `.apm/test-baseline.json`）机检，删测试会红。
+- 计数与 skip 由 `make check-tests`（`tools/check-test-baseline.py` + `harness/test-baseline.json`）机检，删测试会红。
 - 模拟器 `testSimultaneousListeningPressure` skip（无 `SpeechTranscriber`）是预期，不要 mock。
 - 真机 UI 前必须预热 testmanagerd（脚本已强制）；iOS 15+ 还需过 `Enable UI Automation` 密码弹窗（见 `CONTRIBUTING.md`）。
 - 首次真机跑脚本自动生成 runner profile；provisioning 警告无害。
@@ -48,7 +48,7 @@
 ## 性能口径
 
 - `testColdLaunch` 0.31–0.33s 是 XCTest“到首页卡片可点”；`AppLaunchTracker` 240–280ms 是“进程创建 → 首帧提交”。不要混用。
-- 模拟器高估 pre-main 20 倍以上；单次样本不可用；n≥10，先读 `.apm/baseline/README.md` 和 `.apm/report.md`。
+- 模拟器高估 pre-main 20 倍以上；单次样本不可用；n≥10；完整口径与证据链见 [`../docs/case-startup-performance.md`](../docs/case-startup-performance.md)。
 
 ## 失败处理
 

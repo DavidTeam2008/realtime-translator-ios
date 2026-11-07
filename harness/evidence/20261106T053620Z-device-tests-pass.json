@@ -1,6 +1,6 @@
 {
   "claim": "device-tests-pass",
-  "command": ".apm/tools/device-test.sh all",
+  "command": "harness/tools/device-test.sh all",
   "environment": {
     "xcode": "Xcode 27.1",
     "simulator": null,

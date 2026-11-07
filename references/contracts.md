@@ -31,13 +31,13 @@ Features 只依赖 Domain + Services 协议；Domain 不 import SwiftUI/语音/�
 计数见 `references/verification.md`；新测试放 `DuiyiTests/`。既有断言零修改；方向性翻转须在计划/PR 说明。模拟器无 `SpeechTranscriber`，`testSimultaneousListeningPressure` skip 是预期；不得 mock 能力检查来“修绿”。
 ## 7. 启动优化已暂停
 
-200ms 不可达（`docs/18`：最小对照 p50 已 210ms）。不重启微优化；不用模拟器证明性能。`Order/App.order` 禁止手写；`ORDER_FILE` 只在 Release 生效，Debug 不开。
+200ms 不可达（案例 `docs/case-startup-performance.md`：最小对照 p50 已 210ms）。不重启微优化；不用模拟器证明性能。`Order/App.order` 禁止手写；`ORDER_FILE` 只在 Release 生效，Debug 不开。
 
 ## 8. 签名、导出与仓库卫生
 
 - Team / Bundle ID 属本地环境：clone 后按 `CONTRIBUTING.md` 设置自己的 Team 与唯一 Bundle ID；仓库内 `com.david.Duiyi` 只是示例，不提交别人的签名信息。
 - 导出（P1-2）：不要删全部 `Duiyi-*.txt`；文件名带 taskID + 时间戳。
-- 不提交 `build/`、`.apm/runs/`、trace、`xcuserdata/`。
+- 不提交 `build/`、`harness/runs/`、trace、`xcuserdata/`。
 
 ## 9. 未定决策
 

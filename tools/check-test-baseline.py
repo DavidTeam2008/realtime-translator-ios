@@ -3,7 +3,7 @@
 
 用法：
     python3 tools/check-test-baseline.py [--root PATH]
-默认 root 为脚本上级目录（仓库根）。数据源：`.apm/test-baseline.json`。
+默认 root 为脚本上级目录（仓库根）。数据源：`harness/test-baseline.json`。
 
 检查项：
     1. DuiyiTests/**/*.swift 的 `@Test` 出现次数 < unit.floor  -> exit 1
@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 DEFAULT_ROOT = Path(__file__).resolve().parent.parent
-BASELINE_REL = ".apm/test-baseline.json"
+BASELINE_REL = "harness/test-baseline.json"
 VERIFICATION_REL = "references/verification.md"
 SCHEMA_VERSION = 1
 

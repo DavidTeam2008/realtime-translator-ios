@@ -48,7 +48,7 @@ final class SimultaneousFlowTests: XCTestCase {
         if let reason = speechTranscriptionUnavailableReason {
             throw XCTSkip("""
                 跳过真实听写路径：\(reason)。
-                实测依据见 .apm/issues/ISSUE-UI-002-simulator-speech-unavailable.json：
+                实测依据见 references/verification.md（模拟器无 SpeechTranscriber）：
                 locale(en-US)=en_US、locale(zh-CN)=zh_CN 均受支持，SFSpeechRecognizer
                 .available/.onDevice 均为 true，但 SpeechTranscriber.isAvailable=false，
                 App 因此正确显示「这台设备暂时不能离线识别这段语言。」。

@@ -1,7 +1,7 @@
 # 01 产品设计（当前实现）
 
 > 本文描述**当前代码实际提供的产品行为**，不是早期设计稿。
-> 交互原型在 [`../prototype/`](../prototype/)，只作为视觉/布局参考；与本文冲突时以代码为准。
+> 界面截图见 [`images/`](images/)；与本文冲突时以代码为准。
 > 架构见 [`02-architecture.md`](02-architecture.md)，选型见 [`03-tech-choices.md`](03-tech-choices.md)。
 
 产品名：**对译 Duiyi**

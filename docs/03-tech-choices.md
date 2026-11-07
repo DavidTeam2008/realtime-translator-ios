@@ -206,7 +206,7 @@
 
 - 单元：Swift Testing，120 个；协议注入使 VM 可用假引擎/假 store/假合成器。
 - UI：XCUITest，3 个；模拟器无 `SpeechTranscriber` 时语音用例 skip 是正确行为。
-- 真机：语音/翻译/TTS/持久化必须真机验证；统一走 `.apm/tools/device-test.sh`（先预热 testmanagerd）。
+- 真机：语音/翻译/TTS/持久化必须真机验证；统一走 `harness/tools/device-test.sh`（先预热 testmanagerd）。
 - 启动优化：已暂停。`AppLaunchTracker` + `EarlyLaunchMark` 保留口径；`Order/App.order` 是 Release 二进制重排生成物，禁止手写，收益在当前包体下不可测量。
 
 ---

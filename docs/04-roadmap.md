@@ -10,9 +10,9 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 启动优化 | 已暂停；200 ms 目标判定不可达，见 [`17`](17-startup-optimization-paused.md)、[`18`](18-startup-feasibility-verification.md) |
-| 已结束任务译文回填 | 已修复，见 [`19`](19-ended-translation-persistence-fix.md) |
-| UI 测试“存在但不可点击” | 已闭环，见 [`20`](20-ui-test-hittable-fix.md) |
+| 启动优化 | 已暂停；200 ms 目标判定不可达，见 [`case-startup-performance.md`](case-startup-performance.md) |
+| 已结束任务译文回填 | 已修复（历史修复记录见 git 历史） |
+| UI 测试“存在但不可点击” | 已闭环（结论并入 [`../references/verification.md`](../references/verification.md)） |
 | 文档整理 | 2026-11-02 合并 01–13 为 01–04；05–13 已退休 |
 | 死代码清理 | 2026-11-02 删除未引用函数/常量/本地化键（见 §5） |
 | 测试基线 | 120 单元 + 3 UI = 真机 123；只增不减 |

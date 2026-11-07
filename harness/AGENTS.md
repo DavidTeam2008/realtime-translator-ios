@@ -1,15 +1,15 @@
-# AGENTS.md · .apm
+# AGENTS.md · harness
 
 > 触发：读写计划、验证证据、问题单、独立审查或基准数据前先读本页。
-> 本页只写 `.apm/` 的增量协议；分级与红队细则见 [`references/workflow.md`](../references/workflow.md)，项目入口见根 [`AGENTS.md`](../AGENTS.md)。
+> 本页只写 `harness/` 的增量协议；分级与红队细则见 [`references/workflow.md`](../references/workflow.md)，项目入口见根 [`AGENTS.md`](../AGENTS.md)。
 
 ## 1. 目录职责
 
 - `plans/`：跨会话计划的唯一进度真源；`_template.md` 是起稿模板。
-- `reviews/`：独立只读审查报告；结论与作者回应写入对应计划。
-- `issues/`：问题单（根因、证据、状态）。
-- `baseline/`、`report.md`：性能口径与历史复盘；先读结论再用数据。
+- `evidence/`：可复核证据（schema / 模板 / 摘要 JSON）；结论与证据 ID 写回计划。
 - `tools/`：真机/测量脚本（`device-test.sh`、`measure-launch.sh`）。
+- `test-baseline.json`：测试计数与 skip 白名单基线（供 `make check-tests`）。
+- `README.md`：工作区索引（与 `docs/` 的边界说明）。
 - `runs/`：原始测量产物，已 gitignore；入库的只有证据摘要与结论。
 
 ## 2. 计划状态机
@@ -24,7 +24,7 @@
 
 - 表固定四列：`命令 | 结果 | 环境 | 证据 ID`。
 - 结果写退出码/通过数/skip 数；环境写 Xcode/模拟器 runtime 或真机型号 + iOS。
-- 证据 ID：填 `.apm/evidence/` 的 evidence id（生成/校验见 `.apm/evidence/README.md`、`make evidence`、`make verify-claim`）；无 id 的“已验证”按未验证处理。
+- 证据 ID：填 `harness/evidence/` 的 evidence id（生成/校验见 `harness/evidence/README.md`、`make evidence`、`make verify-claim`）；无 id 的“已验证”按未验证处理。
 - 未运行/未验证单列；不得把“环境跑不了”写成“代码通过”。
 
 ## 4. 红队 / 独立审查协议
@@ -39,7 +39,7 @@
 
 - 计划/证据/审查不写本机绝对路径、设备 UDID、密钥/Token；只写仓库相对路径。
 - 机器本地事实（Team、设备 ID、本机路径）写 `AGENTS.local.md`（如存在；gitignore，不入库）。
-- 不把大产物、日志、截图入库；`.apm/runs/` 保持忽略。
+- 不把大产物、日志、截图入库；`harness/runs/` 保持忽略。
 
 ## 6. 交接与收尾
 

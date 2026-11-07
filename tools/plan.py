@@ -41,7 +41,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PLANS = ROOT / ".apm" / "plans"
+PLANS = ROOT / "harness" / "plans"
 TEMPLATE = PLANS / "_template.md"
 
 VALID_STATUS = ("active", "done", "blocked", "archived")
@@ -52,7 +52,7 @@ def set_root(value: str | Path) -> None:
     """切换仓库根（仅供 --root；Makefile 默认不传）。"""
     global ROOT, PLANS, TEMPLATE
     ROOT = Path(value).expanduser().resolve()
-    PLANS = ROOT / ".apm" / "plans"
+    PLANS = ROOT / "harness" / "plans"
     TEMPLATE = PLANS / "_template.md"
 
 
@@ -325,7 +325,7 @@ def read_plan(path: Path) -> Plan:
 
 
 def plan_files() -> list[Path]:
-    """`.apm/plans/*.md`，跳过模板与 `_archive/`（glob 本身不递归到子目录）。"""
+    """`harness/plans/*.md`，跳过模板与 `_archive/`（glob 本身不递归到子目录）。"""
     if not PLANS.is_dir():
         return []
     return sorted(p for p in PLANS.glob("*.md") if p.name != "_template.md")
@@ -914,7 +914,7 @@ def cmd_end() -> int:
         print(f"[5] 下一步：{next_item}")
         print()
     print("[6] 提交前提醒：按团队规则先询问用户再提交；提交信息跟随仓库英文风格；不加 AI 署名；")
-    print("    不提交 build/、.apm/runs/、trace、他人签名信息；提交后把 short hash 回填 plan front matter。")
+    print("    不提交 build/、harness/runs/、trace、他人签名信息；提交后把 short hash 回填 plan front matter。")
     print()
     verdict = "PASS" if errors == 0 else "FAIL"
     print(f"结论：{verdict}（{errors} error / {warnings} warn）")
