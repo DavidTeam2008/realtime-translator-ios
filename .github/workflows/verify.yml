@@ -21,7 +21,7 @@ name: verify
 #       文件系统/钥匙串仍需按不可信输入防护。
 #
 # 本地等价命令：`make verify-static`（推送前由 .githooks/pre-push 自动跑；SKIP_HARNESS_HOOK=1 可跳过）。
-# 注意：`.github/workflows/docs.yml` 仍保留（只查文档）；本 workflow 的 static job 覆盖全量静态门禁。
+# 说明：原 docs.yml 已合并进本 workflow（`**/*.md` 触发）；static job 覆盖全量静态门禁。
 
 on:
   push:
@@ -42,6 +42,9 @@ on:
       - "AGENTS.md"
       - "**/AGENTS.md"
       - "CONTRIBUTING.md"
+      - "README.md"
+      - "HARNESS.md"
+      - "**/*.md"
       - "docs/**"
   pull_request:
     paths:
@@ -60,6 +63,9 @@ on:
       - "AGENTS.md"
       - "**/AGENTS.md"
       - "CONTRIBUTING.md"
+      - "README.md"
+      - "HARNESS.md"
+      - "**/*.md"
       - "docs/**"
   workflow_dispatch:
 

@@ -1,5 +1,9 @@
 # 对译 Duiyi
 
+[![verify](https://github.com/DavidTeam2008/realtimeTranslatorOptimize/actions/workflows/verify.yml/badge.svg)](https://github.com/DavidTeam2008/realtimeTranslatorOptimize/actions/workflows/verify.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![iOS 26.4+](https://img.shields.io/badge/iOS-26.4%2B-lightgrey.svg)](#完整-ios-环境)
+
 > 端侧 iOS 实时翻译 App：麦克风 → 听写 → `Translation.framework` → 字幕/可选 TTS。
 > 同时它是一个**可审计的 Harness Engineering 实践样本**——看一个真实仓库如何让 AI Coding Agent 的"做完了"变得可验证。
 
