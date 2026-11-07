@@ -543,20 +543,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `CONTRIBUTING.md` / 首访整改 / 评分与事实更新
-- `HARNESS.md` / 首访整改 / 评分与事实更新
-- `README.md` / 首访整改 / 评分与事实更新
-- `docs/harness-scorecard.md` / 首访整改 / 评分与事实更新
-- `harness/plans/2026-11-06-benchmark-opensource.md` / 记录更新（本文件）
-- `tools/plan.py` / 工具/单测修改
-- `tools/tests/test_plan.py` / 工具/单测修改
-- `tools/tests/test_verify_claim.py` / 工具/单测修改
-- `tools/verify-claim.py` / 工具/单测修改
-- `harness/evidence/20261107T062204Z-unit-tests-pass.json` / 发布前重跑 evidence
-- `harness/evidence/20261107T062205Z-ui-tests-pass.json` / 发布前重跑 evidence
-- `harness/release-notes-v1.0.0.md` / v1.0.0 release notes（中英）
-- `harness/reviews/2026-11-07-external-first-visit.md` / 独立复核 / 外部首访报告
-- `harness/reviews/2026-11-07-phase2.5-reaudit.md` / 独立复核 / 外部首访报告
+- 无未提交改动（Phase 2.5 复核 / 首访整改 / 发布证据 / release notes 已提交）。
 
 ## 下一步
 
