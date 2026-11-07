@@ -544,11 +544,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `.github/ISSUE_TEMPLATE/bug_report.md` / 开源包装与计划记录
-- `.github/ISSUE_TEMPLATE/config.yml` / 开源包装与计划记录
-- `.github/ISSUE_TEMPLATE/feature_request.md` / 开源包装与计划记录
-- `.github/PULL_REQUEST_TEMPLATE.md` / 开源包装与计划记录
-- `harness/plans/2026-11-06-benchmark-opensource.md` / 开源包装与计划记录
+- 无未提交改动（issue/PR 模板与计划记录已提交）。
 
 ## 下一步
 
