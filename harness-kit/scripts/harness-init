@@ -3,7 +3,7 @@
 
 Usage:
     python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
-        [--name MyApp] [--language auto|python|swift|node|go|other] \
+        [--name MyApp] [--language auto|python|swift|node|go|android|other] \
         [--test-command "make test"] [--adapters dsh,claude-code,ci,githooks] \
         [--dry-run] [--force] [--no-check] [--backup-dir PATH] [--root KIT_ROOT]
 
@@ -57,6 +57,13 @@ def suggest_test_command(target: Path, language: str) -> tuple[str, str]:
         return "swift test", "no Package.swift; using swift test (adjust if this is an Xcode project)"
     if language == "go":
         return "go test ./...", "go default"
+    if language == "android":
+        return (
+            "./gradlew testDebugUnitTest",
+            "Gradle project detected; JDK 17-21 and the Gradle wrapper version are "
+            "pinned by the project; pass --test-command if ./gradlew lives elsewhere; "
+            "the kit does not run or parse test output",
+        )
     return "make test", "unknown language; edit commands.test in harness/config.json"
 
 
@@ -127,6 +134,13 @@ def detect_language(target: Path) -> str:
         return "node"
     if (target / "go.mod").exists():
         return "go"
+    # Android/Gradle before python: mixed repos commonly keep a python helper next
+    # to a Gradle build, and the Gradle build is the authoritative test entry.
+    if any(
+        (target / name).exists()
+        for name in ("settings.gradle", "settings.gradle.kts", "build.gradle", "build.gradle.kts")
+    ):
+        return "android"
     if any((target / name).exists() for name in ("pyproject.toml", "setup.py", "requirements.txt")):
         return "python"
     if any(target.glob("*.py")):
@@ -390,7 +404,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--language",
         default="auto",
-        choices=("auto", "python", "swift", "node", "go", "other"),
+        choices=("auto", "python", "swift", "node", "go", "android", "other"),
     )
     parser.add_argument("--test-command", help="command that runs the project test suite")
     parser.add_argument("--adapters", help="comma-separated adapters (or 'none'); default from profile")

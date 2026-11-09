@@ -141,6 +141,37 @@ class HarnessInitProfileTests(unittest.TestCase):
                 self.assertIn(expected, proc.stdout)
                 self.assertIn(note, proc.stdout)
 
+    def test_android_gradle_detection(self) -> None:
+        """--language auto: settings.gradle(.kts)/build.gradle(.kts) → android, checked before python."""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        for filename in ("settings.gradle", "settings.gradle.kts", "build.gradle", "build.gradle.kts"):
+            with self.subTest(entry=filename):
+                target = self.tmp / f"android-{filename.replace('.', '-')}"
+                target.mkdir()
+                (target / filename).write_text("rootProject.name = 'demo'\n", encoding="utf-8")
+                # mixed repo: a python helper must not win over the Gradle build
+                (target / "helper.py").write_text("print('x')\n", encoding="utf-8")
+                proc = self.invoke("--profile", "minimal", "--dry-run", target=target)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                output = proc.stdout
+                self.assertIn("language=android", output)
+                self.assertIn("test=./gradlew testDebugUnitTest", output)
+                self.assertIn("Gradle project detected", output)
+                self.assertIn("JDK 17-21", output)
+                self.assertIn("--test-command", output)
+                self.assertIn("does not run or parse test output", output)
+
+        # explicit --language android must be accepted even without Gradle files
+        explicit = self.tmp / "android-explicit"
+        explicit.mkdir()
+        proc = self.invoke(
+            "--profile", "minimal", "--language", "android", "--dry-run", target=explicit
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("language=android", proc.stdout)
+        self.assertIn("test=./gradlew testDebugUnitTest", proc.stdout)
+
     def test_gitignore_covers_common_build_artifacts(self) -> None:
         if not INIT.is_file():
             self.skipTest("harness-init is not present")

@@ -107,6 +107,97 @@ python3 tools/verify_claim.py --all
 
 **退出信号**：`verify_claim --all`：全 PASS → 0；任一 FAIL → 1；否则任一 UNVERIFIED → 2（exit 2 不是通过）。strict 档发布前用 `make release-check` 收口。
 
+## 存量项目（brownfield）改造：七步法
+
+> 五步法面向空白/新项目；已有文档、测试与构建历史的仓库用本七步法：先只读盘点，再接骨架、蒸馏文档、清卫生、接传感器，最后做冷启动首访验收。
+> 完成定义：七步完成 + `make check` exit 0 + 首访 5 问可答；strict 另需 `make release-check` 在 fresh 证据下 exit 0。
+> 通用回滚原则：动手前 `git status` 干净；逐批 `commit`；删除/移动用 `git mv` 保留历史；不干净不操作。
+
+### ① 只读盘点（不改目标）
+
+```bash
+python3 harness-kit/scripts/harness-adopt --target ../legacy-app
+python3 harness-kit/scripts/harness-adopt --target ../legacy-app --report ../harness-adoption-report.md
+python3 harness-kit/scripts/harness-adopt --target ../legacy-app --json   # 机器可读
+```
+
+- 关注：语言/构建探测、文档索引缺口与断链、被跟踪构建产物、绝对符号链接、本机路径、大文件。
+- 退出信号：exit 0 = 盘点完成；exit 1 = 用法错误/目标不存在。默认 0 写入（只有 `--report` 写你指定文件）。
+- 回滚：删除报告文件即可。
+
+### ② 基线测试与证据
+
+```bash
+cd ../legacy-app && git status --short    # 必须干净
+<现有测试命令>                            # 记录命令 / 结果 / 环境
+```
+
+- 退出信号：现有测试能跑通；跑不通先修，或在计划里写“未验证 + 手动步骤”，不要带着坏基线改造。
+- 回滚：无写入；把基线记录进计划的「验证证据」表（后续改造前后可对比）。
+
+### ③ scaffold（`harness-init`，不碰既有文档）
+
+```bash
+python3 harness-kit/scripts/harness-init --profile standard --target ../legacy-app --dry-run
+python3 harness-kit/scripts/harness-init --profile standard --target ../legacy-app
+```
+
+- 约束：init 对已存在文件默认 `CONFLICT` 不覆盖；目标已有 `Makefile` 时写 `Makefile.harness`（不改原文件）。
+- init 后可生成改造计划草稿：`python3 harness-kit/scripts/harness-adopt --target ../legacy-app --write-plan`（输出 `<target>/harness/plans/<DATE>-adopt-harness.md`，已存在则拒绝覆盖；需 `harness/plans/` 已存在）。
+- 退出信号：0 = 生成并首次 `make check` 通过；1 = 用法/冲突；其他非 0 = 首次 check 失败（按提示修）。
+- 回滚：先读 dry-run 计划；失败时删除本次新增的未跟踪文件/目录，或 `git checkout -- .`（`--force` 会先备份）。
+
+### ④ 文档蒸馏（当前 docs 重写 + 原文归档）
+
+```bash
+mkdir -p docs/_archive
+git mv docs/old-design.md docs/_archive/old-design.md    # 原文留档，git 历史可查
+# 只保留现行文档并重写 docs/README.md 索引；归档区不参与 check_docs
+python3 tools/check_docs.py
+```
+
+- 规则：`docs/_archive/` 是归档区（`check_docs` 跳过 `_archive`）；索引只列现行文档；同一事实只留一个真源。
+- 退出信号：`check_docs.py` exit 0（链接/围栏/索引/白名单/预算全过）。
+- 回滚：`git mv` 反向 + 恢复索引行；按批 commit。
+
+### ⑤ 清洁批次（版本库卫生）
+
+```bash
+git ls-files | grep -E '(^|/)(build|dist|DerivedData|\.cache)/' || true   # 被跟踪构建产物
+git ls-files -s | awk '$1=="120000"'                                       # 符号链接
+git grep -nE '/(Users|home|Volumes)/|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-' || true   # 本机路径 / ID 样本
+```
+
+- 规则：逐批处理（死代码 → 构建产物 → 符号链接 → 本机路径），每批一个 commit，并补 `.gitignore`。
+- 退出信号：以上命令无残留，或全部记录在计划；`make check` 仍为 0。
+- 回滚：逐批 `git revert` / `git checkout`；不要一次性大清理。
+
+### ⑥ 宿主传感器（分层 / 卫生 / docmap / 负向注入）
+
+```bash
+make check && make verify-static
+python3 tools/check_docs.py && python3 tools/check_agents.py && python3 tools/check_plan.py check
+# 负向注入：删一条索引行 / 写错 § 号 / 造敏感串 / 超预算 → 确认对应 sensor 变红 → 恢复
+```
+
+- 退出信号：正向全 0，且负向注入时按预期非 0（每项记录「注入前 / 注入后 / 恢复后」exit）。
+- 回滚：`git checkout -- <file>` 恢复注入改动；负向注入必须在干净工作树上做。
+
+### ⑦ 冷启动首访验收
+
+- 让未参与改造的人（或新会话）只按 README → `docs/README.md` 走：回答 5 问（是什么 / 为什么值得看 / 怎么跑 / 怎么验证 / 怎么复制 harness），并跑 `make check`。
+- 退出信号：5 问可答、命令 exit 0；卡点列表写入计划的「未验证项 / 下一步」。
+- 回滚：只读验收，无代码回滚；卡点回写文档或开 issue。
+
+### 存量项目常见坑
+
+1. **双真源**：旧交接文档/设计稿与 docs 并存 → 先定唯一真源，其余归档并在原处留指针。
+2. **历史文档误当现状**：带日期的报告是当时口径，不改数字；现行结论重写进规范文档。
+3. **构建缓存入库**：`build/`、`DerivedData/`、`.cache/` 被跟踪会让证据写入因 dirty tree 失败；先出库 + `.gitignore`。
+4. **本机路径泄漏**：home 目录路径、设备 ID、Team 不要入库；`check_agents.py` 扫到即清，不要加白名单绕过。
+5. **升级路径未验证**：minimal→standard→strict 再 init 是 CONFLICT + 人工合并，SPEC 未定义专用迁移命令（未验证）。
+6. **profile 选择**：存量仓库优先 `standard`（计划 + 证据 + CI）；`minimal` 只适合先立规则，`strict` 等适配器/红队有真实需求再加。
+
 ## 常见坑
 
 1. **占位符未替换**：渲染后残留 `{{...}}` 会让门禁或后续工具失败——第 4 步用 `grep -rn "{{"` 兜底。

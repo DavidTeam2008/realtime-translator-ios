@@ -12,6 +12,7 @@
     { "src": "core/templates/harness/test-baseline.json.template", "dst": "harness/test-baseline.json", "render": true, "onConflict": "fail" },
     { "src": "core/tools/check_plan.py", "dst": "tools/check_plan.py", "render": false, "onConflict": "fail" },
     { "src": "core/tools/evidence.py", "dst": "tools/evidence.py", "render": false, "onConflict": "fail" },
+    { "src": "core/tools/evidence_from_junit.py", "dst": "tools/evidence_from_junit.py", "render": false, "onConflict": "fail" },
     { "src": "core/tools/verify_claim.py", "dst": "tools/verify_claim.py", "render": false, "onConflict": "fail" }
   ],
   "makefile": "core/templates/makefiles/Makefile.standard.template",

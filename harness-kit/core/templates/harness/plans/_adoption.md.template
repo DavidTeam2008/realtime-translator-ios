@@ -1,0 +1,71 @@
+---
+id: {{DATE}}-adoption
+status: active
+level: L2
+owner: <owner>
+updated: {{DATE}}
+scope:
+  allow:
+    - <本次改造允许改动的文件或目录>
+  deny: []
+acceptance:
+  - <可执行、可复核的验收判据>
+verify:
+  - make verify-static
+---
+
+# {{PROJECT_NAME}} · harness 改造计划（adoption）
+
+> 由 `scripts/harness-adopt --write-plan` 渲染的草稿（kit {{KIT_VERSION}}，生成于 {{DATE}}）；占位符在渲染时替换，其余为默认布局的字面路径。
+> 计划是跨会话任务的进度真源：中断 / 交接前更新，完成后归档。
+> 根指令见 [`../../AGENTS.md`](../../AGENTS.md)，流程见 [`../../references/workflow.md`](../../references/workflow.md)，证据格式见 [`../evidence/README.md`](../evidence/README.md)。
+
+## 盘点结论
+
+- 语言 / 构建：
+- 现有门禁（`make check` / CI / hooks）：
+- 文档规模与索引缺口：
+- 卫生风险（构建产物 / 绝对符号链接 / 本机路径）：
+- 建议 profile 与 test 命令：
+
+## 文档蒸馏映射
+
+| 原文档 | 去向（重写 / 归档 `docs/_archive/` / 删除） | 理由 |
+| --- | --- | --- |
+|  |  |  |
+
+> 归档到 `docs/_archive/` 后不再参与 `check_docs` 扫描（工具跳过 `_archive`）；索引只保留现行文档。
+
+## 清洁清单
+
+- [ ] 删除死代码 / 未引用资源（先确认无运行时引用）
+- [ ] 被跟踪的构建产物 / 缓存移出版本库并补 `.gitignore`
+- [ ] 绝对符号链接（mode `120000` 且 target 以 `/` 开头）改为相对路径或删除
+- [ ] 本机路径 / 设备 ID / 密钥串出库
+- [ ] 大文件（>5MiB）移出版本库或改为外部资产
+
+## 传感器接线
+
+| 传感器 | 命令 | 现状 | 目标 |
+| --- | --- | --- | --- |
+| 文档 / 指令门禁 | `python3 tools/check_docs.py`、`python3 tools/check_agents.py` |  | 0 |
+| 计划状态 | `python3 tools/check_plan.py check` |  | 0 |
+| 静态门禁总入口 | `make verify-static` |  | 0 |
+| 宿主卫生检查 | <项目自有的分层 / 卫生 / docmap 检查> |  | 0 |
+
+> 接线原则：先跑通现有命令，再把它们接入 `make check` / CI / pre-push；不要为通过门禁删检查。
+
+## 负向注入验收
+
+- [ ] 删除一条文档索引行 → `check_docs.py` 变红，恢复后变绿
+- [ ] 指令层违规（超预算 / 错 `§` 号 / 敏感串）→ `check_agents.py` 变红
+- [ ] 证据缺失或陈旧 → `verify_claim.py` 非 PASS（exit 2 / 1）
+- 记录每项一次「注入前 exit / 注入后 exit / 恢复后 exit」作为证据
+
+## 未验证项
+
+- 
+
+## 下一步
+
+1. 

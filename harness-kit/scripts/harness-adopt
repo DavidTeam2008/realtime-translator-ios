@@ -1,0 +1,892 @@
+#!/usr/bin/env python3
+"""harness-adopt: read-only inventory of an existing project before adopting harness-kit.
+
+Usage:
+    python3 harness-kit/scripts/harness-adopt --target ../myapp \
+        [--report REPORT.md] [--json] [--write-plan] [--root KIT_ROOT]
+
+The default mode is strictly read-only: it never modifies --target. It prints a
+Markdown inventory (overview / docs / hygiene / recommendations / next steps) to stdout.
+Writing is opt-in:
+  --report PATH   write the Markdown report to PATH (only that file is written)
+  --json          print machine-readable JSON to stdout instead of Markdown
+  --write-plan    render core/templates/harness/plans/_adoption.md.template into
+                  <target>/harness/plans/<UTC-date>-adopt-harness.md (requires that
+                  directory to exist; an existing plan is never overwritten)
+
+Contract: sibling conventions of harness-kit/SPEC.md §8 (init) and §9 (tests).
+Standard library only; no network; no third-party dependencies.
+
+Exit codes: 0 ok; 1 usage/validation/render/write error.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+DEFAULT_KIT_ROOT = Path(__file__).resolve().parent.parent
+PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
+LOCAL_PATH_RE = re.compile(r"/(?:Users|Volumes|home)/[^\s'\"`<>()]*")
+LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+FENCE_RE = re.compile(r"^\s*```")
+LARGE_FILE_BYTES = 5 * 1024 * 1024
+MAX_MARKDOWN_FILES = 300
+MAX_MARKDOWN_BYTES = 256 * 1024
+MAX_TEXT_SCAN_FILES = 500
+MAX_TEXT_SCAN_BYTES = 512 * 1024
+SAMPLE_LIMIT = 10
+WALK_FILE_LIMIT = 5000
+
+BUILD_DIRS = (
+    "build", "dist", "target", "node_modules", ".build", "DerivedData",
+    "coverage", ".next", "__pycache__", ".pytest_cache", ".mypy_cache", "out",
+)
+BUILD_SUFFIXES = (".pyc", ".o", ".obj", ".xcresult", ".ipa", ".apk", ".class", ".jar")
+# Legitimate tracked tooling files that live in build-like paths / end with build-like
+# suffixes: gradle & maven wrappers, their checksum sidecars, and the wrapper scripts.
+BUILD_ARTIFACT_ALLOWLIST = {
+    "gradle/wrapper/gradle-wrapper.jar",
+    ".mvn/wrapper/maven-wrapper.jar",
+    "gradlew",
+    "gradlew.bat",
+    "mvnw",
+    "mvnw.cmd",
+}
+BUILD_ARTIFACT_ALLOWED_BASENAMES = {"gradlew", "gradlew.bat", "mvnw", "mvnw.cmd"}
+BUILD_ARTIFACT_ALLOWED_SUFFIXES = ("gradle-wrapper.jar", "maven-wrapper.jar", ".sha256")
+BINARY_SUFFIXES = (
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".pdf", ".zip", ".gz",
+    ".tar", ".jar", ".class", ".o", ".a", ".so", ".dylib", ".bin", ".exe",
+    ".xcresult", ".ipa", ".apk", ".mp3", ".mp4", ".mov", ".ttf", ".woff",
+)
+STALE_MARKERS = (
+    # Chinese markers seen in long-lived repos; keep English markers too
+    "已废弃", "过期", "待清理", "写于实现之前", "已被推翻", "待真机验证", "尚未编译",
+    "deprecated", "outdated", "stale", "TODO: remove",
+)
+GITIGNORE_EXPECTED = (
+    ".DS_Store", "__pycache__/", "*.pyc", "node_modules/", ".build/", "build/",
+    "dist/", "DerivedData/", "*.xcresult", ".env", "coverage/", ".venv/",
+)
+GATE_FILES = (
+    "AGENTS.md", "HARNESS.md", "CONTRIBUTING.md", "Makefile", "Makefile.harness",
+    "harness/config.json", "docs/README.md",
+    "tools/check_docs.py", "tools/check_agents.py", "tools/check_plan.py",
+    "tools/verify_claim.py", "tools/doctor.py",
+    ".github/workflows/verify.yml", ".githooks/pre-push",
+)
+LANGUAGE_MARKERS = (
+    ("swift", ("Package.swift", "*.xcodeproj")),
+    ("android", ("build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradlew", "gradle.properties")),
+    ("node", ("package.json",)),
+    ("python", ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "tox.ini")),
+    ("go", ("go.mod",)),
+)
+LANG_PRIORITY = ("swift", "android", "node", "python", "go")
+ANGLE_SUBS = (
+    ("<date>", "DATE"), ("<DATE>", "DATE"), ("<YYYY-MM-DD>", "DATE"),
+    ("<status>", "STATUS"), ("<STATUS>", "STATUS"),
+    ("<owner>", "OWNER"), ("<topic>", "TOPIC"),
+    ("<level>", "LEVEL"), ("<LEVEL>", "LEVEL"),
+)
+
+
+class AdoptError(Exception):
+    """User-facing failure (exit 1)."""
+
+
+# ── small helpers ────────────────────────────────────────────────────────
+def read_text(path: Path, *, limit: int | None = None) -> str:
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return ""
+    if limit is not None:
+        data = data[:limit]
+    return data.decode("utf-8", errors="ignore")
+
+
+def run_git(target: Path, args: list[str], *, timeout: int = 30) -> tuple[int, str, str]:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(target), *args],
+            capture_output=True, text=True, timeout=timeout,
+        )
+        return proc.returncode, proc.stdout, proc.stderr
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return 127, "", str(exc)
+
+
+def is_probably_binary(path: Path) -> bool:
+    if path.suffix.lower() in BINARY_SUFFIXES:
+        return True
+    try:
+        with path.open("rb") as handle:
+            return b"\0" in handle.read(4096)
+    except OSError:
+        return True
+
+
+def mask_local_paths(text: str) -> str:
+    return LOCAL_PATH_RE.sub("/<local>/…", text)
+
+
+def sample(items: list[str], limit: int = SAMPLE_LIMIT) -> list[str]:
+    return items[:limit]
+
+
+# ── repository inspection ────────────────────────────────────────────────
+def inspect_repo(target: Path) -> dict:
+    """Return {"isRepo","branch","tracked","commits","dirtyEntries","symlinks"}.
+
+    symlinks: list of {"path","target","absolute"} for tracked symlinks (git mode 120000).
+    """
+    state = {
+        "isRepo": False,
+        "branch": None,
+        "tracked": [],
+        "commits": 0,
+        "dirtyEntries": [],
+        "symlinks": [],
+    }
+    code, out, _ = run_git(target, ["rev-parse", "--is-inside-work-tree"])
+    if code != 0 or out.strip() != "true":
+        return state
+    state["isRepo"] = True
+    code, out, _ = run_git(target, ["rev-parse", "--abbrev-ref", "HEAD"])
+    state["branch"] = out.strip() if code == 0 and out.strip() else None
+    code, out, _ = run_git(target, ["rev-list", "--count", "HEAD"])
+    try:
+        state["commits"] = int(out.strip()) if code == 0 and out.strip() else 0
+    except ValueError:
+        state["commits"] = 0
+    code, out, _ = run_git(target, ["ls-files", "-s", "-z"])
+    if code == 0:
+        tracked: list[str] = []
+        for record in out.split("\0"):
+            if not record:
+                continue
+            meta, _, path = record.partition("\t")
+            fields = meta.split()
+            if not path or len(fields) < 2:
+                continue
+            mode, blob = fields[0], fields[1]
+            tracked.append(path)
+            if mode == "120000":
+                target_code, target_out, _ = run_git(target, ["cat-file", "-p", blob])
+                link_target = target_out.strip() if target_code == 0 else ""
+                state["symlinks"].append({
+                    "path": path,
+                    "target": link_target,
+                    "absolute": link_target.startswith("/"),
+                })
+        state["tracked"] = tracked
+    code, out, _ = run_git(target, ["status", "--porcelain", "-z", "--untracked-files=all"])
+    if code == 0:
+        entries: list[str] = []
+        records = out.split("\0")
+        index = 0
+        while index < len(records):
+            record = records[index]
+            index += 1
+            if len(record) < 4:
+                continue
+            status, path = record[:2], record[3:]
+            if "R" in status or "C" in status:
+                index += 1
+            entries.append(f"{status.strip() or '??'} {path}")
+        state["dirtyEntries"] = entries
+    return state
+
+
+def walk_project(target: Path) -> list[str]:
+    """Fallback file list for non-git targets (bounded walk)."""
+    files: list[str] = []
+    for root, dirs, names in os.walk(target):
+        dirs[:] = sorted(dir for dir in dirs if dir != ".git")
+        for name in sorted(names):
+            path = Path(root) / name
+            try:
+                rel = path.relative_to(target).as_posix()
+            except ValueError:  # pragma: no cover - defensive
+                continue
+            files.append(rel)
+            if len(files) >= WALK_FILE_LIMIT:
+                return files
+    return files
+
+
+def filesystem_symlinks(target: Path) -> list[dict]:
+    links: list[dict] = []
+    for root, dirs, names in os.walk(target):
+        dirs[:] = sorted(dir for dir in dirs if dir != ".git")
+        for name in sorted(names + dirs):
+            path = Path(root) / name
+            if not path.is_symlink():
+                continue
+            try:
+                link_target = os.readlink(path)
+                rel = path.relative_to(target).as_posix()
+            except OSError:  # pragma: no cover - defensive
+                continue
+            links.append({
+                "path": rel,
+                "target": link_target,
+                "absolute": link_target.startswith("/"),
+            })
+    return links
+
+
+# ── detection ────────────────────────────────────────────────────────────
+def detect_languages(target: Path) -> tuple[list[str], list[str]]:
+    languages: list[str] = []
+    build_files: list[str] = []
+    for language, markers in LANGUAGE_MARKERS:
+        matched = False
+        for marker in markers:
+            if any(char in marker for char in "*?["):
+                hits = sorted(path.name for path in target.glob(marker))
+            else:
+                hits = [marker] if (target / marker).exists() else []
+            for hit in hits:
+                build_files.append(hit)
+                matched = True
+        if matched:
+            languages.append(language)
+    root_python = sorted(
+        path.name for path in target.glob("*.py") if path.is_file()
+    )
+    if root_python and "python" not in languages:
+        languages.append("python")
+        build_files.extend(root_python[:3])
+    ordered = sorted(languages, key=lambda name: LANG_PRIORITY.index(name) if name in LANG_PRIORITY else 99)
+    return ordered, sorted(set(build_files))
+
+
+def primary_language(languages: list[str]) -> str:
+    for language in LANG_PRIORITY:
+        if language in languages:
+            return language
+    return languages[0] if languages else "other"
+
+
+def suggest_test_command(target: Path, primary: str) -> str:
+    if primary == "python":
+        pyproject = read_text(target / "pyproject.toml", limit=64 * 1024)
+        if "pytest" in pyproject:
+            return "python3 -m pytest -q"
+        if (target / "tests").is_dir():
+            return "python3 -m unittest discover -s tests -q"
+        return "python3 -m unittest discover -q"
+    if primary == "node":
+        package = target / "package.json"
+        if package.is_file():
+            try:
+                data = json.loads(read_text(package))
+            except json.JSONDecodeError:
+                data = {}
+            scripts = data.get("scripts") if isinstance(data, dict) else None
+            if isinstance(scripts, dict) and str(scripts.get("test") or "").strip():
+                return "npm test"
+        return "node --test"
+    if primary == "swift":
+        if (target / "Package.swift").is_file():
+            return "swift test"
+        return "xcodebuild test  # add -scheme / -destination for this project"
+    if primary == "android":
+        # Keep this in sync with harness-init's android suggestion (C2 contract).
+        return "./gradlew testDebugUnitTest" if (target / "gradlew").is_file() else "gradle testDebugUnitTest"
+    if primary == "go":
+        return "go test ./..."
+    return "make test"
+
+
+def recommend_profile(docs_count: int, gates: dict, has_ci: bool, has_hooks: bool, has_tests: bool) -> tuple[str, str]:
+    score = 0
+    reasons: list[str] = []
+    if docs_count >= 5:
+        score += 1
+        reasons.append(f"docs 文档 {docs_count} 篇")
+    if docs_count >= 12:
+        score += 1
+        reasons.append("docs 规模较大")
+    if gates.get("AGENTS.md") or gates.get("HARNESS.md"):
+        score += 1
+        reasons.append("已有根指令/系统地图")
+    if has_ci:
+        score += 1
+        reasons.append("已有 CI workflow")
+    if has_hooks:
+        score += 1
+        reasons.append("已有 git hooks")
+    if has_tests:
+        score += 1
+        reasons.append("已探测到测试入口")
+    if score >= 4:
+        profile = "strict"
+    elif score >= 2:
+        profile = "standard"
+    else:
+        profile = "minimal"
+    rationale = f"启发式得分 {score}：" + ("、".join(reasons) if reasons else "未命中加强信号")
+    rationale += f" → 建议 profile={profile}（接入时可用 --profile 覆盖）"
+    return profile, rationale
+
+
+# ── findings ─────────────────────────────────────────────────────────────
+def scan_broken_links(target: Path, markdown_files: list[str]) -> list[str]:
+    broken: list[str] = []
+    for rel in markdown_files[:MAX_MARKDOWN_FILES]:
+        path = target / rel
+        if path.is_symlink() or not path.is_file() or is_probably_binary(path):
+            continue
+        text = read_text(path, limit=MAX_MARKDOWN_BYTES)
+        text = re.sub(r"```.*?```", "", text, flags=re.S)
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            for raw in LINK_RE.findall(line):
+                link = raw.strip()
+                if not link or link.startswith(("http://", "https://", "mailto:", "#", "{{", "<")):
+                    continue
+                if link.startswith("/"):  # site-absolute URL, not a repo path
+                    continue
+                local = link.split("#", 1)[0]
+                if not local:
+                    continue
+                if not (path.parent / local).exists():
+                    broken.append(f"{rel}:{line_number}: {link}")
+    return broken
+
+
+def scan_fences(target: Path, markdown_files: list[str]) -> list[str]:
+    odd: list[str] = []
+    for rel in markdown_files[:MAX_MARKDOWN_FILES]:
+        path = target / rel
+        if path.is_symlink() or not path.is_file() or is_probably_binary(path):
+            continue
+        text = read_text(path, limit=MAX_MARKDOWN_BYTES)
+        count = sum(1 for line in text.splitlines() if FENCE_RE.match(line))
+        if count % 2 == 1:
+            odd.append(f"{rel}（{count} 个 ``` 围栏）")
+    return odd
+
+
+def scan_stale_markers(target: Path, markdown_files: list[str]) -> list[str]:
+    hits: list[str] = []
+    for rel in markdown_files[:MAX_MARKDOWN_FILES]:
+        path = target / rel
+        if path.is_symlink() or not path.is_file() or is_probably_binary(path):
+            continue
+        text = read_text(path, limit=MAX_MARKDOWN_BYTES)
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            lowered = line.lower()
+            for marker in STALE_MARKERS:
+                if marker.lower() in lowered:
+                    hits.append(f"{rel}:{line_number}: {marker}")
+            if len(hits) >= SAMPLE_LIMIT * 3:
+                return hits
+    return hits
+
+
+def is_build_artifact(rel: str) -> bool:
+    if rel in BUILD_ARTIFACT_ALLOWLIST:
+        return False
+    basename = rel.rsplit("/", 1)[-1]
+    if basename in BUILD_ARTIFACT_ALLOWED_BASENAMES:
+        return False
+    if rel.lower().endswith(BUILD_ARTIFACT_ALLOWED_SUFFIXES):
+        return False
+    parts = rel.split("/")
+    if parts and parts[0] in BUILD_DIRS:
+        return True
+    return rel.lower().endswith(BUILD_SUFFIXES)
+
+
+def scan_local_paths(target: Path, tracked: list[str]) -> list[str]:
+    hits: list[str] = []
+    for rel in tracked[:MAX_TEXT_SCAN_FILES]:
+        path = target / rel
+        if not path.is_file() or path.is_symlink() or is_probably_binary(path):
+            continue
+        try:
+            if path.stat().st_size > MAX_TEXT_SCAN_BYTES:
+                continue
+        except OSError:  # pragma: no cover - defensive
+            continue
+        text = read_text(path, limit=MAX_TEXT_SCAN_BYTES)
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            if LOCAL_PATH_RE.search(line):
+                hits.append(f"{rel}:{line_number}: {mask_local_paths(line.strip())[:120]}")
+                if len(hits) >= SAMPLE_LIMIT * 3:
+                    return hits
+    return hits
+
+
+def scan_large_files(target: Path, tracked: list[str]) -> list[dict]:
+    large: list[dict] = []
+    for rel in tracked:
+        path = target / rel
+        if path.is_symlink() or not path.is_file():
+            continue
+        try:
+            size = path.stat().st_size
+        except OSError:  # pragma: no cover - defensive
+            continue
+        if size > LARGE_FILE_BYTES:
+            large.append({"path": rel, "bytes": size})
+    return sorted(large, key=lambda item: item["bytes"], reverse=True)
+
+
+def missing_gitignore_entries(target: Path) -> list[str]:
+    text = read_text(target / ".gitignore", limit=256 * 1024)
+    if not text.strip():
+        return list(GITIGNORE_EXPECTED)
+    return [entry for entry in GITIGNORE_EXPECTED if entry not in text]
+
+
+# ── inventory ────────────────────────────────────────────────────────────
+def collect_inventory(target: Path, kit_root: Path) -> dict:
+    version = read_text(kit_root / "VERSION").strip() or "unknown"
+    repo = inspect_repo(target)
+    tracked = list(repo["tracked"]) or walk_project(target)
+    tracked_set = set(tracked)
+
+    languages, build_files = detect_languages(target)
+    primary = primary_language(languages)
+    test_command = suggest_test_command(target, primary)
+
+    gates_present = {name: (target / name).exists() for name in GATE_FILES}
+    workflows = sorted(path.name for path in (target / ".github" / "workflows").glob("*.yml"))
+    workflows += sorted(path.name for path in (target / ".github" / "workflows").glob("*.yaml"))
+    has_ci = bool(workflows)
+    has_hooks = (target / ".githooks" / "pre-push").is_file()
+    has_tests = (target / "tests").is_dir() or any(
+        name in tracked_set for name in ("pytest.ini", "tox.ini")
+    ) or test_command != "make test"
+    profile, profile_rationale = recommend_profile(
+        docs_count=len([rel for rel in tracked if rel.startswith("docs/") and rel.lower().endswith(".md")]),
+        gates=gates_present,
+        has_ci=has_ci,
+        has_hooks=has_hooks,
+        has_tests=has_tests,
+    )
+
+    markdown_files = [rel for rel in tracked if rel.lower().endswith(".md")]
+    docs_files = [rel for rel in markdown_files if rel.startswith("docs/")]
+    docs_index = "docs/README.md" if "docs/README.md" in tracked_set else None
+    index_text = read_text(target / "docs" / "README.md", limit=MAX_MARKDOWN_BYTES) if docs_index else ""
+    unregistered: list[str] = []
+    for rel in docs_files:
+        if rel == docs_index:
+            continue
+        stem = Path(rel).stem
+        if Path(rel).name in index_text or stem in index_text:
+            continue
+        unregistered.append(rel)
+
+    hygiene_symlinks = repo["symlinks"] if repo["isRepo"] else filesystem_symlinks(target)
+    absolute_symlinks = [item for item in hygiene_symlinks if item["absolute"]]
+    build_artifacts = sorted(rel for rel in tracked if is_build_artifact(rel))
+    local_path_hits = scan_local_paths(target, tracked)
+    large_files = scan_large_files(target, tracked)
+    gitignore_missing = missing_gitignore_entries(target)
+
+    risks: list[dict] = []
+
+    def add_risk(risk_id: str, severity: str, detail: str) -> None:
+        risks.append({"id": risk_id, "severity": severity, "detail": detail})
+
+    worktree_dirty = len(repo["dirtyEntries"]) if repo["isRepo"] else 0
+    if build_artifacts:
+        add_risk("tracked-build-artifacts", "高", f"被跟踪构建产物 {len(build_artifacts)} 个（易污染仓库、放大 clone/冲突）")
+    if absolute_symlinks:
+        add_risk("absolute-symlinks", "高", f"绝对符号链接 {len(absolute_symlinks)} 个（换机器/CI 失效）")
+    if local_path_hits:
+        add_risk("local-paths", "中", f"本机绝对路径 {len(local_path_hits)} 处（公开/迁移前需脱敏）")
+    if large_files:
+        add_risk("large-files", "中", f">{LARGE_FILE_BYTES // (1024 * 1024)}MiB 被跟踪文件 {len(large_files)} 个")
+    broken_links = scan_broken_links(target, markdown_files)
+    if broken_links:
+        add_risk("broken-links", "中", f"Markdown 断链 {len(broken_links)} 处")
+    if docs_files and not docs_index:
+        add_risk("docs-index", "中", "docs/ 存在但缺 docs/README.md 索引")
+    if unregistered:
+        add_risk("unregistered-docs", "低", f"未登记到 docs/README.md 的文档 {len(unregistered)} 篇")
+    if not gates_present.get("AGENTS.md"):
+        add_risk("no-agents", "低", "缺根 AGENTS.md（init 会生成）")
+    if gitignore_missing:
+        add_risk("gitignore", "中", f".gitignore 缺常见项：{', '.join(gitignore_missing)}")
+    if worktree_dirty:
+        add_risk("dirty-worktree", "中", f"工作树有 {worktree_dirty} 处未提交改动（改造前建议先清理）")
+    if (target / "harness").is_dir():
+        add_risk("existing-harness", "低", "已存在 harness/ 目录（init 会逐文件做冲突检查）")
+
+    stale_markers = scan_stale_markers(target, markdown_files)
+    odd_fences = scan_fences(target, markdown_files)
+    root_markdown = [rel for rel in markdown_files if "/" not in rel]
+
+    next_steps = [
+        "审阅本报告（默认只读：未改动目标项目）",
+        f"运行 harness-init 接入（建议 --profile {profile}）："
+        f"`python3 harness-kit/scripts/harness-init --profile {profile} --target <target>`",
+        "先处理高风险项（被跟踪构建产物 / 绝对符号链接 / 本机路径）再提交",
+        "用 `--write-plan` 生成改造计划草稿，补目标、验收与 scope.allow",
+        "接入后运行 `make check` 与 `make verify-static` 复核",
+    ]
+
+    data: dict = {
+        "target": str(target),
+        "kitVersion": version,
+        "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "readOnly": True,
+        "overview": {
+            "projectName": target.name,
+            "git": {
+                "isRepo": repo["isRepo"],
+                "branch": repo["branch"],
+                "tracked": len(repo["tracked"]),
+                "commits": repo["commits"],
+                "dirty": worktree_dirty,
+                "statusSample": sample(list(repo["dirtyEntries"])),
+            },
+            "languages": languages,
+            "primaryLanguage": primary,
+            "buildFiles": build_files,
+            "existingGates": {
+                "present": sorted(name for name, exists in gates_present.items() if exists),
+                "missing": sorted(name for name, exists in gates_present.items() if not exists),
+                "workflows": workflows,
+            },
+        },
+        "docs": {
+            "count": len(docs_files),
+            "hasIndex": bool(docs_index),
+            "unregistered": unregistered,
+            "rootMarkdown": root_markdown,
+            "brokenLinks": broken_links,
+            "oddFences": odd_fences,
+            "staleMarkers": stale_markers,
+            "markdownTotal": len(markdown_files),
+        },
+        "hygiene": {
+            "trackedBuildArtifacts": build_artifacts,
+            "absoluteSymlinks": absolute_symlinks,
+            "symlinks": hygiene_symlinks,
+            "localPathHits": local_path_hits,
+            "largeTrackedFiles": large_files,
+            "gitignoreMissing": gitignore_missing,
+        },
+        "recommendation": {
+            "profile": profile,
+            "profileRationale": profile_rationale,
+            "testCommand": test_command,
+            "risks": risks,
+        },
+        "nextSteps": next_steps,
+        "writePlan": {"written": False, "path": None},
+    }
+    return data
+
+
+# ── Markdown report ──────────────────────────────────────────────────────
+def _bullet(items: list[str], *, empty: str = "（无）", limit: int = SAMPLE_LIMIT) -> list[str]:
+    if not items:
+        return [f"- {empty}"]
+    return [f"- {item}" for item in sample(items, limit)]
+
+
+def render_markdown(data: dict) -> str:
+    overview = data["overview"]
+    git_info = overview["git"]
+    docs = data["docs"]
+    hygiene = data["hygiene"]
+    recommendation = data["recommendation"]
+    lines: list[str] = [
+        f"# {overview['projectName']} · harness-kit 存量盘点",
+        "",
+        f"> 生成时间：{data['generatedAt']} ｜ kit 版本：{data['kitVersion']} ｜ 模式：只读"
+        "（未修改目标项目；报告不记录绝对路径）",
+        "",
+        "## 概览",
+        "",
+        "| 项 | 值 |",
+        "| --- | --- |",
+        f"| git 仓库 | {'是' if git_info['isRepo'] else '否'} |",
+        f"| 分支 | {git_info['branch'] or '（非 git 或无提交）'} |",
+        f"| 跟踪文件 | {git_info['tracked']} |",
+        f"| 提交数 | {git_info['commits']} |",
+        f"| 未提交改动 | {git_info['dirty']} |",
+        f"| 语言 | {', '.join(overview['languages']) or '未探测到'} |",
+        f"| 构建文件 | {', '.join(overview['buildFiles']) or '未探测到'} |",
+        "",
+        "既有门禁文件：",
+        "",
+        f"- 已存在：{', '.join(overview['existingGates']['present']) or '（无）'}",
+        f"- 缺少：{', '.join(overview['existingGates']['missing']) or '（无）'}",
+        "",
+        "## 文档盘点",
+        "",
+        f"- docs 数量：{docs['count']} 篇（Markdown 合计 {docs['markdownTotal']} 篇）",
+        f"- docs/README 索引：{'有' if docs['hasIndex'] else '缺失'}",
+        f"- 未登记文档（{len(docs['unregistered'])}）：",
+        *_indent(_bullet(docs["unregistered"], empty="（无）")),
+        f"- 根 markdown（{len(docs['rootMarkdown'])}）：",
+        *_indent(_bullet(docs["rootMarkdown"], empty="（无）")),
+        f"- 断链样本（{len(docs['brokenLinks'])}）：",
+        *_indent(_bullet(docs["brokenLinks"], empty="（无）")),
+        f"- 围栏奇数文件（{len(docs['oddFences'])}）：",
+        *_indent(_bullet(docs["oddFences"], empty="（无）")),
+        f"- 疑似过期标记（{len(docs['staleMarkers'])}）：",
+        *_indent(_bullet(docs["staleMarkers"], empty="（无）")),
+        "",
+        "## 卫生盘点",
+        "",
+        f"- 被跟踪构建产物（{len(hygiene['trackedBuildArtifacts'])}）：",
+        *_indent(_bullet(hygiene["trackedBuildArtifacts"], empty="（无）")),
+        f"- 绝对符号链接（{len(hygiene['absoluteSymlinks'])}）：",
+        *_indent(_bullet(
+            [f"{item['path']} → {item['target']}" for item in hygiene["absoluteSymlinks"]],
+            empty="（无）",
+        )),
+        f"- 本机路径样本（{len(hygiene['localPathHits'])}）：",
+        *_indent(_bullet(hygiene["localPathHits"], empty="（无）")),
+        f"- >{LARGE_FILE_BYTES // (1024 * 1024)}MiB 被跟踪文件（{len(hygiene['largeTrackedFiles'])}）：",
+        *_indent(_bullet(
+            [f"{item['path']}（{item['bytes']} bytes）" for item in hygiene["largeTrackedFiles"]],
+            empty="（无）",
+        )),
+        f"- .gitignore 缺失常见项（{len(hygiene['gitignoreMissing'])}）："
+        f"{', '.join(hygiene['gitignoreMissing']) or '（无）'}",
+        "",
+        "## 建议",
+        "",
+        f"- 建议 profile：**{recommendation['profile']}**",
+        f"- 判断理由：{recommendation['profileRationale']}",
+        f"- 建议 test 命令：`{recommendation['testCommand']}`",
+        f"- 风险清单（{len(recommendation['risks'])}）：",
+        *_indent([f"- [{item['severity']}] {item['detail']}" for item in recommendation["risks"]] or ["- （无）"]),
+        "",
+        "## 下一步",
+        "",
+        *[f"- [ ] {step}" for step in data["nextSteps"]],
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _indent(items: list[str]) -> list[str]:
+    return [f"  {item}" for item in items]
+
+
+# ── --write-plan ─────────────────────────────────────────────────────────
+def _findings_markdown(data: dict, *, redact: bool = True) -> str:
+    docs = data["docs"]
+    hygiene = data["hygiene"]
+    recommendation = data["recommendation"]
+    git_info = data["overview"]["git"]
+    lines = [
+        f"- git：{'仓库' if git_info['isRepo'] else '非仓库'}，"
+        f"{git_info['tracked']} 个跟踪文件，{git_info['dirty']} 处未提交",
+        f"- docs：{docs['count']} 篇，索引{'有' if docs['hasIndex'] else '缺失'}，未登记 {len(docs['unregistered'])} 篇",
+        f"- 断链 {len(docs['brokenLinks'])} 处；围栏奇数 {len(docs['oddFences'])} 个；疑似过期标记 {len(docs['staleMarkers'])} 处",
+        f"- 被跟踪构建产物 {len(hygiene['trackedBuildArtifacts'])} 个；绝对符号链接 {len(hygiene['absoluteSymlinks'])} 个",
+        f"- 本机路径样本 {len(hygiene['localPathHits'])} 处；"
+        f">{LARGE_FILE_BYTES // (1024 * 1024)}MiB 文件 {len(hygiene['largeTrackedFiles'])} 个",
+        f"- .gitignore 缺失项：{', '.join(hygiene['gitignoreMissing']) or '（无）'}",
+    ]
+    text = "\n".join(lines)
+    return mask_local_paths(text) if redact else text
+
+
+def _risks_markdown(data: dict, *, redact: bool = True) -> str:
+    risks = data["recommendation"]["risks"]
+    if not risks:
+        return "- （无）"
+    lines = [f"- [{item['severity']}] {item['detail']}" for item in risks]
+    text = "\n".join(lines)
+    return mask_local_paths(text) if redact else text
+
+
+def _next_steps_markdown(data: dict) -> str:
+    return "\n".join(f"- [ ] {step}" for step in data["nextSteps"])
+
+
+def placeholder_values(data: dict, report_ref: str) -> dict[str, str]:
+    docs = data["docs"]
+    hygiene = data["hygiene"]
+    recommendation = data["recommendation"]
+    overview = data["overview"]
+    git_info = overview["git"]
+    date = data["generatedAt"][:10]
+    summary = (
+        f"跟踪文件 {git_info['tracked']}；提交 {git_info['commits']}；"
+        f"文档 {docs['count']} 篇；未登记 {len(docs['unregistered'])}；"
+        f"断链 {len(docs['brokenLinks'])}；构建产物 {len(hygiene['trackedBuildArtifacts'])}；"
+        f"本机路径 {len(hygiene['localPathHits'])}"
+    )
+    findings = _findings_markdown(data)
+    risks = _risks_markdown(data)
+    next_steps = _next_steps_markdown(data)
+    values = {
+        "PROJECT_NAME": overview["projectName"],
+        "PROJECT": overview["projectName"],
+        "PROJECT_LANGUAGE": overview["primaryLanguage"],
+        "PRIMARY_LANGUAGE": overview["primaryLanguage"],
+        "LANGUAGES": ", ".join(overview["languages"]) or "unknown",
+        "TEST_COMMAND": recommendation["testCommand"],
+        "PROFILE": recommendation["profile"],
+        "KIT_VERSION": data["kitVersion"],
+        "DATE": date,
+        "YEAR": date[:4],
+        "TARGET": overview["projectName"],
+        "TARGET_NAME": overview["projectName"],
+        "TARGET_PATH": ".",
+        "REPORT_PATH": report_ref,
+        "REPORT": report_ref,
+        "SUMMARY": summary,
+        "FINDINGS": findings,
+        "RISKS": risks,
+        "NEXT_STEPS": next_steps,
+        "STATUS": "active",
+        "OWNER": "unassigned",
+        "TOPIC": "adopt-harness",
+        "LEVEL": "L2",
+        "DOCS_COUNT": str(docs["count"]),
+        "TRACKED_FILES": str(git_info["tracked"]),
+        "GIT_BRANCH": str(git_info["branch"] or "n/a"),
+        "DIRTY_COUNT": str(git_info["dirty"]),
+        "COMMITS": str(git_info["commits"]),
+        "BROKEN_LINKS": str(len(docs["brokenLinks"])),
+        "UNREGISTERED_DOCS": str(len(docs["unregistered"])),
+        "ROOT_MARKDOWN": str(len(docs["rootMarkdown"])),
+        "BUILD_ARTIFACTS": str(len(hygiene["trackedBuildArtifacts"])),
+        "ABSOLUTE_SYMLINKS": str(len(hygiene["absoluteSymlinks"])),
+        "LOCAL_PATH_HITS": str(len(hygiene["localPathHits"])),
+        "LARGE_FILES": str(len(hygiene["largeTrackedFiles"])),
+        "GITIGNORE_MISSING": ", ".join(hygiene["gitignoreMissing"]) or "none",
+        # Adoption-specific aliases (templates may use either naming style)
+        "ADOPTION_DATE": date,
+        "ADOPTION_PROFILE": recommendation["profile"],
+        "ADOPTION_SUMMARY": summary,
+        "ADOPTION_FINDINGS": findings,
+        "ADOPTION_RISKS": risks,
+        "ADOPTION_NEXT_STEPS": next_steps,
+    }
+    return values
+
+
+def render_adoption_plan(target: Path, kit_root: Path, data: dict, *, report_ref: str) -> dict:
+    plans_dir = target / "harness" / "plans"
+    if not plans_dir.is_dir():
+        raise AdoptError(
+            f"--write-plan requires an existing directory: {plans_dir} "
+            "(run harness-init first, or create it manually)"
+        )
+    template = kit_root / "core" / "templates" / "harness" / "plans" / "_adoption.md.template"
+    if not template.is_file():
+        raise AdoptError(
+            f"adoption plan template not found: {template} "
+            "(the kit is incomplete; update harness-kit and retry)"
+        )
+    text = template.read_text(encoding="utf-8")
+    values = placeholder_values(data, report_ref)
+    unknown = sorted({match.group(1) for match in PLACEHOLDER_RE.finditer(text) if match.group(1) not in values})
+    if unknown:
+        raise AdoptError(
+            "adoption template uses unsupported placeholders: "
+            + ", ".join("{{" + name + "}}" for name in unknown)
+            + " (update harness-adopt or the template so they stay in sync)"
+        )
+    rendered = PLACEHOLDER_RE.sub(lambda match: values[match.group(1)], text)
+    for token, key in ANGLE_SUBS:
+        rendered = rendered.replace(token, values.get(key, ""))
+    rendered = mask_local_paths(rendered)
+    if "{{" in rendered:
+        raise AdoptError("rendered adoption plan still contains unresolved {{...}} placeholders")
+    date = data["generatedAt"][:10]
+    output = plans_dir / f"{date}-adopt-harness.md"
+    if output.exists():
+        raise AdoptError(f"refusing to overwrite existing plan: {output}")
+    try:
+        output.write_text(rendered, encoding="utf-8")
+    except OSError as exc:
+        raise AdoptError(f"cannot write adoption plan: {exc}") from exc
+    return {"written": True, "path": str(output)}
+
+
+# ── CLI ──────────────────────────────────────────────────────────────────
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="harness-adopt",
+        description=(
+            "Read-only inventory of an existing project before adopting harness-kit "
+            "(Markdown report + optional JSON + optional adoption plan draft)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python3 harness-kit/scripts/harness-adopt --target ../myapp\n"
+            "  python3 harness-kit/scripts/harness-adopt --target ../myapp --report adopt-report.md\n"
+            "  python3 harness-kit/scripts/harness-adopt --target ../myapp --json\n"
+            "  python3 harness-kit/scripts/harness-adopt --target ../myapp --write-plan\n"
+        ),
+    )
+    parser.add_argument("--target", required=True, help="existing project directory to inventory (required)")
+    parser.add_argument("--report", help="write the Markdown report to this path (only that file is written)")
+    parser.add_argument("--json", action="store_true", help="print machine-readable JSON to stdout")
+    parser.add_argument(
+        "--write-plan",
+        action="store_true",
+        help="render the adoption plan template into <target>/harness/plans/ (requires that directory)",
+    )
+    parser.add_argument("--root", default=str(DEFAULT_KIT_ROOT), help="kit root (default: script parent parent)")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    kit_root = Path(args.root).expanduser().resolve()
+    target = Path(args.target).expanduser().resolve()
+    try:
+        if not target.is_dir():
+            raise AdoptError(f"target directory does not exist: {target}")
+        if not kit_root.is_dir():
+            raise AdoptError(f"kit root does not exist: {kit_root}")
+        data = collect_inventory(target, kit_root)
+        report_ref = "（未生成；可用 --report 生成）"
+        if args.report:
+            report_path = Path(args.report).expanduser()
+            try:
+                report_path.resolve().relative_to(target)
+                report_ref = report_path.resolve().relative_to(target).as_posix()
+            except ValueError:
+                report_ref = report_path.name
+        if args.write_plan:
+            data["writePlan"] = render_adoption_plan(target, kit_root, data, report_ref=report_ref)
+        markdown = render_markdown(data)
+        if args.report:
+            try:
+                Path(args.report).expanduser().write_text(markdown, encoding="utf-8")
+            except OSError as exc:
+                raise AdoptError(f"cannot write report: {exc}") from exc
+        if args.json:
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+        elif args.report:
+            print(f"[OK] report written: {args.report}")
+        else:
+            print(markdown)
+        if data["writePlan"]["written"] and not args.json:
+            print(f"[OK] adoption plan written: {data['writePlan']['path']}")
+        return 0
+    except AdoptError as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

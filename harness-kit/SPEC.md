@@ -26,7 +26,8 @@ harness-kit/
 │   │   ├── evidence.py
 │   │   ├── verify_claim.py
 │   │   ├── doctor.py
-│   │   └── adapters.py
+│   │   ├── adapters.py
+│   │   └── evidence_from_junit.py   # standard+：JUnit XML → evidence JSON
 │   └── templates/            # 渲染到目标项目的模板（{{PLACEHOLDER}}）
 │       ├── AGENTS.md.template
 │       ├── CONTRIBUTING.md.template
@@ -37,6 +38,7 @@ harness-kit/
 │       ├── references/{contracts,verification,workflow}.md.template
 │       ├── harness/{README,AGENTS}.md.template
 │       ├── harness/plans/_template.md
+│       ├── harness/plans/_adoption.md.template   # 仅供 harness-adopt --write-plan 渲染，不复制到宿主
 │       ├── harness/evidence/{README.md.template,schema.json,TEMPLATE.json}
 │       ├── harness/reviews/{README.md.template,_template.md}
 │       ├── harness/test-baseline.json.template
@@ -53,7 +55,8 @@ harness-kit/
 │   ├── standard.json
 │   └── strict.json
 ├── scripts/harness-init      # 可执行 Python3 脚手架（无扩展名）
-├── docs/playbook.md          # 五步改造法 + 常见坑
+├── scripts/harness-adopt     # kit 侧只读盘点 + 改造计划草稿（无扩展名）
+├── docs/playbook.md          # 五步改造法 + 存量项目七步法 + 常见坑
 └── tests/                    # kit 自身的 unittest（仅标准库）
 ```
 
@@ -71,6 +74,7 @@ harness-kit/
 │   ├── config.json                   # 目标项目配置（工具唯一读取源）
 │   ├── README.md, AGENTS.md
 │   ├── plans/_template.md
+│   ├── plans/_adoption.md            # 可选：harness-adopt --write-plan 生成的改造计划草稿
 │   ├── evidence/{schema.json,TEMPLATE.json,README.md}
 │   ├── test-baseline.json            # standard/strict
 │   └── reviews/…                     # strict
@@ -88,7 +92,7 @@ harness-kit/
 
 ```json
 {
-  "kitVersion": "0.2.0",
+  "kitVersion": "0.2.2",
   "project": { "name": "{{PROJECT_NAME}}", "language": "{{PROJECT_LANGUAGE}}" },
   "paths": {
     "docs": "docs",
@@ -134,7 +138,7 @@ harness-kit/
 - 缺失字段时脚本必须给出**可读错误**并 exit 1，不得静默使用默认值（`examples` 里的默认值仅用于模板生成）。
 - 路径一律相对目标项目根；不接受绝对路径。
 
-## 4. 脚本 CLI 契约（全部位于目标项目 `tools/`，`--root` 默认「脚本上级目录」）
+## 4. 脚本 CLI 契约（宿主 `tools/`；唯一例外 `scripts/harness-adopt` 属 kit 侧，见本节末）
 
 | 脚本 | 用法 | 输出/语义 |
 | --- | --- | --- |
@@ -146,8 +150,11 @@ harness-kit/
 | `verify_claim.py` | `python3 tools/verify_claim.py --all [--fresh] [--strict] [--root PATH]` | 三值：`CLAIM <id>: PASS|FAIL|UNVERIFIED — reason`；聚合 exit：任一 FAIL→1，否则任一 UNVERIFIED→2，全 PASS→0；`--fresh` 按 config.freshness 比较证据 commit 与工作树（evidence/plans/reviews 过程目录不计入）；`--strict` 时 STALE→UNVERIFIED；test-count 的产物要求由 `claim.requireArtifact`（默认 false）控制 |
 | `doctor.py` | `python3 tools/doctor.py [--root PATH]` | OK/WARN/FAIL/SKIP：python3、git 仓库、config.commands.test 可执行性、可选适配器；缺必需项 exit 2，否则 0 |
 | `adapters.py` | `python3 tools/adapters.py {sync\|check} [--root PATH]` | `.dsh/skills` 单源 → `.claude/skills` 生成/哈希比对；exit 1 |
+| `evidence_from_junit.py` | `python3 tools/evidence_from_junit.py --xml GLOB [--xml GLOB …] --claim NAME --command CMD [--environment KEY=VALUE …] [--notes TEXT] [--output PATH] [--root PATH]` | standard+：聚合 JUnit XML（`testsuites`/`testsuite`/`testcase`，统计 `failures`/`errors`/`skipped`/`time`）为 `evidence.py write --from-json` 可接受的 JSON（schemaVersion/claim/command/environment/result{status,passed,failed,skipped,durationSec}/verdict/verifier/notes）；`passed = tests − failures − errors − skipped`；`--xml` 缺失或解析失败 exit 2，缺 `--command` exit 2；`--output` 缺省 stdout |
 
 通用约定：脚本自行 `Path(__file__).resolve().parent.parent` 定位根，或 `--root` 覆盖；不要读取 kit 源目录；不写目标项目之外的文件（tempfile 除外）；不联网。
+
+kit 侧脚本（**不复制到宿主**）：`python3 harness-kit/scripts/harness-adopt --target PATH [--report PATH] [--json] [--write-plan] [--root KIT_ROOT]`。默认**只读盘点**（0 写入 target）；`--report` 写 Markdown 报告、`--json` 输出机器可读 JSON、`--write-plan` 渲染 `core/templates/harness/plans/_adoption.md.template` 到 `<target>/harness/plans/<DATE>-adopt-harness.md`（要求该目录已存在，否则 exit 1；模板缺失/未知占位符给可读错误；目标文件已存在则拒绝覆盖）。盘点内容：概览（git/语言/构建/既有门禁）、文档（索引缺口/断链/疑似过期）、卫生（被跟踪产物/绝对符号链接/本机路径/大文件）、建议 profile 与 test 命令、下一步清单。exit 0=盘点完成；1=用法错误、目标不存在或 `--write-plan` 前置不满足。
 
 空状态语义（新接入项目必须能一次通过）：`harness/plans/` 无计划、`harness/evidence/` 无证据、`docs/` 只有 README、`.dsh/skills/` 不存在，均视为 **OK（带提示）**，不得因此 FAIL。
 
@@ -163,14 +170,16 @@ harness-kit/
 | profile | files / tools | Makefile targets |
 | --- | --- | --- |
 | minimal | AGENTS + docs IA + 3 references + harness/{README,AGENTS,config} + `token_estimate` `check_docs` `check_agents` | `check`（docs+agents）、`verify-static`（=check） |
-| standard | minimal + plans/evidence/test-baseline + `check_agents` `check_plan` `evidence` `verify_claim` + HARNESS/CONTRIBUTING + githooks/CI（可选） | `check`（docs+agents+plan）、`verify-static`（check+check-evidence）、`verify-claim`、`plan TOPIC=` |
+| standard | minimal + plans/evidence/test-baseline + `check_agents` `check_plan` `evidence` `verify_claim` `evidence_from_junit` + HARNESS/CONTRIBUTING + githooks/CI（可选） | `check`（docs+agents+plan）、`verify-static`（check+check-evidence）、`verify-claim`、`plan TOPIC=` |
 | strict | standard + doctor/adapters + scorecard/reviews/red-team skill + adapters（可选） | `check`（含 adapters-check）、`verify-static`、`verify-claim`、`release-check`（verify-static + `--fresh --strict`）、`doctor`、`adapters-sync/check` |
 
 注意：`docs/README.md.template` 是 minimal/standard 共用的索引（只能列 minimal 存在的文件）；strict 用 `core/templates/docs/README.strict.md.template` 覆盖 `docs/README.md`，额外登记 `harness-scorecard.md`（profile 合并按 `dst` 覆盖）。
 
 ## 6. 模板占位符（渲染时替换；未知占位符必须报错而不是留空）
 
-`{{PROJECT_NAME}}` `{{PROJECT_LANGUAGE}}` `{{TEST_COMMAND}}` `{{CHECK_COMMAND}}` `{{VERIFY_COMMAND}}` `{{KIT_VERSION}}` `{{YEAR}}` `{{DOCS_DIR}}` `{{REFERENCES_DIR}}` `{{HARNESS_DIR}}` `{{ROOT_AGENTS}}` `{{DEFAULT_BRANCH}}`
+`{{PROJECT_NAME}}` `{{PROJECT_LANGUAGE}}` `{{TEST_COMMAND}}` `{{CHECK_COMMAND}}` `{{VERIFY_COMMAND}}` `{{KIT_VERSION}}` `{{YEAR}}` `{{DOCS_DIR}}` `{{REFERENCES_DIR}}` `{{HARNESS_DIR}}` `{{ROOT_AGENTS}}` `{{DEFAULT_BRANCH}}` `{{DATE}}`
+
+`{{DATE}}` 仅用于 `scripts/harness-adopt --write-plan` 渲染 `harness/plans/_adoption.md.template`（生成改造计划草稿）；其他模板不使用。
 
 渲染后不得残留 `{{`。
 
@@ -199,7 +208,7 @@ harness-kit/
 
 ```
 python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
-  [--name MyApp] [--language auto|python|swift|node|go|other] \
+  [--name MyApp] [--language auto|python|swift|node|go|android|other] \
   [--test-command "make test"] [--adapters dsh,claude-code,ci,githooks] \
   [--dry-run] [--force] [--no-check] [--backup-dir PATH] [--root KIT_ROOT]
 ```
@@ -207,7 +216,7 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
 行为：
 
 1. 校验 `--profile` 存在、manifest schema 合法、所有 `src` 存在、目标目录存在（否则报错）。
-2. 探测/推断：语言（`Package.swift` / `*.xcodeproj`→swift、`package.json`→node、`pyproject.toml|setup.py|requirements.txt|*.py`→python、`go.mod`→go，否则 other）；`--test-command` 缺省按语言/工具链推断并打印来源提示：node（有 `scripts.test`→`npm test`，否则 `node --test`）、swift（`Package.swift`→`swift test`；`*.xcodeproj`→提示必须用 `--test-command` 显式给 `xcodebuild test -scheme …`）、其他→`make test`。kit 不解析测试输出，计数由宿主写入 evidence。
+2. 探测/推断：语言（`settings.gradle|settings.gradle.kts|build.gradle|build.gradle.kts`→android（**优先判定**，避免混合仓被误判为 python）；`Package.swift` / `*.xcodeproj`→swift；`package.json`→node；`pyproject.toml|setup.py|requirements.txt|*.py`→python；`go.mod`→go；否则 other）；`--test-command` 缺省按语言/工具链推断并打印来源提示：android（`./gradlew testDebugUnitTest`；JDK 17–21 与 wrapper 版本由项目固定，wrapper 路径/NDK/多模块边界由项目自管，kit 不代跑、不解析输出）、node（有 `scripts.test`→`npm test`，否则 `node --test`）、swift（`Package.swift`→`swift test`；`*.xcodeproj`→提示必须用 `--test-command` 显式给 `xcodebuild test -scheme …`）、其他→`make test`。kit 不解析测试输出，计数由宿主写入 evidence（结构化 JUnit XML 可用 `tools/evidence_from_junit.py` 聚合后交给 `evidence.py`）。
 3. 冲突：目标已有同名文件 → 默认 `fail` 并列出；`--force` 时把被覆盖文件备份到 `<target>/.harness-init-backup/<UTC>/` 后写入。
 4. `--dry-run`：只打印 `CREATE / SKIP / CONFLICT / RENDER` 计划，不写文件、不跑 check。
    `.gitignore` 追加块包含通用构建产物（`node_modules/`、`.build/`、`.swiftpm/`、`__pycache__/`），保证测试后的 clean tree 可用于写证据。
@@ -219,8 +228,10 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
 
 - 全部 `unittest` + 标准库；命令行方式跑：`python3 -m unittest discover -s harness-kit/tests -q`（从仓库根）或 `cd harness-kit && python3 -m unittest discover -s tests -q`。
 - 必须覆盖：
-  - `test_kit_profiles.py`（Lead）：每个 profile 在 tmp 空白 git 仓 init 后：`make check` exit 0；standard/strict 的 `make verify-static` exit 0；dry-run 不写文件；冲突报错；`--force` 产生备份；无残留 `{{`。
-  - `test_no_duiyi_refs.py`（Lead）：`core/` `adapters/` `profiles/` `scripts/` 中不得出现 `Duiyi|duiyi|对译|TranslationSession|SwiftData|DuiyiTests`（仅 `harness-kit/README.md` 的来源一节允许一次）。
+  - `test_kit_profiles.py`（Lead）：每个 profile 在 tmp 空白 git 仓 init 后：`make check` exit 0；standard/strict 的 `make verify-static` exit 0；dry-run 不写文件；冲突报错；`--force` 产生备份；无残留 `{{`；Android 推断：tmp 放 `settings.gradle.kts` 时 `--dry-run` 推断 `language=android`、建议 `./gradlew testDebugUnitTest` 并打印 Gradle 边界提示。
+  - `test_kit_hygiene.py`（Lead）：`core/` `adapters/` `profiles/` `scripts/` 中不得出现 `Duiyi|duiyi|对译|TranslationSession|SwiftData|DuiyiTests`（仅 `harness-kit/README.md` 的来源一节允许一次）；kit 顶层文档相对链接可解析；`VERSION`/profiles 结构一致。
+  - `test_harness_adopt.py`（gates）：tmp git fixture（断链/未登记文档/根 `NOTES.md`/被跟踪构建产物/绝对符号链接/本机路径）上 `scripts/harness-adopt` 的报告命中、默认 0 写入、`--json` 键、`--write-plan` 在存在 `harness/plans/` 时渲染计划、非法 target exit 1；不依赖网络/Xcode。
+  - `test_evidence_junit.py`（gates）：JUnit XML 单/多 suite、`failures`/`errors`/`skipped` 计数、duration 聚合、malformed/missing exit 2、`--output` 必需键（`passed = tests − failures − errors − skipped`）。
   - `test_core_plan_evidence_claim.py`（state）：check_plan/evidence/verify_claim 的通过、失败、三值、freshness、done/submitted 负向。
   - `test_core_docs_agents_doctor.py`（gates）：check_docs/check_agents/doctor 的链接/围栏/预算/§ 引用/敏感串/exit code。
 - 测试禁止依赖本机 Xcode/真机/网络；临时目录用 `tempfile.TemporaryDirectory`。
