@@ -1,0 +1,28 @@
+{
+  "claim": "device-tests-pass",
+  "command": "harness/tools/device-test.sh all",
+  "environment": {
+    "xcode": "Xcode 27.1",
+    "simulator": null,
+    "device": "physical",
+    "build": "Debug"
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "passed": 123,
+    "failed": 0,
+    "skipped": 0,
+    "durationSec": 171.7,
+    "xcresultPath": "~/Library/Developer/MobileBuildMCP/workspaces/realtimeTranslatorOptimize-8df963897d87/result-bundles/test_device_2026-11-09T14-20-15-134Z_pid84104_cbb31087.xcresult"
+  },
+  "verdict": "PASS",
+  "notes": "mode=all；设备 ID 不写入证据；skipped 期望=0",
+  "schemaVersion": 1,
+  "git": {
+    "commit": "66f337275884",
+    "dirty": false
+  },
+  "createdAt": "2026-11-09T14:23:07Z",
+  "verifier": "tools/evidence.py@1",
+  "id": "20261109T142307Z-device-tests-pass"
+}

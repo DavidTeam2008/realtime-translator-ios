@@ -463,7 +463,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] 仓库改名：`DavidTeam2008/realtimeTranslatorOptimize` → **`realtime-translator-ios`**（2026-11-09，`gh` 重新登录为 classic token 后由 API 执行；remote/文档/kit 链接同步；API 301 与旧 URL `git ls-remote` 复核通过；Release/tag/star 保留）
 - [x] Phase 4 首访反馈整改（2026-11-09，按 README 实跑）：真机预热失败暴露两个问题——①测试 target 无 Team（脱敏预期，但脚本把真实原因吞掉）；②设备未信任开发者证书。已修：脚本打印 `diagnostics.errors` + `APM_TEAM` 传参 + 针对性修复提示；文档前置签名/信任两步
 - [x] 真机设备侧验证（2026-11-09）：签名/信任修好后 `device-test.sh unit` 在 iPhone 13 / iOS 27.0.1 上 **120/120 PASS**（证据 `20261109T133618Z-unit-tests-pass`）；UI 仍 UNVERIFIED（网络配对下 exit 74，需设备密码弹窗或 USB 准备 DeviceSupport）；证据生成须在干净工作树（dirty 判 FAIL）
-- [ ] Phase 4 剩余：人类非作者首访 1 名（AI 代理不计入）；真机 UI 需设备侧配合（密码弹窗/USB）
+- [x] 真机全套（2026-11-09，设备侧）：密码弹窗处理后 `device-test.sh all` → 预热 5/5 + 目标 **123/123 PASS**（failed=0 skipped=0，171.7s；干净工作树 `git.dirty=false`，commit `66f3372`；证据 `20261109T142307Z-device-tests-pass`）
+- [x] **Phase 4 收尾（2026-11-09）**：真机 UI/全套 PASS；人类非作者首访已完成（用户确认，反馈无阻塞；仓库内无该次首访的记录文件，按用户报告记录）
 - [x] Phase 5.1–5.3：SPEC/config schema/profiles/`harness-init`/core 脚本/模板/adapters/README/playbook + 66 个 kit 端到端测试
 - [x] Phase 5.4：外部试点（AI 代理、空白 Python 仓、standard）：接入成功、首次 check 一次 PASS、执行 ≈80s；3 个文档卡点已回写；报告 `harness/reviews/2026-11-07-kit-pilot.md`（真实项目未验证）
 - [x] Phase 5.5：独立模板仓已发布（<https://github.com/DavidTeam2008/harness-kit>，public、CI success、clone 69 tests OK）；本仓 `harness-kit/` 为同步源
@@ -534,17 +535,18 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 真机单元（2026-11-09，设备侧） | **PASS**：`APM_TEAM=… APM_DEVICE=… device-test.sh unit` → 预热 5/5 + 目标 120/120，failed=0 skipped=0，≈8.5s；干净工作树生成证据（git.dirty=false，commit 800db5c）；`verify-claim` PASS；CI run `42626863075` success | iPhone 13 / iOS 27.0.1（网络配对）；Xcode 27.1；mobilebuildmcp 2.7.1 | `harness/evidence/20261109T133618Z-unit-tests-pass.json` |
 | 真机 UI（2026-11-09，负向） | **UNVERIFIED**：`device-test.sh ui` → 预热通过、UI runner `Early unexpected exit ... code 74`（网络配对无法准备 DeviceSupport / 自动化密码弹窗）；脚本已改为失败不写证据（实测未生成 `*-pass` 文件） | 同上 | —（未验证，环境限制） |
+| 真机全套（2026-11-09，设备侧） | **PASS**：设备侧密码弹窗响应后 `device-test.sh all` → 预热 5/5 + 目标 123/123，failed=0 skipped=0，171.7s；干净工作树生成证据（`git.dirty=false`，commit `66f3372`）；UI exit 74 的结论被后续成功运行取代 | iPhone 13 / iOS 27.0.1（网络配对）；Xcode 27.1；mobilebuildmcp 2.7.1 | `harness/evidence/20261109T142307Z-device-tests-pass.json` |
 
 ## 未验证项
 
-- 首访：作者自测 4/5；Phase 4 由无上下文 AI 代理按公开 clone 复测 4/5；仍缺**人类**陌生人走查（AI 代理不计入最终“陌生人”达标），需用户招募 1 人。
+- 首访：作者自测 4/5；Phase 4 由无上下文 AI 代理按公开 clone 复测 4/5；**人类非作者首访已完成**（2026-11-09 用户确认、反馈无阻塞；仓库内无该次首访记录，仅用户报告）。
 - 独立复评为只读：未跑 xcodebuild/模拟器/真机/clean clone；3.6/5 与 24/35 为当前口径，不证明动态行为正确。
 - clean clone 已实测（Phase 3.1，PASS）；独立复评时的未提交状态已提交，clone 可复现。
 - 仓库改名已执行（2026-11-09）；历史档案（reviews/release-notes/evidence）内旧仓库名保留（GitHub 301 生效，不再单独改历史文档）。
 - Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，发布前补实测或标未验证。
 - 首次真实 PR / 分支保护（PR 强制 static）未验证：当前 PAT 受组织策略 403，无法用 API 配置；需仓库管理员在 GitHub Settings 设置或提供可用凭据。
 - GitHub Release / description/topics/social preview **已创建**（2026-11-09，用户操作，公开 API 复核）；`gh` PAT 仍受组织策略 403，后续仓库管理操作（改名/分支保护）仍只能由用户或换 PAT。
-- 真机：**单元已 fresh PASS**（`20261109T133618Z-unit-tests-pass`）；**UI/全套（123）仍 UNVERIFIED**——网络配对下 exit 74，需设备上响应 XCTest 密码弹窗或 USB 连接准备 DeviceSupport；旧 `device-tests-pass` 证据对 HEAD 已 STALE，`make release-check` 仍返回 2（预期）。
+- 真机：**单元与全套（123/123）均已 fresh PASS**（`20261109T133618Z-unit-tests-pass`、`20261109T142307Z-device-tests-pass`）；UI exit 74 仅为网络配对下的过程现象，设备侧响应密码弹窗后全套通过（2026-11-09）。
 - 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
 - 历史敏感信息/作者邮箱已用 `git filter-repo` 两轮清理（2026-11-07），本地与远端分支历史 0 命中；远端 unreachable 旧对象仍可按 SHA 访问（用户已接受现状，不再联系 GitHub Support）。
 - DSH hooks 能力随版本变化（0.2.1-rc.5 未打包）；模板按「门禁 + CI + 适配层」设计，不依赖 hooks 可用。
@@ -586,12 +588,14 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（真机单元证据已提交）。
+- harness/evidence/20261109T142307Z-device-tests-pass.json
+- harness/plans/2026-11-06-benchmark-opensource.md
 
 ## 下一步
 
-1. Phase 4 剩余（需用户/设备）：UI 真机需在手机上响应 XCTest 密码弹窗，或 USB 连接让 Xcode 准备 DeviceSupport，然后 `APM_TEAM=<TeamID> APM_DEVICE=<id> harness/tools/device-test.sh` 复跑（all=123）；另找 1 名人类非作者首访。
+1. Phase 4 已收尾（真机全套 PASS + 人类非作者首访完成），本计划主线（Phase 1–5）收尾。
 2. Phase 6（可选）：P0-1 并发 / P0-3 持久化行为测试，独立排期。
+3. 新方向（独立仓库，不在本计划 scope）：Android 版 `realtimeTranslatorAndroid` 作为 harness-kit 的**真实项目外部试点**接入；评估稿（现状盘点 + 方案 + 残留风险）已提交待确认，确认后在该仓开独立计划执行。
 
 ## 待确认
 
