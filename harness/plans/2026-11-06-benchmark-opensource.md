@@ -462,7 +462,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.7：模板仓维护机制（`make kit-publish` / `make kit-drift` + 镜像只读契约；kit 升 `0.2.0`、CHANGELOG/README/SPEC 同步；镜像 `main` `fcc08dc` + tag `v0.2.1`，镜像 CI run `42569790859` success，clone 后 69 tests OK）
 - [x] 仓库改名：`DavidTeam2008/realtimeTranslatorOptimize` → **`realtime-translator-ios`**（2026-11-09，`gh` 重新登录为 classic token 后由 API 执行；remote/文档/kit 链接同步；API 301 与旧 URL `git ls-remote` 复核通过；Release/tag/star 保留）
 - [x] Phase 4 首访反馈整改（2026-11-09，按 README 实跑）：真机预热失败暴露两个问题——①测试 target 无 Team（脱敏预期，但脚本把真实原因吞掉）；②设备未信任开发者证书。已修：脚本打印 `diagnostics.errors` + `APM_TEAM` 传参 + 针对性修复提示；文档前置签名/信任两步
-- [x] 真机设备侧验证（2026-11-09）：签名/信任修好后 `device-test.sh unit` 在 iPhone 13 上 **120/120 PASS**；UI 仍 UNVERIFIED（网络配对下 exit 74，需设备密码弹窗或 USB 准备 DeviceSupport）；证据生成须在干净工作树（dirty 判 FAIL）
+- [x] 真机设备侧验证（2026-11-09）：签名/信任修好后 `device-test.sh unit` 在 iPhone 13 / iOS 27.0.1 上 **120/120 PASS**（证据 `20261109T133618Z-unit-tests-pass`）；UI 仍 UNVERIFIED（网络配对下 exit 74，需设备密码弹窗或 USB 准备 DeviceSupport）；证据生成须在干净工作树（dirty 判 FAIL）
 - [ ] Phase 4 剩余：人类非作者首访 1 名（AI 代理不计入）；真机 UI 需设备侧配合（密码弹窗/USB）
 - [x] Phase 5.1–5.3：SPEC/config schema/profiles/`harness-init`/core 脚本/模板/adapters/README/playbook + 66 个 kit 端到端测试
 - [x] Phase 5.4：外部试点（AI 代理、空白 Python 仓、standard）：接入成功、首次 check 一次 PASS、执行 ≈80s；3 个文档卡点已回写；报告 `harness/reviews/2026-11-07-kit-pilot.md`（真实项目未验证）
@@ -532,6 +532,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 真机脚本诊断改进（2026-11-09） | **PASS（诊断层）**：无 `APM_TEAM` → 打印 `Signing ... requires a development team` 与修复提示；`APM_TEAM=…` 后安装启动推进到 `Developer App Certificate is not trusted`（20s），脚本给证书信任指引；`bash -n` + `make verify-static` PASS | 本机 Xcode 27.1 / mobilebuildmcp 2.7.1 | —（过程记录：真机诊断） |
 | 分支保护（2026-11-09） | **PASS**：`PUT /branches/main/protection` → `allow_force_pushes=false`、`allow_deletions=false`、`enforce_admins=true`（无必过检查/PR，直接 push 不受影响）；随后普通 push `9c39952..4e0b994` 成功，CI run `42623318875` **success** | GitHub API（classic token）+ 本机 git | —（外部记录：分支保护） |
 
+| 真机单元（2026-11-09，设备侧） | **PASS**：`APM_TEAM=… APM_DEVICE=… device-test.sh unit` → 预热 5/5 + 目标 120/120，failed=0 skipped=0，≈8.5s；干净工作树生成证据（git.dirty=false，commit 800db5c）；`verify-claim` PASS；CI run `42626863075` success | iPhone 13 / iOS 27.0.1（网络配对）；Xcode 27.1；mobilebuildmcp 2.7.1 | `harness/evidence/20261109T133618Z-unit-tests-pass.json` |
+| 真机 UI（2026-11-09，负向） | **UNVERIFIED**：`device-test.sh ui` → 预热通过、UI runner `Early unexpected exit ... code 74`（网络配对无法准备 DeviceSupport / 自动化密码弹窗）；脚本已改为失败不写证据（实测未生成 `*-pass` 文件） | 同上 | —（未验证，环境限制） |
+
 ## 未验证项
 
 - 首访：作者自测 4/5；Phase 4 由无上下文 AI 代理按公开 clone 复测 4/5；仍缺**人类**陌生人走查（AI 代理不计入最终“陌生人”达标），需用户招募 1 人。
@@ -541,7 +544,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，发布前补实测或标未验证。
 - 首次真实 PR / 分支保护（PR 强制 static）未验证：当前 PAT 受组织策略 403，无法用 API 配置；需仓库管理员在 GitHub Settings 设置或提供可用凭据。
 - GitHub Release / description/topics/social preview **已创建**（2026-11-09，用户操作，公开 API 复核）；`gh` PAT 仍受组织策略 403，后续仓库管理操作（改名/分支保护）仍只能由用户或换 PAT。
-- 真机未在脱敏/脚本改动后重跑：device evidence 生成于 2026-11-06，对 HEAD 已 STALE；2026-11-09 复跑停在设备侧「信任开发者 App」步骤（Team 已通过），信任后需重跑并写新证据；`make release-check` 仍会因 device UNVERIFIED 返回 2（预期，已记录）。
+- 真机：**单元已 fresh PASS**（`20261109T133618Z-unit-tests-pass`）；**UI/全套（123）仍 UNVERIFIED**——网络配对下 exit 74，需设备上响应 XCTest 密码弹窗或 USB 连接准备 DeviceSupport；旧 `device-tests-pass` 证据对 HEAD 已 STALE，`make release-check` 仍返回 2（预期）。
 - 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
 - 历史敏感信息/作者邮箱已用 `git filter-repo` 两轮清理（2026-11-07），本地与远端分支历史 0 命中；远端 unreachable 旧对象仍可按 SHA 访问（用户已接受现状，不再联系 GitHub Support）。
 - DSH hooks 能力随版本变化（0.2.1-rc.5 未打包）；模板按「门禁 + CI + 适配层」设计，不依赖 hooks 可用。
@@ -575,6 +578,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5 | 计划"未提交改动"与 git status 不一致（scope.allow 缺嵌套 AGENTS、目录通配解析问题） | 已修：补齐 allow + 改精确路径；`make check-plan` PASS | 2026-11-07 |
 | 6 | 作者邮箱从 git 历史移除（用户确认） | `git filter-repo --mailmap` 重写 48 commit；commit-map 混入首轮旧映射，改用「提交顺序 + subject 全等」index-map 回填 7 文件 / 16 引用并逐条校验；强推 `main` | 2026-11-07 |
 | 7 | Phase 2.5 P0 工具整改（3 个并行 agent：plan.py / check-harness / doctor） | 全部完成：plan.py +198/−47（14 用例）、check-harness +151/−33（12 用例）、doctor +146（20 用例）；Lead 集成、计划记录、负向验证 | 2026-11-07 |
+| 12 | 设备信任后复跑真机 + 取证 | 单元 120/120 PASS 并写设备证据（干净树，`verify-claim` PASS）；UI 仍 exit 74（网络配对限制）；首证因 dirty 工作树被判 FAIL → 改为「先提交再取证」；脚本改为失败不写证据（避免 `*-pass` 文件自相矛盾） | 2026-11-09 |
 | 11 | 用户按 README 走真机路径 + 开启分支保护 | 真机预热 6s/0 用例：脚本吞掉 `diagnostics.errors`，真实原因是测试 target 无 Team；已修脚本（打印原因+`APM_TEAM`+证书信任提示）与文档；分支保护已开（禁 force push/删除，普通 push 已实测通过） | 2026-11-09 |
 | 10 | 重登 gh + API 改名 | 组织策略「fine-grained token 有效期 ≤366 天」导致 403；用户重登为 classic token（`repo`/`workflow`）→ 改名成功、旧名 302/301 保留；同时确认 kit `v0.2.0` 发布链路可用 | 2026-11-09 |
 | 9 | 用户完成 Release + 仓库元数据；评估改名与双份 kit 维护 | 改名成本：仓库级 ≈15 分钟（4 处文档 + remote，GitHub 301），App 工程级不建议；kit 维护定为「上游唯一源 + 镜像只读」，已加 `kit-publish`/`kit-drift` 并升 0.2.0；API 改名 403 → 交用户 UI 执行 | 2026-11-09 |
@@ -582,11 +586,12 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（设备证据前先提交，稍后重跑取证）。
+- harness/evidence/20261109T133618Z-unit-tests-pass.json
+- harness/plans/2026-11-06-benchmark-opensource.md
 
 ## 下一步
 
-1. Phase 4 剩余（需用户）：设备上「设置 → 通用 → VPN 与设备管理 → 开发者 App → 信任」，然后 `APM_TEAM=<TeamID> APM_DEVICE=<id> harness/tools/device-test.sh` 复跑并写新 device evidence；另找 1 名人类非作者首访。
+1. Phase 4 剩余（需用户/设备）：UI 真机需在手机上响应 XCTest 密码弹窗，或 USB 连接让 Xcode 准备 DeviceSupport，然后 `APM_TEAM=<TeamID> APM_DEVICE=<id> harness/tools/device-test.sh` 复跑（all=123）；另找 1 名人类非作者首访。
 2. Phase 6（可选）：P0-1 并发 / P0-3 持久化行为测试，独立排期。
 
 ## 待确认
