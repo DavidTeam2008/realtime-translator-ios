@@ -595,21 +595,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness-kit/CHANGELOG.md
-- harness-kit/README.md
-- harness-kit/SPEC.md
-- harness-kit/VERSION
-- harness-kit/docs/playbook.md
-- harness-kit/profiles/standard.json
-- harness-kit/scripts/harness-init
-- harness-kit/tests/test_kit_profiles.py
-- harness-kit/core/templates/harness/plans/_adoption.md.template
-- harness-kit/core/tools/evidence_from_junit.py
-- harness-kit/scripts/harness-adopt
-- harness-kit/tests/test_evidence_junit.py
-- harness-kit/tests/test_harness_adopt.py
-- harness/reviews/2026-11-10-kit-android-adoption-pilot.md
-- harness/plans/2026-11-06-benchmark-opensource.md
+- 无未提交改动（kit v0.2.2 改动与 Android 只读试点报告已提交）。
 
 ## 下一步
 
