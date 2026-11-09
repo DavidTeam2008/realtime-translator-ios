@@ -582,9 +582,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- CONTRIBUTING.md
-- harness/tools/device-test.sh
-- harness/plans/2026-11-06-benchmark-opensource.md
+- 无未提交改动（设备证据前先提交，稍后重跑取证）。
 
 ## 下一步
 
