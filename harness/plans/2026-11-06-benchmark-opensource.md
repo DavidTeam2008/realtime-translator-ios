@@ -586,8 +586,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness/evidence/20261109T133618Z-unit-tests-pass.json
-- harness/plans/2026-11-06-benchmark-opensource.md
+- 无未提交改动（真机单元证据已提交）。
 
 ## 下一步
 
