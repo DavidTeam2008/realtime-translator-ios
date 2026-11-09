@@ -529,7 +529,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 外部走查·真机路径（2026-11-09，用户按 README） | `APM_DEVICE=… harness/tools/device-test.sh` → 预热 **FAILED passed=0 failed=0 skipped=0（6s）**；根因=测试 target 无 Team（仓库脱敏预期）+ 本地 pbxproj 只改了 App target（未提交，已还原）；脚本当时未打印 `diagnostics.errors` | 本机 Xcode 27.1 / iPhone 13 iOS 27.0.1（网络配对） | —（外部记录：用户走查） |
 | 真机脚本诊断改进（2026-11-09） | **PASS（诊断层）**：无 `APM_TEAM` → 打印 `Signing ... requires a development team` 与修复提示；`APM_TEAM=…` 后安装启动推进到 `Developer App Certificate is not trusted`（20s），脚本给证书信任指引；`bash -n` + `make verify-static` PASS | 本机 Xcode 27.1 / mobilebuildmcp 2.7.1 | —（过程记录：真机诊断） |
-| 分支保护（2026-11-09） | **PASS**：`PUT /branches/main/protection` → `allow_force_pushes=false`、`allow_deletions=false`、`enforce_admins=true`（无必过检查/PR，直接 push 不受影响）；随后普通 push 成功验证 | GitHub API（classic token）+ 本机 git | —（外部记录：分支保护） |
+| 分支保护（2026-11-09） | **PASS**：`PUT /branches/main/protection` → `allow_force_pushes=false`、`allow_deletions=false`、`enforce_admins=true`（无必过检查/PR，直接 push 不受影响）；随后普通 push `9c39952..4e0b994` 成功，CI run `42623318875` **success** | GitHub API（classic token）+ 本机 git | —（外部记录：分支保护） |
 
 ## 未验证项
 
@@ -581,7 +581,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（真机诊断整改已提交；待回填 CI）。
+- 无未提交改动（真机诊断整改已提交，CI 已回填）。
 
 ## 下一步
 
