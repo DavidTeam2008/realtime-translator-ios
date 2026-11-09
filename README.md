@@ -1,6 +1,6 @@
 # 对译 Duiyi
 
-[![verify](https://github.com/DavidTeam2008/realtimeTranslatorOptimize/actions/workflows/verify.yml/badge.svg)](https://github.com/DavidTeam2008/realtimeTranslatorOptimize/actions/workflows/verify.yml)
+[![verify](https://github.com/DavidTeam2008/realtime-translator-ios/actions/workflows/verify.yml/badge.svg)](https://github.com/DavidTeam2008/realtime-translator-ios/actions/workflows/verify.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![iOS 26.4+](https://img.shields.io/badge/iOS-26.4%2B-lightgrey.svg)](#完整-ios-环境)
 
@@ -35,7 +35,7 @@
 ## 10 分钟快速开始（不需要 Xcode）
 
 ```bash
-git clone <repo-url> && cd realtimeTranslatorOptimize
+git clone <repo-url> && cd realtime-translator-ios
 make check          # 6 组静态门禁（docs/架构/计数/harness/计划/adapters），约 1s
 make verify-static  # 再加证据 schema + 91 个脚本单测 + 69 个 kit 端到端，约 15–25s
 ```

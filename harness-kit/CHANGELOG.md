@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-11-09
+
+- 来源仓库改名 `realtimeTranslatorOptimize` → `realtime-translator-ios`（GitHub 旧链接 301）；
+  README 中的案例与试点报告链接同步更新；纯文档变更，接口不变。
+
 ## 0.2.0 — 2026-11-09
 
 - 维护方式固化为「上游唯一源 + 独立仓只读镜像」：来源仓库新增 `make kit-publish`

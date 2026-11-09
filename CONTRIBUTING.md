@@ -17,7 +17,7 @@
 ## 2. 10 分钟验证（不需要 Xcode）
 
 ```bash
-git clone <repo-url> && cd realtimeTranslatorOptimize
+git clone <repo-url> && cd realtime-translator-ios
 make check          # 6 组静态门禁（docs/架构/计数/harness/计划/adapters），约 1s
 make verify-static  # 再加证据 schema、91 个脚本单测、kit 端到端，约 15–25s
 ```
