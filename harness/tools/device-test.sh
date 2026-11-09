@@ -309,7 +309,12 @@ fi
 SKIP_OK=1
 case "$MODE" in
   unit|ui|all)
-    write_evidence "$MODE" "$SUMMARY_JSON"
+    # 只有测试真正通过才写证据；失败时写 "*-pass" 文件会让证据链自相矛盾。
+    if [ "$TARGET_OK" -eq 1 ]; then
+      write_evidence "$MODE" "$SUMMARY_JSON"
+    else
+      echo "  （测试未通过：不写证据）"
+    fi
     if ! check_skipped "$SUMMARY_JSON"; then
       SKIP_OK=0
     fi

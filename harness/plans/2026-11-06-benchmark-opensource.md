@@ -462,7 +462,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.7：模板仓维护机制（`make kit-publish` / `make kit-drift` + 镜像只读契约；kit 升 `0.2.0`、CHANGELOG/README/SPEC 同步；镜像 `main` `fcc08dc` + tag `v0.2.1`，镜像 CI run `42569790859` success，clone 后 69 tests OK）
 - [x] 仓库改名：`DavidTeam2008/realtimeTranslatorOptimize` → **`realtime-translator-ios`**（2026-11-09，`gh` 重新登录为 classic token 后由 API 执行；remote/文档/kit 链接同步；API 301 与旧 URL `git ls-remote` 复核通过；Release/tag/star 保留）
 - [x] Phase 4 首访反馈整改（2026-11-09，按 README 实跑）：真机预热失败暴露两个问题——①测试 target 无 Team（脱敏预期，但脚本把真实原因吞掉）；②设备未信任开发者证书。已修：脚本打印 `diagnostics.errors` + `APM_TEAM` 传参 + 针对性修复提示；文档前置签名/信任两步
-- [ ] Phase 4 剩余：人类非作者首访 1 名（AI 代理不计入）；真机复跑待用户信任证书后验证
+- [x] 真机设备侧验证（2026-11-09）：签名/信任修好后 `device-test.sh unit` 在 iPhone 13 上 **120/120 PASS**；UI 仍 UNVERIFIED（网络配对下 exit 74，需设备密码弹窗或 USB 准备 DeviceSupport）；证据生成须在干净工作树（dirty 判 FAIL）
+- [ ] Phase 4 剩余：人类非作者首访 1 名（AI 代理不计入）；真机 UI 需设备侧配合（密码弹窗/USB）
 - [x] Phase 5.1–5.3：SPEC/config schema/profiles/`harness-init`/core 脚本/模板/adapters/README/playbook + 66 个 kit 端到端测试
 - [x] Phase 5.4：外部试点（AI 代理、空白 Python 仓、standard）：接入成功、首次 check 一次 PASS、执行 ≈80s；3 个文档卡点已回写；报告 `harness/reviews/2026-11-07-kit-pilot.md`（真实项目未验证）
 - [x] Phase 5.5：独立模板仓已发布（<https://github.com/DavidTeam2008/harness-kit>，public、CI success、clone 69 tests OK）；本仓 `harness-kit/` 为同步源
@@ -581,7 +582,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（真机诊断整改已提交，CI 已回填）。
+- CONTRIBUTING.md
+- harness/tools/device-test.sh
+- harness/plans/2026-11-06-benchmark-opensource.md
 
 ## 下一步
 

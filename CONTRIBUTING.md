@@ -41,6 +41,8 @@ APM_DEVICE=<CoreDevice ID> harness/tools/device-test.sh   # 真机完整套件�
 ```
 
 > 真机预热失败：`requires a development team` → 用 `APM_TEAM=<Team ID>` 重跑（不改工程）或回第 2 步选本地 Team；`Developer App Certificate is not trusted` → 设备 设置 → 通用 → VPN 与设备管理 → 信任开发者 App（免费证书首次必做）。
+>
+> 真机 UI 在网络配对设备上可能持续 `exit 74`：需在设备上响应「为 XCTest 输入 iPhone 密码 / Enable UI Automation」，或用 USB 连接让 Xcode 准备 DeviceSupport；单元测试不受影响。跑完用 `git checkout -- Duiyi.xcodeproj/project.pbxproj` 还原 Xcode 重排的 exceptions（Team 不要提交）。**证据要在干净工作树上生成**：先提交改动再跑脚本，否则 evidence 记 `dirty=true`，`verify-claim` 判 FAIL。
 
 设备 CoreDevice ID 用 `xcrun devicectl list devices` 或 `mobilebuildmcp device list` 查（本机值可写 `AGENTS.local.md`）；真机预热、`exit 74`、`Enable UI Automation` 密码弹窗等坑见 [`references/verification.md`](references/verification.md)。
 
