@@ -30,6 +30,10 @@
 #   harness/tools/device-test.sh unit            # 只跑单元套件（仍先预热）
 #   harness/tools/device-test.sh one <Target/Class/test>   # 预热 + 单个用例
 #   APM_DEVICE=<CoreDevice ID> harness/tools/device-test.sh # 换设备
+#   APM_TEAM=<Team ID> harness/tools/device-test.sh          # 本地签名 Team（不写工程文件）
+#
+# 签名：本仓已脱敏移除 DEVELOPMENT_TEAM。不想让 Xcode 改写 pbxproj 时，用
+#   APM_TEAM=<你的 Team ID> 直接传给 xcodebuild（仅本机生效）。
 #
 # 退出码：0 全绿；1 有失败；2 环境前置不满足（设备锁屏/未连接等）
 
@@ -86,6 +90,12 @@ if [ "$passcode" = "True" ]; then
 fi
 echo "  ✓ 设备已解锁"
 
+# 签名提示：仓库按脱敏规则移除了 DEVELOPMENT_TEAM；真机跑测试前必须本地选 Team。
+# 这里只提示、不阻断（Team 也可能来自 xcconfig/命令行覆盖）。
+if ! grep -q 'DEVELOPMENT_TEAM' "$ROOT/$PROJECT/project.pbxproj" 2>/dev/null; then
+  echo "  ⚠️ 工程未含 DEVELOPMENT_TEAM（脱敏预期）：先用 Xcode 为 App/DuiyiTests/DuiyiUITests 选本地 Team"
+fi
+
 # ── 预热 ────────────────────────────────────────────────
 # 这一步不是可选的。缺它，UI 阶段会以 exit 74 / automation 超时失败。
 # summary_path（第 3 参数，可选）：目标测试的机器可读摘要，供 evidence 使用。
@@ -99,6 +109,16 @@ run_test() {
     device test --project-path "$PROJECT" --scheme "$SCHEME"
     --device-id "$DEVICE" --configuration "$CONFIG" --output json
   )
+  # APM_TEAM：本机签名 Team，只影响本次 xcodebuild，不写回工程文件。
+  if [ -n "${APM_TEAM:-}" ]; then
+    extra_json=$(python3 - "$extra_json" "$APM_TEAM" <<'PY'
+import json, sys
+data = json.loads(sys.argv[1] or "{}")
+data.setdefault("extraArgs", []).append(f"DEVELOPMENT_TEAM={sys.argv[2]}")
+print(json.dumps(data, separators=(",", ":")))
+PY
+)
+  fi
   if [ -n "$extra_json" ]; then args+=(--json "$extra_json"); fi
   set +e
   mobilebuildmcp "${args[@]}" >"$out" 2>/dev/null
@@ -108,17 +128,36 @@ import json, sys
 path, label = sys.argv[1], sys.argv[2]
 summary_path = sys.argv[3] if len(sys.argv) > 3 else ""
 try:
-    data = json.load(open(path)).get("data", {}) or {}
+    payload = json.load(open(path))
 except Exception as exc:
     print(f"    ⛔ 无法解析输出：{exc}")
     sys.exit(1)
+data = (payload or {}).get("data", {}) or {}
 summary = data.get("summary", {}) or {}
 counts = summary.get("counts", {}) or {}
 status = summary.get("status", "UNKNOWN")
 print(f"    {label}: {status}  passed={counts.get('passed', 0)} "
       f"failed={counts.get('failed', 0)} skipped={counts.get('skipped', 0)} "
       f"({summary.get('durationMs', 0) / 1000:.0f}s)")
-for f in (data.get("diagnostics", {}) or {}).get("testFailures", []) or []:
+if status != "SUCCEEDED":
+    # 关键：把真实原因暴露出来。签名/设备准备失败时 counts 全 0，
+    # 只看计数会把环境问题误判成「测试失败」，让人去改代码。
+    err = (payload or {}).get("error")
+    if err:
+        print(f"      ⛔ {err}")
+    errors = ((data.get("diagnostics") or {}).get("errors") or [])[:5]
+    texts = []
+    for msg in errors:
+        text = str(msg.get("message") or msg)
+        texts.append(text)
+        print(f"      · {text[:220]}")
+    joined = " ".join(texts).lower()
+    if "certificate" in joined and "trusted" in joined:
+        print("      ↗ 修复：设备上 设置 → 通用 → VPN 与设备管理 → 开发者 App → 信任；然后重跑")
+    elif "requires a development team" in joined or "signing" in joined:
+        print("      ↗ 修复：APM_TEAM=<你的 Team ID> 重跑（不改工程），或在 Xcode 为三个 target 选 Team")
+diag = data.get("diagnostics", {}) or {}
+for f in diag.get("testFailures", []) or []:
     print(f"      ✗ {f.get('test') or f.get('suite')}: {str(f.get('message'))[:160]}")
 xcr = (data.get("artifacts", {}) or {}).get("xcresultPath")
 if xcr:
@@ -241,6 +280,7 @@ echo "  [1/2] 预热 testmanagerd（${WARMUP}）"
 if ! run_test "warmup" "{\"extraArgs\":[\"-allowProvisioningUpdates\",\"-only-testing:${WARMUP}\"]}" ""; then
   echo
   echo "⛔ 预热失败 —— 先修环境，不要继续跑 UI。"
+  echo "   · 若上面出现 Signing/development team：用 APM_TEAM=<你的 Team ID> 重跑（不改工程），或在 Xcode 里为三个 target 选本地 Team"
   echo "   · 确认设备已解锁、Developer Mode 已开、已信任这台 Mac"
   echo "   · 确认安装的 App 没超过免费 provisioning 的数量上限"
   exit 1

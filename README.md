@@ -57,6 +57,8 @@ make test-ui                # 模拟器 UI 测试（语音用例按预期 skip�
 harness/tools/device-test.sh   # 真机完整套件（先预热 testmanagerd）
 ```
 
+> 真机首次运行前两件事（缺一预热必失败）：① 传本地 Team：`APM_TEAM=<Team ID> harness/tools/device-test.sh`（不改工程）；② 设备上信任开发者 App：设置 → 通用 → VPN 与设备管理。仓库已脱敏移除 `DEVELOPMENT_TEAM`；脚本会打印具体原因与修复提示。
+
 签名、真机、已知坑与验证矩阵：[`CONTRIBUTING.md`](CONTRIBUTING.md)、[`references/verification.md`](references/verification.md)。
 
 ## 项目结构

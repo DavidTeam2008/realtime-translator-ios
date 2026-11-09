@@ -40,6 +40,8 @@ make test-ui                # 模拟器 UI 测试（语音用例按预期 skip�
 APM_DEVICE=<CoreDevice ID> harness/tools/device-test.sh   # 真机完整套件（先预热 testmanagerd）
 ```
 
+> 真机预热失败：`requires a development team` → 用 `APM_TEAM=<Team ID>` 重跑（不改工程）或回第 2 步选本地 Team；`Developer App Certificate is not trusted` → 设备 设置 → 通用 → VPN 与设备管理 → 信任开发者 App（免费证书首次必做）。
+
 设备 CoreDevice ID 用 `xcrun devicectl list devices` 或 `mobilebuildmcp device list` 查（本机值可写 `AGENTS.local.md`）；真机预热、`exit 74`、`Enable UI Automation` 密码弹窗等坑见 [`references/verification.md`](references/verification.md)。
 
 ## 4. 改完怎么验证

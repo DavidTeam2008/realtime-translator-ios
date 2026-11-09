@@ -35,14 +35,15 @@
 - 计数与 skip 由 `make check-tests`（`tools/check-test-baseline.py` + `harness/test-baseline.json`）机检，删测试会红。
 - 模拟器 `testSimultaneousListeningPressure` skip（无 `SpeechTranscriber`）是预期，不要 mock。
 - 真机 UI 前必须预热 testmanagerd（脚本已强制）；iOS 15+ 还需过 `Enable UI Automation` 密码弹窗（见 `CONTRIBUTING.md`）。
-- 首次真机跑脚本自动生成 runner profile；provisioning 警告无害。
+- 首次真机自动生成 runner profile；provisioning 警告无害。
 
 ## 真机坑
 
+0. 预热失败：`Signing ... requires a development team` → `APM_TEAM=<Team ID>` 重跑；`Certificate is not trusted` → 设备 设置 → VPN 与设备管理 → 信任开发者 App。
 1. `exit 74` / automation 超时：先预热，再查密码授权弹窗。
 2. 手机锁屏：脚本 exit 2；解锁后重跑。
 3. 免费证书 App 数量满：删不用的自签名 App，或换付费账号。
-4. 设备 ID：`devicectl` 显示硬件 UDID；脚本用 CoreDevice ID（`mobilebuildmcp device list` 亦然）。
+4. 设备 ID：`devicectl` 显示硬件 UDID；脚本用 CoreDevice ID（`mobilebuildmcp device list`）。
 5. 首页 `not hittable`：用 `-duiyi.onboardingComplete YES`；历史返回用 `nav-home`。
 
 ## 性能口径
