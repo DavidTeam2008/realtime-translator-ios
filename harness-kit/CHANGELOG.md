@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — 2026-11-09
+
+- 维护方式固化为「上游唯一源 + 独立仓只读镜像」：来源仓库新增 `make kit-publish`
+  （subtree split → 镜像 `main`）与 `make kit-drift`（一致性检查，漂移 exit 1）；
+  README 增加维护契约（禁止直接改镜像仓，Issue/PR 先回上游）。
+- 修正 README 测试计数（67 → 69）与版本引用；`SPEC.md` 配置示例同步 `kitVersion`。
+
 ## 0.1.0 — 2026-11-07
 
 首个公开版本：从真实 iOS 项目（Duiyi）的 harness 实践中抽取。

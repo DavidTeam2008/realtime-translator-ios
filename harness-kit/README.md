@@ -3,7 +3,7 @@
 > 把「AI coding agent 可验收的研发约束」做成**项目无关**模板：**guides**（指令/规则）+ **sensors**（门禁/证据）+ **state**（计划/交接）。
 > 不是框架、不是依赖：只生成 Markdown、Python 标准库脚本和一个 Makefile 入口；接入失败可整目录删除，不留运行时包袱。
 
-- 版本：`0.1.0`（见 [`VERSION`](VERSION)）
+- 版本：`0.2.0`（见 [`VERSION`](VERSION)）
 - 内部构建契约：[`SPEC.md`](SPEC.md)
 - 采用方法：[`docs/playbook.md`](docs/playbook.md)（五步改造法 + 常见坑）
 
@@ -151,6 +151,16 @@ kit 的定制入口只有**目标项目的 `harness/config.json`**（所有门�
 
 > 缺失必填字段时脚本必须给可读错误并 exit 1（不静默用默认值）；路径一律相对目标根，不接受绝对路径。
 
+## 维护与镜像（维护者）
+
+本仓内 `harness-kit/` 是**唯一源**；独立模板仓 <https://github.com/DavidTeam2008/harness-kit> 由 `git subtree split` 生成的**只读镜像**。
+
+- **改**：只改来源仓库的 `harness-kit/`，跑 `make kit-check` / `make verify-static`。
+- **发布**：`make kit-publish`（subtree split → 推送镜像 `main`；非快进会被拒绝，说明镜像被直接改过）。
+- **校验**：`make kit-drift` 比较本地 split 提交与镜像 `main`，不一致 exit 1，提示先在上游改。
+- **禁止**直接在镜像仓网页/本地提交后推送；收到 Issue/PR 时先在来源仓库修，再发布并关闭。
+- **版本**：`VERSION`（单一来源）+ `CHANGELOG.md`；发布会同步在镜像仓打 tag（如 `v0.2.0`）。
+
 ## 来源案例
 
 harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<https://github.com/DavidTeam2008/realtimeTranslatorOptimize>）。该仓库是第一个案例；kit 本身不包含其业务代码或专有规则。
@@ -160,10 +170,10 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 - **外部试点仅有代理结果**：首个外部试点由 AI 代理在空白 Python 项目完成（standard 档接入成功，执行耗时 ≈80s，首次 `make check` 一次通过；报告见 [`kit pilot report`](https://github.com/DavidTeam2008/realtimeTranslatorOptimize/blob/main/harness/reviews/2026-11-07-kit-pilot.md)）。**作者另一个真实项目、人类采用者、历史文档冲突整合仍未验证**。
 - **语言/测试框架需要你提供**：不同语言只有建议命令；`{{TEST_COMMAND}}` 与 `harness/config.json.commands.test` 必须由你填真实命令，kit 不验证测试语义。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：kit 生成的空白脚手架本身可通过；若目标已有 `AGENTS.md`/`docs/`/`Makefile`，需按预算与白名单调整（看 `FAIL` 提示，不要删检查绕过）。
-- **kit 自身测试**：`harness-kit/tests/` 含 67 个端到端用例（三档 init、`make check`/`verify-static`、证据三值、strict `release-check`、dry-run/冲突/备份、无专有引用）；已接入来源仓库的 `make verify-static`，本地执行 PASS，CI 随来源仓库 `verify` workflow 运行。
+- **kit 自身测试**：`harness-kit/tests/` 含 69 个端到端用例（三档 init、`make check`/`verify-static`、证据三值、strict `release-check`、dry-run/冲突/备份、无专有引用）；已接入来源仓库的 `make verify-static`，本地执行 PASS，CI 随来源仓库 `verify` workflow 运行。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前 manifest 为空（预留）。
 - **未做外部安全审计**：kit 只承诺不联网、不写目标之外文件（SPEC §8.7），但未在第三方 CI/受限沙箱验证。
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.1.0`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.0`；向后兼容策略见 [SPEC §10](SPEC.md)。

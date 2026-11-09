@@ -3,7 +3,7 @@ id: 2026-11-06-benchmark-opensource
 status: active
 level: L2
 owner: david
-updated: 2026-11-07
+updated: 2026-11-09
 scope:
   allow:              # 本轮只做「公开面 + 文档 + 过程档案」收敛；不动业务代码
     - README.md
@@ -347,6 +347,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5.3 | profiles 与采用指南 | minimal（AGENTS + 静态门禁）/ standard（+计划/证据/CI）/ strict（+红队/scorecard/月度审计）；`docs/playbook.md` 五步改造法 | 每个 profile 有独立验收脚本；playbook 可由非作者照做 | 已完成（`make kit-check` 66 用例覆盖三档；playbook 已写，非作者试点见 5.4） |
 | 5.4 | 首个外部试点 | 在作者另一个项目上真实改造一次，记录卡点并回写模板 | 试点项目 1 天内完成接入；卡点进入模板 issue/plan | 已完成（代理试点：空白 Python 项 standard 接入成功、首次 check 一次 PASS、执行 ≈80s；卡点已回写；**真实项目未验证**） |
 | 5.5 | 发布模板 | 独立仓库（推荐 `harness-kit`）或本仓 `harness-kit/`；README 说明与 Duiyi 案例的关系；License 一致 | 模板仓 0 个 Duiyi 专用引用；外部可 clone | 已完成：独立仓 <https://github.com/DavidTeam2008/harness-kit>（main `76ac99d`，CI success；clone 后 69 tests OK） |
+| 5.7 | 模板仓维护机制 | 上游唯一源 + 独立仓只读镜像：`make kit-publish`（subtree split → 镜像 `main`）、`make kit-drift`（一致性检查）；README/HARNESS 写维护契约；kit `0.2.0` | 镜像与上游可一条命令同步、可机检漂移；镜像仓禁止直接提交 | 已完成（2026-11-09；本地 `verify-static` PASS；`kit-drift` 语义=比较已提交内容；发布/CI 记录见 §验证证据） |
 | 5.6 | 语言/平台覆盖试点 | Node（`node --test`/`npm test`）与 SwiftPM（`swift test`）接入试点；语言支持矩阵；`harness-init` 推断改进（node scripts.test、xcodeproj 提示） | 每语言端到端：init + `make check`/`verify-static` + 证据三值；矩阵写明实测/未实测 | 已完成（Node 24 / Swift 6.4 均 PASS；Go 未安装、Xcode iOS 工程未实测，已入矩阵） |
 
 ### Phase 6（可选，独立排期）· 产品可信度
@@ -374,7 +375,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | D-B3 | 历史过程文档 | **蒸馏后从树中删除，git 历史保留** | 移到 `docs/archive/`（仍占首屏，不推荐） | 仓库简洁度 vs 可追溯性（git 已足够） |
 | D-B4 | HANDOFF | **删除并拆分**（状态→plan，事实→docs/CONTRIBUTING） | 保留精简版 `harness/HANDOFF.md` | 是否彻底消除三处状态源 |
 | D-B5 | prototype / Order | **删 `prototype/`；`Order/` 暂留**（Release 配置可能引用；启动优化已暂停） | 都删 / 都留 | 视觉素材 vs 冗余 |
-| D-B6 | 仓库改名 | **本轮不改**，发布前再定（`realtimeTranslatorOptimize` → `duiyi`） | 现在就改 | 链接/remote/徽章成本 |
+| D-B6 | 仓库改名 | **已定（2026-11-09 用户确认执行）：`realtimeTranslatorOptimize` → `realtime-translator-ios`**；GitHub API 403，需用户在 Settings 改名，改名后本仓 README/CONTRIBUTING/kit 链接与 remote 同步更新 | 保持旧名；或 `duiyi-ios` | 成本低：GitHub 301 重定向 + 本仓 4 处文档 + remote |
 | D-B7 | 发布节奏 | **Phase 1–3 完成后再发 v1.0.0** | 先发 0.x 试水 | 外部第一印象 |
 | D-B8 | Phase 6 产品测试 | **独立排期、不阻塞本轮** | 本轮一起做 | 范围与周期 |
 | D-B9 | 脱敏范围 | **移除 Team / 设备 ID / 绝对路径；Bundle ID 保留并注明"示例，替换为你自己的"** | (b) Bundle ID 也换 `com.example.duiyi`（需改 pbxproj + 少量源码 + 重跑测试） | 开源合规 vs 改动量/验证成本 |
@@ -457,7 +458,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] 开源包装：issue/PR 模板（`.github/ISSUE_TEMPLATE/`、`.github/PULL_REQUEST_TEMPLATE.md`）
 - [x] v1.0.0 annotated tag 已推送（目标 `c78abe8`，main HEAD）；CI run `42347475807` static success；GitHub Release 待用户创建（PAT 403）
 - [x] 外部首访（AI 代理，公开 clone）：4/5 可答；发现浅克隆 P0 → 已修（skip + README/CONTRIBUTING unshallow、无 Xcode 边界、采用指南直链、实测耗时）
-- [ ] Phase 4 发布 + 外部验证（v1.0.0 tag/release + 非作者首访）
+- [x] Phase 4 发布：GitHub Release `v1.0.0` 已发布（2026-11-09 04:37Z，用户操作）；Duiyi 与 harness-kit 的 description/topics、Duiyi social preview 已设置
+- [x] Phase 5.7：模板仓维护机制（`make kit-publish` / `make kit-drift` + 镜像只读契约；kit 升 `0.2.0`、CHANGELOG/README/SPEC 同步）
+- [ ] Phase 4 剩余：仓库改名 `realtime-translator-ios`（API 403，待用户在 GitHub UI 执行）；人类非作者首访仍缺
 - [x] Phase 5.1–5.3：SPEC/config schema/profiles/`harness-init`/core 脚本/模板/adapters/README/playbook + 66 个 kit 端到端测试
 - [x] Phase 5.4：外部试点（AI 代理、空白 Python 仓、standard）：接入成功、首次 check 一次 PASS、执行 ≈80s；3 个文档卡点已回写；报告 `harness/reviews/2026-11-07-kit-pilot.md`（真实项目未验证）
 - [x] Phase 5.5：独立模板仓已发布（<https://github.com/DavidTeam2008/harness-kit>，public、CI success、clone 69 tests OK）；本仓 `harness-kit/` 为同步源
@@ -517,15 +520,18 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | kit standalone 布局（2026-11-07） | **PASS**：`cp -r harness-kit` 到仓库外后 `python3 -m unittest discover -s tests -q` 69 tests OK（tests 自动适配 monorepo/独立仓两种根）；独立仓文件（LICENSE/CHANGELOG/.gitignore/CI workflow）就绪 | 本机 /tmp | —（过程记录：独立仓准备） |
 | 独立模板仓发布（2026-11-07） | **PASS**：`git subtree split --prefix=harness-kit` → push `main`（`76ac99d`）；公开仓可 clone；clone 内 `python3 -m unittest discover -s tests -q` → 69 tests OK；GitHub Actions run `42374549293` **success** | 本机 + GitHub；<https://github.com/DavidTeam2008/harness-kit> | —（外部记录：模板仓） |
 
+| GitHub Release + 仓库元数据（2026-11-09，用户操作） | Release `v1.0.0` 已发布（title「对译 Duiyi v1.0.0」）；Duiyi description/topics（9 个）与 social preview 已设置；harness-kit description/topics（6 个）已设置 | GitHub 公开 API 读取 + 用户确认 | —（外部记录：GitHub Release） |
+| kit 镜像维护机制（2026-11-09，本地） | **PASS**：`make kit-drift` 比较 split 提交与镜像 `main`（发布前 in sync `76ac99d`）；`make verify-static` PASS（91 脚本单测 + 69 kit 用例）；`make kit-publish`/`kit-drift` 入 Makefile 与 `.PHONY` | 本机 python3 3.14.7 / make 3.81 | —（过程记录：镜像维护） |
+
 ## 未验证项
 
 - 首访：作者自测 4/5；Phase 4 由无上下文 AI 代理按公开 clone 复测 4/5；仍缺**人类**陌生人走查（AI 代理不计入最终“陌生人”达标），需用户招募 1 人。
 - 独立复评为只读：未跑 xcodebuild/模拟器/真机/clean clone；3.6/5 与 24/35 为当前口径，不证明动态行为正确。
 - clean clone 已实测（Phase 3.1，PASS）；独立复评时的未提交状态已提交，clone 可复现。
-- GitHub 元数据/发布权限、仓库改名影响未验证（Phase 4）。
+- 仓库改名 `realtime-translator-ios` 未执行：`gh` PAT 403，需用户在 Settings 改名；改名后本仓文档/remote 更新待做（Phase 4 剩余）。
 - Claude Code 环境未实测（本机未安装）；hooks/CLAUDE.md/agent 示例与 `adapters-check` 为设计资产，发布前补实测或标未验证。
 - 首次真实 PR / 分支保护（PR 强制 static）未验证：当前 PAT 受组织策略 403，无法用 API 配置；需仓库管理员在 GitHub Settings 设置或提供可用凭据。
-- GitHub Release 对象 / 仓库 description/topics/social preview 未创建：`gh` PAT 受组织策略 403；`v1.0.0` annotated tag 已推送，Release 需用户在 GitHub UI 用 `harness/release-notes-v1.0.0.md` 创建，或更换可用 PAT。
+- GitHub Release / description/topics/social preview **已创建**（2026-11-09，用户操作，公开 API 复核）；`gh` PAT 仍受组织策略 403，后续仓库管理操作（改名/分支保护）仍只能由用户或换 PAT。
 - 真机未在脱敏/脚本改动后重跑：device evidence 生成于 2026-11-06，对 HEAD 已 STALE；unit/UI 已于 2026-11-07 重跑并 fresh。发布不据此声称“真机当前通过”，`make release-check` 会因 device UNVERIFIED 返回 2（预期，已记录）。
 - 真机签名构建未验证（本机无 Team；仅验证模拟器 Debug 构建）。
 - 历史敏感信息/作者邮箱已用 `git filter-repo` 两轮清理（2026-11-07），本地与远端分支历史 0 命中；远端 unreachable 旧对象仍可按 SHA 访问（用户已接受现状，不再联系 GitHub Support）。
@@ -536,7 +542,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - Phase 5 外部试点已由 AI 代理在空白 Python 项目完成（standard 接入成功，报告见上）；作者另一个真实项目、人类采用者、已有历史文档的冲突整合仍未验证。
 - Phase 5 独立模板仓未创建：PAT 受组织策略 403；当前交付为仓库内 `harness-kit/` 可复制目录（`git clone` 后 `cp -r`/subtree 拆分）。
 - kit 语言覆盖：Python/Node/SwiftPM 已端到端实测；**Go 未安装未实测、Xcode iOS 工程未实测**（需显式 `--test-command` 给 xcodebuild 参数）；测试计数由宿主写入 evidence（kit 不解析测试输出）。
-- kit 独立仓 CI 已由公开 API 确认 success（run `42374549293`）；但**后续 kit 变更需重新 `git subtree split` + push**（未自动同步）；strict 档与 hooks 远端触发未由外部试点覆盖（kit 自身测试覆盖 strict/release-check）。
+- kit 独立仓 CI 已由公开 API 确认 success（run `42374549293`）；**后续 kit 变更已提供 `make kit-publish` 手动同步 + `make kit-drift` 漂移检查（2026-11-09）**，但不自动触发（不引入 CI 跨仓写权限）；strict 档与 hooks 远端触发未由外部试点覆盖（kit 自身测试覆盖 strict/release-check）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
 ## 参考（外部事实核对，2026-11-07）
@@ -560,16 +566,23 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5 | 计划"未提交改动"与 git status 不一致（scope.allow 缺嵌套 AGENTS、目录通配解析问题） | 已修：补齐 allow + 改精确路径；`make check-plan` PASS | 2026-11-07 |
 | 6 | 作者邮箱从 git 历史移除（用户确认） | `git filter-repo --mailmap` 重写 48 commit；commit-map 混入首轮旧映射，改用「提交顺序 + subject 全等」index-map 回填 7 文件 / 16 引用并逐条校验；强推 `main` | 2026-11-07 |
 | 7 | Phase 2.5 P0 工具整改（3 个并行 agent：plan.py / check-harness / doctor） | 全部完成：plan.py +198/−47（14 用例）、check-harness +151/−33（12 用例）、doctor +146（20 用例）；Lead 集成、计划记录、负向验证 | 2026-11-07 |
+| 9 | 用户完成 Release + 仓库元数据；评估改名与双份 kit 维护 | 改名成本：仓库级 ≈15 分钟（4 处文档 + remote，GitHub 301），App 工程级不建议；kit 维护定为「上游唯一源 + 镜像只读」，已加 `kit-publish`/`kit-drift` 并升 0.2.0；API 改名 403 → 交用户 UI 执行 | 2026-11-09 |
 | 8 | Phase 2.5 后独立复核 + 外部首访（并行 2 个 agent） | 复核：P0×3 关闭、综合 ≈4.0/5、L3 达成（有条件）；首访：4/5 可答、浅克隆 P0 → 已修并浅克隆复核；报告见 `harness/reviews/2026-11-07-phase2.5-reaudit.md`、`harness/reviews/2026-11-07-external-first-visit.md` | 2026-11-07 |
 
 ## 未提交改动
 
-- 无未提交改动（独立模板仓发布记录已提交）。
+- Makefile
+- HARNESS.md
+- harness-kit/CHANGELOG.md
+- harness-kit/README.md
+- harness-kit/SPEC.md
+- harness-kit/VERSION
+- harness/plans/2026-11-06-benchmark-opensource.md
 
 ## 下一步
 
-1. Phase 5 收尾：提交试点回写与文档修正 → 推送并确认 CI（verify-static 含 kit-check）→ Phase 5 完成。
-2. Phase 4 收尾（需用户）：创建 GitHub Release（tag `v1.0.0`，notes 用 `harness/release-notes-v1.0.0.md`）；设置 description/topics/social preview；招募人类非作者首访。
+1. 提交本轮 kit 维护机制 → 推送 → `make kit-publish` 同步镜像并打 `v0.2.0` tag → 回填 CI run id。
+2. Phase 4 剩余（需用户）：在 GitHub Settings 把仓库改名为 `realtime-translator-ios`（已确认方案），改名后更新 4 处文档 + remote 并验证 CI；招募 1 名人类非作者首访。
 3. Phase 6（可选）：P0-1 并发 / P0-3 持久化行为测试，独立排期。
 
 ## 待确认
