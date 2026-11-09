@@ -575,12 +575,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- README.md
-- CONTRIBUTING.md
-- harness-kit/README.md
-- harness-kit/VERSION
-- harness-kit/CHANGELOG.md
-- harness/plans/2026-11-06-benchmark-opensource.md
+- 无未提交改动（改名收尾已提交；待回填镜像发布 CI）。
 
 ## 下一步
 
