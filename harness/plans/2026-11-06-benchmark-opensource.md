@@ -624,16 +624,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- HARNESS.md — 独立模板仓链接改为新仓名 — 保留
-- Makefile — KIT_REMOTE 指向 harness-engineering-kit — 保留
-- README.md — kit 镜像链接 — 保留
-- docs/README.md — kit 镜像链接 — 保留
-- harness-kit/VERSION — 0.2.7 — 保留
-- harness-kit/CHANGELOG.md — 0.2.7 改名条目 — 保留
-- harness-kit/README.md — 标题/原名说明/镜像链接 — 保留
-- harness-kit/SPEC.md — §10 改名契约 — 保留
-- harness-kit/docs/adoption.md — clone 链接 — 保留
-- harness/plans/2026-11-06-benchmark-opensource.md — 本计划（Phase 5.14） — 保留
+- 无未提交改动（仓库改名与 v0.2.7 文档已提交；镜像发布与回填在下一步）。
 
 ## 下一步
 
