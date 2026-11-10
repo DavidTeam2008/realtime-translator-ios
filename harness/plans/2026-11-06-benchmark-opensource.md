@@ -619,14 +619,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness-kit/VERSION — 0.2.6 — 保留
-- harness-kit/CHANGELOG.md — 0.2.6 条目 — 保留
-- harness-kit/README.md — Harness Engineering 脚手架定位与五子系统映射 — 保留
-- harness-kit/SPEC.md — 目标/非目标/术语 — 保留
-- harness-kit/docs/adoption.md — 五子系统引入 — 保留
-- harness-kit/docs/governance.md — 五子系统治理对象 — 保留
-- harness-kit/docs/playbook.md — 五子系统落地标题 — 保留
-- harness/plans/2026-11-06-benchmark-opensource.md — 本计划（Phase 5.13） — 保留
+- 无未提交改动（kit v0.2.6 文档已提交；镜像发布与回填在下一步）。
 
 ## 下一步
 
