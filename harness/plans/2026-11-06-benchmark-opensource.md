@@ -350,6 +350,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5.7 | 模板仓维护机制 | 上游唯一源 + 独立仓只读镜像：`make kit-publish`（subtree split → 镜像 `main`）、`make kit-drift`（一致性检查）；README/HARNESS 写维护契约；kit `0.2.0` | 镜像与上游可一条命令同步、可机检漂移；镜像仓禁止直接提交 | 已完成（2026-11-09）：本地 `verify-static` PASS；漂移负向验证 DRIFTED→publish→in sync；镜像 `main` `fcc08dc`、tag `v0.2.1`（含 `v0.2.0`）、CI run `42569790859` success |
 | 5.6 | 语言/平台覆盖试点 | Node（`node --test`/`npm test`）与 SwiftPM（`swift test`）接入试点；语言支持矩阵；`harness-init` 推断改进（node scripts.test、xcodeproj 提示） | 每语言端到端：init + `make check`/`verify-static` + 证据三值；矩阵写明实测/未实测 | 已完成（Node 24 / Swift 6.4 均 PASS；Go 未安装、Xcode iOS 工程未实测，已入矩阵） |
 | 5.8 | 存量项目（brownfield）接入能力（kit `0.2.2`） | `scripts/harness-adopt`（只读盘点/`--json`/`--report`/`--write-plan`）、`--language android` 探测、`tools/evidence_from_junit.py`（standard+）、playbook 七步法、改造计划模板；standard profile 接入 JUnit 工具 | 真实存量仓只读盘点 0 改动且清单可执行；kit 98 tests PASS；镜像发布 `v0.2.2` | 已完成（2026-11-10）：98 tests OK、卫生 0 命中；Android 仓只读试点 PASS（报告 `harness/reviews/2026-11-10-kit-android-adoption-pilot.md`）；镜像 `main` `f0ac5bd` + tag `v0.2.2`，镜像 CI run `42652383140` success，clone 98 tests OK，`kit-drift` in sync |
+| 5.9 | 真实项目外部试点（Android 仓，Stage A+B） | 用 kit v0.2.2 对真实存量 Android 仓执行 brownfield 七步法：接入 scaffold、文档蒸馏（11 当前 + 10 归档、D1–D15）、清洁批次、宿主传感器与 JUnit 证据链、负向注入/冷启动验收、计划 done 归档 | 目标仓 `make check`/`verify-static`/`verify-claim`/`check-quality` 全 PASS；65 单测证据 PASS；12/12 负向注入；冷启动 5/5；15 commits 推送且 CI success | **已完成（2026-11-10）**：目标仓 `2ff1fae..fd87381` 已推送，CI run `42758117166` success；证据 `20261109T163805Z-tests-pass`；报告 `harness/reviews/2026-11-10-kit-android-stage-b.md` |
 
 ### Phase 6（可选，独立排期）· 产品可信度
 
@@ -471,6 +472,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.5：独立模板仓已发布（<https://github.com/DavidTeam2008/harness-kit>，public、CI success、clone 69 tests OK）；本仓 `harness-kit/` 为同步源
 - [x] Phase 5.6：语言覆盖试点（Node 24 / SwiftPM 均端到端 PASS；Go 未装、Xcode iOS 工程未实测）；推断改进 + 语言支持矩阵
 - [x] Phase 5.8：存量接入能力（kit `0.2.2`）：`harness-adopt` / `--language android` / JUnit XML 适配器 / brownfield playbook / 改造计划模板；kit **98 tests**；镜像 `main` `f0ac5bd` + tag `v0.2.2`（CI run `42652383140` success）、`kit-drift` in sync；Android 真实仓只读试点 PASS（0 改动，报告 `harness/reviews/2026-11-10-kit-android-adoption-pilot.md`）
+- [x] Phase 5.9：Android 真实仓 Stage B 完成并推送（`2ff1fae..fd87381`，15 commits，CI run `42758117166` success）：P1 接入/P2 文档蒸馏/P3 清洁/P4 传感器与证据链（`20261109T163805Z-tests-pass` 65/65）/P5 负向注入 12/12 + 冷启动 5/5 + 计划 done 归档；报告 `harness/reviews/2026-11-10-kit-android-stage-b.md`
 - [ ] Phase 6（可选）产品可信度
 
 ## 验证证据
@@ -530,6 +532,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | kit 镜像维护机制（2026-11-09） | **PASS**：`make verify-static` PASS（91 脚本单测 + 69 kit 用例）；漂移负向验证 `kit-drift` → DRIFTED（local `3813cdc` vs remote `76ac99d`，exit 2），`make kit-publish` 后 in sync；镜像 `main` = `3813cdc`，tag `v0.2.0`（annotated），临时 clone 内 69 tests OK；GitHub Actions run `42566984847` **success**；Duiyi CI run `42566945977` **success** | 本机 python3 3.14.7 / make 3.81；GitHub Actions | —（外部记录：镜像发布） |
 | kit v0.2.2 实施（2026-11-10） | **PASS**：`make verify-static` 全套（91 脚本单测 + **98** kit 用例；新增 adopt 12 / JUnit 16 / Android 推断；三档 profile、证据生命周期、strict release-check 回归通过）；kit 卫生扫描 0 命中；VERSION `0.2.2`；3 个并行 agent 交付 + Lead 集成（复查修正 android 命令对齐、wrapper jar 误报、过期标记词） | 本机 python3 3.14.7 / make 3.81 | —（过程记录：kit 集成门禁） |
 | Android 仓只读盘点试点（2026-11-10，Stage A） | **PASS**：`harness-adopt --report` → 语言 `android`、建议 `./gradlew testDebugUnitTest`；缺 docs 索引 + 10 篇未登记文档、1 条跨仓断链、6 处疑似过期标记、1 个绝对符号链接、6 处本机路径、0 构建产物误报；目标仓 **0 改动**；<1s | 目标仓 `2ff1fae`（115 跟踪文件）；kit 0.2.2 | —（外部记录：存量仓只读试点；报告 `harness/reviews/2026-11-10-kit-android-adoption-pilot.md`） |
+| Android 真实仓 Stage B（2026-11-10，`2ff1fae..fd87381`） | **PASS**：kit v0.2.2 standard 完整接入；P1 scaffold、P2 文档蒸馏（11 当前 + 10 归档、D1–D15）、P3 清洁（死代码/manifest/符号链接/本机脚本）、P4 `check-host` + `check-quality` + `tests-pass` 证据（65/65）、P5 负向注入 12/12 + 冷启动 5/5 + 计划归档；目标仓 `make check` / `verify-static` / `verify-claim` / `check-quality` 全 PASS | Android 仓 main `fd87381`；JDK 17 / Gradle 8.10.2 / AGP 8.7.2；CI run `42758117166` success | 跨仓证据：`realtime-translator-android@fd87381` → `harness/evidence/20261109T163805Z-tests-pass.json` |
 | kit v0.2.2 镜像发布（2026-11-10） | **PASS**：`make kit-publish` → 镜像 `main` `fcc08dc..f0ac5bd`；tag `v0.2.2`（annotated）；临时 clone VERSION `0.2.2`、**98 tests OK**；镜像 CI run `42652383140` **success**；`make kit-drift` → in sync（`f0ac5bd`）；iOS 仓 CI run `42652279448` success | 本机 + GitHub；<https://github.com/DavidTeam2008/harness-kit> | —（外部记录：镜像发布） |
 
 | 仓库改名（2026-11-09） | **PASS**：`PATCH /repos/...` → `realtime-translator-ios`；`git remote set-url` 后 push 成功；旧名 API `301 → repositories/1349714234`、旧 URL `git ls-remote` 仍返回 `a6e6cf3`；`tags`/`releases`/star 保留（9 topics）；名字相关文档推送 CI run `42569754695` success；kit 链接更新后镜像 `fcc08dc` + tag `v0.2.1`，镜像 CI run `42569790859` success | GitHub API + 本机 git；classic token（`repo`/`workflow`） | —（外部记录：仓库改名） |
@@ -560,9 +563,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - 远端旧 commit 仍可通过 SHA 访问（GitHub 保留 unreachable objects）；用户已接受「分支干净、旧对象不可达」状态（2026-11-07 决策）。
 - Phase 5 外部试点已由 AI 代理在空白 Python 项目完成（standard 接入成功，报告见上）；作者另一个真实项目、人类采用者、已有历史文档的冲突整合仍未验证。
 - Phase 5 独立模板仓未创建：PAT 受组织策略 403；当前交付为仓库内 `harness-kit/` 可复制目录（`git clone` 后 `cp -r`/subtree 拆分）。
-- kit 语言覆盖：Python/Node/SwiftPM 已端到端实测；**Go 未安装未实测、Xcode iOS 工程未实测**（需显式 `--test-command` 给 xcodebuild 参数）；**Android/Gradle 仅完成只读盘点试点（v0.2.2），init/证据链未在真实 Android 仓实测（Stage B 待做）**；测试计数由宿主写入 evidence（kit 不解析测试输出）。
+- kit 语言覆盖：Python/Node/SwiftPM 已端到端实测；**Go 未安装未实测、Xcode iOS 工程未实测**（需显式 `--test-command` 给 xcodebuild 参数）；**Android/Gradle 已完成真实仓完整试点（Stage A+B，2026-11-10）**，kit README 矩阵的 Android 行仍标 ⚠️，待 v0.2.3 更新；测试计数仍由宿主写入 evidence（kit 不解析测试输出）。
 - Android 试点局限：`harness-adopt` 的 profile/过期标记为启发式（可能误报）；绝对符号链接目标未脱敏（v0.2.3 候选）；`--write-plan` 未在真实仓执行；超大仓性能未验证（当前 <1s / 115 文件）。
-- Android 仓 Stage B（真实接入 + 文档蒸馏 + 传感器 + 验收）尚未开始；评估稿 `HARNESS-ADOPTION-ASSESSMENT.md` 在 Android 仓为未跟踪文件。
+- Android 仓 Stage B 已完成并推送（15 commits 至 `fd87381`）；残留：真机未复跑、release/native 未重建、非荣耀设备未验证、ktlint baseline 存量债；kit v0.2.3 候选（check_plan 支持无扩展名根文件、宿主 `check_hygiene`/`check_layers` 上游化、Android 矩阵行转 ✅）。
 - kit 独立仓 CI 已由公开 API 确认 success（run `42374549293`）；**后续 kit 变更已提供 `make kit-publish` 手动同步 + `make kit-drift` 漂移检查（2026-11-09）**，但不自动触发（不引入 CI 跨仓写权限）；strict 档与 hooks 远端触发未由外部试点覆盖（kit 自身测试覆盖 strict/release-check）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
 
@@ -588,6 +591,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 6 | 作者邮箱从 git 历史移除（用户确认） | `git filter-repo --mailmap` 重写 48 commit；commit-map 混入首轮旧映射，改用「提交顺序 + subject 全等」index-map 回填 7 文件 / 16 引用并逐条校验；强推 `main` | 2026-11-07 |
 | 7 | Phase 2.5 P0 工具整改（3 个并行 agent：plan.py / check-harness / doctor） | 全部完成：plan.py +198/−47（14 用例）、check-harness +151/−33（12 用例）、doctor +146（20 用例）；Lead 集成、计划记录、负向验证 | 2026-11-07 |
 | 13 | kit v0.2.2 存量接入能力（3 个并行 agent：adopt / JUnit+android / docs+SPEC） | 全部落地：harness-adopt（只读盘点，12 用例）、JUnit XML 证据适配器（16 用例）、`--language android`、brownfield 七步 playbook、改造计划模板；98 kit tests PASS；Lead 复查修正 3 项（android 命令对齐、wrapper jar 误报、过期标记词）；Android 真实仓只读试点 PASS（0 改动） | 2026-11-10 |
+| 14 | Android 真实仓 Stage B（brownfield P1–P5，5 个并行 agent + Lead 集成） | 15 commits 推送 `fd87381`：文档蒸馏（11 当前 + 10 归档、D1–D15）、清洁批次、`check-host`/`check-quality`/JUnit 证据链、负向注入 12/12、冷启动 5/5、计划 done+归档；注入修出 `check_layers` 前缀匹配空转与 `check_hygiene` `/home/` 误报；CI run `42758117166` success | 2026-11-10 |
 | 12 | 设备信任后复跑真机 + 取证 | 单元 120/120 PASS 并写设备证据（干净树，`verify-claim` PASS）；UI 仍 exit 74（网络配对限制）；首证因 dirty 工作树被判 FAIL → 改为「先提交再取证」；脚本改为失败不写证据（避免 `*-pass` 文件自相矛盾） | 2026-11-09 |
 | 11 | 用户按 README 走真机路径 + 开启分支保护 | 真机预热 6s/0 用例：脚本吞掉 `diagnostics.errors`，真实原因是测试 target 无 Team；已修脚本（打印原因+`APM_TEAM`+证书信任提示）与文档；分支保护已开（禁 force push/删除，普通 push 已实测通过） | 2026-11-09 |
 | 10 | 重登 gh + API 改名 | 组织策略「fine-grained token 有效期 ≤366 天」导致 403；用户重登为 classic token（`repo`/`workflow`）→ 改名成功、旧名 302/301 保留；同时确认 kit `v0.2.0` 发布链路可用 | 2026-11-09 |
@@ -596,13 +600,15 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.2.2 发布与 Stage A 记录已提交）。
+- harness/plans/2026-11-06-benchmark-opensource.md
+- harness/reviews/2026-11-10-kit-android-stage-b.md
 
 ## 下一步
 
-1. Phase 4 已收尾（真机全套 PASS + 人类非作者首访完成），Phase 5.8 已收口（kit v0.2.2 发布 + Android 只读试点）；本计划主线（Phase 1–5）完成。
-2. Android 外部试点进入 **Stage B**：按 `HARNESS-ADOPTION-ASSESSMENT.md` 在 Android 仓执行 P1–P5（init → 文档蒸馏 → 清洁 → 传感器 → 验收）；用户已批准按推荐执行。
-3. Phase 6（可选）：P0-1 并发 / P0-3 持久化行为测试，独立排期。
+1. 本计划主线（Phase 1–5.9）完成：iOS 标杆 + kit v0.2.2 + Android 真实仓 Stage A/B 均已收口；Stage B 结果已回写（报告见上）。
+2. 用户决定：Android 产品 Next（延迟探针/流式回字幕/增量翻译 A/B）**本会话不做**，按目标仓 `docs/06-roadmap.md` 另行排期。
+3. kit v0.2.3 候选（不在本计划，待用户决定）：Android 矩阵行 ✅、`check_plan` 无扩展名根文件、宿主 `check_hygiene`/`check_layers` 上游化、sensors-selftest 工具化。
+4. Phase 6（可选）：P0-1 并发 / P0-3 持久化行为测试，独立排期。
 
 ## 待确认
 
