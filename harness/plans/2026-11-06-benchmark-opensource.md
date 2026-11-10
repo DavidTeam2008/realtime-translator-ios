@@ -629,13 +629,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness-kit/VERSION — 0.2.8 — 保留
-- harness-kit/CHANGELOG.md — 0.2.8 条目 — 保留
-- harness-kit/README.md — 开篇精简 + 版本引用 — 保留
-- harness-kit/SPEC.md — 配置示例版本 — 保留
-- harness-kit/docs/governance.md — 测试计数 122 — 保留
-- harness-kit/tests/test_kit_hygiene.py — 新增版本一致性测试 — 保留
-- harness/plans/2026-11-06-benchmark-opensource.md — 本计划（Phase 5.15） — 保留
+- 无未提交改动（kit v0.2.8 文档已提交；镜像发布与回填在下一步）。
 
 ## 下一步
 
