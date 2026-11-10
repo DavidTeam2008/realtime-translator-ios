@@ -201,7 +201,7 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 2. **历史文档误当现状**：带日期的报告是当时口径，不改数字；现行结论重写进规范文档。
 3. **构建缓存入库**：`build/`、`DerivedData/`、`.cache/` 被跟踪会让证据写入因 dirty tree 失败；先出库 + `.gitignore`。
 4. **本机路径泄漏**：home 目录路径、设备 ID、Team 不要入库；`check_agents.py` 扫到即清，不要加白名单绕过。
-5. **升级路径未验证**：minimal→standard→strict 再 init 是 CONFLICT + 人工合并，SPEC 未定义专用迁移命令（未验证）。
+5. **升级没有 in-place 命令**：版本升级与 profile 升级都是「临时渲染新版 → 逐文件 diff → 人工合并」；版本升级已在 Android/Gradle 存量仓验证（v0.2.2→v0.2.3），profile 升级（minimal→standard→strict）仍未验证。
 6. **profile 选择**：存量仓库优先 `standard`（计划 + 证据 + CI）；`minimal` 只适合先立规则，`strict` 等适配器/红队有真实需求再加。
 
 ## 常见坑
@@ -214,12 +214,26 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 6. **别把 kit 文件当产品代码**：生成物是研发流程约束（规则/门禁/证据），不要 import 进业务运行时，也不要让 CI 依赖宿主语言之外的解释器。
 7. **新建计划草稿会让 `make check` 变红**：`make plan` 生成的是待填草稿；先补「目标/验收/下一步/scope.allow」并删掉占位符，或删除草稿，再继续。
 
-## profile 升级路径
+## 升级路径
+
+### 版本升级（已验证，2026-11-10）
+
+kit 不提供 in-place 迁移命令；对已接入仓直接再 init 只会全 CONFLICT（还可能想写 `Makefile.harness`，与既有宿主 `Makefile` 冲突）。已验证的做法：
+
+1. **临时渲染新版**：`python3 harness-kit/scripts/harness-init --profile <档> --language <语言> --target /tmp/kit-render-<ver> --no-check`（需要目标版本 kit）。
+2. **逐文件 diff**：`git diff --no-index <target>/<file> /tmp/kit-render-<ver>/<file>`；只回写 kit 管理面——`tools/`、`harness/config.json` 的 `kitVersion`/配置、Makefile 的 kit 目标段、CI/hook 模板。项目自有文档（AGENTS/CONTRIBUTING/README/docs/references）不回写。
+3. **配置迁移**：config schema 有变化时写映射（如 0.2.3 把宿主私有 `layers` 键映射为通用 `rules` + `symbolGuards`）；`kitVersion` 与 VERSION 对齐。
+4. **复核**：`make verify-static`，再用 `python3 <kit>/scripts/harness-selftest --target .` 做负向注入——升级后门禁仍必须按预期变红，否则视为升级引入回归。
+5. **记录**：升级计划写实际卡点、映射表、selftest 前后矩阵；有宿主 fork 的，升级后应删除 fork、只留配置差异。
+
+**实测**：真实 Android/Gradle 存量仓 v0.2.2→v0.2.3：4 个宿主 fork 脚本换回上游、`layers`/`hygiene` 配置迁移、`static-gates` 证据落地；selftest 在升级前发现门禁模式被历史清洗成 `/local/`（M5/M8 失效），修复后 **8/8**。细节见该仓归档计划。
+
+### profile 升级（仍未验证）
 
 - **升级 = 在已接入目录上再 init 更高档**：先 `--dry-run` 对比新增文件/冲突，再执行；已有文件默认 CONFLICT。
 - `--force` 会备份后覆盖同名文件——逐项 `difftool` 复核差异，尤其是 `AGENTS.md`、`Makefile.harness`、`harness/config.json`。
 - Makefile 升级：用更高档模板生成的 `Makefile.harness` 替换旧文件（已有宿主 `Makefile` 保持不变，仍通过 `include` 接入）。
-- 该升级流程**尚未在真实项目上验证**（SPEC 未定义专用迁移命令）；按 dry-run 计划人工合并，并在计划里记录实际卡点。
+- 该路径**尚未在真实项目上验证**（SPEC 未定义专用迁移命令）；按 dry-run 计划人工合并，并在计划里记录实际卡点。
 
 ## 如何验证接入成功（期望退出码与本机限制）
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.4 — 2026-11-10
+
+- **文档：升级路径实证**。`docs/playbook.md` 新增「升级路径」：版本升级 = 临时目录渲染新版 → 逐文件 diff →
+  只回写 kit 管理面（`tools/`、`harness/config.json` 的 `kitVersion`/配置、Makefile kit 目标段、CI/hook）→
+  `make verify-static` + kit `harness-selftest` 负向注入复核。已在真实 Android/Gradle 存量仓完成
+  **v0.2.2→v0.2.3** 验证（`harness-selftest` 从 5 PASS / 2 FAIL / 1 SKIP 变为 **8/8 PASS**）；profile 升级
+  （minimal→standard→strict）仍未验证。
+- README/SPEC 同步：版本升级路径已验证、profile 升级未验证；来源案例补充 Android/Gradle 存量仓。
+- 无接口、脚本、模板与 config schema 变更；向后兼容。
+
 ## 0.2.3 — 2026-11-10
 
 - **宿主传感器上游化（C5/C6）**：新增 `tools/check_hygiene.py`（被跟踪构建产物 / 根文件白名单 /

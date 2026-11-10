@@ -3,7 +3,7 @@
 > 把「AI coding agent 可验收的研发约束」做成**项目无关**模板：**guides**（指令/规则）+ **sensors**（门禁/证据）+ **state**（计划/交接）。
 > 不是框架、不是依赖：只生成 Markdown、Python 标准库脚本和一个 Makefile 入口；接入失败可整目录删除，不留运行时包袱。
 
-- 版本：`0.2.3`（见 [`VERSION`](VERSION)）
+- 版本：`0.2.4`（见 [`VERSION`](VERSION)）
 - 内部构建契约：[`SPEC.md`](SPEC.md)
 - 采用方法：[`docs/playbook.md`](docs/playbook.md)（新项目五步法 + 存量项目七步法 + 常见坑）
 
@@ -33,6 +33,7 @@
 | **宿主卫生 / 分层门禁** | `tools/check_hygiene.py` / `tools/check_layers.py`（standard+，可选配置） | 卫生：构建产物、根文件白名单、绝对符号链接、跟踪文件中的本机路径、超大文件；分层：import 方向与 symbol guard。`harness/config.json` 缺 `hygiene`/`layers` 段时自动 SKIP（不阻断） |
 | **门禁自测** | `scripts/harness-selftest`（kit 侧） | 对目标仓的临时副本做基线检查、逐项注入并断言对应门禁非 0、恢复后复核全绿；默认不写目标仓 |
 | **存量项目盘点** | `scripts/harness-adopt`（kit 侧） | 只读盘点 + `--report` / `--json` / `--write-plan`（改造计划草稿） |
+| **版本升级路径** | playbook「升级路径」 | 无 in-place 命令：临时渲染 + 逐文件 diff + `harness-selftest` 复核；已在 Android/Gradle 存量仓验证 v0.2.2→v0.2.3（2026-11-10）；profile 升级仍未验证 |
 | 语言探测 | `scripts/harness-init` | `python` / `swift` / `node` / `go` / `android` / `other` |
 | 适配器 | `adapters/` | `githooks` / `ci` / `claude-code` / `dsh`（预留） |
 
@@ -199,18 +200,18 @@ kit 的定制入口只有**目标项目的 `harness/config.json`**（所有门�
 
 ## 来源案例
 
-harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<https://github.com/DavidTeam2008/realtime-translator-ios>）。该仓库是第一个案例；kit 本身不包含其业务代码或专有规则。
+harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<https://github.com/DavidTeam2008/realtime-translator-ios>）。该仓库是第一个案例；第二个真实案例是 Android/Gradle 存量仓 <https://github.com/DavidTeam2008/realtime-translator-android>（brownfield 接入 + v0.2.2→v0.2.3 版本升级验证）。kit 本身不包含其业务代码或专有规则。
 
 ## 局限与未验证（别当成能力）
 
 - **外部试点**：空白 Python 项目由 AI 代理完成 standard 接入（首次 `make check` 一次通过）；另一真实 Android/Gradle 仓完成完整 brownfield 试点（init → 文档蒸馏 → 宿主传感器 → JUnit 证据链 → 负向注入 → 计划归档）。**人类采用者、其他语言生态、超大仓性能仍未验证。**
 - **语言/测试框架需要你提供**：不同语言只有建议命令；`{{TEST_COMMAND}}` 与 `harness/config.json.commands.test` 必须由你填真实命令，kit 不验证测试语义。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：kit 生成的空白脚手架本身可通过；若目标已有 `AGENTS.md`/`docs/`/`Makefile`，需按预算与白名单调整（看 `FAIL` 提示，不要删检查绕过）。
-- **存量项目（brownfield）流程已在真实 Android/Gradle 仓完整走通**（七步法 + `harness-adopt`）；其他语言/生态的存量仓、超大仓性能与 profile 升级路径仍未验证。
+- **存量项目（brownfield）流程已在真实 Android/Gradle 仓完整走通**（七步法 + `harness-adopt`）；**版本升级路径**亦已在同一仓完成 v0.2.2→v0.2.3 验证（2026-11-10，见 playbook「升级路径」）；其他语言/生态的存量仓、超大仓性能与 **profile 升级**仍未验证。
 - **kit 自身测试**：`harness-kit/tests/` 含 121 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量项目盘点、JUnit XML 聚合、宿主卫生/分层门禁、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用）；已接入来源仓库的 `make verify-static`，本地执行 PASS，CI 随来源仓库 `verify` workflow 运行。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前 manifest 为空（预留）。
 - **未做外部安全审计**：kit 只承诺不联网、不写目标之外文件（SPEC §8.7），但未在第三方 CI/受限沙箱验证。
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.3`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.4`；向后兼容策略见 [SPEC §10](SPEC.md)。
