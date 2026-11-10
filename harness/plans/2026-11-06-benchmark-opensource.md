@@ -650,9 +650,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `Makefile` / 新增 make kit-prompts 目标（重新生成 kit 提示词文档）
-- `harness-kit/` / v0.2.11 提示词库单源 + harness-prompt CLI + 文档与测试同步
-- `harness/` / 本计划 Phase 5.18 进度与尝试记录
+- 无未提交改动（kit v0.2.11 源、测试与文档已提交；待镜像发版后回写记录）。
 
 ## 下一步
 
