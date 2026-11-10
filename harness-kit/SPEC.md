@@ -98,7 +98,7 @@ harness-kit/
 
 ```json
 {
-  "kitVersion": "0.2.5",
+  "kitVersion": "0.2.8",
   "project": { "name": "{{PROJECT_NAME}}", "language": "{{PROJECT_LANGUAGE}}" },
   "paths": {
     "docs": "docs",

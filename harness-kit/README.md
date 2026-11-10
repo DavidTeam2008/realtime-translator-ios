@@ -1,14 +1,12 @@
 # harness-engineering-kit
 
-> **Harness Engineering 项目脚手架**（仓库名 `harness-engineering-kit`，原名 `harness-kit`；目录、命令与 tag 前缀沿用短名 `harness-kit`）：把「AI coding agent 可验收的研发约束」按 **Instructions / State / Verification / Scope / Session Lifecycle** 五子系统固化为**项目无关**的模板、门禁与证据链。
-> 面向用 AI Coding Agent / Vibe Coding 交付、但代码、文档、验证开始失控的项目：**把"agent 说完成了"变成"证据说了算"，让仓库重新可维护、可交接、可迭代。**
-> 不是框架、不是依赖：只生成 Markdown、Python 标准库脚本和一个 Makefile 入口；接入失败可整目录删除，不留运行时包袱。
+> **Harness Engineering 项目脚手架**：按 **Instructions / State / Verification / Scope / Session Lifecycle** 五子系统，生成与项目无关的模板、门禁与证据链，让“完成”可验证。
 
-- 版本：`0.2.5`（见 [`VERSION`](VERSION)）
-- **[接入指南：新项目 / 存量项目 / AI coding Agent](docs/adoption.md)** ← 先看这个
-- 采用方法：[`docs/playbook.md`](docs/playbook.md)（新项目五步法 + 存量项目七步法 + 常见坑）
-- 演化与治理：[`docs/governance.md`](docs/governance.md)（反臃肿、版本演化、多人协作）
-- 内部构建契约：[`SPEC.md`](SPEC.md)
+**把“agent 说完成了”变成“证据说了算”。** 不是框架，也不是依赖；生成物可整目录删除。
+
+- 仓库名 `harness-engineering-kit`（原名 `harness-kit`；目录、命令与 tag 前缀沿用短名）
+- 版本：`0.2.8`（见 [`VERSION`](VERSION)）
+- **[接入指南：新项目 / 存量项目 / AI coding Agent](docs/adoption.md)** · [采用 playbook](docs/playbook.md) · [演化与治理](docs/governance.md) · [内部契约 SPEC](SPEC.md)
 
 ## 它是什么：Harness Engineering 脚手架
 
@@ -121,7 +119,7 @@ kit 的目标不是"规则越多越安全"，而是**能机检的就不写进指
 - **预算即设计**：根 `AGENTS.md` ≈1650 token 预算，三份 references 各 ≈950–1000 token；新增规则顶预算必须删/合并旧规则；
 - **渐进披露**：根指令只指路，目录级规则在嵌套 `AGENTS.md`，细节在 `references/`，流程在 skills/adapters；不一次塞满上下文；
 - **删除优先 + 薄适配**：模型/Agent 已能稳定做对的事降级或删除；Agent 私有能力只进 `adapters/`，不污染核心规则；
-- **门禁会腐烂，所以能自测**：`harness-selftest` 负向注入 + 121 个 kit 端到端用例；门禁空转（例：模式被改坏）会当场变红。
+- **门禁会腐烂，所以能自测**：`harness-selftest` 负向注入 + 122 个 kit 端到端用例；门禁空转（例：模式被改坏）会当场变红。
 
 完整机制（版本演化、行为级评估计划、删除/降级流程、踩刹车信号）见 **[governance.md](docs/governance.md)**。
 
@@ -174,7 +172,7 @@ harness-kit/
 ├── docs/playbook.md     # 新项目五步法 + 存量项目七步法 + 常见坑 + 升级路径
 ├── docs/governance.md   # 演化与治理（反臃肿、版本策略、多人协作）
 ├── CHANGELOG.md         # 版本变更记录
-└── tests/               # kit 自身 unittest（标准库，121 个端到端用例）
+└── tests/               # kit 自身 unittest（标准库，122 个端到端用例）
 ```
 
 宿主目标（init 之后，按 profile 增减；以 SPEC §2 为准）：
@@ -244,16 +242,16 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 ## 局限与未验证（别当成能力）
 
 - **结构可验证 ≠ 行为正确**：静态门禁与证据判定证明"流程可复核"，不证明产品行为/性能/真机结果正确——这些仍靠宿主动态测试、真机与人工评审。
-- **行为级评估尚未实现**：当前只有结构门禁 + 121 个 kit 测试 + 宿主 `harness-selftest`；"接入后 Agent 表现提升多少"的 A/B 评估是 v0.3+ 议题（见 governance §2.4），未做前不对外声称。
+- **行为级评估尚未实现**：当前只有结构门禁 + 122 个 kit 测试 + 宿主 `harness-selftest`；"接入后 Agent 表现提升多少"的 A/B 评估是 v0.3+ 议题（见 governance §2.4），未做前不对外声称。
 - **多人协作未验证**：唯一 active 计划、scope、证据绑定、CI required checks 能提供机制层支持；人类多人并行采用、人类陌生人首访仍未验证。
 - **版本升级已验证，profile 升级未验证**：v0.2.2→v0.2.3 已在真实 Android/Gradle 仓验证；minimal→standard→strict 的 profile 升级路径仍未在真实项目验证。
 - **语言/测试框架需要你提供**：`{{TEST_COMMAND}}` 与 `commands.test` 必须填真实命令；kit 不代跑、不解析测试输出（只提供 JUnit XML → evidence 转换）。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：按预算与白名单修内容，不要删检查绕过。
 - **外部试点有限**：空白 Python/Node/SwiftPM 项目、真实 Android/Gradle 存量仓已完成；其他语言生态、超大仓性能未验证。
-- **kit 自身测试**：121 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用）；随来源仓库 `verify` workflow 运行。
+- **kit 自身测试**：122 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用）；随来源仓库 `verify` workflow 运行。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前为预留。
 - **未做外部安全审计**：kit 只承诺不联网、不写目标之外文件（SPEC §8.7），但未在第三方 CI/受限沙箱验证。
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.5`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.8`；向后兼容策略见 [SPEC §10](SPEC.md)。

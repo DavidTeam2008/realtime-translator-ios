@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.8 — 2026-11-10
+
+- README 开篇精简：三行内讲清定位（Harness Engineering 脚手架 / 五子系统 / 证据说了算），接入指南、playbook、
+  治理与 SPEC 入口合并为一行。
+- 修复版本引用漂移：README 版本行、License 版本与 SPEC 配置示例统一到 `0.2.8`；新增
+  `test_version_references_consistent`（kit 测试 121 → 122），把版本漂移纳入门禁。
+- 无脚本、模板、config schema 与门禁行为变更；向后兼容。
+
 ## 0.2.7 — 2026-11-10
 
 - **仓库改名 `harness-kit` → `harness-engineering-kit`**（GitHub 301 重定向；tags/releases 保留；

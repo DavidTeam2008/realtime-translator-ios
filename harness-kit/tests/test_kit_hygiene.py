@@ -39,6 +39,14 @@ class NoProjectSpecificRefsTests(unittest.TestCase):
     def test_version_single_source(self) -> None:
         version = (KIT / "VERSION").read_text(encoding="utf-8").strip()
         self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+
+    def test_version_references_consistent(self) -> None:
+        version = (KIT / "VERSION").read_text(encoding="utf-8").strip()
+        readme = (KIT / "README.md").read_text(encoding="utf-8")
+        spec = (KIT / "SPEC.md").read_text(encoding="utf-8")
+        self.assertIn(f"版本：`{version}`", readme)
+        self.assertIn(f"kit 版本 `{version}`", readme)
+        self.assertIn(f'"kitVersion": "{version}"', spec)
         for profile in sorted((KIT / "profiles").glob("*.json")):
             data = json.loads(profile.read_text(encoding="utf-8"))
             self.assertIn("name", data)
