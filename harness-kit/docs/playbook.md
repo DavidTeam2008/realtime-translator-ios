@@ -175,12 +175,18 @@ git grep -nE '/(Users|home|Volumes)/|[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-' || true   #
 ### ⑥ 宿主传感器（分层 / 卫生 / docmap / 负向注入）
 
 ```bash
-make check && make verify-static
+make check && make verify-static            # standard+ 的 verify-static 已含 check-host
 python3 tools/check_docs.py && python3 tools/check_agents.py && python3 tools/check_plan.py check
-# 负向注入：删一条索引行 / 写错 § 号 / 造敏感串 / 超预算 → 确认对应 sensor 变红 → 恢复
+python3 tools/check_hygiene.py              # 可选：卫生门禁（config 缺 hygiene 段 → SKIP）
+python3 tools/check_layers.py               # 可选：分层门禁（config 缺 layers 段 → SKIP）
+# 负向注入自测：对目标仓的临时副本注入，断言门禁真的会红、恢复后复核全绿（默认不写目标仓）
+python3 harness-kit/scripts/harness-selftest --target ../legacy-app
+# 手工负向注入备用：删一条索引行 / 写错 § 号 / 造敏感串 / 超预算 → 确认对应 sensor 变红 → 恢复
 ```
 
-- 退出信号：正向全 0，且负向注入时按预期非 0（每项记录「注入前 / 注入后 / 恢复后」exit）。
+- `check-host` 由 `check_hygiene.py` + `check_layers.py` 组成，只读 `harness/config.json` 的可选 `hygiene` / `layers` 段；**未配置时 SKIP（不算覆盖）**，要在配置里写明构建产物、根文件白名单、本机路径模式与分层规则后再验收。
+- `harness-selftest`：exit 0=所有注入都被对应门禁拦截且恢复后全绿；1=有门禁未按预期变红（门禁空转，先修门禁本身）；2=目标仓脏或 baseline 本身红（先清理/修好再测）。`--keep` 可保留临时副本排查。
+- 退出信号：正向全 0，且负向注入时按预期非 0（每项记录「注入前 / 注入后 / 恢复后」exit；selftest 输出表格即证据）。
 - 回滚：`git checkout -- <file>` 恢复注入改动；负向注入必须在干净工作树上做。
 
 ### ⑦ 冷启动首访验收

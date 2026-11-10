@@ -13,7 +13,9 @@
     { "src": "core/tools/check_plan.py", "dst": "tools/check_plan.py", "render": false, "onConflict": "fail" },
     { "src": "core/tools/evidence.py", "dst": "tools/evidence.py", "render": false, "onConflict": "fail" },
     { "src": "core/tools/evidence_from_junit.py", "dst": "tools/evidence_from_junit.py", "render": false, "onConflict": "fail" },
-    { "src": "core/tools/verify_claim.py", "dst": "tools/verify_claim.py", "render": false, "onConflict": "fail" }
+    { "src": "core/tools/verify_claim.py", "dst": "tools/verify_claim.py", "render": false, "onConflict": "fail" },
+    { "src": "core/tools/check_hygiene.py", "dst": "tools/check_hygiene.py", "render": false, "onConflict": "fail" },
+    { "src": "core/tools/check_layers.py", "dst": "tools/check_layers.py", "render": false, "onConflict": "fail" }
   ],
   "makefile": "core/templates/makefiles/Makefile.standard.template",
   "makeTargets": ["check", "verify-static", "verify-claim", "plan"],

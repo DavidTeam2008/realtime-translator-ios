@@ -130,7 +130,13 @@ TEST_COUNT_CLAIM = {
 }
 
 
-def plan_front(status: str = "active", *, submitted: str | None = None, scope: bool = True) -> str:
+def plan_front(
+    status: str = "active",
+    *,
+    submitted: str | None = None,
+    scope: bool = True,
+    extra_scope: tuple[str, ...] = (),
+) -> str:
     lines = [
         "id: 2026-01-01-demo",
         f"status: {status}",
@@ -140,6 +146,7 @@ def plan_front(status: str = "active", *, submitted: str | None = None, scope: b
     ]
     if scope:
         lines += ["scope:", "  allow:", "    - harness/"]
+        lines += [f"    - {entry}" for entry in extra_scope]
     lines += ["acceptance:", "  - make check 通过", "verify:", "  - python3 tools/check_plan.py check"]
     if submitted is not None:
         lines.append(f"submitted: {submitted}")
@@ -364,6 +371,33 @@ class KitCoreTest(unittest.TestCase):
         self.write_plan_id(front, body, "2026-01-02-other")
         self.commit_all()
         self.assert_fail(self.check_plan("check"), "只允许 1 个")
+
+    def test_check_plan_declares_extensionless_root_file(self) -> None:
+        """Makefile 等无扩展名根文件必须能被「未提交改动」声明（回归：曾被通用路径规则丢弃）。"""
+        rows = "| `make check` | 基线盘点 | 本机 | —（基线盘点） |"
+        self.write_plan(plan_body(rows))
+        makefile = self.root / "Makefile"
+        makefile.write_text("all:\n\t@true\n", encoding="utf-8")
+        self.commit_all("track Makefile")
+        front = plan_front("active", extra_scope=("Makefile",))
+        body = plan_body(rows).replace(
+            "- 无未提交改动（测试仓库）", "- `Makefile` / 构建目标 / 可丢弃"
+        )
+        self.write_plan_id(front, body, "2026-01-01-demo")
+        self.commit_all("declare Makefile")
+        makefile.write_text("all:\n\t@true\n# modified\n", encoding="utf-8")
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_check_plan_undeclared_extensionless_root_file_fails(self) -> None:
+        rows = "| `make check` | 基线盘点 | 本机 | —（基线盘点） |"
+        front = plan_front("active", extra_scope=("Makefile",))
+        self.write_plan_id(front, plan_body(rows), "2026-01-01-demo")
+        makefile = self.root / "Makefile"
+        makefile.write_text("all:\n\t@true\n", encoding="utf-8")
+        self.commit_all("track Makefile")
+        makefile.write_text("all:\n\t@true\n# modified\n", encoding="utf-8")
+        self.assert_fail(self.check_plan("check"), "git 有未提交改动但计划未声明：Makefile")
 
     def test_check_plan_active_uncommitted_mismatch_fails(self) -> None:
         rows = "| `make check` | 基线盘点 | 本机 | —（基线盘点） |"

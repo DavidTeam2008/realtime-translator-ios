@@ -27,6 +27,8 @@ check 校验（FAIL 会计入退出码 1，WARN 不阻断）：
     匹配某个 submitted token。
   - active：「未提交改动」节与 `git status --short` 交叉比对；scope.allow 之外
     的改动、声明与真实改动不一致均 FAIL；缺该节时 WARN（无法核对）。
+    无扩展名的根级文件（Makefile / GNUmakefile / Dockerfile / LICENSE / NOTICE）
+    可以直接声明为未提交改动。
   - `new`：从 <plans>/_template.md 生成 <YYYY-MM-DD>-<topic>.md，并尽力替换
     常见占位符（<date>/<topic>/<主题>/{{DATE}}/{{TOPIC}}、status 占位）。
   - `brief`：打印 active 计划摘要；无 active 计划 → exit 1。
@@ -51,6 +53,8 @@ EVIDENCE_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[a-z0-9-]+$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
 PASS_WORD_RE = re.compile(r"\bPASS\b|通过")
 ANNOTATION_WORDS = ("基线", "过程", "外部", "历史", "未验证", "负向")
+# 无扩展名的根级文件也允许出现在计划「未提交改动」里（无扩展名不能被通用路径规则识别）
+ROOT_FILE_ALLOWLIST = {"Makefile", "GNUmakefile", "Dockerfile", "LICENSE", "NOTICE"}
 CLEAN_RE = re.compile(r"无未提交改动|没有未提交|工作区\s*(clean|干净)|全部已提交|已全部提交")
 PATH_TOKEN_RE = re.compile(r"`([^`\n]+)`")
 
@@ -543,6 +547,8 @@ def normalize_path_token(token: str) -> str | None:
         return None
     if re.fullmatch(r"[0-9a-f]{7,40}", text):
         return None
+    if text in ROOT_FILE_ALLOWLIST:
+        return text
     if "/" in text or re.search(r"\.[A-Za-z0-9]{1,10}$", text):
         return text
     return None

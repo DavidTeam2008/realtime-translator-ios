@@ -3,7 +3,7 @@
 > 把「AI coding agent 可验收的研发约束」做成**项目无关**模板：**guides**（指令/规则）+ **sensors**（门禁/证据）+ **state**（计划/交接）。
 > 不是框架、不是依赖：只生成 Markdown、Python 标准库脚本和一个 Makefile 入口；接入失败可整目录删除，不留运行时包袱。
 
-- 版本：`0.2.2`（见 [`VERSION`](VERSION)）
+- 版本：`0.2.3`（见 [`VERSION`](VERSION)）
 - 内部构建契约：[`SPEC.md`](SPEC.md)
 - 采用方法：[`docs/playbook.md`](docs/playbook.md)（新项目五步法 + 存量项目七步法 + 常见坑）
 
@@ -30,6 +30,8 @@
 | 计划状态 | `tools/check_plan.py` + `harness/plans/` | front matter、唯一 active、证据表、done/submitted 绑定 |
 | 证据三值 | `tools/evidence.py` + `verify_claim.py` | PASS / FAIL / UNVERIFIED；无 evidence id 即未验证 |
 | **JUnit XML 适配器** | `tools/evidence_from_junit.py`（standard+） | 聚合 JUnit XML（pytest/unittest、Gradle、JUnit 等）的 `tests/failures/errors/skipped/duration` 为 evidence JSON，供 `evidence.py write --from-json`；缺文件/解析失败 exit 2 |
+| **宿主卫生 / 分层门禁** | `tools/check_hygiene.py` / `tools/check_layers.py`（standard+，可选配置） | 卫生：构建产物、根文件白名单、绝对符号链接、跟踪文件中的本机路径、超大文件；分层：import 方向与 symbol guard。`harness/config.json` 缺 `hygiene`/`layers` 段时自动 SKIP（不阻断） |
+| **门禁自测** | `scripts/harness-selftest`（kit 侧） | 对目标仓的临时副本做基线检查、逐项注入并断言对应门禁非 0、恢复后复核全绿；默认不写目标仓 |
 | **存量项目盘点** | `scripts/harness-adopt`（kit 侧） | 只读盘点 + `--report` / `--json` / `--write-plan`（改造计划草稿） |
 | 语言探测 | `scripts/harness-init` | `python` / `swift` / `node` / `go` / `android` / `other` |
 | 适配器 | `adapters/` | `githooks` / `ci` / `claude-code` / `dsh`（预留） |
@@ -72,6 +74,8 @@ python3 harness-kit/scripts/harness-init --profile strict --target ../myapp --na
 - 冲突默认 `fail` 并列出文件；重复 init 不会重复追加 `.gitignore`（去重）；`--force` 前先 `--dry-run` 复核是推荐姿势。
 - init 会**自动执行首次 `make check` 并透传退出码**；exit 0 即最小接入完成（标准/严格档再按 playbook 第 4–5 步接入测试与证据）。
 - 推荐顺序：`init` → 首次 `make check`(自动) → `git commit`（证据写入要求 clean tree）→ 真实测试 → `evidence.py write` → `verify-claim`；`make plan` 生成的草稿在填完必填节并提交前会让 `make check` 变红（预期）。
+- **宿主门禁（standard+）**：`make check-host` 运行 `tools/check_hygiene.py` + `tools/check_layers.py`；两者只在 `harness/config.json` 配置了 `hygiene` / `layers` 段时生效，未配置会 `[SKIP]`（不阻断）。`verify-static` 已包含 `check-host`。
+- **验证门禁真的会红**：接入后可跑 `python3 harness-kit/scripts/harness-selftest --target .`——它在目标仓的临时副本里做基线检查并逐项注入（未登记文档/断链/超预算/本机路径/重复 active 计划/缺证据等），断言对应门禁非 0，再恢复并复核全绿；默认不写目标仓。exit 0=全部按预期拦截并恢复，1=有门禁未按预期变红，2=目标仓脏或 baseline 本身红。
 - kit 目录**自包含**：`cp -r harness-kit /path/to/kit` 到仓库外后，`scripts/harness-init` 仍可直接使用（不依赖来源仓库的路径/历史）；拆分独立仓库时复制该目录即可。
 
 ### 存量项目（brownfield）先只读盘点
@@ -95,8 +99,8 @@ python3 harness-kit/scripts/harness-adopt --target ../legacy-app --write-plan
 | profile | 新增内容（相对上一档） | 主要 Makefile target | 适用场景 |
 | --- | --- | --- | --- |
 | `minimal` | `AGENTS.md`、`docs/README.md`、`docs/AGENTS.md`、`references/{contracts,verification,workflow}.md`、`harness/{README,AGENTS,config}`、`tools/{token_estimate,check_docs,check_agents}.py` | `check`（docs+agents）、`verify-static`（=check） | 先立规则与文档门禁；不需要测试框架 |
-| `standard` | `HARNESS.md`、`CONTRIBUTING.md`、`harness/plans/_template.md`、`harness/evidence/{README,schema,TEMPLATE}`、`harness/test-baseline.json`、`tools/{check_plan,evidence,verify_claim,evidence_from_junit}.py`、可选 `githooks`/`ci` | `check`（+plan）、`verify-static`（+证据校验）、`verify-claim`、`plan TOPIC=` | 真实仓库：需要跨会话状态与「完成可证伪」 |
-| `strict` | `docs/harness-scorecard.md`、`harness/reviews/`、`.dsh/skills/{verify-change,handoff,red-team}`、`tools/{doctor,adapters}.py`、可选 `claude-code`/`dsh` 适配 | 以上 + `release-check`（fresh/strict 证据）、`doctor`、`adapters-sync`/`adapters-check` | 长期维护项目：发布前强门禁、红队、适配器一致性 |
+| `standard` | `HARNESS.md`、`CONTRIBUTING.md`、`harness/plans/_template.md`、`harness/evidence/{README,schema,TEMPLATE}`、`harness/test-baseline.json`、`tools/{check_plan,evidence,verify_claim,evidence_from_junit,check_hygiene,check_layers}.py`、可选 `githooks`/`ci` | `check`（+plan）、`verify-static`（含 `check-host` + 证据校验）、`check-host`（可选配置）、`verify-claim`、`plan TOPIC=` | 真实仓库：需要跨会话状态与「完成可证伪」 |
+| `strict` | `docs/harness-scorecard.md`、`harness/reviews/`、`.dsh/skills/{verify-change,handoff,red-team}`、`tools/{doctor,adapters}.py`、可选 `claude-code`/`dsh` 适配 | 以上（`verify-static` 含 `check-host`）+ `release-check`（fresh/strict 证据）、`doctor`、`adapters-sync`/`adapters-check` | 长期维护项目：发布前强门禁、红队、适配器一致性 |
 
 > 表格按 `profiles/*.json` 与 SPEC §5 整理；`dsh` 适配器当前为预留（manifest 为空列表），`claude-code` 提供 `CLAUDE.md` 与 hooks 示例。
 
@@ -108,7 +112,7 @@ python3 harness-kit/scripts/harness-adopt --target ../legacy-app --write-plan
 | Node | `package.json` | 有 `scripts.test` → `npm test`；无 → `node --test`（Node 18+） | ✅ Node 24 / `node --test` + `npm test` |
 | Swift | `Package.swift` → SwiftPM；`*.xcodeproj` → Xcode 工程 | `swift test`；Xcode 工程提示必须用 `--test-command` 显式给 `xcodebuild test -scheme …` | ✅ SwiftPM（Apple Swift 6.4）；**Xcode iOS 工程未实测** |
 | Go | `go.mod` | `go test ./...` | ❌ 本机未安装 Go，未实测 |
-| Android / Gradle | `settings.gradle(.kts)` / `build.gradle(.kts)` → `android`（优先于 python 的混合仓判定） | `./gradlew testDebugUnitTest` | ⚠️ 存量盘点与建议命令已在真实 Android 仓只读试点；**init/证据链在该仓未端到端实测**。JDK 17–21 与 wrapper 版本由项目固定；wrapper 路径/NDK/多模块边界由项目自管；kit 不代跑、不解析测试输出（可用 JUnit XML + `evidence_from_junit.py` 取计数） |
+| Android / Gradle | `settings.gradle(.kts)` / `build.gradle(.kts)` → `android`（优先于 python 的混合仓判定） | `./gradlew testDebugUnitTest` | ✅ 真实 Android/Gradle 仓完整试点（init → 文档蒸馏 → 宿主传感器 → JUnit 证据链 → 负向注入 → 计划归档）；JDK 17–21 与 wrapper 版本由项目固定；wrapper 路径/NDK/多模块边界由项目自管；kit 不代跑、不解析测试输出（JUnit XML + `evidence_from_junit.py` 取计数） |
 | 其他 | 手动 `--language other` | `make test` | — |
 
 > 语言支持的边界：kit 只负责**指令/门禁/计划/证据流程**，不解析业务测试输出。测试计数（`passed/failed/skipped`）由宿主用 `tools/evidence.py write --from-json` 提供（例如把 `swift test` 的 `Executed N test` 或 `node --test` 的 `# pass N` 填入）；需要更紧的集成时可在宿主加一层薄 wrapper。`gitignore` 模板已包含 `node_modules/`、`.build/`、`.swiftpm/`、`__pycache__/`，避免构建产物让证据写入被 dirty tree 拦住。
@@ -123,10 +127,11 @@ harness-kit/
 ├── SPEC.md              # 内部构建契约（脚本/模板/测试必须遵守）
 ├── VERSION              # kit 版本单一来源
 ├── profiles/            # minimal / standard / strict manifest（extends 链）
-├── core/                # config schema + 通用门禁脚本 + 模板（复制/渲染到宿主）
+├── core/                # config schema + 通用门禁脚本（docs/agents/plan/evidence/hygiene/layers…）+ 模板
 ├── adapters/            # githooks / ci / claude-code / dsh 薄适配
 ├── scripts/harness-init # 统一入口（探测、渲染、冲突处理、首次 check）
 ├── scripts/harness-adopt# 存量项目只读盘点 + 改造计划草稿（kit 侧）
+├── scripts/harness-selftest # 门禁自测：临时副本注入、断言门禁会红、恢复后复核（kit 侧，默认不写目标仓）
 ├── docs/playbook.md     # 新项目五步法 + 存量项目七步法 + 常见坑
 ├── CHANGELOG.md         # 版本变更记录
 └── tests/               # kit 自身 unittest（标准库）
@@ -147,7 +152,7 @@ harness-kit/
 │   ├── plans/                    # standard+：front matter + 唯一 active（adopt 可生成 _adoption.md 草稿）
 │   ├── evidence/                 # standard+：schema/TEMPLATE/摘要 JSON
 │   └── reviews/                  # strict：独立审查记录
-├── tools/*.py                    # 按 profile 复制的标准库脚本
+├── tools/*.py                    # 按 profile 复制（standard+ 含 check_hygiene / check_layers）
 ├── .githooks/pre-push            # standard+（可选）
 ├── .github/workflows/verify.yml  # standard+（可选）
 └── .dsh/skills/ / .claude/       # strict + 对应适配器（可选）
@@ -198,14 +203,14 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 
 ## 局限与未验证（别当成能力）
 
-- **外部试点仅有代理结果**：首个外部试点由 AI 代理在空白 Python 项目完成（standard 档接入成功，执行耗时 ≈80s，首次 `make check` 一次通过；报告见 [`kit pilot report`](https://github.com/DavidTeam2008/realtime-translator-ios/blob/main/harness/reviews/2026-11-07-kit-pilot.md)）。**作者另一个真实项目、人类采用者、历史文档冲突整合仍未验证**。
+- **外部试点**：空白 Python 项目由 AI 代理完成 standard 接入（首次 `make check` 一次通过）；另一真实 Android/Gradle 仓完成完整 brownfield 试点（init → 文档蒸馏 → 宿主传感器 → JUnit 证据链 → 负向注入 → 计划归档）。**人类采用者、其他语言生态、超大仓性能仍未验证。**
 - **语言/测试框架需要你提供**：不同语言只有建议命令；`{{TEST_COMMAND}}` 与 `harness/config.json.commands.test` 必须由你填真实命令，kit 不验证测试语义。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：kit 生成的空白脚手架本身可通过；若目标已有 `AGENTS.md`/`docs/`/`Makefile`，需按预算与白名单调整（看 `FAIL` 提示，不要删检查绕过）。
-- **存量项目（brownfield）流程未经外部真实仓库试点**：七步法与 `scripts/harness-adopt` 来自本项目迁移经验整理，盘点项、蒸馏与清洁建议尚未在作者之外的存量仓库验证；profile 升级路径也未验证。
-- **kit 自身测试**：`harness-kit/tests/` 含 98 个端到端用例（三档 init、`make check`/`verify-static`、证据三值、strict `release-check`、存量项目盘点、JUnit XML 聚合、Android 推断、dry-run/冲突/备份、无专有引用）；已接入来源仓库的 `make verify-static`，本地执行 PASS，CI 随来源仓库 `verify` workflow 运行。
+- **存量项目（brownfield）流程已在真实 Android/Gradle 仓完整走通**（七步法 + `harness-adopt`）；其他语言/生态的存量仓、超大仓性能与 profile 升级路径仍未验证。
+- **kit 自身测试**：`harness-kit/tests/` 含 121 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量项目盘点、JUnit XML 聚合、宿主卫生/分层门禁、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用）；已接入来源仓库的 `make verify-static`，本地执行 PASS，CI 随来源仓库 `verify` workflow 运行。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前 manifest 为空（预留）。
 - **未做外部安全审计**：kit 只承诺不联网、不写目标之外文件（SPEC §8.7），但未在第三方 CI/受限沙箱验证。
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.2`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.3`；向后兼容策略见 [SPEC §10](SPEC.md)。

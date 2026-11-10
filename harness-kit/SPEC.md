@@ -27,7 +27,9 @@ harness-kit/
 │   │   ├── verify_claim.py
 │   │   ├── doctor.py
 │   │   ├── adapters.py
-│   │   └── evidence_from_junit.py   # standard+：JUnit XML → evidence JSON
+│   │   ├── evidence_from_junit.py   # standard+：JUnit XML → evidence JSON
+│   │   ├── check_hygiene.py         # standard+：宿主卫生门禁（可选 hygiene 段）
+│   │   └── check_layers.py          # standard+：分层/依赖方向门禁（可选 layers 段）
 │   └── templates/            # 渲染到目标项目的模板（{{PLACEHOLDER}}）
 │       ├── AGENTS.md.template
 │       ├── CONTRIBUTING.md.template
@@ -56,6 +58,7 @@ harness-kit/
 │   └── strict.json
 ├── scripts/harness-init      # 可执行 Python3 脚手架（无扩展名）
 ├── scripts/harness-adopt     # kit 侧只读盘点 + 改造计划草稿（无扩展名）
+├── scripts/harness-selftest  # kit 侧门禁自测：临时副本注入 → 断言门禁非 0 → 恢复复核（无扩展名）
 ├── docs/playbook.md          # 五步改造法 + 存量项目七步法 + 常见坑
 └── tests/                    # kit 自身的 unittest（仅标准库）
 ```
@@ -78,7 +81,7 @@ harness-kit/
 │   ├── evidence/{schema.json,TEMPLATE.json,README.md}
 │   ├── test-baseline.json            # standard/strict
 │   └── reviews/…                     # strict
-├── tools/*.py                        # 按 profile 复制
+├── tools/*.py                        # 按 profile 复制；standard+ 另含 check_hygiene.py / check_layers.py
 ├── .gitignore                        # append 块
 ├── .githooks/pre-push                # standard/strict（可选初始化）
 ├── .github/workflows/verify.yml      # standard/strict（可选初始化）
@@ -92,7 +95,7 @@ harness-kit/
 
 ```json
 {
-  "kitVersion": "0.2.2",
+  "kitVersion": "0.2.3",
   "project": { "name": "{{PROJECT_NAME}}", "language": "{{PROJECT_LANGUAGE}}" },
   "paths": {
     "docs": "docs",
@@ -138,7 +141,7 @@ harness-kit/
 - 缺失字段时脚本必须给出**可读错误**并 exit 1，不得静默使用默认值（`examples` 里的默认值仅用于模板生成）。
 - 路径一律相对目标项目根；不接受绝对路径。
 
-## 4. 脚本 CLI 契约（宿主 `tools/`；唯一例外 `scripts/harness-adopt` 属 kit 侧，见本节末）
+## 4. 脚本 CLI 契约（宿主 `tools/`；kit 侧 `scripts/*` 例外，见本节末）
 
 | 脚本 | 用法 | 输出/语义 |
 | --- | --- | --- |
@@ -151,10 +154,14 @@ harness-kit/
 | `doctor.py` | `python3 tools/doctor.py [--root PATH]` | OK/WARN/FAIL/SKIP：python3、git 仓库、config.commands.test 可执行性、可选适配器；缺必需项 exit 2，否则 0 |
 | `adapters.py` | `python3 tools/adapters.py {sync\|check} [--root PATH]` | `.dsh/skills` 单源 → `.claude/skills` 生成/哈希比对；exit 1 |
 | `evidence_from_junit.py` | `python3 tools/evidence_from_junit.py --xml GLOB [--xml GLOB …] --claim NAME --command CMD [--environment KEY=VALUE …] [--notes TEXT] [--output PATH] [--root PATH]` | standard+：聚合 JUnit XML（`testsuites`/`testsuite`/`testcase`，统计 `failures`/`errors`/`skipped`/`time`）为 `evidence.py write --from-json` 可接受的 JSON（schemaVersion/claim/command/environment/result{status,passed,failed,skipped,durationSec}/verdict/verifier/notes）；`passed = tests − failures − errors − skipped`；`--xml` 缺失或解析失败 exit 2，缺 `--command` exit 2；`--output` 缺省 stdout |
+| `check_hygiene.py` | `python3 tools/check_hygiene.py [--root PATH]` | standard+：读 `harness/config.json` 的**可选** `hygiene` 段（缺失 → `[SKIP]` exit 0）。字段：`trackedArtifactGlobs`（被跟踪构建产物 glob）、`rootAllowlist`（根目录文件白名单）、`localPathPatterns`（本机路径；以 `/` 开头且以 `/` 结尾的目录型条目按字面前缀 + 标识符边界匹配，避免 `features/home/` 误报；其他条目按正则解析）、`skipLocalPathScan`（前缀跳过）、`maxTrackedFileBytes`、`forbidAbsoluteSymlinks`（默认 true）。检查 `git ls-files` 的构建产物 / 根文件白名单（仅配置了 `rootAllowlist` 时生效）/ 绝对符号链接（mode `120000` 且 `cat-file` 目标以 `/` 开头）/ 跟踪文本文件中的本机路径 / 超大跟踪文件；`[OK]/[FAIL]`，违规 exit 1；非 git 仓库 → SKIP exit 0 |
+| `check_layers.py` | `python3 tools/check_layers.py [--root PATH]` | standard+：读可选 `layers` 段（缺失 → `[SKIP]` exit 0）。字段：`sourceRoot`、`extensions`（默认 `.kt`/`.java`/`.py`）、`rules`（`name`/`pathPrefix`/`forbiddenImports`/`allowedImports`）、`symbolGuards`（`classes`/`allowedPaths`）。解析 Kotlin/Java `import` 与 Python `import`/`from … import`；前缀匹配支持带点前缀，`allowedImports` 可覆盖；`symbolGuards` 扫描非注释代码行并校验路径 glob；违规输出 `file:rule`，exit 1 |
 
 通用约定：脚本自行 `Path(__file__).resolve().parent.parent` 定位根，或 `--root` 覆盖；不要读取 kit 源目录；不写目标项目之外的文件（tempfile 除外）；不联网。
 
 kit 侧脚本（**不复制到宿主**）：`python3 harness-kit/scripts/harness-adopt --target PATH [--report PATH] [--json] [--write-plan] [--root KIT_ROOT]`。默认**只读盘点**（0 写入 target）；`--report` 写 Markdown 报告、`--json` 输出机器可读 JSON、`--write-plan` 渲染 `core/templates/harness/plans/_adoption.md.template` 到 `<target>/harness/plans/<DATE>-adopt-harness.md`（要求该目录已存在，否则 exit 1；模板缺失/未知占位符给可读错误；目标文件已存在则拒绝覆盖）。盘点内容：概览（git/语言/构建/既有门禁）、文档（索引缺口/断链/疑似过期）、卫生（被跟踪产物/绝对符号链接/本机路径/大文件）、建议 profile 与 test 命令、下一步清单。exit 0=盘点完成；1=用法错误、目标不存在或 `--write-plan` 前置不满足。
+
+kit 侧门禁自测（**不复制到宿主**）：`python3 harness-kit/scripts/harness-selftest --target PATH [--keep] [--json]`。`--target` 必须是 git 仓库且工作树干净；脚本 `git clone -q` 到临时目录，先跑 baseline `make check`（baseline 红 → 报告后 exit 2，清理退出），再逐项注入并断言对应门禁**非 0**：M1 新增未登记 `docs/__selftest__.md`（`check_docs.py`）、M2 `docs/README.md` 追加断链（`check_docs.py`）、M3 根目录新增未白名单 md（`check_docs.py`）、M4 `AGENTS.md` 追加超预算文本（`check_agents.py`）、M5 `AGENTS.md` 追加本机路径（`check_agents.py`）、M6 若存在 active 计划则复制出第二个 active（`check_plan.py check`）、M7 若存在证据 JSON 则临时移走后 `verify_claim.py --all` 期望非 0、M8 若配置了 `hygiene` 段则在跟踪文件追加本机路径（`check_hygiene.py`）。每项注入后 `git checkout -- .` 并删除新增文件恢复；最后再跑一次 `make check` 复核为 0。输出 `mutation | gate | 注入 exit | 期望 | PASS/FAIL` 表：全部符合 exit 0，任一不符 exit 1，target 脏或 baseline 红 exit 2；默认清理临时目录，`--keep` 保留并打印路径，`--json` 输出机器可读结果；**默认不写 `--target` 仓库**。
 
 空状态语义（新接入项目必须能一次通过）：`harness/plans/` 无计划、`harness/evidence/` 无证据、`docs/` 只有 README、`.dsh/skills/` 不存在，均视为 **OK（带提示）**，不得因此 FAIL。
 
@@ -170,8 +177,10 @@ kit 侧脚本（**不复制到宿主**）：`python3 harness-kit/scripts/harness
 | profile | files / tools | Makefile targets |
 | --- | --- | --- |
 | minimal | AGENTS + docs IA + 3 references + harness/{README,AGENTS,config} + `token_estimate` `check_docs` `check_agents` | `check`（docs+agents）、`verify-static`（=check） |
-| standard | minimal + plans/evidence/test-baseline + `check_agents` `check_plan` `evidence` `verify_claim` `evidence_from_junit` + HARNESS/CONTRIBUTING + githooks/CI（可选） | `check`（docs+agents+plan）、`verify-static`（check+check-evidence）、`verify-claim`、`plan TOPIC=` |
-| strict | standard + doctor/adapters + scorecard/reviews/red-team skill + adapters（可选） | `check`（含 adapters-check）、`verify-static`、`verify-claim`、`release-check`（verify-static + `--fresh --strict`）、`doctor`、`adapters-sync/check` |
+| standard | minimal + plans/evidence/test-baseline + `check_agents` `check_plan` `evidence` `verify_claim` `evidence_from_junit` `check_hygiene` `check_layers` + HARNESS/CONTRIBUTING + githooks/CI（可选） | `check`（docs+agents+plan）、`verify-static`（check + check-host + check-evidence）、`check-host`（`check_hygiene` + `check_layers`，缺配置 SKIP）、`verify-claim`、`plan TOPIC=` |
+| strict | standard + doctor/adapters + scorecard/reviews/red-team skill + adapters（可选） | 以上（`verify-static` 含 `check-host`）+ `release-check`（verify-static + `--fresh --strict`）、`doctor`、`adapters-sync/check` |
+
+`check-host` 在 standard/strict 的 Makefile 中定义为 `python3 tools/check_hygiene.py` + `python3 tools/check_layers.py`，`verify-static` 依赖它；两个脚本读 `harness/config.json` 的**可选** `hygiene` / `layers` 段，未配置时 SKIP，空白项目 init 后 `make check` 仍应通过。
 
 注意：`docs/README.md.template` 是 minimal/standard 共用的索引（只能列 minimal 存在的文件）；strict 用 `core/templates/docs/README.strict.md.template` 覆盖 `docs/README.md`，额外登记 `harness-scorecard.md`（profile 合并按 `dst` 覆盖）。
 
@@ -232,7 +241,9 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
   - `test_kit_hygiene.py`（Lead）：`core/` `adapters/` `profiles/` `scripts/` 中不得出现 `Duiyi|duiyi|对译|TranslationSession|SwiftData|DuiyiTests`（仅 `harness-kit/README.md` 的来源一节允许一次）；kit 顶层文档相对链接可解析；`VERSION`/profiles 结构一致。
   - `test_harness_adopt.py`（gates）：tmp git fixture（断链/未登记文档/根 `NOTES.md`/被跟踪构建产物/绝对符号链接/本机路径）上 `scripts/harness-adopt` 的报告命中、默认 0 写入、`--json` 键、`--write-plan` 在存在 `harness/plans/` 时渲染计划、非法 target exit 1；不依赖网络/Xcode。
   - `test_evidence_junit.py`（gates）：JUnit XML 单/多 suite、`failures`/`errors`/`skipped` 计数、duration 聚合、malformed/missing exit 2、`--output` 必需键（`passed = tests − failures − errors − skipped`）。
-  - `test_core_plan_evidence_claim.py`（state）：check_plan/evidence/verify_claim 的通过、失败、三值、freshness、done/submitted 负向。
+  - `test_kit_host_tools.py`（gates）：tmp git fixture + `harness/config.json`；`check_hygiene.py` 覆盖被跟踪构建产物 / 根文件白名单 / 绝对符号链接 / 本机路径四类违规与正常情况、缺 `hygiene` 段 SKIP；`check_layers.py` 覆盖违规 import / `allowedImports` 覆盖 / `symbolGuards`、缺 `layers` 段 SKIP；≥8 用例。
+  - `test_harness_selftest.py`（gates）：`harness-init --profile standard` 生成临时宿主 + git commit；正常 target → `scripts/harness-selftest` exit 0 且输出含 mutation 行；target 脏 → exit 2；baseline 红（预先提交未登记 docs）→ exit 2；总时长约 10s。
+  - `test_core_plan_evidence_claim.py`（state）：check_plan/evidence/verify_claim 的通过、失败、三值、freshness、done/submitted 负向；check_plan 对无扩展名根文件（`Makefile`/`GNUmakefile`/`Dockerfile`/`LICENSE`/`NOTICE`）的未提交改动声明：声明 → PASS，不声明 → FAIL。
   - `test_core_docs_agents_doctor.py`（gates）：check_docs/check_agents/doctor 的链接/围栏/预算/§ 引用/敏感串/exit code。
 - 测试禁止依赖本机 Xcode/真机/网络；临时目录用 `tempfile.TemporaryDirectory`。
 

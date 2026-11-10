@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.3 — 2026-11-10
+
+- **宿主传感器上游化（C5/C6）**：新增 `tools/check_hygiene.py`（被跟踪构建产物 / 根文件白名单 /
+  绝对符号链接 / 跟踪文件中的本机路径 / 超大跟踪文件；全部由 `harness/config.json` 的可选 `hygiene`
+  段配置，缺段 `[SKIP]` exit 0）与 `tools/check_layers.py`（`sourceRoot` / `extensions` / `rules` /
+  `symbolGuards` 配置驱动，解析 Kotlin/Java/Python import 与符号使用；可选 `layers` 段，缺段 SKIP）。
+- **`check-host` 接入（C7）**：standard profile 复制上述两个工具；Makefile standard/strict 新增
+  `check-host`（`check_hygiene.py` + `check_layers.py`），`verify-static` 依赖它。
+- **`check_plan.py` 修复**：`normalize_path_token` 支持无扩展名根文件声明（`Makefile` / `GNUmakefile` /
+  `Dockerfile` / `LICENSE` / `NOTICE`），计划「未提交改动」可正确声明这些路径。
+- **门禁自测工具（C9）**：新增 `scripts/harness-selftest`——对目标仓的临时副本做基线检查、逐项注入
+  （文档/指令/计划/证据/卫生），断言对应门禁非 0，再恢复并复核全绿；默认不写目标仓，`--keep` 保留副本。
+- **Android / Gradle 试点转正**：在真实 Android/Gradle 仓完成完整 brownfield 试点（init → 文档蒸馏 →
+  宿主传感器 → 证据链 → 负向注入 → 计划归档），语言矩阵 Android 行由「只读盘点」改为 ✅；
+  JDK 17–21 / wrapper / NDK 边界仍由宿主项目自管。
+- 测试：新增宿主门禁与 selftest 用例；kit 用例数 121（Lead 校正精确值）；
+  SPEC 同步 §2/§4/§5/§9，README 更新能力表、接入流程与语言矩阵，playbook 第⑥步补 `check-host`/selftest。
+
 ## 0.2.2 — 2026-11-09
 
 - **C1 存量项目接入**：新增 kit 侧 `scripts/harness-adopt`（默认只读盘点；`--report` / `--json` / `--write-plan`），

@@ -1,0 +1,489 @@
+#!/usr/bin/env python3
+"""harness-selftest: mutation-test a project's own harness gates.
+
+Usage:
+    python3 harness-kit/scripts/harness-selftest --target ../myapp [--keep] [--json]
+
+Contract: sibling utility of harness-kit/SPEC.md §9 (tests/conventions).
+Standard library only; no network; never modifies the target repository.
+
+Behavior:
+  1. `--target` must be a git repository with a clean working tree (dirty => exit 2).
+  2. Clone it into a temporary directory with a local `git clone`.
+  3. Baseline: `make check` must pass (red => exit 2, nothing to assert against).
+  4. Apply mutations one at a time, run the matching gate, require a non-zero exit,
+     then restore the clone (`git checkout -- .` + `git clean -fdq`) before the next.
+       M1  new unregistered doc in docs/            -> tools/check_docs.py
+       M2  broken relative link in docs/README.md   -> tools/check_docs.py
+       M3  new root-level markdown file             -> tools/check_docs.py
+       M4  root instructions over token budget      -> tools/check_agents.py
+       M5  sensitive marker in root instructions    -> tools/check_agents.py
+       M6  second active plan (only if one exists)  -> tools/check_plan.py check
+       M7  evidence files moved away (only if any)  -> tools/verify_claim.py --all
+       M8  local marker in tracked file (only when  -> tools/check_hygiene.py
+           config has a `hygiene` section and the gate exists)
+  5. Run `make check` again to prove the clone recovered; non-zero => exit 1.
+  6. Print a matrix (or JSON with --json); exit 0 only if every applied mutation
+     was rejected by its gate, conditional mutations were skipped cleanly, and the
+     clone recovered.
+
+Exit codes: 0 = all expectations met; 1 = at least one mutation/recovery mismatch;
+2 = invalid/dirty target or red baseline. Usage errors exit 2 via argparse.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable
+
+DEFAULT_TIMEOUT = 300
+CLONE_DIRNAME = "repo"
+STAGING_DIRNAME = "__selftest_staging__"
+# Synthetic markers are built from parts so this script itself carries no local paths.
+USER_MARKER = "/Us" + "ers/selftest"
+VOLUME_MARKER = "/Vol" + "umes/selftest"
+SKIP = "SKIP"
+PASS = "PASS"
+FAIL = "FAIL"
+
+
+class SelftestError(Exception):
+    """User-facing failure (exit 2 for invalid target / baseline)."""
+
+
+def run(cmd: list[str], cwd: Path, *, timeout: int = DEFAULT_TIMEOUT) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            cmd, cwd=str(cwd), capture_output=True, text=True, timeout=timeout
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:  # pragma: no cover - defensive
+        return subprocess.CompletedProcess(cmd, 127, "", f"{type(exc).__name__}: {exc}")
+
+
+def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return run(["git", *args], cwd=repo)
+
+
+def read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def append_text(path: Path, text: str) -> None:
+    write_text(path, read_text(path) + text)
+
+
+def tail(text: str, limit: int = 3) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return " / ".join(lines[-limit:])
+
+
+def worktree_status(repo: Path) -> tuple[bool, str]:
+    """Return (clean, detail)."""
+    proc = git(repo, "status", "--porcelain", "--untracked-files=all")
+    if proc.returncode != 0:
+        return False, f"无法读取 git status：{tail(proc.stderr) or proc.returncode}"
+    status = proc.stdout.strip()
+    if not status:
+        return True, ""
+    paths = [line[3:].strip() for line in status.splitlines() if len(line) > 3]
+    preview = "、".join(paths[:5]) + ("…" if len(paths) > 5 else "")
+    return False, f"工作树不干净（{len(paths)} 个未提交改动：{preview}）；先提交或清理后重试"
+
+
+def restore_clone(repo: Path) -> bool:
+    git(repo, "checkout", "--", ".")
+    git(repo, "clean", "-fdq")
+    clean, _ = worktree_status(repo)
+    return clean
+
+
+def load_config(repo: Path) -> dict:
+    try:
+        config = json.loads(read_text(repo / "harness" / "config.json"))
+    except json.JSONDecodeError:
+        return {}
+    return config if isinstance(config, dict) else {}
+
+
+def root_instructions(repo: Path, config: dict) -> Path:
+    instructions = config.get("instructions") if isinstance(config.get("instructions"), dict) else {}
+    name = instructions.get("root") if isinstance(instructions.get("root"), str) else "AGENTS.md"
+    return repo / (name or "AGENTS.md")
+
+
+def plan_status(text: str) -> str:
+    """Minimal front-matter status reader (first `status:` line)."""
+    for line in text.splitlines():
+        stripped = line.strip().lower()
+        if stripped.startswith("status:"):
+            return stripped.split(":", 1)[1].strip().strip("'\"").lower()
+    return ""
+
+
+def find_active_plan(repo: Path) -> Path | None:
+    plans_dir = repo / "harness" / "plans"
+    if not plans_dir.is_dir():
+        return None
+    for path in sorted(plans_dir.glob("*.md")):
+        if path.name == "_template.md":
+            continue
+        if plan_status(read_text(path)) == "active":
+            return path
+    return None
+
+
+def evidence_docs(repo: Path) -> list[Path]:
+    directory = repo / "harness" / "evidence"
+    if not directory.is_dir():
+        return []
+    skip = {"schema.json", "TEMPLATE.json", "_template.json"}
+    return sorted(path for path in directory.glob("*.json") if path.name not in skip)
+
+
+def first_tracked_text_file(repo: Path) -> Path | None:
+    proc = git(repo, "ls-files", "-z")
+    if proc.returncode != 0:
+        return None
+    candidates = [repo / name for name in proc.stdout.split("\0") if name]
+    for path in candidates:
+        if path.is_file() and path.suffix.lower() in (".md", ".txt", ".json", ".yml", ".yaml", ".toml", ".ini", ".cfg"):
+            return path
+    return candidates[0] if candidates and candidates[0].is_file() else None
+
+
+# ── mutations ─────────────────────────────────────────────────────────────
+@dataclass
+class Mutation:
+    mutation_id: str
+    description: str
+    gate: str
+    args: list[str] = field(default_factory=list)
+    applicable: bool = True
+    skip_reason: str = ""
+    mutate: Callable[[Path], None] | None = None
+    cleanup: Callable[[Path], None] | None = None
+
+
+def build_mutations(repo: Path, config: dict, staging: Path) -> list[Mutation]:
+    mutations: list[Mutation] = []
+
+    def unregistered_doc(repo: Path) -> None:
+        write_text(repo / "docs" / "__selftest__.md", "# selftest doc\n\nnot registered in docs/README.md\n")
+
+    mutations.append(Mutation(
+        "M1", "新增未登记文档 docs/__selftest__.md", "tools/check_docs.py", mutate=unregistered_doc,
+    ))
+
+    def broken_link(repo: Path) -> None:
+        append_text(repo / "docs" / "README.md", "\n[selftest-broken](__selftest_missing__.md)\n")
+
+    mutations.append(Mutation(
+        "M2", "docs/README.md 追加断链", "tools/check_docs.py", mutate=broken_link,
+    ))
+
+    def root_markdown(repo: Path) -> None:
+        write_text(repo / "SELFTEST_ROOT.md", "# selftest root markdown\n")
+
+    mutations.append(Mutation(
+        "M3", "根目录新增 SELFTEST_ROOT.md", "tools/check_docs.py", mutate=root_markdown,
+    ))
+
+    agents = root_instructions(repo, config)
+
+    def over_budget(repo: Path) -> None:
+        append_text(agents, "\n" + ("x" * 4000) + "\n")
+
+    mutations.append(Mutation(
+        "M4", "根指令追加约 4000 字符（超 token 预算）", "tools/check_agents.py", mutate=over_budget,
+    ))
+
+    def sensitive_marker(repo: Path) -> None:
+        append_text(agents, "\n" + USER_MARKER + "\n")
+
+    mutations.append(Mutation(
+        "M5", "根指令追加本机路径标记", "tools/check_agents.py", mutate=sensitive_marker,
+    ))
+
+    active = find_active_plan(repo)
+    if active is None:
+        mutations.append(Mutation(
+            "M6", "复制 active 计划为第二个 active", "tools/check_plan.py", ["check"],
+            applicable=False, skip_reason="没有 active 计划（host 还没有进行中的计划）",
+        ))
+    else:
+        target = active.with_name("__selftest__-second-active.md")
+
+        def second_active(repo: Path, source: Path = active, destination: Path = target) -> None:
+            write_text(destination, read_text(source))
+
+        mutations.append(Mutation(
+            "M6", "复制 active 计划为第二个 active", "tools/check_plan.py", ["check"],
+            mutate=second_active,
+        ))
+
+    evidence = evidence_docs(repo)
+    staging.mkdir(parents=True, exist_ok=True)
+    if not evidence:
+        mutations.append(Mutation(
+            "M7", "移走证据后跑 verify-claim", "tools/verify_claim.py", ["--all"],
+            applicable=False, skip_reason="host 没有证据文件（harness/evidence 只有 schema/TEMPLATE）",
+        ))
+    else:
+        moved: list[tuple[Path, Path]] = []
+
+        def move_evidence(repo: Path, files: list[Path] = evidence) -> None:
+            for path in files:
+                destination = staging / path.name
+                shutil.move(str(path), str(destination))
+                moved.append((destination, path))
+
+        def restore_evidence(repo: Path) -> None:
+            for source, destination in moved:
+                if source.exists():
+                    shutil.move(str(source), str(destination))
+            moved.clear()
+
+        mutations.append(Mutation(
+            "M7", "移走证据后跑 verify-claim", "tools/verify_claim.py", ["--all"],
+            mutate=move_evidence, cleanup=restore_evidence,
+        ))
+
+    hygiene_gate = repo / "tools" / "check_hygiene.py"
+    if "hygiene" not in config or not hygiene_gate.is_file():
+        mutations.append(Mutation(
+            "M8", "跟踪文件追加本机卷路径标记", "tools/check_hygiene.py",
+            applicable=False, skip_reason="host 未配置 hygiene（config.hygiene 或 tools/check_hygiene.py 缺失）",
+        ))
+    else:
+        tracked = first_tracked_text_file(repo)
+
+        def volume_marker(repo: Path, path: Path | None = tracked) -> None:
+            if path is not None:
+                append_text(path, "\n" + VOLUME_MARKER + "\n")
+
+        mutations.append(Mutation(
+            "M8", "跟踪文件追加本机卷路径标记", "tools/check_hygiene.py",
+            applicable=tracked is not None,
+            skip_reason="没有可用的跟踪文本文件" if tracked is None else "",
+            mutate=volume_marker,
+        ))
+
+    return mutations
+
+
+# ── execution ─────────────────────────────────────────────────────────────
+def run_gate(repo: Path, mutation: Mutation) -> int:
+    script = repo / mutation.gate
+    if not script.is_file():
+        raise SelftestError(f"gate 脚本不存在：{mutation.gate}")
+    proc = run([sys.executable, str(script), *mutation.args], cwd=repo)
+    return proc.returncode
+
+
+def execute_mutations(repo: Path, mutations: list[Mutation]) -> list[dict]:
+    results: list[dict] = []
+    for mutation in mutations:
+        record = {
+            "id": mutation.mutation_id,
+            "description": mutation.description,
+            "gate": mutation.gate,
+            "args": mutation.args,
+            "expected": "!=0",
+            "exit": None,
+            "status": SKIP,
+            "skipReason": mutation.skip_reason,
+            "detail": "",
+        }
+        if not mutation.applicable or mutation.mutate is None:
+            results.append(record)
+            continue
+        try:
+            mutation.mutate(repo)
+            exit_code = run_gate(repo, mutation)
+            record["exit"] = exit_code
+            record["status"] = PASS if exit_code != 0 else FAIL
+            if exit_code == 0:
+                record["detail"] = "门禁没有拒绝该注入（期望非 0）"
+        except SelftestError as exc:
+            record["status"] = FAIL
+            record["detail"] = str(exc)
+        finally:
+            try:
+                if mutation.cleanup is not None:
+                    mutation.cleanup(repo)
+            finally:
+                if not restore_clone(repo):
+                    record["status"] = FAIL
+                    record["detail"] = "注入后无法恢复干净工作树"
+        results.append(record)
+    return results
+
+
+# ── reporting ─────────────────────────────────────────────────────────────
+def render_matrix(result: dict) -> str:
+    lines = [
+        f"harness-selftest: target={result['target']}",
+        f"clone: {result['clone']}",
+    ]
+    baseline = result["baseline"]
+    lines.append(f"baseline: {baseline['gate']} exit {baseline['exit']}  {'PASS' if baseline['ok'] else 'FAIL'}")
+    lines.append("")
+    header = f"{'mutation':<4} | {'gate':<26} | {'注入 exit':<8} | {'期望':<4} | 结果"
+    lines.append(header)
+    lines.append("-" * len(header))
+    for item in result["mutations"]:
+        exit_text = "-" if item["exit"] is None else str(item["exit"])
+        lines.append(
+            f"{item['id']:<4} | {item['gate']:<26} | {exit_text:<8} | {item['expected']:<4} | {item['status']}"
+        )
+        if item["status"] == FAIL and item["detail"]:
+            lines.append(f"      detail: {item['detail']}")
+        if item["status"] == SKIP and item["skipReason"]:
+            lines.append(f"      skip: {item['skipReason']}")
+    recovery = result["recovery"]
+    lines.append("")
+    lines.append(f"recovery: {recovery['gate']} exit {recovery['exit']}  {'PASS' if recovery['ok'] else 'FAIL'}")
+    summary = result["summary"]
+    verdict = "PASS" if result["ok"] else "FAIL"
+    lines.append(
+        f"summary: PASS {summary['pass']} / FAIL {summary['fail']} / SKIP {summary['skip']} -> RESULT {verdict}"
+    )
+    if result.get("kept"):
+        lines.append(f"kept workdir: {result['kept']}")
+    return "\n".join(lines)
+
+
+def emit(result: dict, json_mode: bool) -> None:
+    if json_mode:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(render_matrix(result))
+
+
+def finish(result: dict, json_mode: bool) -> int:
+    if result.get("error"):
+        if json_mode:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print(f"[FAIL] {result['error']}", file=sys.stderr)
+            if result.get("kept"):
+                print(f"kept workdir: {result['kept']}", file=sys.stderr)
+        return 2
+    emit(result, json_mode)
+    return 0 if result["ok"] else 1
+
+
+# ── main ──────────────────────────────────────────────────────────────────
+def clone_target(target: Path, workdir: Path) -> Path:
+    repo = workdir / CLONE_DIRNAME
+    proc = run(["git", "clone", "-q", str(target), str(repo)], cwd=workdir)
+    if proc.returncode != 0:
+        raise SelftestError(f"git clone 失败：{tail(proc.stderr) or proc.returncode}")
+    return repo
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="harness-selftest",
+        description="Mutation-test a project's harness gates (clone + inject + restore).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python3 harness-kit/scripts/harness-selftest --target ../myapp\n"
+            "  python3 harness-kit/scripts/harness-selftest --target ../myapp --json\n"
+            "  python3 harness-kit/scripts/harness-selftest --target ../myapp --keep\n"
+        ),
+    )
+    parser.add_argument("--target", required=True, help="existing git repository with a clean working tree")
+    parser.add_argument("--keep", action="store_true", help="keep the temporary clone and print its path")
+    parser.add_argument("--json", action="store_true", help="print machine-readable JSON instead of the matrix")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    target = Path(args.target).expanduser().resolve()
+    json_mode = bool(args.json)
+    workdir = Path(tempfile.mkdtemp(prefix="harness-selftest-"))
+    result: dict = {
+        "tool": "harness-selftest",
+        "target": str(target),
+        "clone": str(workdir / CLONE_DIRNAME),
+        "baseline": {"gate": "make check", "exit": None, "ok": False},
+        "mutations": [],
+        "recovery": {"gate": "make check", "exit": None, "ok": False},
+        "summary": {"pass": 0, "fail": 0, "skip": 0},
+        "ok": False,
+        "exitCode": 2,
+        "kept": str(workdir) if args.keep else None,
+    }
+    if not args.keep:
+        result.pop("kept", None)
+    try:
+        if not target.is_dir():
+            result["error"] = f"target 目录不存在：{target}"
+            return finish(result, json_mode)
+        probe = git(target, "rev-parse", "--is-inside-work-tree")
+        if probe.returncode != 0 or probe.stdout.strip() != "true":
+            result["error"] = f"target 不是 git 仓库：{target}"
+            return finish(result, json_mode)
+        clean, dirty_detail = worktree_status(target)
+        if not clean:
+            result["error"] = f"target 不满足「git 干净」：{dirty_detail}"
+            return finish(result, json_mode)
+
+        try:
+            repo = clone_target(target, workdir)
+        except SelftestError as exc:
+            result["error"] = str(exc)
+            return finish(result, json_mode)
+
+        baseline = run(["make", "check"], cwd=repo)
+        result["baseline"] = {"gate": "make check", "exit": baseline.returncode, "ok": baseline.returncode == 0}
+        if baseline.returncode != 0:
+            result["error"] = (
+                "baseline 红：克隆仓 `make check` 未通过，先修复基线再跑 selftest"
+                f"（exit {baseline.returncode}；{tail(baseline.stdout + baseline.stderr)}）"
+            )
+            return finish(result, json_mode)
+
+        config = load_config(repo)
+        mutations = build_mutations(repo, config, workdir / STAGING_DIRNAME)
+        results = execute_mutations(repo, mutations)
+        result["mutations"] = results
+        counts = {"pass": 0, "fail": 0, "skip": 0}
+        for item in results:
+            if item["status"] == PASS:
+                counts["pass"] += 1
+            elif item["status"] == FAIL:
+                counts["fail"] += 1
+            else:
+                counts["skip"] += 1
+        result["summary"] = counts
+
+        recovery = run(["make", "check"], cwd=repo)
+        result["recovery"] = {"gate": "make check", "exit": recovery.returncode, "ok": recovery.returncode == 0}
+        result["ok"] = counts["fail"] == 0 and result["recovery"]["ok"]
+        result["exitCode"] = 0 if result["ok"] else 1
+        return finish(result, json_mode)
+    finally:
+        if not args.keep and workdir.exists():
+            shutil.rmtree(workdir, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

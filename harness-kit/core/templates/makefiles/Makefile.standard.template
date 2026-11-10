@@ -2,7 +2,7 @@
 # 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
 # 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
 
-.PHONY: help check check-evidence verify-static verify-claim plan
+.PHONY: help check check-evidence check-host verify-static verify-claim plan
 
 help: ## 显示可用目标
 	@echo "{{PROJECT_NAME}} · harness 目标"
@@ -16,7 +16,11 @@ check: ## 文档 + 指令 + 计划静态门禁
 check-evidence: ## 证据 schema 校验
 	@python3 tools/evidence.py validate
 
-verify-static: check check-evidence ## 本地静态门禁（含证据校验）
+check-host: ## 宿主卫生 / 分层守卫（未配置 hygiene/layers 时 SKIP）
+	@python3 tools/check_hygiene.py
+	@python3 tools/check_layers.py
+
+verify-static: check check-evidence check-host ## 本地静态门禁（含证据与宿主检查）
 
 verify-claim: ## 证据三值判定（PASS / FAIL / UNVERIFIED）
 	@python3 tools/verify_claim.py --all
