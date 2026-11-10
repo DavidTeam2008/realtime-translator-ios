@@ -1,7 +1,7 @@
 # kit v0.2.2 · Android 真实仓改造（Stage B）验收报告
 
 > 日期：2026-11-10；工具：harness-kit **v0.2.2**（standard profile）；目标仓：`realtime-translator-android`。
-> 目标仓结果：本地 15 个 commit，已推送 `2ff1fae..fd87381`；CI run `42758117166` success。
+> 目标仓结果：重写后 16 个 Stage B 相关 commit，已推送 `d313fdf..eaae1b6`；CI run `42760441698` success；历史已 filter-repo 清洗、分支保护已开。
 > 说明：本报告是 Phase 5.9 外部试点记录，证据细节在目标仓 `harness/` 内，不在本仓重复。
 
 ## 1. 试点范围
@@ -42,7 +42,15 @@
 - detekt/ktlint/Android Lint 为 baseline 起步（存量债记录，不代表已修）。
 - 目标仓 CI 只跑静态（venv 门禁 + check-host）；质量/单测/真机仍在本机。
 
-## 5. 后续
+## 5. 历史清洗与仓库治理（2026-11-10）
+
+- 目标仓 `git filter-repo --replace-text --mailmap` 重写 18 个 commit：作者邮箱 → GitHub noreply；历史中的本机路径（`/Volumes/...`、`/Users/...`）→ `/local`；历史绝对符号链接目标脱敏。当前树此前已由 P3 清理为 0 命中。
+- 重写后为 19 个 commit（Stage B 相关 16 个），force push `main` 至 `eaae1b6`；CI run `42760441698` success。
+- 证据 `20261109T163805Z-tests-pass` 的 `git.commit` 回填为重写后的等价提交 `2c3b479`（同一内容状态；计划/归档中的旧短 hash 同步替换）。
+- 分支保护已开：required status check `static gates`（strict）、enforce admins、禁 force push/删除。
+- 本地备份 bundle 未入库。
+
+## 6. 后续
 
 - 产品方向按目标仓 `docs/06-roadmap.md` 的 Next：先跑延迟探针（不先调 VAD/HOLD），再流式回字幕/增量翻译 A/B。
 - kit v0.2.3 候选见 §3；是否发布由后续决定（本批不触发 kit 变更）。
