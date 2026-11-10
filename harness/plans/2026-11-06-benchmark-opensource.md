@@ -614,15 +614,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness-kit/VERSION — 0.2.5 — 保留
-- harness-kit/CHANGELOG.md — 0.2.5 条目 — 保留
-- harness-kit/README.md — 重写（价值/案例/反臃肿/多人） — 保留
-- harness-kit/SPEC.md — 文档入口与目录树、示例版本 — 保留
-- harness-kit/docs/playbook.md — 顶部路径导航 — 保留
-- harness-kit/docs/adoption.md — 新增接入指南 — 保留
-- harness-kit/docs/governance.md — 新增演化与治理 — 保留
-- harness-kit/tests/test_kit_hygiene.py — 新文档纳入链接检查 — 保留
-- harness/plans/2026-11-06-benchmark-opensource.md — 本计划（Phase 5.12） — 保留
+- 无未提交改动（kit v0.2.5 文档已提交；镜像发布与回填在下一步）。
 
 ## 下一步
 
