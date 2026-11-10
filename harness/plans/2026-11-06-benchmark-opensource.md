@@ -639,14 +639,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness-kit/VERSION — 0.2.10 — 保留
-- harness-kit/CHANGELOG.md — 0.2.10 条目 — 保留
-- harness-kit/README.md — 接入路径重构与导航修复 — 保留
-- harness-kit/SPEC.md — §3 可选段、§5 去重、§9 测试说明 — 保留
-- harness-kit/core/config.schema.json — 补齐可选 hygiene/layers 字段 — 保留
-- harness-kit/docs/adoption.md — 场景索引分组 + 路径修正 — 保留
-- harness-kit/docs/agent-prompts.md — 19 类场景模板扩充 — 保留
-- harness/plans/2026-11-06-benchmark-opensource.md — 本计划（Phase 5.17） — 保留
+- 无未提交改动（kit v0.2.10 文档已提交；镜像发布与回填在下一步）。
 
 ## 下一步
 
