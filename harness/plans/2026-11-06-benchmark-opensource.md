@@ -609,12 +609,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness-kit/VERSION — 0.2.4（文档发布） — 保留
-- harness-kit/CHANGELOG.md — 0.2.4 条目 — 保留
-- harness-kit/README.md — 版本/能力表/来源案例/局限 — 保留
-- harness-kit/SPEC.md — §10 升级路径与示例版本 — 保留
-- harness-kit/docs/playbook.md — 「升级路径」章节 + 常见坑 — 保留
-- harness/plans/2026-11-06-benchmark-opensource.md — 本计划（Phase 5.11） — 保留
+- 无未提交改动（kit v0.2.4 文档已提交；镜像发布与回填在下一步）。
 
 ## 下一步
 
