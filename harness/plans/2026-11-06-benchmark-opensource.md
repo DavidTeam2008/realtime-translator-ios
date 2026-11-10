@@ -603,22 +603,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness-kit/CHANGELOG.md
-- harness-kit/README.md
-- harness-kit/SPEC.md
-- harness-kit/VERSION
-- harness-kit/core/templates/makefiles/Makefile.standard.template
-- harness-kit/core/templates/makefiles/Makefile.strict.template
-- harness-kit/core/tools/check_hygiene.py
-- harness-kit/core/tools/check_layers.py
-- harness-kit/core/tools/check_plan.py
-- harness-kit/docs/playbook.md
-- harness-kit/profiles/standard.json
-- harness-kit/scripts/harness-selftest
-- harness-kit/tests/test_core_plan_evidence_claim.py
-- harness-kit/tests/test_harness_selftest.py
-- harness-kit/tests/test_kit_host_tools.py
-- harness/plans/2026-11-06-benchmark-opensource.md
+- 无未提交改动（kit v0.2.3 源码与文档已提交；镜像发布在下一步）。
 
 ## 下一步
 
