@@ -27,7 +27,7 @@ harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instruct
 让 Agent 自己执行接入，但按顺序、可复查。完整提示词模板见 [agent-prompts.md §1](agent-prompts.md#1-接入新项目agent-first)，核心步骤：
 
 ```text
-读 <kit>/README.md 与 docs/adoption.md → harness-init --dry-run 给人确认 →
+读 <kit>/README.md 与 <kit>/docs/adoption.md → python3 <kit>/scripts/harness-init --dry-run 给人确认 →
 执行 init（自动 make check）→ 提交 → 第一份 active 计划（scope/验收/下一步）
 ```
 
@@ -116,15 +116,45 @@ python3 /path/to/harness-kit/scripts/harness-selftest --target ../legacy-app
 
 接入完成后，日常由 Agent 按场景使用模板（完整内容见 [agent-prompts.md](agent-prompts.md)）：
 
-| 场景 | 用哪个模板 | 关键产出 |
-| --- | --- | --- |
-| 提项目需求（小改/功能） | [§3 提项目需求](agent-prompts.md#3-提项目需求小改动--功能) | 目标/非目标、影响文件、验收命令 |
-| 提新计划（跨会话任务） | [§4 提新计划](agent-prompts.md#4-提新计划跨会话任务) | active 计划 + `check_plan` PASS |
-| 多人 / 多 Agent 分工 | [§5 分工](agent-prompts.md#5-多人--多-agent-分工) | 写作用域、分支/合并顺序、统一门禁 |
-| 结束会话（保存状态） | [§6 结束会话](agent-prompts.md#6-结束会话保存状态) | 计划更新 + `brief` 摘要 + 5 行交接 |
-| 项目交接（换人/换 Agent） | [§7 交接](agent-prompts.md#7-项目交接换人--换-agent) | 5 问交接摘要，clone 可复现 |
-| 结束项目 / 阶段 | [§8 结束项目](agent-prompts.md#8-结束项目--阶段done--归档) | done + submitted + 证据 + 归档 |
-| 完成声明（任意任务） | [§9 完成声明](agent-prompts.md#9-完成声明附加到任意任务末尾) | `verify-static` / `verify-claim` 输出 + evidence id |
+**接入与接手**
+
+| 场景 | 模板 |
+| --- | --- |
+| 接入新项目 | [§1 接入新项目](agent-prompts.md#1-接入新项目agent-first) |
+| 接入存量项目 | [§2 接入存量项目](agent-prompts.md#2-接入存量项目agent-first先只读) |
+| 接手陌生项目 | [§3 冷启动](agent-prompts.md#3-接手陌生项目冷启动) |
+
+**需求、计划与开发**
+
+| 场景 | 模板 |
+| --- | --- |
+| 提项目需求 | [§4 提项目需求](agent-prompts.md#4-提项目需求小改动--功能) |
+| 方案评估 / 技术选型 | [§5 方案评估](agent-prompts.md#5-方案评估--技术选型) |
+| 提新计划 | [§6 提新计划](agent-prompts.md#6-提新计划跨会话任务) |
+| 修 Bug / 调试 | [§7 修 Bug](agent-prompts.md#7-修-bug--调试) |
+| 重构（行为不变） | [§8 重构](agent-prompts.md#8-重构行为不变) |
+| 依赖 / 工具升级 | [§11 依赖升级](agent-prompts.md#11-依赖--工具升级) |
+| 文档 / ADR 更新 | [§12 文档更新](agent-prompts.md#12-文档--adr-更新) |
+| 性能 / 延迟验证 | [§13 性能验证](agent-prompts.md#13-性能--延迟验证先测量) |
+| 安全 / 敏感信息自查 | [§14 安全自查](agent-prompts.md#14-安全--敏感信息自查) |
+
+**评审与发布**
+
+| 场景 | 模板 |
+| --- | --- |
+| 代码审查 / PR 前自检 | [§9 自检](agent-prompts.md#9-代码审查--pr-前自检) |
+| 新开会话对抗性评审 | [§10 对抗性评审](agent-prompts.md#10-新开会话对抗性评审) |
+| 发布前操作 | [§15 发布前](agent-prompts.md#15-发布前操作) |
+
+**协作与收尾**
+
+| 场景 | 模板 |
+| --- | --- |
+| 多人 / 多 Agent 分工 | [§16 分工](agent-prompts.md#16-多人--多-agent-分工) |
+| 结束会话 | [§17 结束会话](agent-prompts.md#17-结束会话保存状态) |
+| 项目交接 | [§18 交接](agent-prompts.md#18-项目交接换人--换-agent) |
+| 结束项目 / 阶段 | [§19 结束项目](agent-prompts.md#19-结束项目--阶段done--归档) |
+| 完成声明（任意任务） | [§20 完成声明](agent-prompts.md#20-完成声明附加到任意任务末尾) |
 
 ## 5. 真实案例：接入前后五子系统评分
 

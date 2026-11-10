@@ -190,6 +190,70 @@
     },
     "adapters": {
       "type": "object"
+    },
+    "hygiene": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "trackedArtifactGlobs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rootAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "localPathPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skipLocalPathScan": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maxTrackedFileBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "forbidAbsoluteSymlinks": {
+          "type": "boolean"
+        }
+      }
+    },
+    "layers": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "sourceRoot": {
+          "type": "string"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "symbolGuards": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
     }
   }
 }

@@ -358,6 +358,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5.14 | 仓库改名 `harness-kit` → `harness-engineering-kit` + `v0.2.7` 文档更新 | Plan A：只改 GitHub 仓名（301 重定向；tags/releases 保留），目录/命令/Makefile 目标/tag 前缀沿用短名 `harness-kit`；更新 iOS `Makefile` 的镜像 remote、HARNESS/README/docs 当前链接，以及 kit README/adoption 链接；SPEC §10 记录改名契约；VERSION `0.2.7` | kit 121 tests PASS；改名后镜像 CI success + tag `v0.2.7` + `kit-drift` in sync；iOS CI success | **已完成（2026-11-10）**：GitHub 仓改名 `harness-engineering-kit`（旧 URL 301、tags/releases 保留）；iOS `Makefile` KIT_REMOTE、HARNESS/README/docs 当前链接、kit README/adoption 链接更新，SPEC §10 记录改名契约；kit **121 tests**；镜像 `main` `d584d14` + annotated tag `v0.2.7`，镜像 CI run `42813154611` success，tag clone 121 tests OK，`kit-drift` in sync；iOS CI run `42813006094` success |
 | 5.15 | kit `v0.2.8`：README 开篇精简 + 版本引用防漂移 | README 开篇由三长段压缩为「一句定位 + 一行价值 + 入口」；修复 README/License/SPEC 版本引用漂移；新增 `test_version_references_consistent`（kit 121→122 tests） | kit 122 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.8` + CI success + `kit-drift` in sync | **已完成（2026-11-10）**：README 开篇压缩为「一句定位 + 一行价值 + 入口」；README/License/SPEC 版本统一 `0.2.8`；新增版本一致性测试（kit **122 tests**）；镜像 `main` `9c4dfab` + annotated tag `v0.2.8`，镜像 CI run `42816019712` success，tag clone 122 tests OK，`kit-drift` in sync；iOS CI run `42815867353` success |
 | 5.16 | kit `v0.2.9`：AI Agent 优先接入 + 提示词模板集 | README 首页主入口改为「AI coding Agent 接入指南 + 提示词模板」；adoption 重排（Agent 接入 → 命令行手动接入，原「两条人类路径」更名）；新增 `docs/agent-prompts.md`（公共前置 + 新项目/存量项目接入 + 需求/计划/分工/结束会话/交接/结束项目/完成声明模板 + 场景对照表）；导航/索引/链接检查同步 | kit 122 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.9` + CI success + `kit-drift` in sync | **已完成（2026-11-10）**：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入，原「两条人类路径」更名）；新增 `docs/agent-prompts.md`（公共前置 + 8 类场景模板 + 场景对照表）；导航/索引/链接检查同步；kit **122 tests**；镜像 `main` `9ecf13f` + annotated tag `v0.2.9`，镜像 CI run `42846710435` success，tag clone 122 tests OK，`kit-drift` in sync；iOS CI run `42846540918` success |
+| 5.17 | kit `v0.2.10`：README 重构 + 提示词模板扩充 + 整体审查修复 | README 接入路径上移、命令行命令并入对应小节、顶部导航拆分、命令统一 `<kit>` 占位；agent-prompts 扩到 19 类场景（新增发布前、新开会话对抗性评审、PR 前自检、修 Bug、重构、依赖升级、文档/ADR、性能、安全、冷启动、方案评估），公共前置区分已接入/未接入；adoption 场景索引分组；SPEC §5 去重、§3 可选段、§9 测试说明、config schema 补齐可选 `hygiene`/`layers`；整体审查：3 profile init+门禁 smoke、`harness-adopt --report/--json`、链接/版本/计数一致性 | kit 122 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.10` + CI success + `kit-drift` in sync | **实施完成（2026-11-11）**：文档与模板已更新、122 tests OK；镜像发布回填见下一步 |
 
 ### Phase 6（可选，独立排期）· 产品可信度
 
@@ -487,6 +488,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.14：仓库改名 `harness-engineering-kit`（Plan A）+ `v0.2.7` 发版完成：GitHub 301 重定向、tags/releases 保留；iOS Makefile remote/当前文档链接、kit README/adoption 链接更新；kit **121 tests**；镜像 `main` `d584d14` + tag `v0.2.7`（CI run `42813154611` success）、`kit-drift` in sync；iOS CI run `42813006094` success
 - [x] Phase 5.15：kit `v0.2.8` 发版完成：README 开篇精简（三长段 → 一句定位 + 一行价值 + 入口）、README/License/SPEC 版本统一、新增版本一致性测试（kit **122 tests**）；镜像 `main` `9c4dfab` + tag `v0.2.8`（CI run `42816019712` success）、`kit-drift` in sync；iOS CI run `42815867353` success
 - [x] Phase 5.16：kit `v0.2.9` 发版完成：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入）；新增 agent-prompts.md（8 类场景模板 + 场景对照表）；kit **122 tests**；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync；iOS CI run `42846540918` success
+- [x] Phase 5.17：kit `v0.2.10` README 重构（接入路径上移 + 命令内联）与提示词模板扩充（发布前/对抗性评审等 11 类新增）+ 整体审查修复（SPEC/schema/链接/版本一致性）；kit **122 tests**；镜像 tag/CI 回填见下
 - [ ] Phase 6（可选）产品可信度
 
 ## 验证证据
@@ -628,6 +630,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 19 | 仓库改名 `harness-kit` → `harness-engineering-kit`（用户确认 Plan A） | GitHub 仓名 PATCH 成功（旧 URL 301、tags/releases 保留）；iOS `Makefile` KIT_REMOTE、HARNESS/README/docs 当前链接、kit README/adoption clone 链接更新；SPEC §10 记录改名契约；VERSION 0.2.7；kit 121 tests PASS；镜像 `main` `d584d14` + tag `v0.2.7`（CI run `42813154611` success）、`kit-drift` in sync | 2026-11-10 |
 | 20 | kit `v0.2.8` README 开篇精简 + 版本引用防漂移 | 开篇压缩为一句定位（Harness Engineering/五子系统）+ 一行价值（证据说了算）+ 入口；修复 README 版本行/License/SPEC 示例仍为 0.2.5 的漂移；新增 `test_version_references_consistent`（kit 121→122）；kit 122 tests PASS；镜像 `main` `9c4dfab` + tag `v0.2.8`（CI run `42816019712` success）、`kit-drift` in sync | 2026-11-10 |
 | 21 | kit `v0.2.9` AI Agent 优先接入 + 提示词模板集 | README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排为 Agent 接入（推荐）→ 命令行手动接入；新增 docs/agent-prompts.md（公共前置 + 8 类场景模板 + 场景对照表）；SPEC/playbook/目录树/链接检查同步；kit 122 tests PASS；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync | 2026-11-10 |
+| 22 | kit `v0.2.10` README 重构 + 提示词模板扩充 + 整体审查修复 | README 接入路径上移、命令内联、`<kit>` 占位、导航拆分；agent-prompts 19 类场景模板（新增发布前/对抗性评审/自检/修 Bug/重构/依赖/文档/性能/安全/冷启动/方案评估）；adoption 索引分组；SPEC §5 去重、§3 可选段、§9 测试说明、config schema 补 `hygiene`/`layers`；smoke：3 profile init+门禁、adopt 双 flag、122 tests | 2026-11-11 |
 | 12 | 设备信任后复跑真机 + 取证 | 单元 120/120 PASS 并写设备证据（干净树，`verify-claim` PASS）；UI 仍 exit 74（网络配对限制）；首证因 dirty 工作树被判 FAIL → 改为「先提交再取证」；脚本改为失败不写证据（避免 `*-pass` 文件自相矛盾） | 2026-11-09 |
 | 11 | 用户按 README 走真机路径 + 开启分支保护 | 真机预热 6s/0 用例：脚本吞掉 `diagnostics.errors`，真实原因是测试 target 无 Team；已修脚本（打印原因+`APM_TEAM`+证书信任提示）与文档；分支保护已开（禁 force push/删除，普通 push 已实测通过） | 2026-11-09 |
 | 10 | 重登 gh + API 改名 | 组织策略「fine-grained token 有效期 ≤366 天」导致 403；用户重登为 classic token（`repo`/`workflow`）→ 改名成功、旧名 302/301 保留；同时确认 kit `v0.2.0` 发布链路可用 | 2026-11-09 |
@@ -636,7 +639,14 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.2.9 发布记录已提交）。
+- harness-kit/VERSION — 0.2.10 — 保留
+- harness-kit/CHANGELOG.md — 0.2.10 条目 — 保留
+- harness-kit/README.md — 接入路径重构与导航修复 — 保留
+- harness-kit/SPEC.md — §3 可选段、§5 去重、§9 测试说明 — 保留
+- harness-kit/core/config.schema.json — 补齐可选 hygiene/layers 字段 — 保留
+- harness-kit/docs/adoption.md — 场景索引分组 + 路径修正 — 保留
+- harness-kit/docs/agent-prompts.md — 19 类场景模板扩充 — 保留
+- harness/plans/2026-11-06-benchmark-opensource.md — 本计划（Phase 5.17） — 保留
 
 ## 下一步
 
@@ -650,6 +660,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 8. kit 仓库已改名 `harness-engineering-kit` 并发布 `v0.2.7`（镜像 `d584d14` + tag `v0.2.7`、CI success、drift in sync；旧 URL 301）：Android 仓 HARNESS 的 clone 链接随小 PR 更新（GitHub 301 保底）。
 9. kit `v0.2.8`（README 开篇精简 + 版本防漂移）已发版（镜像 `9c4dfab` + tag `v0.2.8`、CI success、drift in sync）：版本一致性测试（122 tests）已纳入门禁；无脚本/门禁行为变化，Android 仓 pin 不变。
 10. kit `v0.2.9`（AI Agent 优先接入 + 提示词模板集）已发版（镜像 `9ecf13f` + tag `v0.2.9`、CI success、drift in sync）：接入/需求/计划/分工/会话结束/交接/收尾模板已文档化；无脚本/门禁行为变化，Android 仓 pin 不变。
+11. kit `v0.2.10`（README 重构 + 提示词模板扩充 + 整体审查修复）：发布镜像 tag 后回填证据（doc-only，无脚本/门禁行为变化，Android 仓 pin 不变）。
 
 ## 待确认
 

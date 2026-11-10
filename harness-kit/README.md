@@ -5,9 +5,10 @@
 **把“agent 说完成了”变成“证据说了算”。** 不是框架，也不是依赖；生成物可整目录删除。
 
 - 仓库名 `harness-engineering-kit`（原名 `harness-kit`；目录、命令与 tag 前缀沿用短名）
-- 版本：`0.2.9`（见 [`VERSION`](VERSION)）
-- **[AI coding Agent 接入指南（新项目 / 存量项目）](docs/adoption.md)** · **[提示词模板：接入 / 需求 / 计划 / 分工 / 交接 / 收尾](docs/agent-prompts.md)** ← 先看这两个
-- 命令行手动接入：[采用 playbook](docs/playbook.md) · [演化与治理](docs/governance.md) · [内部契约 SPEC](SPEC.md)
+- 版本：`0.2.10`（见 [`VERSION`](VERSION)）
+- **[AI coding Agent 接入指南（新项目 / 存量项目）](docs/adoption.md)** · **[提示词模板：接入 / 开发 / 评审 / 发布 / 交接 / 收尾](docs/agent-prompts.md)** ← 先看这两个
+- 命令行手动接入：[采用 playbook](docs/playbook.md)（新项目五步 / 存量七步）
+- 深入：[演化与治理](docs/governance.md) · [内部契约 SPEC](SPEC.md)
 
 ## 它是什么：Harness Engineering 脚手架
 
@@ -21,7 +22,7 @@ Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力
 | **Scope** | 一次只做什么、边界在哪 | 计划 `scope.allow/deny` 与 `git status` 交叉核对；L0/L1/L2 与红队评审约定（strict） |
 | **Session Lifecycle** | 开工 / 交接 / 收尾 | 计划状态机（new → brief → done / archive）+ handoff / verify-change / red-team skills（strict）+ `doctor`（strict）+ 版本升级与月度审计流程 |
 
-**脚手架能力矩阵**（接入场景 × 支持程度）：
+**脚手架能力矩阵**：
 
 | 场景 | kit 做什么 | 边界（不承诺） |
 | --- | --- | --- |
@@ -54,6 +55,68 @@ Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力
 - 只想要"自动写代码"而不想要任何过程约束的项目；
 - 把 kit 当运行时依赖或业务框架——kit 生成的文件可整目录删除，不应进入业务代码。
 
+## 接入路径：AI coding Agent 优先
+
+| 路径 | 入口 | 说明 |
+| --- | --- | --- |
+| **AI coding Agent（推荐）** | 读 `AGENTS.md` + [接入指南](docs/adoption.md) + [提示词模板](docs/agent-prompts.md) | Agent 自行盘点/init/建计划/验证；模板覆盖接入、需求、开发、评审、发布、分工、交接、收尾 |
+| 命令行手动接入 · 新项目 | `harness-init --profile standard` → 首次 `make check` → commit | 10 分钟最小接入；命令见本节下方 |
+| 命令行手动接入 · 存量项目 | `harness-adopt` 只读盘点 → `harness-init` → 七步法 | 先盘后改；文档蒸馏与清洁占大头 |
+
+### AI coding Agent（推荐）
+
+让 Agent 自己执行接入与后续任务，但按顺序、可复查：
+
+1. 先给 Agent 贴 [公共前置](docs/agent-prompts.md#0-公共前置每个任务前贴一次)；
+2. 按场景贴模板：[接入新项目](docs/agent-prompts.md#1-接入新项目agent-first) 或 [接入存量项目](docs/agent-prompts.md#2-接入存量项目agent-first先只读)；
+3. 接入后日常任务用同一套模板：[提需求](docs/agent-prompts.md#4-提项目需求小改动--功能)、[新计划](docs/agent-prompts.md#6-提新计划跨会话任务)、[修 Bug](docs/agent-prompts.md#7-修-bug--调试)、[评审](docs/agent-prompts.md#9-代码审查--pr-前自检)、[发布前](docs/agent-prompts.md#15-发布前操作)、[分工](docs/agent-prompts.md#16-多人--多-agent-分工)、[交接](docs/agent-prompts.md#18-项目交接换人--换-agent)。
+
+### 命令行手动接入 · 新项目（10 分钟）
+
+前置：Python 3（标准库）、`make`、`git`；`--target` 指向**已存在**的目录（init 不执行 `git init`；建议先 `git status` 确认干净）。把 `<kit>` 替换成 kit 克隆路径（在本仓内开发时 `<kit>` 即 `harness-kit/`）。
+
+```bash
+git clone --depth 1 --branch <kit-ver> \
+  https://github.com/DavidTeam2008/harness-engineering-kit.git <kit>
+
+# 0) 先看计划（只打印 CREATE / COPY / SKIP / CONFLICT / RENDER；不写文件、不跑检查）
+python3 <kit>/scripts/harness-init --profile standard --target ../myapp --name MyApp --dry-run
+
+# 1) 标准档（+ 计划/证据/CI 与 pre-push；真实仓库推荐）
+python3 <kit>/scripts/harness-init --profile standard --target ../myapp --name MyApp
+
+# 2) 严格档（+ 适配器门禁/评分卡/红队/发布前 strict 证据校验）
+python3 <kit>/scripts/harness-init --profile strict --target ../myapp --name MyApp
+
+git add -A && git commit -m "chore: adopt harness-kit standard profile"
+```
+
+- 非 `--dry-run` 时，init 写完后会在目标目录执行首次 `make check` 并**透传退出码**；加 `--no-check` 可先跳过。
+- 目标已有 `Makefile` 时**不覆盖**：写入 `Makefile.harness`，并提示在原 `Makefile` 末尾加 `include Makefile.harness`。
+- 冲突默认 `fail` 并列出文件；`--force` 前先 `--dry-run` 复核是推荐姿势。
+- **宿主门禁（standard+）**：`make check-host` 运行 `check_hygiene.py` + `check_layers.py`，只在 `harness/config.json` 配置了 `hygiene` / `layers` 段时生效，未配置 `[SKIP]`；`verify-static` 已包含。
+
+### 命令行手动接入 · 存量项目（brownfield）
+
+```bash
+# ① 只读盘点（0 写入；报告写到目标仓之外）
+python3 <kit>/scripts/harness-adopt --target ../legacy-app --report /tmp/adoption.md
+python3 <kit>/scripts/harness-adopt --target ../legacy-app --json
+
+# ② 定 profile / 基线 / 真实测试命令（存量优先 standard）
+# ③ scaffold：先 --dry-run 再 init（已有文件默认 CONFLICT；--force 会备份后覆盖）
+python3 <kit>/scripts/harness-init --profile standard --target ../legacy-app \
+  --language android --test-command "./gradlew testDebugUnitTest"
+
+# ④ 文档蒸馏 → ⑤ 清洁 → ⑥ config hygiene/layers + CI/hooks + JUnit 证据
+# ⑦ 负向注入验收：
+python3 <kit>/scripts/harness-selftest --target ../legacy-app
+```
+
+- 七步法每一步的退出信号/回滚见 [playbook「存量项目（brownfield）改造」](docs/playbook.md#存量项目brownfield改造七步法)。
+- **验证门禁真的会红**：`harness-selftest --target .`（exit 0 = 全部按预期拦截并恢复）。
+- 存量项目不要直接 `--force` init：先只读盘点，把"接入前基线"存档，再定改造顺序。
+
 ## 能力清单
 
 | 能力 | 提供方 | 说明 |
@@ -69,42 +132,9 @@ Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力
 | 语言探测 | `scripts/harness-init` | `python` / `swift` / `node` / `go` / `android` / `other` |
 | 适配器 | `adapters/` | `githooks` / `ci` / `claude-code` / `dsh`（预留） |
 
-## 命令行手动接入（10 分钟）
-
-> 用 Agent 的走 [接入指南](docs/adoption.md) 与 [提示词模板](docs/agent-prompts.md)；Agent 执行的也是下面这套命令。
-
-前置：Python 3（标准库）、`make`、`git`；`--target` 指向**已存在**的目录（init 不执行 `git init`；建议先 `git status` 确认干净）。
-
-```bash
-# 0) 先看计划（只打印 CREATE / COPY / SKIP / CONFLICT / RENDER；不写文件、不跑检查）
-python3 harness-kit/scripts/harness-init --profile standard --target ../myapp --name MyApp --dry-run
-
-# 1) 标准档（+ 计划/证据/CI 与 pre-push；真实仓库推荐）
-python3 harness-kit/scripts/harness-init --profile standard --target ../myapp --name MyApp
-
-# 2) 严格档（+ 适配器门禁/评分卡/红队/发布前 strict 证据校验）
-python3 harness-kit/scripts/harness-init --profile strict --target ../myapp --name MyApp
-```
-
-- 非 `--dry-run` 时，init 写完后会在目标目录执行首次 `make check` 并**透传退出码**；加 `--no-check` 可先跳过。
-- 目标已有 `Makefile` 时**不覆盖**：写入 `Makefile.harness`，并提示在原 `Makefile` 末尾加 `include Makefile.harness`。
-- 冲突默认 `fail` 并列出文件；`--force` 前先 `--dry-run` 复核是推荐姿势。
-- **宿主门禁（standard+）**：`make check-host` 运行 `check_hygiene.py` + `check_layers.py`，只在 `harness/config.json` 配置了 `hygiene` / `layers` 段时生效，未配置 `[SKIP]`；`verify-static` 已包含。
-- **验证门禁真的会红**：接入后跑 `python3 harness-kit/scripts/harness-selftest --target .`（exit 0 = 全部按预期拦截并恢复）。
-
-## 接入路径：AI coding Agent 优先
-
-| 路径 | 入口 | 说明 |
-| --- | --- | --- |
-| **AI coding Agent（推荐）** | 读 `AGENTS.md` + [接入指南](docs/adoption.md) + [提示词模板](docs/agent-prompts.md) | Agent 自行盘点/init/建计划/验证；模板覆盖接入、需求、计划、分工、交接、收尾 |
-| 命令行手动接入 · 新项目 | `harness-init --profile standard` → 首次 `make check` → commit | 10 分钟最小接入，详见 [playbook](docs/playbook.md) |
-| 命令行手动接入 · 存量项目 | `harness-adopt` 只读盘点 → `harness-init` → 七步法 | 先盘后改；文档蒸馏与清洁占大头 |
-
-存量项目不要直接 `--force` init：先跑只读盘点（`harness-adopt --report`），把"接入前基线"存档，再定改造顺序。
-
 ## 真实案例：接入前后五子系统评分
 
-评分口径：五子系统各 1–5 分（1 = 缺失；3 = 有规则但不可机检；5 = 有门禁 + 有证据 + 定期复核），每分必须附证据；自评与独立复评分列。完整口径与两张评分表见 [adoption.md §4](docs/adoption.md#4-真实案例接入前后五子系统评分)。
+评分口径：五子系统各 1–5 分（1 = 缺失；3 = 有规则但不可机检；5 = 有门禁 + 有证据 + 定期复核），每分必须附证据；自评与独立复评分列。完整口径与两张评分表见 [adoption.md 案例章节](docs/adoption.md#5-真实案例接入前后五子系统评分)。
 
 | 案例 | 接入前 | 接入后 | 说明 |
 | --- | --- | --- | --- |
@@ -171,9 +201,9 @@ harness-kit/
 ├── scripts/harness-init     # 统一入口（探测、渲染、冲突处理、首次 check）
 ├── scripts/harness-adopt    # 存量项目只读盘点 + 改造计划草稿
 ├── scripts/harness-selftest # 门禁自测：注入 → 断言门禁会红 → 恢复复核
-├── docs/adoption.md     # 接入指南（新项目 / 存量项目 / AI coding Agent + 前后评分案例）
+├── docs/adoption.md     # 接入指南（AI coding Agent 优先 + 命令行手动接入 + 前后评分）
+├── docs/agent-prompts.md # AI coding Agent 提示词模板（接入/开发/评审/发布/协作/收尾）
 ├── docs/playbook.md     # 新项目五步法 + 存量项目七步法 + 常见坑 + 升级路径
-├── docs/agent-prompts.md # AI coding Agent 提示词模板（接入/需求/计划/分工/交接/收尾）
 ├── docs/governance.md   # 演化与治理（反臃肿、版本策略、多人协作）
 ├── CHANGELOG.md         # 版本变更记录
 └── tests/               # kit 自身 unittest（标准库，122 个端到端用例）
@@ -254,10 +284,10 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 - **语言/测试框架需要你提供**：`{{TEST_COMMAND}}` 与 `commands.test` 必须填真实命令；kit 不代跑、不解析测试输出（只提供 JUnit XML → evidence 转换）。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：按预算与白名单修内容，不要删检查绕过。
 - **外部试点有限**：空白 Python/Node/SwiftPM 项目、真实 Android/Gradle 存量仓已完成；其他语言生态、超大仓性能未验证。
-- **kit 自身测试**：122 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用）；随来源仓库 `verify` workflow 运行。
+- **kit 自身测试**：122 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用、版本引用一致）；随来源仓库 `verify` workflow 运行。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前为预留。
 - **未做外部安全审计**：kit 只承诺不联网、不写目标之外文件（SPEC §8.7），但未在第三方 CI/受限沙箱验证。
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.9`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.10`；向后兼容策略见 [SPEC §10](SPEC.md)。
