@@ -354,6 +354,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5.10 | kit `v0.2.3`：宿主传感器上游化 + 门禁自测 | `check_hygiene.py`/`check_layers.py`（配置化、缺段 SKIP）进入 standard profile 与 Makefile `check-host`（并入 `verify-static`）；`check_plan.py` 支持无扩展名根文件声明；新增 `scripts/harness-selftest`（clone→baseline→M1–M8 注入→断言非 0→恢复复核，exit 0/1/2）；Android/Gradle 矩阵行转 ✅ | kit 121 tests PASS（+23，含三 profile init 回归）；selftest 在标准宿主 `PASS 5 / SKIP 3`、条件宿主 `PASS 8`；镜像 tag `v0.2.3` + CI success | **已完成（2026-11-10）**：121 tests OK（+23）；`make verify-static` 集成 PASS；镜像 `main` `29bf937` + tag `v0.2.3`（annotated），镜像 CI run `42761789282` success，clone 121 tests OK，`kit-drift` in sync |
 | 5.11 | kit `v0.2.4`：升级路径实证回写（文档） | playbook 新增「升级路径」：版本升级已验证（临时渲染 → 逐文件 diff → 只回写 kit 管理面 → `verify-static` + `harness-selftest` 复核）与 profile 升级仍未验证；README/SPEC/CHANGELOG/来源案例同步；VERSION `0.2.4` | kit 121 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.4` + CI success + `kit-drift` in sync | **已完成（2026-11-10）**：playbook「升级路径」拆分（版本升级已验证 / profile 升级仍未验证）、README/SPEC/CHANGELOG/来源案例同步、VERSION `0.2.4`；kit **121 tests**；镜像 `main` `c47fdf9` + annotated tag `v0.2.4`，镜像 CI run `42764622139` success，tag clone 121 tests OK，`kit-drift` in sync；iOS CI run `42764499029` success |
 | 5.12 | kit `v0.2.5`：接入指南 + 演化治理 + README 重写 | 新增 `docs/adoption.md`（新项目/存量项目/AI coding Agent 接入、Agent bootstrap 提示、反模式；接入前后五子系统评分案例：Android 存量仓自评 6/25→20/25、来源 iOS 仓独立复评 2.5/5→≈4.0/5）与 `docs/governance.md`（反臃肿九原则、版本演化与删除/降级流程、行为级评估 v0.3+ 议题、多人与多 Agent 协作）；README 重写（症状→机制、适合谁、案例、反臃肿/多人摘要）；新文档纳入 kit 链接检查；VERSION `0.2.5` | kit 121 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.5` + CI success + `kit-drift` in sync | **已完成（2026-11-10）**：`docs/adoption.md`/`docs/governance.md` 新增、README 重写、新文档纳入链接检查；kit **121 tests**；镜像 `main` `52b9119` + annotated tag `v0.2.5`，镜像 CI run `42803540280` success，tag clone 121 tests OK，`kit-drift` in sync；iOS CI run `42803400474` success |
+| 5.13 | kit `v0.2.6`：显式 Harness Engineering 脚手架定位 | README 新增「它是什么：Harness Engineering 脚手架」：五子系统（Instructions/State/Verification/Scope/Session Lifecycle）→ kit 资产映射表 + 脚手架能力矩阵（初始化/存量改造/版本升级 × 支持/边界）；playbook/SPEC/adoption/governance 统一五子系统术语；SPEC §0 明确"不是代码迁移器"；VERSION `0.2.6` | kit 121 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.6` + CI success + `kit-drift` in sync | **实施完成（2026-11-10）**：README/文档已更新、121 tests OK；镜像发布回填见下一步 |
 
 ### Phase 6（可选，独立排期）· 产品可信度
 
@@ -479,6 +480,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.10：kit `v0.2.3` 发版完成：宿主卫生/分层传感器上游化并接入 standard profile 与 `make check-host`、`check_plan` 支持 Makefile 等根文件、新增 `scripts/harness-selftest`（门禁自测）、Android 矩阵转 ✅；kit **121 tests**；镜像 `main` `29bf937` + tag `v0.2.3`（CI run `42761789282` success）、`kit-drift` in sync；iOS CI run `42761678626` success
 - [x] Phase 5.11：kit `v0.2.4` 发版完成：playbook「升级路径」拆分为版本升级（已验证步骤 1–5）/ profile 升级（仍未验证）；README/SPEC/CHANGELOG/来源案例同步；VERSION `0.2.4`；kit **121 tests**；镜像 `main` `c47fdf9` + tag `v0.2.4`（CI run `42764622139` success）、`kit-drift` in sync；iOS CI run `42764499029` success
 - [x] Phase 5.12：kit `v0.2.5` 发版完成：接入指南（adoption.md）+ 演化治理（governance.md）+ README 重写（症状→机制、适合谁、接入前后五子系统评分、反臃肿九原则、多人/多 Agent 协作）；kit **121 tests**；镜像 `main` `52b9119` + tag `v0.2.5`（CI run `42803540280` success）、`kit-drift` in sync；iOS CI run `42803400474` success
+- [x] Phase 5.13：kit `v0.2.6` 显式 Harness Engineering 脚手架定位：README 五子系统→kit 资产映射 + 脚手架能力矩阵；playbook/SPEC/adoption/governance 术语统一；kit **121 tests**；镜像 tag/CI 回填见下
 - [ ] Phase 6（可选）产品可信度
 
 ## 验证证据
@@ -608,6 +610,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 15 | kit `v0.2.3`（3 个并行 agent：宿主传感器/自测工具/文档） | `check_hygiene`/`check_layers` 上游化（16 用例）、`check_plan` 无扩展名根文件（2 用例）、`harness-selftest`（5 用例，条件宿主 8/8）、文档同步；kit 121 tests PASS；Android 矩阵转 ✅ | 2026-11-10 |
 | 16 | kit `v0.2.4` 升级路径实证回写（文档） | playbook 新增「升级路径」：版本升级已验证步骤（临时渲染→逐文件 diff→只回写 kit 管理面→`verify-static`+selftest）、profile 升级仍未验证；README/SPEC/CHANGELOG/来源案例同步；VERSION 0.2.4；kit 121 tests PASS；镜像 `main` `c47fdf9` + tag `v0.2.4`（CI run `42764622139` success）、`kit-drift` in sync | 2026-11-10 |
 | 17 | kit `v0.2.5` 接入/治理文档与 README 重写 | `docs/adoption.md`（三条接入路径 + 接入前后五子系统评分案例 + 验收清单 + FAQ）、`docs/governance.md`（反臃肿九原则、演化机制、行为级评估 v0.3+ 议题、多人与多 Agent 协作）、README 重写（症状→机制、适合谁、评分案例、反臃肿/多人摘要）；新文档纳入 kit 链接检查；kit 121 tests PASS；镜像 `main` `52b9119` + tag `v0.2.5`（CI run `42803540280` success）、`kit-drift` in sync | 2026-11-10 |
+| 18 | kit `v0.2.6` 显式 Harness Engineering 脚手架定位 | README 重构为「五子系统 → kit 资产」映射表 + 脚手架能力矩阵（初始化/存量改造/版本升级 × 支持/边界）；playbook/SPEC/adoption/governance 统一五子系统术语；SPEC §0 明确不是代码迁移器；kit 121 tests PASS | 2026-11-10 |
 | 12 | 设备信任后复跑真机 + 取证 | 单元 120/120 PASS 并写设备证据（干净树，`verify-claim` PASS）；UI 仍 exit 74（网络配对限制）；首证因 dirty 工作树被判 FAIL → 改为「先提交再取证」；脚本改为失败不写证据（避免 `*-pass` 文件自相矛盾） | 2026-11-09 |
 | 11 | 用户按 README 走真机路径 + 开启分支保护 | 真机预热 6s/0 用例：脚本吞掉 `diagnostics.errors`，真实原因是测试 target 无 Team；已修脚本（打印原因+`APM_TEAM`+证书信任提示）与文档；分支保护已开（禁 force push/删除，普通 push 已实测通过） | 2026-11-09 |
 | 10 | 重登 gh + API 改名 | 组织策略「fine-grained token 有效期 ≤366 天」导致 403；用户重登为 classic token（`repo`/`workflow`）→ 改名成功、旧名 302/301 保留；同时确认 kit `v0.2.0` 发布链路可用 | 2026-11-09 |
@@ -616,7 +619,14 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.2.5 发布记录已提交）。
+- harness-kit/VERSION — 0.2.6 — 保留
+- harness-kit/CHANGELOG.md — 0.2.6 条目 — 保留
+- harness-kit/README.md — Harness Engineering 脚手架定位与五子系统映射 — 保留
+- harness-kit/SPEC.md — 目标/非目标/术语 — 保留
+- harness-kit/docs/adoption.md — 五子系统引入 — 保留
+- harness-kit/docs/governance.md — 五子系统治理对象 — 保留
+- harness-kit/docs/playbook.md — 五子系统落地标题 — 保留
+- harness/plans/2026-11-06-benchmark-opensource.md — 本计划（Phase 5.13） — 保留
 
 ## 下一步
 
@@ -626,6 +636,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 4. Phase 6（可选）：P0-1 并发 / P0-3 持久化行为测试，独立排期。
 5. kit `v0.2.4`（文档）已发版（镜像 `c47fdf9` + tag `v0.2.4`、CI success、drift in sync）：升级路径实证已回写；Android 仓 pin 仍为 v0.2.3（无接口/门禁变化，无需升级）。
 6. kit `v0.2.5`（接入指南 + 演化治理 + README 重写）已发版（镜像 `52b9119` + tag `v0.2.5`、CI success、drift in sync）：用例覆盖接入指南/治理文档；无脚本/门禁行为变化，Android 仓 pin 不变。
+7. kit `v0.2.6`（Harness Engineering 脚手架定位）：发布镜像 tag 后回填证据（无脚本/门禁行为变化，Android 仓 pin 不变）。
 
 ## 待确认
 

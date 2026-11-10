@@ -1,6 +1,6 @@
 # harness-kit
 
-> 把「AI coding agent 可验收的研发约束」做成**项目无关**模板：**guides**（指令/规则）+ **sensors**（门禁/证据）+ **state**（计划/交接）。
+> **Harness Engineering 项目脚手架**：把「AI coding agent 可验收的研发约束」按 **Instructions / State / Verification / Scope / Session Lifecycle** 五子系统固化为**项目无关**的模板、门禁与证据链。
 > 面向用 AI Coding Agent / Vibe Coding 交付、但代码、文档、验证开始失控的项目：**把"agent 说完成了"变成"证据说了算"，让仓库重新可维护、可交接、可迭代。**
 > 不是框架、不是依赖：只生成 Markdown、Python 标准库脚本和一个 Makefile 入口；接入失败可整目录删除，不留运行时包袱。
 
@@ -9,6 +9,27 @@
 - 采用方法：[`docs/playbook.md`](docs/playbook.md)（新项目五步法 + 存量项目七步法 + 常见坑）
 - 演化与治理：[`docs/governance.md`](docs/governance.md)（反臃肿、版本演化、多人协作）
 - 内部构建契约：[`SPEC.md`](SPEC.md)
+
+## 它是什么：Harness Engineering 脚手架
+
+Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力在变，但"指令、状态、验证、作用域、会话生命周期"这些模型之外的工程设施决定能力兑现率。harness-kit 把这五层做成**可生成、可改造、可验证**的脚手架：
+
+| 子系统 | 它回答的问题 | kit 交付物（生成 / 改造 / 门禁） |
+| --- | --- | --- |
+| **Instructions** | 该做什么、去哪读 | 根 / 嵌套 `AGENTS.md` 模板 + `references/`；`check_docs` / `check_agents`（目录、链接、预算、`§` 引用、敏感串） |
+| **State** | 做到哪、证据在哪、下一步 | 计划模板（front matter + 唯一 active）+ 证据 schema / `evidence.py` / `verify_claim` 三值 + `check_plan.py brief` 交接 |
+| **Verification** | 怎么算完成、能否否证 | 静态门禁 + 证据 clean-tree/commit 绑定 + `check-host` 宿主传感器 + `harness-selftest` 负向注入 + JUnit XML 适配 + CI / pre-push 适配 |
+| **Scope** | 一次只做什么、边界在哪 | 计划 `scope.allow/deny` 与 `git status` 交叉核对；L0/L1/L2 与红队评审约定（strict） |
+| **Session Lifecycle** | 开工 / 交接 / 收尾 | 计划状态机（new → brief → done / archive）+ handoff / verify-change / red-team skills（strict）+ `doctor`（strict）+ 版本升级与月度审计流程 |
+
+**脚手架能力矩阵**（接入场景 × 支持程度）：
+
+| 场景 | kit 做什么 | 边界（不承诺） |
+| --- | --- | --- |
+| 新项目初始化 | `harness-init` 三档 profile：生成五子系统骨架 + 首次 `make check` | 测试命令由项目提供；kit 不跑 / 不解析宿主测试 |
+| 存量项目改造 | `harness-adopt` 只读盘点（文档/卫生/测试/建议）+ `--write-plan`；playbook 七步法 | 不自动重写业务代码或文档内容；语义蒸馏由人/Agent 完成，门禁负责验收 |
+| 版本升级 | 临时渲染新版 → 逐文件 diff → 只回写 kit 管理面 → `selftest` 复核 | 无 in-place 命令；profile 升级仍未验证（版本升级已验证） |
+| 五子系统是否真的落地 | 每层都有可执行门禁 + 证据；`harness-selftest` 证明门禁会红 | 结构可验证 ≠ 行为正确；不提供权限 / 工单 / 审批系统 |
 
 ## 30 秒：它在解决什么问题
 
@@ -24,7 +45,7 @@
 ## 适合谁 / 不适合谁
 
 **适合**
-- 用 AI Coding Agent（DeepSeek Harness、Claude Code、Codex、Cursor、自研 Agent）长期维护的项目；
+- 想按 **Harness Engineering 五子系统**搭建或改造项目、并用 AI Coding Agent（DeepSeek Harness、Claude Code、Codex、Cursor、自研 Agent）长期维护的项目；
 - 存量项目：已有文档/测试/构建，但文档和过程记录开始失控；
 - 需要跨会话、跨人、跨 Agent 交接，又不想把状态留在聊天记录里的团队；
 - 想给"完成声明"加一道可复核闸门，而不是靠自觉。

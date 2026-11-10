@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6 — 2026-11-10
+
+- **README 显式定位为 Harness Engineering 项目脚手架**：新增「它是什么：Harness Engineering 脚手架」——五子系统
+  （Instructions / State / Verification / Scope / Session Lifecycle）到 kit 资产的映射表 + 脚手架能力矩阵
+  （新项目初始化 / 存量改造 / 版本升级 × 支持与边界）；适合人群补充"按五子系统搭/改项目"。
+- playbook 标题与说明、SPEC 目标与 §0 非目标、adoption/governance 开头统一使用五子系统术语；SPEC 明确
+  "不是代码迁移器（存量改造只做盘点/骨架/门禁，语义由人/Agent 完成）"。
+- 无脚本、模板、config schema 与门禁行为变更；向后兼容。
+
 ## 0.2.5 — 2026-11-10
 
 - **新增接入指南 `docs/adoption.md`**：面向人类团队与 AI coding Agent 的接入路径（新项目 10 分钟 /

@@ -18,6 +18,8 @@
 
 ## 2. 两条人类路径
 
+harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instructions / State / Verification / Scope / Session Lifecycle），初始化、存量改造、版本升级用的是同一套五子系统资产；每步落到哪一层，见 [README「它是什么」](../README.md#它是什么harness-engineering-脚手架)。
+
 ### 2.1 新项目（10 分钟最小接入）
 
 ```bash

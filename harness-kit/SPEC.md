@@ -2,13 +2,14 @@
 
 > 本文件是 `harness-kit` 的**内部构建契约**：所有 core 脚本、模板、profiles、脚手架与测试必须按本文件实现。
 > 对外使用说明见 [`README.md`](README.md)；接入路径见 [`docs/adoption.md`](docs/adoption.md)；逐步操作见 [`docs/playbook.md`](docs/playbook.md)；演化与治理见 [`docs/governance.md`](docs/governance.md)。
-> 目标：把 Duiyi 验证过的 harness 机制抽成**与 Duiyi 无关**、可在任意项目 10 分钟接入的模板。
+> 目标：把 Duiyi 验证过的 harness 机制抽成**与 Duiyi 无关**、可在任意项目 10 分钟接入的 **Harness Engineering 项目脚手架**（Instructions / State / Verification / Scope / Session Lifecycle 五子系统）。
 
 ## 0. 非目标
 
 - 不是通用 CI 平台/Agent 框架；不引入第三方依赖（仅 Python 3 标准库 + make + git）。
 - 不做语言运行时/测试框架封装：测试命令由项目配置提供（`{{TEST_COMMAND}}`）。
 - 不在模板里写任何 Duiyi 专有名词（仅 `README.md` 的「来源案例」一节可提一次）。
+- 不是代码迁移器：存量改造只做只读盘点、骨架与门禁，不自动重写业务代码或文档语义（由人/Agent 完成，门禁验收）。
 
 ## 1. 目录结构（kit 源）
 

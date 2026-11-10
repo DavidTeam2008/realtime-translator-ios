@@ -6,6 +6,8 @@
 
 ## 0. 问题定义
 
+harness-kit 的治理对象就是 Harness Engineering 五子系统（Instructions / State / Verification / Scope / Session Lifecycle：模板、门禁与证据见 [README](../README.md#它是什么harness-engineering-脚手架)）。下面所有"规则 / 预算 / 删除"讨论都落到这五层上。
+
 环境在变：模型能力在变强，Agent 提供的 harness 能力（hooks / skills / subagents / memory / MCP）越来越多。对 kit 的威胁有两个方向：
 
 1. **跟不上**：规则绑定某个 Agent/模型的私有机制，换代即失效。
