@@ -1,7 +1,7 @@
 # 采用 playbook：五步改造法（Harness Engineering 五子系统落地）
 
 > 给宿主项目做一次 Harness Engineering 改造的操作手册：按 Instructions / State / Verification / Scope / Session Lifecycle 五子系统落地。每步给出**命令**、**可检查的输出/退出信号**与**回滚点**。
-> 前置约定与完整契约见 [`../README.md`](../README.md) 与 [`../SPEC.md`](../SPEC.md)；按读者选择路径：[`adoption.md`](adoption.md)（新项目/存量项目/AI coding Agent 接入与收益）、本文（逐步操作）、[`governance.md`](governance.md)（演化、反臃肿、多人协作）。
+> 前置约定与完整契约见 [`../README.md`](../README.md) 与 [`../SPEC.md`](../SPEC.md)；按读者选择路径：[`adoption.md`](adoption.md)（AI coding Agent 优先接入 + 命令行手动接入 + 前后评分）、[`agent-prompts.md`](agent-prompts.md)（可直接复制的提示词模板）、本文（逐步操作）、[`governance.md`](governance.md)（演化、反臃肿、多人协作）。
 
 ## 0. 完成定义（先对齐，避免“看起来接入了”）
 

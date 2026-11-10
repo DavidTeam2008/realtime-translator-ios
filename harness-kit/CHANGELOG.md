@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.9 — 2026-11-10
+
+- **接入文档改为 AI coding Agent 优先**：README 首页主入口改为「AI coding Agent 接入指南 + 提示词模板」；
+  adoption 章节重排为「Agent 接入（推荐）→ 命令行手动接入」，原「两条人类路径」更名「命令行手动接入」。
+- **新增 `docs/agent-prompts.md`**：可复制的提示词模板集——公共前置、接入新项目、接入存量项目、提需求、
+  提新计划、多人/多 Agent 分工、结束会话、项目交接、结束项目、完成声明，附「场景 → Agent 应返回什么」对照表。
+- adoption 新增「接入后：场景提示词模板」索引；README 目录树/SPEC 文档清单/playbook 导航/index 链接检查同步。
+- 无脚本、模板、config schema 与门禁行为变更；向后兼容。
+
 ## 0.2.8 — 2026-11-10
 
 - README 开篇精简：三行内讲清定位（Harness Engineering 脚手架 / 五子系统 / 证据说了算），接入指南、playbook、

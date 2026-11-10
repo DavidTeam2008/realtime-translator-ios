@@ -1,7 +1,7 @@
-# 接入指南 · 新项目 / 存量项目 / AI coding Agent
+# 接入指南 · AI coding Agent 优先（新项目 / 存量项目 / 命令行手动接入）
 
-> 目标读者：准备用 AI coding Agent（或已经在用 Vibe Coding）交付，但希望代码、文档、验证不再失控的团队与个人。
-> 相关：[README](../README.md)（能力与价值）、[playbook](playbook.md)（五步/七步操作细节）、[governance](governance.md)（演化、反臃肿、多人协作）、[SPEC](../SPEC.md)（内部契约）。
+> harness-kit 的主要使用者是 **AI coding Agent**：接入、日常任务、计划、分工、交接、收尾都以 Agent 为主路径。本文给出两种接入路径（Agent-first / 命令行手动），并链接可直接复制的[提示词模板](agent-prompts.md)。
+> 相关：[README](../README.md)（能力与价值）、[提示词模板](agent-prompts.md)（接入/需求/计划/分工/交接/收尾）、[playbook](playbook.md)（命令行五步/七步细节）、[governance](governance.md)（演化、反臃肿、多人协作）、[SPEC](../SPEC.md)（内部契约）。
 
 ## 1. 先看症状：你需不需要 harness-kit
 
@@ -16,11 +16,65 @@
 
 **不适合**：只需要一次性脚本、没有测试与协作、也不打算长期维护的仓库——接入成本会大于收益。
 
-## 2. 两条人类路径
+## 2. AI coding Agent 接入（推荐）
 
-harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instructions / State / Verification / Scope / Session Lifecycle），初始化、存量改造、版本升级用的是同一套五子系统资产；每步落到哪一层，见 [README「它是什么」](../README.md#它是什么harness-engineering-脚手架)。
+harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instructions / State / Verification / Scope / Session Lifecycle），Agent 接入、存量改造、版本升级用的是同一套五子系统资产；每步落到哪一层，见 [README「它是什么」](../README.md#它是什么harness-engineering-脚手架)。
 
-### 2.1 新项目（10 分钟最小接入）
+**先贴公共前置**（每个任务前）：见 [agent-prompts.md §0](agent-prompts.md#0-公共前置每个任务前贴一次)。
+
+### 2.1 新项目（Agent-first）
+
+让 Agent 自己执行接入，但按顺序、可复查。完整提示词模板见 [agent-prompts.md §1](agent-prompts.md#1-接入新项目agent-first)，核心步骤：
+
+```text
+读 <kit>/README.md 与 docs/adoption.md → harness-init --dry-run 给人确认 →
+执行 init（自动 make check）→ 提交 → 第一份 active 计划（scope/验收/下一步）
+```
+
+- 失败按提示修内容，不删检查；测试命令必须真实存在。
+- 接入后从每次任务都走：计划 → 实现 → `make verify-static` → 证据 → `verify-claim` → 交接。
+
+### 2.2 存量项目（Agent-first，先只读）
+
+**强制顺序**：`harness-adopt` 只读盘点 → 人确认改造计划 → init → 按 playbook 七步法。完整提示词模板见 [agent-prompts.md §2](agent-prompts.md#2-接入存量项目agent-first先只读)。
+
+```bash
+harness-adopt --target . --report /tmp/adoption-report.md --json   # 只读，0 写入
+```
+
+- 禁止 Agent 在看懂现状之前重构代码；盘点报告作为"改造前基线"存档。
+- 核心纪律：**门禁红就修内容，不删检查**；项目自有文档留在项目内，kit 只提供骨架与门禁。
+
+### 2.3 按 Agent 能力分层接入（不绑定具体产品）
+
+| 层 | 做什么 | 备注 |
+| --- | --- | --- |
+| 指令层 | 项目根 `AGENTS.md`（kit 渲染）作为唯一入口 | 支持 AGENTS.md 的 Agent 直接生效；只认 `CLAUDE.md` 的用 kit 的 `claude-code` 适配器；其他在系统提示里写"先读 AGENTS.md" |
+| 执行层 | Makefile 统一接口：`make check` / `verify-static` / `verify-claim` / `check-host` / `plan` | Agent 不需要知道脚本细节 |
+| 状态层 | 唯一 active 计划 + 证据摘要 + 交接摘要 | 跨会话/跨 Agent 的共享状态，不依赖对话历史 |
+| 证据层 | 完成声明引用 evidence id；静态 claim 由 `verify-claim` 复跑命令判定 | 无 id 或 UNVERIFIED 不算完成 |
+| 保护层 | `harness-selftest` 负向注入；`scope.allow` 越界拦截 | 防止门禁腐烂与范围失控 |
+
+各 Agent 的最小差异：
+
+- **DeepSeek Harness / Codex / Claude Code（v2.1.277+）**：原生读取 AGENTS.md，直接可用；kit 的 `dsh` 适配器目前为预留。
+- **只认 CLAUDE.md 的 Claude Code 旧版本**：用 `claude-code` 适配器生成 `CLAUDE.md` 与 hooks 示例。
+- **Cursor / 自研 Agent / 其他**：只要"读文件 + 跑命令"即可；hooks 用 git `pre-push`（与 Agent 无关）。
+- **多 Agent 并行**：先写计划与写作用域，再并行；证据绑定 commit，合并前统一跑门禁（见 [governance 多人协作](governance.md#3-多人与多-agent-协作)与 [分工模板](agent-prompts.md#5-多人--多-agent-分工)）。
+
+### 2.4 Agent 反模式（会被仓库抓住）
+
+1. **改门禁让它变绿**：用 `harness-selftest` 证明门禁仍会红，提交记录可审计。
+2. **先改代码后补计划/证据**：`check_plan` 会把"未提交改动与计划声明不一致"报 FAIL。
+3. **把构建产物/本机路径提交**：`check_hygiene` 直接失败。
+4. **在对话里宣布完成**：没有证据 = 未验证，`verify-claim` 不会给 PASS。
+5. **多个 Agent 同时改一个仓库**：唯一 active 计划会被打破（`check_plan` FAIL），先协调再写。
+
+## 3. 命令行手动接入（不依赖 Agent）
+
+适合想先手动理解流程、或环境里没有 Agent 的场景。命令与 Agent 执行的是同一套。
+
+### 3.1 新项目（10 分钟最小接入）
 
 ```bash
 git clone --depth 1 --branch <kit-ver> https://github.com/DavidTeam2008/harness-engineering-kit.git /path/to/harness-kit
@@ -38,7 +92,7 @@ git add -A && git commit -m "chore: adopt harness-kit standard profile"
 - 已有 `Makefile` 时不会被覆盖：生成 `Makefile.harness`，宿主 `Makefile` 里加 `include Makefile.harness`。
 - 详细步骤（含测试/证据/CI 接线）见 [playbook 第 1–5 步](playbook.md)。
 
-### 2.2 存量项目（brownfield，先只读再改造）
+### 3.2 存量项目（brownfield，先只读再改造）
 
 ```bash
 # ① 只读盘点（0 写入；报告写到目标仓之外）
@@ -50,76 +104,31 @@ python3 /path/to/harness-kit/scripts/harness-adopt --target ../legacy-app --json
 python3 /path/to/harness-kit/scripts/harness-init --profile standard --target ../legacy-app \
   --language android --test-command "./gradlew testDebugUnitTest"
 
-# ④ 文档蒸馏（当前/历史两层 + docs/README 索引）→ ⑤ 清洁（产物/路径/符号链接/死代码）
-# ⑥ 宿主传感器（config 的 hygiene / layers）+ CI/hooks + JUnit 证据
+# ④ 文档蒸馏 → ⑤ 清洁 → ⑥ config hygiene/layers + CI/hooks + JUnit 证据
 # ⑦ 负向注入验收：
 python3 /path/to/harness-kit/scripts/harness-selftest --target ../legacy-app
 ```
 
-- 七步法的每一步的退出信号/回滚见 [playbook「存量项目（brownfield）改造」](playbook.md#存量项目brownfield改造七步法)。
-- 核心纪律：**门禁红就修内容，不删检查**；项目自有文档（产品/架构/决策）留在项目内，kit 只提供骨架与门禁。
-- 接入前建议记录**基线评分**（见 §4），接入后再复评，才能回答"到底改善了没有"。
+- 七步法每一步的退出信号/回滚见 [playbook「存量项目（brownfield）改造」](playbook.md#存量项目brownfield改造七步法)。
+- 接入前建议记录**基线评分**（见 §5），接入后再复评，才能回答"到底改善了没有"。
 
-## 3. AI coding Agent 路径
+## 4. 接入后：场景提示词模板
 
-### 3.1 为什么 Agent 场景更需要它
+接入完成后，日常由 Agent 按场景使用模板（完整内容见 [agent-prompts.md](agent-prompts.md)）：
 
-Agent 的失败模式很少是"不会写代码"，而是：上下文重建、完成声明不可验证、越界改动、把过程文件当现状、环境事实不可复现。harness-kit 把这些问题变成**仓库可判定的状态**，因此与 Agent 无关——任何能读文件、能跑 shell 的 Agent 都能用。
-
-### 3.2 新项目（Agent-first）
-
-让 Agent 自己执行接入，但按顺序、可复查：
-
-```text
-1. 读 <kit>/README.md 与 docs/playbook.md；
-2. 跑 harness-init --dry-run，把输出给人确认；
-3. 执行 init（自动 make check）；失败按提示修内容，不删检查；
-4. 提交；写第一份计划（scope/验收/下一步）；
-5. 从此每次任务：计划 → 实现 → make verify-static → 证据 → verify-claim → 交接。
-```
-
-### 3.3 存量项目（Agent-first）
-
-**强制顺序**：`harness-adopt` 只读盘点 → 人确认改造计划 → init → 按 playbook 七步法。禁止 Agent 在看懂现状之前重构代码；盘点报告本身作为"改造前基线"存档。
-
-### 3.4 按 Agent 能力分层接入（不绑定具体产品）
-
-| 层 | 做什么 | 备注 |
+| 场景 | 用哪个模板 | 关键产出 |
 | --- | --- | --- |
-| 指令层 | 项目根 `AGENTS.md`（kit 渲染）作为唯一入口 | 支持 AGENTS.md 的 Agent 直接生效；只认 `CLAUDE.md` 的用 kit 的 `claude-code` 适配器；其他在系统提示里写"先读 AGENTS.md" |
-| 执行层 | Makefile 统一接口：`make check` / `verify-static` / `verify-claim` / `check-host` / `plan` | Agent 不需要知道脚本细节 |
-| 状态层 | 唯一 active 计划 + 证据摘要 + 交接摘要 | 跨会话/跨 Agent 的共享状态，不依赖对话历史 |
-| 证据层 | 完成声明引用 evidence id；静态 claim 由 `verify-claim` 复跑命令判定 | 无 id 或 UNVERIFIED 不算完成 |
-| 保护层 | `harness-selftest` 负向注入；`scope.allow` 越界拦截 | 防止门禁腐烂与范围失控 |
+| 提项目需求（小改/功能） | [§3 提项目需求](agent-prompts.md#3-提项目需求小改动--功能) | 目标/非目标、影响文件、验收命令 |
+| 提新计划（跨会话任务） | [§4 提新计划](agent-prompts.md#4-提新计划跨会话任务) | active 计划 + `check_plan` PASS |
+| 多人 / 多 Agent 分工 | [§5 分工](agent-prompts.md#5-多人--多-agent-分工) | 写作用域、分支/合并顺序、统一门禁 |
+| 结束会话（保存状态） | [§6 结束会话](agent-prompts.md#6-结束会话保存状态) | 计划更新 + `brief` 摘要 + 5 行交接 |
+| 项目交接（换人/换 Agent） | [§7 交接](agent-prompts.md#7-项目交接换人--换-agent) | 5 问交接摘要，clone 可复现 |
+| 结束项目 / 阶段 | [§8 结束项目](agent-prompts.md#8-结束项目--阶段done--归档) | done + submitted + 证据 + 归档 |
+| 完成声明（任意任务） | [§9 完成声明](agent-prompts.md#9-完成声明附加到任意任务末尾) | `verify-static` / `verify-claim` 输出 + evidence id |
 
-各 Agent 的最小差异：
+## 5. 真实案例：接入前后五子系统评分
 
-- **DeepSeek Harness / Codex / Claude Code（v2.1.277+）**：原生读取 AGENTS.md，直接可用；kit 的 `dsh` 适配器目前为预留。
-- **只认 CLAUDE.md 的 Claude Code 旧版本**：用 `claude-code` 适配器生成 `CLAUDE.md` 与 hooks 示例。
-- **Cursor / 自研 Agent / 其他**：只要"读文件 + 跑命令"即可；hooks 用 git `pre-push`（与 Agent 无关）。
-- **多 Agent 并行**：先写计划与写作用域，再并行；证据绑定 commit，合并前统一跑门禁（见 [governance 多人协作](governance.md#3-多人与多-agent-协作)）。
-
-### 3.5 给 Agent 的最小 bootstrap 提示
-
-```text
-你在 <repo> 工作。第一步：读 AGENTS.md → 跑 make check；有 make resume 就先 make resume。
-任务范围：<任务与允许改动的目录>。
-完成前必须：更新 active 计划；make verify-static 通过；
-测试类完成声明附 evidence id；没有证据就写"未验证"。
-不得删除、弱化或绕过任何门禁。
-```
-
-### 3.6 Agent 反模式（会被仓库抓住）
-
-1. **改门禁让它变绿**：用 `harness-selftest` 证明门禁仍会红，提交记录可审计。
-2. **先改代码后补计划/证据**：`check_plan` 会把"未提交改动与计划声明不一致"报 FAIL。
-3. **把构建产物/本机路径提交**：`check_hygiene` 直接失败。
-4. **在对话里宣布完成**：没有证据 = 未验证，`verify-claim` 不会给 PASS。
-5. **多个 Agent 同时改一个仓库**：唯一 active 计划会被打破（`check_plan` FAIL），先协调再写。
-
-## 4. 真实案例：接入前后五子系统评分
-
-### 4.1 评分口径（先对齐，避免"自嗨分"）
+### 5.1 评分口径（先对齐，避免"自嗨分"）
 
 - 五子系统各 1–5 分，口径见 kit 的 [评分卡模板](../core/templates/docs/harness-scorecard.md.template)：
   **1 = 缺失；3 = 有规则但不可机检；5 = 有门禁 + 有证据 + 定期复核**。
@@ -127,7 +136,7 @@ Agent 的失败模式很少是"不会写代码"，而是：上下文重建、完
 - 自评与独立复评**分列**；独立复评的输入只有仓库，不参考起草过程。
 - 这个分数是工程判断，不是认证；它会随仓库变化，大改后需重评。
 
-### 4.2 案例 A：存量 Android/Gradle 仓（brownfield，自评）
+### 5.2 案例 A：存量 Android/Gradle 仓（brownfield，自评）
 
 同一评分卡、同一口径，接入前基于只读盘点证据打分，接入后基于当前门禁/证据打分：
 
@@ -142,7 +151,7 @@ Agent 的失败模式很少是"不会写代码"，而是：上下文重建、完
 
 > 口径声明：这是**自评**，证据可复核（见该仓 `HARNESS.md`、`harness/plans/_archive/`、`harness/evidence/`）；接入前的 1–2 分来自该仓接入评估报告里的实测问题（无 AGENTS/HARNESS/CI、无计划/证据、文档断链与过期、环境事实入库）。
 
-### 4.3 案例 B：来源案例 iOS 仓（独立复评）
+### 5.3 案例 B：来源案例 iOS 仓（独立复评）
 
 同一个评分卡，由**非作者**独立复评（只读仓库、独立复跑门禁）：
 
@@ -154,7 +163,7 @@ Agent 的失败模式很少是"不会写代码"，而是：上下文重建、完
 
 补充口径：同一仓库的"对外标杆成熟度"由独立审计给出 **17/35 → 25.5/35（3.6/5）**；当前自评/独立复评均约 4.0。分数与局限见该仓的评分卡与复评记录（仓库内 `docs/harness-scorecard.md`）。
 
-### 4.4 怎么复现这套评分
+### 5.4 怎么复现这套评分
 
 ```text
 接入前：harness-adopt --report（只读盘点）→ 人工按评分卡打分 → 存入改造计划作为基线
@@ -164,28 +173,28 @@ Agent 的失败模式很少是"不会写代码"，而是：上下文重建、完
 
 **注意**：接入 ≠ 问题消失。kit 只覆盖结构性、可机检的部分；文档语义正确性、代码质量、真机/性能验证仍需要人或宿主传感器（detekt/lint/真机测试等）。分数提升反映的是"可验证性与可维护性"，不是产品质量自动提升。
 
-## 5. 接入验收清单
+## 6. 接入验收清单
 
-**10 分钟最小接入**
+**Agent 接入（推荐）**
+- [ ] Agent 冷启动只读仓库可回答"现在做到哪、下一步、哪些未验证"
+- [ ] Agent 的完成声明带 evidence id 或显式"未验证"
+- [ ] 计划 `scope.allow` 与实际改动一致
+- [ ] 换一个 Agent/新会话不丢状态（唯一 active 计划 + 证据摘要）
+
+**命令行手动接入（10 分钟最小）**
 - [ ] `harness-init --dry-run` 计划已复核，无意外覆盖
 - [ ] 首次 `make check` exit 0
 - [ ] `git status` 干净后提交
 - [ ] 选定了真实测试命令并写入 `harness/config.json.commands.test`
 
-**1 天标准接入（真实仓库）**
+**完整接入（1 天，真实仓库）**
 - [ ] 文档蒸馏完成（当前/历史分层、索引 100%、链接可用）
 - [ ] 一条真实测试证据 PASS，`make verify-claim` exit 0
 - [ ] CI（或 pre-push）跑 `make verify-static`
 - [ ] `harness-selftest --target .` exit 0（门禁证明会红）
 - [ ] 接入前后五子系统评分各一份（自评 + 可选独立复评）
 
-**Agent 接入追加**
-- [ ] Agent 冷启动只读仓库可回答"现在做到哪、下一步、哪些未验证"
-- [ ] Agent 的完成声明带 evidence id 或显式"未验证"
-- [ ] 计划 `scope.allow` 与实际改动一致
-- [ ] 换一个 Agent/新会话不丢状态（唯一 active 计划 + 证据摘要）
-
-## 6. FAQ
+## 7. FAQ
 
 **Q：kit 会不会变成负担？**
 A：三档 profile、配置化门禁、可整目录删除；安装的只是文件与 Makefile 命令，不是依赖。已接入后想退出：删除 kit 生成的文件即可，业务代码零改动。
@@ -200,10 +209,10 @@ A：核心规则与门禁是仓库文件与命令，与模型无关；Agent 特�
 A：不能提供密码学保证；它把"随口宣布完成"的成本显著抬高，并让低成本蒙混路径在门禁上可见。
 
 **Q：多人怎么用？**
-A：见 [governance 多人协作](governance.md#3-多人与多-agent-协作)：唯一 active 计划、`scope.allow`、PR + required checks、证据绑定 commit。
+A：见 [governance 多人协作](governance.md#3-多人与多-agent-协作)：唯一 active 计划、`scope.allow`、PR + required checks、证据绑定 commit；分工提示词见 [agent-prompts §5](agent-prompts.md#5-多人--多-agent-分工)。
 
 **Q：存量接入要多久？**
-A：最小接入 10 分钟；standard 完整接入通常 1–2 天（文档蒸馏与清洁占大头）。来源案例的 Android/Gradle 存量仓由 AI 代理在约 1 天内完成接入 + 验收。
+A：Agent 接入通常 10 分钟到 1–2 天（文档蒸馏与清洁占大头）；来源案例的 Android/Gradle 存量仓由 AI 代理在约 1 天内完成接入 + 验收。
 
 **Q：和"多写几个 skill / 多加几条规则"的区别？**
 A：kit 的原则是**能机检的不写进指令**、规则必须对应真实失败、指令有 token 预算。规则越多不等于越安全——详见 [governance](governance.md)。

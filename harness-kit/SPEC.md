@@ -1,7 +1,7 @@
 # harness-kit · SPEC（构建契约）
 
 > 本文件是 `harness-kit` 的**内部构建契约**：所有 core 脚本、模板、profiles、脚手架与测试必须按本文件实现。
-> 对外使用说明见 [`README.md`](README.md)；接入路径见 [`docs/adoption.md`](docs/adoption.md)；逐步操作见 [`docs/playbook.md`](docs/playbook.md)；演化与治理见 [`docs/governance.md`](docs/governance.md)。
+> 对外使用说明见 [`README.md`](README.md)；接入路径见 [`docs/adoption.md`](docs/adoption.md)；提示词模板见 [`docs/agent-prompts.md`](docs/agent-prompts.md)；逐步操作见 [`docs/playbook.md`](docs/playbook.md)；演化与治理见 [`docs/governance.md`](docs/governance.md)。
 > 目标：把 Duiyi 验证过的 harness 机制抽成**与 Duiyi 无关**、可在任意项目 10 分钟接入的 **Harness Engineering 项目脚手架**（Instructions / State / Verification / Scope / Session Lifecycle 五子系统）。
 
 ## 0. 非目标
@@ -60,7 +60,8 @@ harness-kit/
 ├── scripts/harness-init      # 可执行 Python3 脚手架（无扩展名）
 ├── scripts/harness-adopt     # kit 侧只读盘点 + 改造计划草稿（无扩展名）
 ├── scripts/harness-selftest  # kit 侧门禁自测：临时副本注入 → 断言门禁非 0 → 恢复复核（无扩展名）
-├── docs/adoption.md          # 接入指南（新项目/存量项目/AI coding Agent + 前后评分案例）
+├── docs/adoption.md          # 接入指南（AI coding Agent 优先 + 命令行手动接入 + 前后评分案例）
+├── docs/agent-prompts.md     # AI coding Agent 提示词模板（接入/需求/计划/分工/交接/收尾）
 ├── docs/playbook.md          # 五步改造法 + 存量项目七步法 + 常见坑 + 升级路径
 ├── docs/governance.md        # 演化与治理（反臃肿、版本策略、多人协作）
 └── tests/                    # kit 自身的 unittest（仅标准库）
@@ -98,7 +99,7 @@ harness-kit/
 
 ```json
 {
-  "kitVersion": "0.2.8",
+  "kitVersion": "0.2.9",
   "project": { "name": "{{PROJECT_NAME}}", "language": "{{PROJECT_LANGUAGE}}" },
   "paths": {
     "docs": "docs",

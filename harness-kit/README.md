@@ -5,8 +5,9 @@
 **把“agent 说完成了”变成“证据说了算”。** 不是框架，也不是依赖；生成物可整目录删除。
 
 - 仓库名 `harness-engineering-kit`（原名 `harness-kit`；目录、命令与 tag 前缀沿用短名）
-- 版本：`0.2.8`（见 [`VERSION`](VERSION)）
-- **[接入指南：新项目 / 存量项目 / AI coding Agent](docs/adoption.md)** · [采用 playbook](docs/playbook.md) · [演化与治理](docs/governance.md) · [内部契约 SPEC](SPEC.md)
+- 版本：`0.2.9`（见 [`VERSION`](VERSION)）
+- **[AI coding Agent 接入指南（新项目 / 存量项目）](docs/adoption.md)** · **[提示词模板：接入 / 需求 / 计划 / 分工 / 交接 / 收尾](docs/agent-prompts.md)** ← 先看这两个
+- 命令行手动接入：[采用 playbook](docs/playbook.md) · [演化与治理](docs/governance.md) · [内部契约 SPEC](SPEC.md)
 
 ## 它是什么：Harness Engineering 脚手架
 
@@ -68,7 +69,9 @@ Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力
 | 语言探测 | `scripts/harness-init` | `python` / `swift` / `node` / `go` / `android` / `other` |
 | 适配器 | `adapters/` | `githooks` / `ci` / `claude-code` / `dsh`（预留） |
 
-## 10 分钟接入
+## 命令行手动接入（10 分钟）
+
+> 用 Agent 的走 [接入指南](docs/adoption.md) 与 [提示词模板](docs/agent-prompts.md)；Agent 执行的也是下面这套命令。
 
 前置：Python 3（标准库）、`make`、`git`；`--target` 指向**已存在**的目录（init 不执行 `git init`；建议先 `git status` 确认干净）。
 
@@ -89,13 +92,13 @@ python3 harness-kit/scripts/harness-init --profile strict --target ../myapp --na
 - **宿主门禁（standard+）**：`make check-host` 运行 `check_hygiene.py` + `check_layers.py`，只在 `harness/config.json` 配置了 `hygiene` / `layers` 段时生效，未配置 `[SKIP]`；`verify-static` 已包含。
 - **验证门禁真的会红**：接入后跑 `python3 harness-kit/scripts/harness-selftest --target .`（exit 0 = 全部按预期拦截并恢复）。
 
-## 两种接入路径（人类团队 / AI Agent）
+## 接入路径：AI coding Agent 优先
 
 | 路径 | 入口 | 说明 |
 | --- | --- | --- |
-| 新项目（人类/AI 均可） | `harness-init --profile standard` → 首次 `make check` → commit | 10 分钟最小接入；按 playbook 第 4–5 步接测试/证据/CI |
-| 存量项目（brownfield） | `harness-adopt` 只读盘点 → 定 profile/基线 → `harness-init` → 七步法 | 先盘后改；文档蒸馏与清洁占大头，见 playbook 七步法 |
-| **AI coding Agent** | 让 Agent 读 `AGENTS.md`，用 Makefile 做统一闸门；完成声明必须带 evidence id | 分 Agent 能力分层接入、bootstrap 提示、多 Agent 协作与反模式，见 **[adoption.md](docs/adoption.md#3-ai-coding-agent-路径)** |
+| **AI coding Agent（推荐）** | 读 `AGENTS.md` + [接入指南](docs/adoption.md) + [提示词模板](docs/agent-prompts.md) | Agent 自行盘点/init/建计划/验证；模板覆盖接入、需求、计划、分工、交接、收尾 |
+| 命令行手动接入 · 新项目 | `harness-init --profile standard` → 首次 `make check` → commit | 10 分钟最小接入，详见 [playbook](docs/playbook.md) |
+| 命令行手动接入 · 存量项目 | `harness-adopt` 只读盘点 → `harness-init` → 七步法 | 先盘后改；文档蒸馏与清洁占大头 |
 
 存量项目不要直接 `--force` init：先跑只读盘点（`harness-adopt --report`），把"接入前基线"存档，再定改造顺序。
 
@@ -170,6 +173,7 @@ harness-kit/
 ├── scripts/harness-selftest # 门禁自测：注入 → 断言门禁会红 → 恢复复核
 ├── docs/adoption.md     # 接入指南（新项目 / 存量项目 / AI coding Agent + 前后评分案例）
 ├── docs/playbook.md     # 新项目五步法 + 存量项目七步法 + 常见坑 + 升级路径
+├── docs/agent-prompts.md # AI coding Agent 提示词模板（接入/需求/计划/分工/交接/收尾）
 ├── docs/governance.md   # 演化与治理（反臃肿、版本策略、多人协作）
 ├── CHANGELOG.md         # 版本变更记录
 └── tests/               # kit 自身 unittest（标准库，122 个端到端用例）
@@ -197,6 +201,8 @@ harness-kit/
 ```
 
 ## 采用后的日常工作流
+
+> Agent 场景直接使用[提示词模板](docs/agent-prompts.md)；下面是人/Agent 共用的命令循环。
 
 1. **做任务前**：`make plan TOPIC=<topic>` 建计划，填 front matter（owner/scope/验收/verify）；同一时间只允许一个 active。
 2. **每次改动后**：`make check`（静态门禁，必须 0）。
@@ -254,4 +260,4 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.8`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.9`；向后兼容策略见 [SPEC §10](SPEC.md)。
