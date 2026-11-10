@@ -1,6 +1,6 @@
-# harness-kit
+# harness-engineering-kit
 
-> **Harness Engineering 项目脚手架**：把「AI coding agent 可验收的研发约束」按 **Instructions / State / Verification / Scope / Session Lifecycle** 五子系统固化为**项目无关**的模板、门禁与证据链。
+> **Harness Engineering 项目脚手架**（仓库名 `harness-engineering-kit`，原名 `harness-kit`；目录、命令与 tag 前缀沿用短名 `harness-kit`）：把「AI coding agent 可验收的研发约束」按 **Instructions / State / Verification / Scope / Session Lifecycle** 五子系统固化为**项目无关**的模板、门禁与证据链。
 > 面向用 AI Coding Agent / Vibe Coding 交付、但代码、文档、验证开始失控的项目：**把"agent 说完成了"变成"证据说了算"，让仓库重新可维护、可交接、可迭代。**
 > 不是框架、不是依赖：只生成 Markdown、Python 标准库脚本和一个 Makefile 入口；接入失败可整目录删除，不留运行时包袱。
 
@@ -229,7 +229,7 @@ kit 的定制入口只有**目标项目的 `harness/config.json`**（所有门�
 
 ## 维护与镜像（维护者）
 
-本仓内 `harness-kit/` 是**唯一源**；独立模板仓 <https://github.com/DavidTeam2008/harness-kit> 由 `git subtree split` 生成的**只读镜像**。
+本仓内 `harness-kit/` 是**唯一源**；独立模板仓 <https://github.com/DavidTeam2008/harness-engineering-kit> 由 `git subtree split` 生成的**只读镜像**。
 
 - **改**：只改来源仓库的 `harness-kit/`，跑 `make kit-check` / `make verify-static`。
 - **发布**：`make kit-publish`（subtree split → 推送镜像 `main`；非快进会被拒绝，说明镜像被直接改过）。

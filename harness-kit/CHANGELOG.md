@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.7 — 2026-11-10
+
+- **仓库改名 `harness-kit` → `harness-engineering-kit`**（GitHub 301 重定向；tags/releases 保留；
+  目录、命令、Makefile 目标、`kitVersion` 与 tag 前缀沿用短名 `harness-kit`）。
+- README 标题与对外链接、`docs/adoption.md` clone 命令、维护镜像 URL 更新为新仓库；
+  README 增加"原名 harness-kit"说明；SPEC §10 记录改名契约。
+- 来源仓库 `Makefile` 的镜像 remote、HARNESS/README/docs 的当前链接同步更新。
+- 无脚本、模板、config schema 与门禁行为变更；向后兼容。
+
 ## 0.2.6 — 2026-11-10
 
 - **README 显式定位为 Harness Engineering 项目脚手架**：新增「它是什么：Harness Engineering 脚手架」——五子系统

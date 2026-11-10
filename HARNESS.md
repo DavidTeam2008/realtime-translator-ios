@@ -99,7 +99,7 @@ make check-evidence  # 只做 schema/语义校验
 9. **接入你的 agent**：保持规则在 `AGENTS.md`；用适配层提供工具差异（见 §9 / [`harness/adapters/`](harness/adapters/)）。
 10. **周期修剪**：月度审计（评分卡）+ 季度文档修剪；过程只留结论+证据，原始记录进 git 历史。
 
-> 模板已抽出：[`harness-kit/`](harness-kit/README.md)（minimal/standard/strict + `harness-init` + 三档端到端验收 `make kit-check`），独立模板仓：<https://github.com/DavidTeam2008/harness-kit>。本项目是它的第一个案例；kit 自身不含本项目专有引用。维护方式：本项目内 `harness-kit/` 是唯一源，独立仓只读镜像——改完跑 `make kit-check`，发布用 `make kit-publish`，一致性用 `make kit-drift` 校验（不一致必须回上游改，不能直接改镜像仓）。
+> 模板已抽出：[`harness-kit/`](harness-kit/README.md)（minimal/standard/strict + `harness-init` + 三档端到端验收 `make kit-check`），独立模板仓：<https://github.com/DavidTeam2008/harness-engineering-kit>。本项目是它的第一个案例；kit 自身不含本项目专有引用。维护方式：本项目内 `harness-kit/` 是唯一源，独立仓只读镜像——改完跑 `make kit-check`，发布用 `make kit-publish`，一致性用 `make kit-drift` 校验（不一致必须回上游改，不能直接改镜像仓）。
 
 ## 7. 评分卡与独立复评
 

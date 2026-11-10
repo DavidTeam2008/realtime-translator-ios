@@ -8,7 +8,7 @@ DERIVED ?= /tmp/duiyi-build
 DERIVED_DEVICE ?= $(DERIVED)-device
 TEAM_RULES ?= ../../agent/template
 # 独立模板仓（harness-kit 镜像）；`make kit-publish` 只往这里推
-KIT_REMOTE ?= git@github.com:DavidTeam2008/harness-kit.git
+KIT_REMOTE ?= git@github.com:DavidTeam2008/harness-engineering-kit.git
 N ?= 10
 
 .PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools kit-check kit-publish kit-drift check check-all verify-static verify verify-claim verify-claim-fresh release-check evidence hooks-install harness-audit doctor resume end measure-launch plan handoff

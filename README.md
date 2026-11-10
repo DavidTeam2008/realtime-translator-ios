@@ -14,7 +14,7 @@
 - **真实产品，不是 demo**：面对面、同声传译、会议记录三个模块，任务历史、总结、导出都是可用的；全部在设备端完成，无后端、无 API Key、不上传音频。
 - **端侧隐私**：听写/翻译依赖系统端侧能力，首次需联网下载系统资源；文本只在本机保存。
 - **Harness 可审计**：`AGENTS` 指令树、静态门禁、证据链、PASS/FAIL/UNVERIFIED 三值判定都固化进仓库——"已验证"不是一句自述，而是可被脚本否证的声明（见 [`HARNESS.md`](HARNESS.md)）。
-- **可复制**：[`harness-kit/`](harness-kit/README.md) 把指令/门禁/证据抽成项目无关模板（minimal/standard/strict + `harness-init` + 三档端到端验收），同一套机制可在其他仓库 10 分钟接入；独立模板仓：<https://github.com/DavidTeam2008/harness-kit>。
+- **可复制**：[`harness-kit/`](harness-kit/README.md) 把指令/门禁/证据抽成项目无关模板（minimal/standard/strict + `harness-init` + 三档端到端验收），同一套机制可在其他仓库 10 分钟接入；独立模板仓：<https://github.com/DavidTeam2008/harness-engineering-kit>。
 
 ## 功能
 

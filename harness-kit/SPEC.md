@@ -254,4 +254,5 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
 
 - `KIT_VERSION` 单一来源 `harness-kit/VERSION`（kit 自身）与目标项目 `harness/config.json.kitVersion`。
 - 向后兼容：新增 config 字段必须可选；破坏性变更需在 README 的 changelog 记录。
+- 仓库改名：`harness-kit` → `harness-engineering-kit`（2026-11-10，GitHub 301 重定向；目录、命令、tag 前缀沿用短名 `harness-kit`）。
 - 升级：kit 不提供 in-place 迁移命令（设计决定，避免覆盖宿主文档）。版本升级按 playbook「升级路径」执行（临时渲染 → 逐文件 diff → 只回写 kit 管理面 → `verify-static` + `harness-selftest`）；该路径已由真实 Android/Gradle 存量仓 v0.2.2→v0.2.3 验证（2026-11-10），profile 升级仍未验证。

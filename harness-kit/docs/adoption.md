@@ -23,7 +23,7 @@ harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instruct
 ### 2.1 新项目（10 分钟最小接入）
 
 ```bash
-git clone --depth 1 --branch <kit-ver> https://github.com/DavidTeam2008/harness-kit.git /path/to/harness-kit
+git clone --depth 1 --branch <kit-ver> https://github.com/DavidTeam2008/harness-engineering-kit.git /path/to/harness-kit
 
 python3 /path/to/harness-kit/scripts/harness-init \
   --profile standard --target . --name MyApp \
