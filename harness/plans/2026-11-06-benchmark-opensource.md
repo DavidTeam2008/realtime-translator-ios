@@ -600,8 +600,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- harness/plans/2026-11-06-benchmark-opensource.md
-- harness/reviews/2026-11-10-kit-android-stage-b.md
+- 无未提交改动（Android 历史清洗/分支保护记录已提交）。
 
 ## 下一步
 
