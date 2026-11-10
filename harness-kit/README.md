@@ -5,8 +5,8 @@
 **把“agent 说完成了”变成“证据说了算”。** 不是框架，也不是依赖；生成物可整目录删除。
 
 - 仓库名 `harness-engineering-kit`（原名 `harness-kit`；目录、命令与 tag 前缀沿用短名）
-- 版本：`0.2.10`（见 [`VERSION`](VERSION)）
-- **[AI coding Agent 接入指南（新项目 / 存量项目）](docs/adoption.md)** · **[提示词模板：接入 / 开发 / 评审 / 发布 / 交接 / 收尾](docs/agent-prompts.md)** ← 先看这两个
+- 版本：`0.2.11`（见 [`VERSION`](VERSION)）
+- **[AI coding Agent 接入指南（新项目 / 存量项目）](docs/adoption.md)** · **[提示词库：接入 / 开发 / 评审 / 发布 / 交接 / 收尾](docs/agent-prompts.md)** ← 先看这两个
 - 命令行手动接入：[采用 playbook](docs/playbook.md)（新项目五步 / 存量七步）
 - 深入：[演化与治理](docs/governance.md) · [内部契约 SPEC](SPEC.md)
 
@@ -59,17 +59,26 @@ Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力
 
 | 路径 | 入口 | 说明 |
 | --- | --- | --- |
-| **AI coding Agent（推荐）** | 读 `AGENTS.md` + [接入指南](docs/adoption.md) + [提示词模板](docs/agent-prompts.md) | Agent 自行盘点/init/建计划/验证；模板覆盖接入、需求、开发、评审、发布、分工、交接、收尾 |
+| **AI coding Agent（推荐）** | 读 [接入指南](docs/adoption.md)；提示词用 `<kit>/scripts/harness-prompt copy <场景>` 一条命令拿 | Agent 自行盘点/init/建计划/验证；模板覆盖接入、需求、开发、评审、发布、分工、交接、收尾 |
 | 命令行手动接入 · 新项目 | `harness-init --profile standard` → 首次 `make check` → commit | 10 分钟最小接入；命令见本节下方 |
 | 命令行手动接入 · 存量项目 | `harness-adopt` 只读盘点 → `harness-init` → 七步法 | 先盘后改；文档蒸馏与清洁占大头 |
 
 ### AI coding Agent（推荐）
 
-让 Agent 自己执行接入与后续任务，但按顺序、可复查：
+提示词不需要去文档里查：一条命令拿到可直接粘贴的完整提示词（`<kit>` = kit 克隆路径）：
 
-1. 先给 Agent 贴 [公共前置](docs/agent-prompts.md#0-公共前置每个任务前贴一次)；
-2. 按场景贴模板：[接入新项目](docs/agent-prompts.md#1-接入新项目agent-first) 或 [接入存量项目](docs/agent-prompts.md#2-接入存量项目agent-first先只读)；
-3. 接入后日常任务用同一套模板：[提需求](docs/agent-prompts.md#4-提项目需求小改动--功能)、[新计划](docs/agent-prompts.md#6-提新计划跨会话任务)、[修 Bug](docs/agent-prompts.md#7-修-bug--调试)、[评审](docs/agent-prompts.md#9-代码审查--pr-前自检)、[发布前](docs/agent-prompts.md#15-发布前操作)、[分工](docs/agent-prompts.md#16-多人--多-agent-分工)、[交接](docs/agent-prompts.md#18-项目交接换人--换-agent)。
+```bash
+cd /path/to/your-project                                   # 在目标仓库根目录执行（或加 --target）
+<kit>/scripts/harness-prompt list                     # 看场景清单（会显示目标仓库是否已接入）
+<kit>/scripts/harness-prompt copy adopt-brownfield    # 复制到剪贴板：自动拼 0B 前置、填 kit 与目标仓库路径
+<kit>/scripts/harness-prompt copy fix-bug             # 接入后的日常任务同理（自动拼 0A 前置）
+```
+
+- 前置按**所选场景**拼：接入场景用 0B（未接入，含 kit 路径与「先只读」约束），日常场景用 0A（已接入）；目标仓库阶段与场景不符时命令会给 WARN，不会静默贴错。
+- `copy` 复制成功会显示目标仓库；没有剪贴板工具时自动打印到 stdout 并给 WARN。
+- 需要你补充的信息（如 `<SYMPTOM>`）会列出来；也可以 `--set SYMPTOM="..."` 直接填。
+- 不用命令行时：[提示词库](docs/agent-prompts.md) 里手工复制，每个模板都标注了「阶段 / 前置 / 需替换 / 复制命令」。
+- 接入顺序与验收路径不变：接入 → 计划 → 开发 → 自检 → 发布 → 交接。
 
 ### 命令行手动接入 · 新项目（10 分钟）
 
@@ -79,7 +88,7 @@ Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力
 git clone --depth 1 --branch <kit-ver> \
   https://github.com/DavidTeam2008/harness-engineering-kit.git <kit>
 
-# 0) 先看计划（只打印 CREATE / COPY / SKIP / CONFLICT / RENDER；不写文件、不跑检查）
+# 0) 先看计划（按动作打印 RENDER / COPY / APPEND / CONFLICT；不写文件、不跑检查）
 python3 <kit>/scripts/harness-init --profile standard --target ../myapp --name MyApp --dry-run
 
 # 1) 标准档（+ 计划/证据/CI 与 pre-push；真实仓库推荐）
@@ -128,6 +137,7 @@ python3 <kit>/scripts/harness-selftest --target ../legacy-app
 | **宿主卫生 / 分层门禁** | `tools/check_hygiene.py` / `check_layers.py`（standard+，可选配置） | 构建产物、根文件白名单、绝对符号链接、跟踪文件本机路径、超大文件；import 方向与 symbol guard；缺配置自动 SKIP |
 | **门禁自测** | `scripts/harness-selftest`（kit 侧） | 目标仓临时副本里做基线检查、逐项注入、断言门禁非 0、恢复后复核全绿；默认不写目标仓 |
 | **存量项目盘点** | `scripts/harness-adopt`（kit 侧） | 只读盘点 + `--report` / `--json` / `--write-plan`（改造计划草稿） |
+| **提示词即取即用** | `scripts/harness-prompt`（kit 侧） | `list` / `show` / `copy` / `render --check`：按所选场景拼前置（目标阶段不符给 WARN）、填 kit 与目标路径、剪贴板；文档由 `prompts/` 单源生成并受测试保护 |
 | **版本升级路径** | playbook「升级路径」 | 无 in-place 命令：临时渲染 + 逐文件 diff + `harness-selftest` 复核；已在 Android/Gradle 存量仓验证 v0.2.2→v0.2.3（2026-11-10）；profile 升级仍未验证 |
 | 语言探测 | `scripts/harness-init` | `python` / `swift` / `node` / `go` / `android` / `other` |
 | 适配器 | `adapters/` | `githooks` / `ci` / `claude-code` / `dsh`（预留） |
@@ -152,7 +162,7 @@ kit 的目标不是"规则越多越安全"，而是**能机检的就不写进指
 - **预算即设计**：根 `AGENTS.md` ≈1650 token 预算，三份 references 各 ≈950–1000 token；新增规则顶预算必须删/合并旧规则；
 - **渐进披露**：根指令只指路，目录级规则在嵌套 `AGENTS.md`，细节在 `references/`，流程在 skills/adapters；不一次塞满上下文；
 - **删除优先 + 薄适配**：模型/Agent 已能稳定做对的事降级或删除；Agent 私有能力只进 `adapters/`，不污染核心规则；
-- **门禁会腐烂，所以能自测**：`harness-selftest` 负向注入 + 122 个 kit 端到端用例；门禁空转（例：模式被改坏）会当场变红。
+- **门禁会腐烂，所以能自测**：`harness-selftest` 负向注入 + 140 个 kit 端到端用例；门禁空转（例：模式被改坏）会当场变红。
 
 完整机制（版本演化、行为级评估计划、删除/降级流程、踩刹车信号）见 **[governance.md](docs/governance.md)**。
 
@@ -201,12 +211,14 @@ harness-kit/
 ├── scripts/harness-init     # 统一入口（探测、渲染、冲突处理、首次 check）
 ├── scripts/harness-adopt    # 存量项目只读盘点 + 改造计划草稿
 ├── scripts/harness-selftest # 门禁自测：注入 → 断言门禁会红 → 恢复复核
+├── scripts/harness-prompt   # 提示词库 CLI：list / show / copy / render（自动拼前置、填路径）
+├── prompts/             # 提示词单源（2 前置 + 19 场景 + 2 附加片段；文档由此生成）
 ├── docs/adoption.md     # 接入指南（AI coding Agent 优先 + 命令行手动接入 + 前后评分）
-├── docs/agent-prompts.md # AI coding Agent 提示词模板（接入/开发/评审/发布/协作/收尾）
+├── docs/agent-prompts.md # 由 prompts/ 生成的提示词库（勿手改；见 harness-prompt render）
 ├── docs/playbook.md     # 新项目五步法 + 存量项目七步法 + 常见坑 + 升级路径
 ├── docs/governance.md   # 演化与治理（反臃肿、版本策略、多人协作）
 ├── CHANGELOG.md         # 版本变更记录
-└── tests/               # kit 自身 unittest（标准库，122 个端到端用例）
+└── tests/               # kit 自身 unittest（标准库，140 个端到端用例）
 ```
 
 宿主目标（init 之后，按 profile 增减；以 SPEC §2 为准）：
@@ -232,7 +244,7 @@ harness-kit/
 
 ## 采用后的日常工作流
 
-> Agent 场景直接使用[提示词模板](docs/agent-prompts.md)；下面是人/Agent 共用的命令循环。
+> Agent 场景用 `<kit>/scripts/harness-prompt copy <场景>` 一条命令取提示词（见 [提示词库](docs/agent-prompts.md)）；下面是人/Agent 共用的命令循环。
 
 1. **做任务前**：`make plan TOPIC=<topic>` 建计划，填 front matter（owner/scope/验收/verify）；同一时间只允许一个 active。
 2. **每次改动后**：`make check`（静态门禁，必须 0）。
@@ -270,6 +282,7 @@ kit 的定制入口只有**目标项目的 `harness/config.json`**（所有门�
 - **校验**：`make kit-drift` 比较本地 split 提交与镜像 `main`，不一致 exit 1。
 - **禁止**直接在镜像仓提交后推送；Issue/PR 先回上游修，再发布并关闭。
 - **版本**：`VERSION`（单一来源）+ `CHANGELOG.md`；发布同步在镜像仓打 tag。
+- **改提示词**：只改 `prompts/*.md`，然后 `python3 scripts/harness-prompt render`（本仓可用 `make kit-prompts`）重新生成 `docs/agent-prompts.md`；`render --check` 与 `make kit-check` 会拦住"改了模板没重新生成"。
 
 ## 来源案例
 
@@ -278,16 +291,17 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 ## 局限与未验证（别当成能力）
 
 - **结构可验证 ≠ 行为正确**：静态门禁与证据判定证明"流程可复核"，不证明产品行为/性能/真机结果正确——这些仍靠宿主动态测试、真机与人工评审。
-- **行为级评估尚未实现**：当前只有结构门禁 + 122 个 kit 测试 + 宿主 `harness-selftest`；"接入后 Agent 表现提升多少"的 A/B 评估是 v0.3+ 议题（见 governance §2.4），未做前不对外声称。
+- **行为级评估尚未实现**：当前只有结构门禁 + 140 个 kit 测试 + 宿主 `harness-selftest`；"接入后 Agent 表现提升多少"的 A/B 评估是 v0.3+ 议题（见 governance §2.4），未做前不对外声称。
 - **多人协作未验证**：唯一 active 计划、scope、证据绑定、CI required checks 能提供机制层支持；人类多人并行采用、人类陌生人首访仍未验证。
 - **版本升级已验证，profile 升级未验证**：v0.2.2→v0.2.3 已在真实 Android/Gradle 仓验证；minimal→standard→strict 的 profile 升级路径仍未在真实项目验证。
 - **语言/测试框架需要你提供**：`{{TEST_COMMAND}}` 与 `commands.test` 必须填真实命令；kit 不代跑、不解析测试输出（只提供 JUnit XML → evidence 转换）。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：按预算与白名单修内容，不要删检查绕过。
 - **外部试点有限**：空白 Python/Node/SwiftPM 项目、真实 Android/Gradle 存量仓已完成；其他语言生态、超大仓性能未验证。
-- **kit 自身测试**：122 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用、版本引用一致）；随来源仓库 `verify` workflow 运行。
+- **kit 自身测试**：140 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用、版本引用一致、提示词单源与生成文档同步/CLI 前置选择）；随来源仓库 `verify` workflow 运行。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前为预留。
 - **未做外部安全审计**：kit 只承诺不联网、不写目标之外文件（SPEC §8.7），但未在第三方 CI/受限沙箱验证。
+- **提示词 CLI 平台面**：macOS/Linux 已验证（`pbcopy` / 无剪贴板回退）；Windows 的 `clip` 分支未实测；报告路径示例使用 POSIX 临时目录。
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.10`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.11`；向后兼容策略见 [SPEC §10](SPEC.md)。

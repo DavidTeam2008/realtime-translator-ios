@@ -1,7 +1,7 @@
 # 采用 playbook：五步改造法（Harness Engineering 五子系统落地）
 
 > 给宿主项目做一次 Harness Engineering 改造的操作手册：按 Instructions / State / Verification / Scope / Session Lifecycle 五子系统落地。每步给出**命令**、**可检查的输出/退出信号**与**回滚点**。
-> 前置约定与完整契约见 [`../README.md`](../README.md) 与 [`../SPEC.md`](../SPEC.md)；按读者选择路径：[`adoption.md`](adoption.md)（AI coding Agent 优先接入 + 命令行手动接入 + 前后评分）、[`agent-prompts.md`](agent-prompts.md)（可直接复制的提示词模板）、本文（逐步操作）、[`governance.md`](governance.md)（演化、反臃肿、多人协作）。
+> 前置约定与完整契约见 [`../README.md`](../README.md) 与 [`../SPEC.md`](../SPEC.md)；按读者选择路径：[`adoption.md`](adoption.md)（AI coding Agent 优先接入 + 命令行手动接入 + 前后评分）、[`agent-prompts.md`](agent-prompts.md)（提示词库：模板 + `harness-prompt` 一条命令复制）、本文（逐步操作）、[`governance.md`](governance.md)（演化、反臃肿、多人协作）。
 
 ## 0. 完成定义（先对齐，避免“看起来接入了”）
 
@@ -37,7 +37,7 @@ test -f Makefile && echo "有 Makefile（init 会写 Makefile.harness 而不是�
 python3 harness-kit/scripts/harness-init --profile standard --target ../myapp --name MyApp --dry-run
 ```
 
-**退出信号**：`--dry-run` exit 0，并打印 `CREATE / SKIP / CONFLICT / RENDER` 计划；不写文件、不跑检查。先读一遍计划再执行。
+**退出信号**：`--dry-run` exit 0，并按动作打印 `RENDER / COPY / APPEND / CONFLICT` 计划；不写文件、不跑检查。先读一遍计划再执行。
 
 ## 第 3 步：init（写文件并跑首次检查）
 

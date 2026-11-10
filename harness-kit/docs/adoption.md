@@ -1,7 +1,7 @@
 # 接入指南 · AI coding Agent 优先（新项目 / 存量项目 / 命令行手动接入）
 
-> harness-kit 的主要使用者是 **AI coding Agent**：接入、日常任务、计划、分工、交接、收尾都以 Agent 为主路径。本文给出两种接入路径（Agent-first / 命令行手动），并链接可直接复制的[提示词模板](agent-prompts.md)。
-> 相关：[README](../README.md)（能力与价值）、[提示词模板](agent-prompts.md)（接入/需求/计划/分工/交接/收尾）、[playbook](playbook.md)（命令行五步/七步细节）、[governance](governance.md)（演化、反臃肿、多人协作）、[SPEC](../SPEC.md)（内部契约）。
+> harness-kit 的主要使用者是 **AI coding Agent**：接入、日常任务、计划、分工、交接、收尾都以 Agent 为主路径。本文给出两种接入路径（Agent-first / 命令行手动）；提示词用 `<kit>/scripts/harness-prompt copy <场景>` 一条命令拿到（按所选场景拼前置、填 kit 与目标仓库路径；目标阶段不符会 WARN），完整模板见[提示词库](agent-prompts.md)。
+> 相关：[README](../README.md)（能力与价值）、[提示词库](agent-prompts.md)（接入/需求/计划/分工/交接/收尾）、[playbook](playbook.md)（命令行五步/七步细节）、[governance](governance.md)（演化、反臃肿、多人协作）、[SPEC](../SPEC.md)（内部契约）。
 
 ## 1. 先看症状：你需不需要 harness-kit
 
@@ -20,11 +20,20 @@
 
 harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instructions / State / Verification / Scope / Session Lifecycle），Agent 接入、存量改造、版本升级用的是同一套五子系统资产；每步落到哪一层，见 [README「它是什么」](../README.md#它是什么harness-engineering-脚手架)。
 
-**先贴公共前置**（每个任务前）：见 [agent-prompts.md §0](agent-prompts.md#0-公共前置每个任务前贴一次)。
+**怎么拿提示词**：一条命令即可（`<kit>` = kit 克隆路径）：
+
+```bash
+cd /path/to/your-project                             # 在目标仓库根目录执行（或加 --target）
+<kit>/scripts/harness-prompt copy adopt-brownfield   # 接入存量项目：拼 0B 前置 + 填 kit/目标路径
+<kit>/scripts/harness-prompt copy fix-bug            # 接入后的日常任务：拼 0A 前置
+<kit>/scripts/harness-prompt list                    # 看全部场景；目标仓库阶段与场景不符时给 WARN
+```
+
+手工复制时见 [prompts §0 公共前置](agent-prompts.md#0-公共前置按项目阶段选一段)：先贴 0A（已接入）或 0B（未接入），再把 `<kit>` / `<目标仓库路径>` 换成本机路径；§1 / §2 是未接入场景，手工复制时同样先贴 0B。**不要给未接入项目贴 0A**（它假设 `make check` 与 `harness/plans/` 已存在）。
 
 ### 2.1 新项目（Agent-first）
 
-让 Agent 自己执行接入，但按顺序、可复查。完整提示词模板见 [agent-prompts.md §1](agent-prompts.md#1-接入新项目agent-first)，核心步骤：
+让 Agent 自己执行接入，但按顺序、可复查。直接复制：`<kit>/scripts/harness-prompt copy adopt-new`；完整模板见 [prompts §1](agent-prompts.md#1-接入新项目agent-first)。核心步骤：
 
 ```text
 读 <kit>/README.md 与 <kit>/docs/adoption.md → python3 <kit>/scripts/harness-init --dry-run 给人确认 →
@@ -36,10 +45,10 @@ harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instruct
 
 ### 2.2 存量项目（Agent-first，先只读）
 
-**强制顺序**：`harness-adopt` 只读盘点 → 人确认改造计划 → init → 按 playbook 七步法。完整提示词模板见 [agent-prompts.md §2](agent-prompts.md#2-接入存量项目agent-first先只读)。
+**强制顺序**：`harness-adopt` 只读盘点 → 人确认改造计划 → init → 按 playbook 七步法。直接复制：`<kit>/scripts/harness-prompt copy adopt-brownfield`；完整模板见 [prompts §2](agent-prompts.md#2-接入存量项目agent-first先只读)。
 
 ```bash
-harness-adopt --target . --report /tmp/adoption-report.md --json   # 只读，0 写入
+<kit>/scripts/harness-adopt --target . --report /tmp/adoption-report.md --json   # 只读，0 写入
 ```
 
 - 禁止 Agent 在看懂现状之前重构代码；盘点报告作为"改造前基线"存档。
@@ -60,7 +69,7 @@ harness-adopt --target . --report /tmp/adoption-report.md --json   # 只读，0 
 - **DeepSeek Harness / Codex / Claude Code（v2.1.277+）**：原生读取 AGENTS.md，直接可用；kit 的 `dsh` 适配器目前为预留。
 - **只认 CLAUDE.md 的 Claude Code 旧版本**：用 `claude-code` 适配器生成 `CLAUDE.md` 与 hooks 示例。
 - **Cursor / 自研 Agent / 其他**：只要"读文件 + 跑命令"即可；hooks 用 git `pre-push`（与 Agent 无关）。
-- **多 Agent 并行**：先写计划与写作用域，再并行；证据绑定 commit，合并前统一跑门禁（见 [governance 多人协作](governance.md#3-多人与多-agent-协作)与 [分工模板](agent-prompts.md#5-多人--多-agent-分工)）。
+- **多 Agent 并行**：先写计划与写作用域，再并行；证据绑定 commit，合并前统一跑门禁（见 [governance 多人协作](governance.md#3-多人与多-agent-协作)与 [分工模板](agent-prompts.md#16-多人--多-agent-分工)）。
 
 ### 2.4 Agent 反模式（会被仓库抓住）
 
@@ -83,7 +92,7 @@ python3 /path/to/harness-kit/scripts/harness-init \
   --profile standard --target . --name MyApp \
   --language python \
   --test-command "python3 -m unittest discover -s tests -q" \
-  --dry-run          # 先看 CREATE/COPY/SKIP/CONFLICT/RENDER；确认后去掉 --dry-run
+  --dry-run          # 先看 RENDER/COPY/APPEND/CONFLICT；确认后去掉 --dry-run
 
 git add -A && git commit -m "chore: adopt harness-kit standard profile"
 ```
@@ -114,7 +123,7 @@ python3 /path/to/harness-kit/scripts/harness-selftest --target ../legacy-app
 
 ## 4. 接入后：场景提示词模板
 
-接入完成后，日常由 Agent 按场景使用模板（完整内容见 [agent-prompts.md](agent-prompts.md)）：
+接入完成后，日常由 Agent 按场景取模板（完整内容见 [提示词库](agent-prompts.md)）：`<kit>/scripts/harness-prompt copy <场景>` 会自动拼 0A 前置并填路径；下表是场景索引：
 
 **接入与接手**
 
@@ -206,6 +215,7 @@ python3 /path/to/harness-kit/scripts/harness-selftest --target ../legacy-app
 ## 6. 接入验收清单
 
 **Agent 接入（推荐）**
+- [ ] 提示词用 `harness-prompt copy <场景>` 能直接拿到：自动拼前置、路径已填、无残留 `{{...}}`
 - [ ] Agent 冷启动只读仓库可回答"现在做到哪、下一步、哪些未验证"
 - [ ] Agent 的完成声明带 evidence id 或显式"未验证"
 - [ ] 计划 `scope.allow` 与实际改动一致
@@ -238,8 +248,11 @@ A：核心规则与门禁是仓库文件与命令，与模型无关；Agent 特�
 **Q：能防住 Agent 说谎吗？**
 A：不能提供密码学保证；它把"随口宣布完成"的成本显著抬高，并让低成本蒙混路径在门禁上可见。
 
+**Q：提示词怎么用最省事？**
+A：克隆 kit 后在目标仓库根目录跑 `<kit>/scripts/harness-prompt list` 看场景，`copy <场景>` 复制到剪贴板即可：命令按场景拼 0A/0B 前置（阶段不符会 WARN）、填好 kit 与目标仓库绝对路径，并提示还需补的占位符（如 `<SYMPTOM>`）；没有剪贴板工具时打印到 stdout。也可以 `show <场景>` 只打印，或直接在 [提示词库](agent-prompts.md) 里手工复制。
+
 **Q：多人怎么用？**
-A：见 [governance 多人协作](governance.md#3-多人与多-agent-协作)：唯一 active 计划、`scope.allow`、PR + required checks、证据绑定 commit；分工提示词见 [agent-prompts §5](agent-prompts.md#5-多人--多-agent-分工)。
+A：见 [governance 多人协作](governance.md#3-多人与多-agent-协作)：唯一 active 计划、`scope.allow`、PR + required checks、证据绑定 commit；分工提示词见 [prompts §16](agent-prompts.md#16-多人--多-agent-分工)。
 
 **Q：存量接入要多久？**
 A：Agent 接入通常 10 分钟到 1–2 天（文档蒸馏与清洁占大头）；来源案例的 Android/Gradle 存量仓由 AI 代理在约 1 天内完成接入 + 验收。

@@ -3,7 +3,7 @@ id: 2026-11-06-benchmark-opensource
 status: active
 level: L2
 owner: david
-updated: 2026-11-10
+updated: 2026-11-11
 scope:
   allow:              # 本轮只做「公开面 + 文档 + 过程档案」收敛；不动业务代码
     - README.md
@@ -359,6 +359,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 5.15 | kit `v0.2.8`：README 开篇精简 + 版本引用防漂移 | README 开篇由三长段压缩为「一句定位 + 一行价值 + 入口」；修复 README/License/SPEC 版本引用漂移；新增 `test_version_references_consistent`（kit 121→122 tests） | kit 122 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.8` + CI success + `kit-drift` in sync | **已完成（2026-11-10）**：README 开篇压缩为「一句定位 + 一行价值 + 入口」；README/License/SPEC 版本统一 `0.2.8`；新增版本一致性测试（kit **122 tests**）；镜像 `main` `9c4dfab` + annotated tag `v0.2.8`，镜像 CI run `42816019712` success，tag clone 122 tests OK，`kit-drift` in sync；iOS CI run `42815867353` success |
 | 5.16 | kit `v0.2.9`：AI Agent 优先接入 + 提示词模板集 | README 首页主入口改为「AI coding Agent 接入指南 + 提示词模板」；adoption 重排（Agent 接入 → 命令行手动接入，原「两条人类路径」更名）；新增 `docs/agent-prompts.md`（公共前置 + 新项目/存量项目接入 + 需求/计划/分工/结束会话/交接/结束项目/完成声明模板 + 场景对照表）；导航/索引/链接检查同步 | kit 122 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.9` + CI success + `kit-drift` in sync | **已完成（2026-11-10）**：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入，原「两条人类路径」更名）；新增 `docs/agent-prompts.md`（公共前置 + 8 类场景模板 + 场景对照表）；导航/索引/链接检查同步；kit **122 tests**；镜像 `main` `9ecf13f` + annotated tag `v0.2.9`，镜像 CI run `42846710435` success，tag clone 122 tests OK，`kit-drift` in sync；iOS CI run `42846540918` success |
 | 5.17 | kit `v0.2.10`：README 重构 + 提示词模板扩充 + 整体审查修复 | README 接入路径上移、命令行命令并入对应小节、顶部导航拆分、命令统一 `<kit>` 占位；agent-prompts 扩到 19 类场景（新增发布前、新开会话对抗性评审、PR 前自检、修 Bug、重构、依赖升级、文档/ADR、性能、安全、冷启动、方案评估），公共前置区分已接入/未接入；adoption 场景索引分组；SPEC §5 去重、§3 可选段、§9 测试说明、config schema 补齐可选 `hygiene`/`layers`；整体审查：3 profile init+门禁 smoke、`harness-adopt --report/--json`、链接/版本/计数一致性 | kit 122 tests PASS；`make verify-static` PASS；镜像 tag `v0.2.10` + CI success + `kit-drift` in sync | **已完成（2026-11-11）**：README 接入路径重构（命令内联、导航拆分、`<kit>` 占位）；agent-prompts 扩到 19 类场景（新增发布前、新开会话对抗性评审等 11 类）；整体审查修复 SPEC/schema/锚点/路径一致性；kit **122 tests**；镜像 `main` `c80fb69` + annotated tag `v0.2.10`，镜像 CI run `42854494726` success，tag clone 122 tests OK，`kit-drift` in sync；iOS CI run `42854316813` success |
+| 5.18 | kit `v0.2.11`：提示词库 v2（单源 + 阶段前置）+ `harness-prompt` CLI | `prompts/` 单源（2 前置 + 19 场景 + 2 附加片段）；`scripts/harness-prompt`（`list` / `show` / `copy` / `render --check`：自动拼前置、替换 kit 与目标路径、剪贴板、漂移校验）；`docs/agent-prompts.md` 改为生成物；新增 `test_kit_prompts.py`；README/adoption 接入改为「一条命令复制」；修复存量接入模板缺 kit 路径、公共前置不适用未接入项目等直接可用性问题 | kit 测试全 PASS（含 render 漂移/占位符负向）；`make verify-static` PASS；镜像 tag `v0.2.11` + CI success + `kit-drift` in sync | 执行中（2026-11-11） |
 
 ### Phase 6（可选，独立排期）· 产品可信度
 
@@ -489,6 +490,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.15：kit `v0.2.8` 发版完成：README 开篇精简（三长段 → 一句定位 + 一行价值 + 入口）、README/License/SPEC 版本统一、新增版本一致性测试（kit **122 tests**）；镜像 `main` `9c4dfab` + tag `v0.2.8`（CI run `42816019712` success）、`kit-drift` in sync；iOS CI run `42815867353` success
 - [x] Phase 5.16：kit `v0.2.9` 发版完成：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入）；新增 agent-prompts.md（8 类场景模板 + 场景对照表）；kit **122 tests**；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync；iOS CI run `42846540918` success
 - [x] Phase 5.17：kit `v0.2.10` 发版完成：README 接入路径上移 + 命令内联 + 导航拆分；agent-prompts 19 类场景模板（发布前/对抗性评审等）；整体审查修复（SPEC/schema/锚点/路径/版本一致性）；kit **122 tests**；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync；iOS CI run `42854316813` success
+- [ ] Phase 5.18：kit `v0.2.11` 提示词库 v2 + `harness-prompt` CLI（提示词单源/阶段前置/生成文档/一条命令复制）
 - [ ] Phase 6（可选）产品可信度
 
 ## 验证证据
@@ -577,6 +579,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 真机单元（2026-11-09，设备侧） | **PASS**：`APM_TEAM=… APM_DEVICE=… device-test.sh unit` → 预热 5/5 + 目标 120/120，failed=0 skipped=0，≈8.5s；干净工作树生成证据（git.dirty=false，commit 800db5c）；`verify-claim` PASS；CI run `42626863075` success | iPhone 13 / iOS 27.0.1（网络配对）；Xcode 27.1；mobilebuildmcp 2.7.1 | `harness/evidence/20261109T133618Z-unit-tests-pass.json` |
 | 真机 UI（2026-11-09，负向） | **UNVERIFIED**：`device-test.sh ui` → 预热通过、UI runner `Early unexpected exit ... code 74`（网络配对无法准备 DeviceSupport / 自动化密码弹窗）；脚本已改为失败不写证据（实测未生成 `*-pass` 文件） | 同上 | —（未验证，环境限制） |
 | 真机全套（2026-11-09，设备侧） | **PASS**：设备侧密码弹窗响应后 `device-test.sh all` → 预热 5/5 + 目标 123/123，failed=0 skipped=0，171.7s；干净工作树生成证据（`git.dirty=false`，commit `66f3372`）；UI exit 74 的结论被后续成功运行取代 | iPhone 13 / iOS 27.0.1（网络配对）；Xcode 27.1；mobilebuildmcp 2.7.1 | `harness/evidence/20261109T142307Z-device-tests-pass.json` |
+| kit v0.2.11 提示词库/CLI 本地门禁（2026-11-11） | **PASS**：`python3 -m unittest discover -s harness-kit/tests -q` → **140 tests OK**（122→140，+18 提示词/CLI 用例）；`make verify-static` PASS（91 个 iOS 脚本单测 + 140 kit 测试 + docs/架构/计数/harness/计划/证据/adapters）；`harness-prompt render --check` exit 0（文档与 `prompts/` 一致）；`make kit-prompts` 重渲染无 diff | 本机 python3 3.14.7 / make 3.81 | —（本地门禁，clean tree 待发布前复核） |
+| kit v0.2.11 提示词组合冒烟（2026-11-11） | **PASS**：`harness-prompt list` 21 个场景（19 task + 2 addon）；`show adopt-brownfield --target /tmp` 输出含 0B 前置、kit 绝对路径、目标绝对路径、无 `{{...}}`；`show fix-bug` 提示待补 `<SYMPTOM>`/`<REPRO>` 并可用 `--set` 填；`copy adopt-new` 写剪贴板（23 行）；`render --check` 漂移负向 exit 1、未声明占位符负向 exit 1（单测覆盖） | 本机 macOS 剪贴板 `pbcopy` | —（本地门禁） |
 
 ## 未验证项
 
@@ -602,6 +606,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - kit 版本升级路径已在 Android/Gradle 存量仓（v0.2.2→v0.2.3）完成真实验证（2026-11-10，selftest 8/8；详情见该仓归档计划与 kit playbook）；**profile 升级（minimal↔standard↔strict）仍未在真实项目验证**，其他语言/版本组合也未验证。
 - kit 独立仓 CI 已由公开 API 确认 success（run `42374549293`）；**后续 kit 变更已提供 `make kit-publish` 手动同步 + `make kit-drift` 漂移检查（2026-11-09）**，但不自动触发（不引入 CI 跨仓写权限）；strict 档与 hooks 远端触发未由外部试点覆盖（kit 自身测试覆盖 strict/release-check）。
 - `Order/` 是否被 Release 构建配置引用未核实（不影响文档主线）。
+- kit 计划模板未含 `submitted:` 字段说明、`harness/plans/_archive/` 归档路径也未在模板定义（v0.2.11 提示词用「按仓库约定/按 check_plan 报错补」兜底）；模板补齐列为 v0.2.12 候选。
+- 提示词 CLI 的平台面：macOS/Linux 已验证（`pbcopy`/无剪贴板回退）；Windows `clip` 分支未实测。
+- 提示词库的人类外部走查未验证：陌生人只按 README「一条命令复制」在本机执行（含剪贴板）尚未做；Windows 的 `clip` 剪贴板分支未实测（macOS `pbcopy` 已实测、无剪贴板回退由单测覆盖）。
 
 ## 参考（外部事实核对，2026-11-07）
 
@@ -634,6 +641,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 20 | kit `v0.2.8` README 开篇精简 + 版本引用防漂移 | 开篇压缩为一句定位（Harness Engineering/五子系统）+ 一行价值（证据说了算）+ 入口；修复 README 版本行/License/SPEC 示例仍为 0.2.5 的漂移；新增 `test_version_references_consistent`（kit 121→122）；kit 122 tests PASS；镜像 `main` `9c4dfab` + tag `v0.2.8`（CI run `42816019712` success）、`kit-drift` in sync | 2026-11-10 |
 | 21 | kit `v0.2.9` AI Agent 优先接入 + 提示词模板集 | README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排为 Agent 接入（推荐）→ 命令行手动接入；新增 docs/agent-prompts.md（公共前置 + 8 类场景模板 + 场景对照表）；SPEC/playbook/目录树/链接检查同步；kit 122 tests PASS；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync | 2026-11-10 |
 | 22 | kit `v0.2.10` README 重构 + 提示词模板扩充 + 整体审查修复 | README 接入路径上移、命令内联、`<kit>` 占位、导航拆分；agent-prompts 19 类场景模板（新增发布前/对抗性评审/自检/修 Bug/重构/依赖/文档/性能/安全/冷启动/方案评估）；adoption 索引分组；SPEC §5 去重、§3 可选段、§9 测试说明、config schema 补 `hygiene`/`layers`；smoke：3 profile init+门禁、adopt 双 flag、122 tests；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync | 2026-11-11 |
+| 23 | kit `v0.2.11`：提示词库 v2（单源 + 阶段前置）+ `harness-prompt` CLI | 新增 `prompts/`（2 前置 + 19 场景 + 2 附加片段）与 `scripts/harness-prompt`（`list`/`show`/`copy`/`render --check`：按阶段自动拼前置、填 kit/目标路径、剪贴板回退、漂移校验）；`docs/agent-prompts.md` 改为生成物；`test_kit_prompts.py` 18 用例（kit 122→140）；修复接入模板缺 kit 路径、前置不适用未接入项目等直接可用性问题 | 进行中 | 2026-11-11 |
 | 12 | 设备信任后复跑真机 + 取证 | 单元 120/120 PASS 并写设备证据（干净树，`verify-claim` PASS）；UI 仍 exit 74（网络配对限制）；首证因 dirty 工作树被判 FAIL → 改为「先提交再取证」；脚本改为失败不写证据（避免 `*-pass` 文件自相矛盾） | 2026-11-09 |
 | 11 | 用户按 README 走真机路径 + 开启分支保护 | 真机预热 6s/0 用例：脚本吞掉 `diagnostics.errors`，真实原因是测试 target 无 Team；已修脚本（打印原因+`APM_TEAM`+证书信任提示）与文档；分支保护已开（禁 force push/删除，普通 push 已实测通过） | 2026-11-09 |
 | 10 | 重登 gh + API 改名 | 组织策略「fine-grained token 有效期 ≤366 天」导致 403；用户重登为 classic token（`repo`/`workflow`）→ 改名成功、旧名 302/301 保留；同时确认 kit `v0.2.0` 发布链路可用 | 2026-11-09 |
@@ -642,7 +650,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.2.10 发布记录与整体审查已提交）。
+- `Makefile` / 新增 make kit-prompts 目标（重新生成 kit 提示词文档）
+- `harness-kit/` / v0.2.11 提示词库单源 + harness-prompt CLI + 文档与测试同步
+- `harness/` / 本计划 Phase 5.18 进度与尝试记录
 
 ## 下一步
 

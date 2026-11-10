@@ -11,7 +11,7 @@ TEAM_RULES ?= ../../agent/template
 KIT_REMOTE ?= git@github.com:DavidTeam2008/harness-engineering-kit.git
 N ?= 10
 
-.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools kit-check kit-publish kit-drift check check-all verify-static verify verify-claim verify-claim-fresh release-check evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
+.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools kit-check kit-prompts kit-publish kit-drift check check-all verify-static verify verify-claim verify-claim-fresh release-check evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -67,6 +67,9 @@ test-tools: ## harness 脚本单测（verify-claim / evidence）
 
 kit-check: ## harness-kit 端到端验收（三 profile init + make check + hygiene）
 	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s harness-kit/tests -q
+
+kit-prompts: ## 由 harness-kit/prompts/ 重新生成 kit 提示词文档
+	@python3 harness-kit/scripts/harness-prompt render
 
 kit-publish: ## 把仓内 harness-kit 同步到独立模板仓（镜像只接受这条路径）
 	@set -e; sha=$$(git subtree split --prefix=harness-kit); \

@@ -1,7 +1,7 @@
 # harness-kit · SPEC（构建契约）
 
 > 本文件是 `harness-kit` 的**内部构建契约**：所有 core 脚本、模板、profiles、脚手架与测试必须按本文件实现。
-> 对外使用说明见 [`README.md`](README.md)；接入路径见 [`docs/adoption.md`](docs/adoption.md)；提示词模板见 [`docs/agent-prompts.md`](docs/agent-prompts.md)；逐步操作见 [`docs/playbook.md`](docs/playbook.md)；演化与治理见 [`docs/governance.md`](docs/governance.md)。
+> 对外使用说明见 [`README.md`](README.md)；接入路径见 [`docs/adoption.md`](docs/adoption.md)；提示词库见 [`docs/agent-prompts.md`](docs/agent-prompts.md)（由 `prompts/` 生成）；逐步操作见 [`docs/playbook.md`](docs/playbook.md)；演化与治理见 [`docs/governance.md`](docs/governance.md)。
 > 目标：把 Duiyi 验证过的 harness 机制抽成**与 Duiyi 无关**、可在任意项目 10 分钟接入的 **Harness Engineering 项目脚手架**（Instructions / State / Verification / Scope / Session Lifecycle 五子系统）。
 
 ## 0. 非目标
@@ -60,8 +60,10 @@ harness-kit/
 ├── scripts/harness-init      # 可执行 Python3 脚手架（无扩展名）
 ├── scripts/harness-adopt     # kit 侧只读盘点 + 改造计划草稿（无扩展名）
 ├── scripts/harness-selftest  # kit 侧门禁自测：临时副本注入 → 断言门禁非 0 → 恢复复核（无扩展名）
+├── scripts/harness-prompt    # 提示词库 CLI：list / show / copy / render（按场景拼前置、填路径；无扩展名）
+├── prompts/                  # 提示词单源（2 前置 + 19 场景 + 2 附加片段；front matter 契约见 §9）
 ├── docs/adoption.md          # 接入指南（AI coding Agent 优先 + 命令行手动接入 + 前后评分案例）
-├── docs/agent-prompts.md     # AI coding Agent 提示词模板（接入/需求/计划/分工/交接/收尾）
+├── docs/agent-prompts.md     # 由 prompts/ 生成的提示词库（勿手改；render --check 防漂移）
 ├── docs/playbook.md          # 五步改造法 + 存量项目七步法 + 常见坑 + 升级路径
 ├── docs/governance.md        # 演化与治理（反臃肿、版本策略、多人协作）
 └── tests/                    # kit 自身的 unittest（仅标准库）
@@ -99,7 +101,7 @@ harness-kit/
 
 ```json
 {
-  "kitVersion": "0.2.10",
+  "kitVersion": "0.2.11",
   "project": { "name": "{{PROJECT_NAME}}", "language": "{{PROJECT_LANGUAGE}}" },
   "paths": {
     "docs": "docs",
@@ -243,7 +245,8 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
 - 全部 `unittest` + 标准库；命令行方式跑：`python3 -m unittest discover -s harness-kit/tests -q`（从仓库根）或 `cd harness-kit && python3 -m unittest discover -s tests -q`。
 - 必须覆盖：
   - `test_kit_profiles.py`（Lead）：每个 profile 在 tmp 空白 git 仓 init 后：`make check` exit 0；standard/strict 的 `make verify-static` exit 0；dry-run 不写文件；冲突报错；`--force` 产生备份；无残留 `{{`；Android 推断：tmp 放 `settings.gradle.kts` 时 `--dry-run` 推断 `language=android`、建议 `./gradlew testDebugUnitTest` 并打印 Gradle 边界提示。
-  - `test_kit_hygiene.py`（Lead）：`core/` `adapters/` `profiles/` `scripts/` 中不得出现 `Duiyi|duiyi|对译|TranslationSession|SwiftData|DuiyiTests`（仅 `harness-kit/README.md` 的来源一节允许一次）；kit 顶层文档相对链接可解析；`VERSION`/profiles 结构一致；README/SPEC 中的版本引用与 `VERSION` 一致。
+  - `test_kit_prompts.py`（Lead）：`prompts/*.md` front matter 完整、id 等于文件名、number 唯一、占位符声明与正文一致；`render --check` 与 `docs/agent-prompts.md` 同步（漂移 / 未声明占位符负向 exit 1）；`list/show/copy` 按场景自动拼前置（0A/0B）、目标阶段不符与 kit 目录 target 给 WARN、替换 kit 与目标绝对路径、缺失占位符与残留尖括号提示、无剪贴板回退、addon 不拼前置。
+  - `test_kit_hygiene.py`（Lead）：`core/` `adapters/` `profiles/` `scripts/` `prompts/` 中不得出现 `Duiyi|duiyi|对译|TranslationSession|SwiftData|DuiyiTests`（仅 `harness-kit/README.md` 的来源一节允许一次）；kit 顶层文档相对链接可解析；`VERSION`/profiles 结构一致；README/SPEC 中的版本引用与 `VERSION` 一致。
   - `test_harness_adopt.py`（gates）：tmp git fixture（断链/未登记文档/根 `NOTES.md`/被跟踪构建产物/绝对符号链接/本机路径）上 `scripts/harness-adopt` 的报告命中、默认 0 写入、`--json` 键、`--write-plan` 在存在 `harness/plans/` 时渲染计划、非法 target exit 1；不依赖网络/Xcode。
   - `test_evidence_junit.py`（gates）：JUnit XML 单/多 suite、`failures`/`errors`/`skipped` 计数、duration 聚合、malformed/missing exit 2、`--output` 必需键（`passed = tests − failures − errors − skipped`）。
   - `test_kit_host_tools.py`（gates）：tmp git fixture + `harness/config.json`；`check_hygiene.py` 覆盖被跟踪构建产物 / 根文件白名单 / 绝对符号链接 / 本机路径四类违规与正常情况、缺 `hygiene` 段 SKIP；`check_layers.py` 覆盖违规 import / `allowedImports` 覆盖 / `symbolGuards`、缺 `layers` 段 SKIP；≥8 用例。

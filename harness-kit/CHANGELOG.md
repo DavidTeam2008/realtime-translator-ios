@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.11 — 2026-11-11
+
+- **提示词库改为单源生成**：新增 `prompts/`（2 份阶段前置 + 19 个场景模板 + 2 个附加片段），
+  `docs/agent-prompts.md` 改为 `scripts/harness-prompt render` 生成；新增 `test_kit_prompts.py`
+  校验 front matter、占位符声明与生成文档同步（漂移/未声明占位符即 exit 1）。
+- **新增 `scripts/harness-prompt` CLI**：`list` / `show` / `copy` / `render --check`。`show` / `copy`
+  按场景自动拼接前置（接入场景 0B / 日常 0A）、替换 kit 与目标仓库绝对路径、列出待补占位符；
+  目标仓库与场景阶段不符、target 指向 kit 克隆目录时给 WARN；
+  `copy` 写剪贴板（pbcopy / clip / wl-copy / xclip / xsel），无剪贴板时打印提示词回退。
+- **提示词"直接可用"修复**：接入存量项目模板补上缺失的 kit 路径；公共前置拆为 0A（已接入）/
+  0B（未接入），未接入项目不再被要求跑 `make check`/`harness/plans`；19 个场景统一标注
+  「阶段 / 前置 / 需替换 / 复制命令」；命令统一为 kit 脚本真实路径；接入/计划模板去掉未声明的尖括号占位，`show` 会扫描残留尖括号并提示。
+- README/adoption/playbook 接入说明改为「一条命令复制」优先；adoption 修正裸 `harness-adopt`
+  路径与失效的 `§5 分工` 锚点；kit 测试 122 → 140。
+- 无 profile / 模板 / config schema / 门禁行为变更；向后兼容。
+
 ## 0.2.10 — 2026-11-11
 
 - **README 结构调整**：接入路径上移到能力清单前，命令行新项目/存量项目命令收进「接入路径」对应小节；

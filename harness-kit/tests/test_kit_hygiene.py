@@ -20,7 +20,7 @@ ALLOWED_DUIYI_FILES = {"README.md"}  # origin-case section only
 
 class NoProjectSpecificRefsTests(unittest.TestCase):
     def scan_dirs(self) -> list[Path]:
-        roots = [KIT / "core", KIT / "adapters", KIT / "profiles", KIT / "scripts"]
+        roots = [KIT / "core", KIT / "adapters", KIT / "profiles", KIT / "scripts", KIT / "prompts"]
         files: list[Path] = []
         for root in roots:
             if not root.exists():
