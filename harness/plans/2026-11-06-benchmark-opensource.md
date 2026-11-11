@@ -658,7 +658,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- `harness/plans/2026-11-06-benchmark-opensource.md` / 回填 kit v0.2.12 发版记录（CI run / 镜像 hash / tag clone / drift）。
+- 无未提交改动（kit v0.2.12 发版记录已提交）。
 
 
 
