@@ -14,6 +14,7 @@ post-init check command (so a failing `make check` is visible to callers).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -25,6 +26,8 @@ from pathlib import Path
 DEFAULT_KIT_ROOT = Path(__file__).resolve().parent.parent
 PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 BACKUP_DIRNAME = ".harness-init-backup"
+MANIFEST_NAME = ".harness-manifest.json"
+MANIFEST_SCHEMA_VERSION = 1
 def suggest_test_command(target: Path, language: str) -> tuple[str, str]:
     """Return (command, source_note). The kit does not parse test output; counts are host-provided."""
     if language == "python":
@@ -380,6 +383,69 @@ def parse_adapters(value: str | None, profile: dict) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    return sha256_bytes(path.read_bytes())
+
+
+def write_manifest(
+    target: Path,
+    kit_root: Path,
+    *,
+    profile_name: str,
+    version: str,
+    options: dict,
+    actions: list[dict],
+    created: list[str],
+    skipped: list[str],
+) -> Path:
+    """Record kit-managed files + append blocks (`.harness-manifest.json`)."""
+    created_set = set(created)
+    files: list[dict] = []
+    appends: list[dict] = []
+    for action in actions:
+        label = describe(action["dst"], target)
+        if label not in created_set:
+            continue
+        if action["append"]:
+            block = action["src"].read_text(encoding="utf-8", errors="replace")
+            appends.append({
+                "path": label,
+                "marker": "# harness-kit",
+                "sha256": sha256_bytes((block.rstrip() + "\n").encode("utf-8")),
+            })
+            continue
+        files.append({
+            "path": label,
+            "sha256": sha256_file(action["dst"]),
+            "src": action["src"].relative_to(kit_root).as_posix(),
+            "render": bool(action["render"]),
+            "executable": bool(action["executable"]),
+        })
+    manifest = {
+        "schemaVersion": MANIFEST_SCHEMA_VERSION,
+        "kitVersion": version,
+        "profile": profile_name,
+        "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "options": {
+            "name": options["name"],
+            "language": options["language"],
+            "testCommand": options["testCommand"],
+            "adapters": options["adapters"],
+            "branch": options["branch"],
+        },
+        "files": sorted(files, key=lambda item: item["path"]),
+        "appends": sorted(appends, key=lambda item: item["path"]),
+        "skipped": sorted(set(skipped)),
+    }
+    path = target / MANIFEST_NAME
+    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
 def write_summary(target: Path, profile_name: str, created: list[str], skipped: list[str]) -> None:
     print()
     print(f"harness-kit init: profile={profile_name} target={target}")
@@ -467,6 +533,23 @@ def main(argv: list[str] | None = None) -> int:
             backup_root=backup_root,
         )
         makefile_used = "Makefile.harness" if (target / "Makefile.harness").exists() else "Makefile"
+        if not args.dry_run:
+            write_manifest(
+                target,
+                kit_root,
+                profile_name=args.profile,
+                version=version,
+                options={
+                    "name": project_name,
+                    "language": language,
+                    "testCommand": test_command,
+                    "adapters": adapters,
+                    "branch": subs["DEFAULT_BRANCH"],
+                },
+                actions=actions,
+                created=created,
+                skipped=skipped,
+            )
         if args.dry_run:
             print()
             print(f"dry-run: {len(created)} file(s) would be written; nothing changed")

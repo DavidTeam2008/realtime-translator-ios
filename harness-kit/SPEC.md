@@ -61,6 +61,7 @@ harness-kit/
 ├── scripts/harness-adopt     # kit 侧只读盘点 + 改造计划草稿（无扩展名）
 ├── scripts/harness-selftest  # kit 侧门禁自测：临时副本注入 → 断言门禁非 0 → 恢复复核（无扩展名）
 ├── scripts/harness-prompt    # 提示词库 CLI：list / show / copy / render（按场景拼前置、填路径；无扩展名）
+├── scripts/harness-upgrade   # kit 侧只读升级：--check（版本/漂移）与 --plan（三方 diff）；无 --apply（无扩展名）
 ├── prompts/                  # 提示词单源（2 前置 + 19 场景 + 2 附加片段；front matter 契约见 §9）
 ├── docs/adoption.md          # 接入指南（AI coding Agent 优先 + 命令行手动接入 + 前后评分案例）
 ├── docs/agent-prompts.md     # 由 prompts/ 生成的提示词库（勿手改；render --check 防漂移）
@@ -77,6 +78,7 @@ harness-kit/
 ├── HARNESS.md                        # standard/strict：系统地图（rendered）
 ├── CONTRIBUTING.md                   # standard/strict：环境/验证/PR（rendered）
 ├── Makefile 或 Makefile.harness      # 见 §5
+├── .harness-manifest.json            # v0.2.13+：kit 管理面基线（kitVersion/profile/options/files/append hashes）
 ├── docs/README.md, docs/AGENTS.md    # rendered
 ├── references/{contracts,verification,workflow}.md
 ├── harness/
@@ -101,7 +103,7 @@ harness-kit/
 
 ```json
 {
-  "kitVersion": "0.2.12",
+  "kitVersion": "0.2.13",
   "project": { "name": "{{PROJECT_NAME}}", "language": "{{PROJECT_LANGUAGE}}" },
   "paths": {
     "docs": "docs",
@@ -167,6 +169,8 @@ harness-kit/
 通用约定：脚本自行 `Path(__file__).resolve().parent.parent` 定位根，或 `--root` 覆盖；不要读取 kit 源目录；不写目标项目之外的文件（tempfile 除外）；不联网。
 
 kit 侧脚本（**不复制到宿主**）：`python3 harness-kit/scripts/harness-adopt --target PATH [--report PATH] [--json] [--write-plan] [--root KIT_ROOT]`。默认**只读盘点**（0 写入 target）；`--report` 写 Markdown 报告、`--json` 输出机器可读 JSON、`--write-plan` 渲染 `core/templates/harness/plans/_adoption.md.template` 到 `<target>/harness/plans/<DATE>-adopt-harness.md`（要求该目录已存在，否则 exit 1；模板缺失/未知占位符给可读错误；目标文件已存在则拒绝覆盖）。盘点内容：概览（git/语言/构建/既有门禁）、文档（索引缺口/断链/疑似过期）、卫生（被跟踪产物/绝对符号链接/本机路径/大文件）、建议 profile 与 test 命令、下一步清单。exit 0=盘点完成；1=用法错误、目标不存在或 `--write-plan` 前置不满足。
+
+kit 侧升级工具（**不复制到宿主**）：`python3 harness-kit/scripts/harness-upgrade --target PATH {--check|--plan} [--json] [--fail-on-conflict] [--profile P] [--name N] [--language L] [--test-command CMD] [--adapters LIST] [--root KIT_ROOT]`。**只读，不写目标仓**：`--check` 对比 `.harness-manifest.json`、目标文件 sha256 与 kit `VERSION`，exit 0=in sync / 1=本地漂移 / 3=版本不符（manifest 或 config.kitVersion）/ 2=用法或 manifest 非法；`--plan` 按 manifest 的 profile/options（legacy 可用 `--profile` 等覆盖）在临时目录运行 `harness-init` 重渲染新版，输出 SAME/LOCAL_ONLY/UPGRADE/ALREADY/CONFLICT/ADD/OBSOLETE/NOT_MANAGED/APPEND 表，`--fail-on-conflict` 时 CONFLICT→exit 1；`--apply` 未实现（exit 2，v0.3.0）。legacy 目标（无 manifest）`--check` exit 2 提示手工路径，`--plan` 可预览。
 
 kit 侧门禁自测（**不复制到宿主**）：`python3 harness-kit/scripts/harness-selftest --target PATH [--keep] [--json]`。`--target` 必须是 git 仓库且工作树干净；脚本 `git clone -q` 到临时目录，先跑 baseline `make check`（baseline 红 → 报告后 exit 2，清理退出），再逐项注入并断言对应门禁**非 0**：M1 新增未登记 `docs/__selftest__.md`（`check_docs.py`）、M2 `docs/README.md` 追加断链（`check_docs.py`）、M3 根目录新增未白名单 md（`check_docs.py`）、M4 `AGENTS.md` 追加超预算文本（`check_agents.py`）、M5 `AGENTS.md` 追加本机路径（`check_agents.py`）、M6 若存在 active 计划则复制出第二个 active（`check_plan.py check`）、M7 若存在证据 JSON 则临时移走后 `verify_claim.py --all` 期望非 0、M8 若配置了 `hygiene` 段则在跟踪文件追加本机路径（`check_hygiene.py`）、M9 若存在 `requireArtifact=true` 的 test-count 证据则伪造 PASS（HEAD commit、虚报 counts、无 artifact），期望 `verify_claim.py --all` 非 0。每项注入后 `git checkout -- .` 并删除新增文件恢复；最后再跑一次 `make check` 复核为 0。输出 `mutation | gate | 注入 exit | 期望 | PASS/FAIL` 表：全部符合 exit 0，任一不符 exit 1，target 脏或 baseline 红 exit 2；默认清理临时目录，`--keep` 保留并打印路径，`--json` 输出机器可读结果；**默认不写 `--target` 仓库**。
 
@@ -250,6 +254,7 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
   - `test_harness_adopt.py`（gates）：tmp git fixture（断链/未登记文档/根 `NOTES.md`/被跟踪构建产物/绝对符号链接/本机路径）上 `scripts/harness-adopt` 的报告命中、默认 0 写入、`--json` 键、`--write-plan` 在存在 `harness/plans/` 时渲染计划、非法 target exit 1；不依赖网络/Xcode。
   - `test_evidence_junit.py`（gates）：JUnit XML 单/多 suite、`failures`/`errors`/`skipped` 计数、duration 聚合、malformed/missing exit 2、`--output` 必需键（`passed = tests − failures − errors − skipped`）。
   - `test_kit_host_tools.py`（gates）：tmp git fixture + `harness/config.json`；`check_hygiene.py` 覆盖被跟踪构建产物 / 根文件白名单 / 绝对符号链接 / 本机路径四类违规与正常情况、缺 `hygiene` 段 SKIP；`check_layers.py` 覆盖违规 import / `allowedImports` 覆盖 / `symbolGuards`、缺 `layers` 段 SKIP；≥8 用例。
+  - `test_harness_upgrade.py`（state）：`harness-init` 写 manifest（schema/kitVersion/profile/options/文件 sha256/append 块/skipped；dry-run 不写）；`harness-upgrade --check` 的 in sync（0）、本地漂移（1）、config.kitVersion 伪造（3）、append 块缺失（1）、legacy 无 manifest（2）；`--plan` 的 SAME/LOCAL_ONLY/UPGRADE/CONFLICT/ADD/OBSOLETE 分类、legacy 预览、`--fail-on-conflict`、只读（git status 不变）、`--json` 契约、`--apply` exit 2。
   - `test_harness_selftest.py`（gates）：`harness-init --profile standard` 生成临时宿主 + git commit；正常 target → `scripts/harness-selftest` exit 0 且输出含 mutation 行；条件宿主（active 计划 + 证据 + hygiene）→ M6/M7/M8/M9 均被执行；target 脏 → exit 2；baseline 红（预先提交未登记 docs）→ exit 2。
   - `test_core_plan_evidence_claim.py`（state）：check_plan/evidence/verify_claim 的通过、失败、三值、freshness、done/submitted 负向；伪造 PASS 证据（0 测试 / 虚报 counts / 无 artifact）必须被拒；artifact 重算不一致 → FAIL；commit 非祖先 / 不存在、dirty PASS → FAIL；JUnit XML 重算一致 → PASS；legacy `requireArtifact=false` → 原因标注“未重算”；check_plan 对无扩展名根文件（`Makefile`/`GNUmakefile`/`Dockerfile`/`LICENSE`/`NOTICE`）的未提交改动声明：声明 → PASS，不声明 → FAIL。
   - `test_core_docs_agents_doctor.py`（gates）：check_docs/check_agents/doctor 的链接/围栏/预算/§ 引用/敏感串/exit code。
@@ -260,4 +265,4 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
 - `KIT_VERSION` 单一来源 `harness-kit/VERSION`（kit 自身）与目标项目 `harness/config.json.kitVersion`。
 - 向后兼容：新增 config 字段必须可选；破坏性变更需在 README 的 changelog 记录。
 - 仓库改名：`harness-kit` → `harness-engineering-kit`（2026-11-10，GitHub 301 重定向；目录、命令、tag 前缀沿用短名 `harness-kit`）。
-- 升级：kit 不提供 in-place 迁移命令（设计决定，避免覆盖宿主文档）。版本升级按 playbook「升级路径」执行（临时渲染 → 逐文件 diff → 只回写 kit 管理面 → `verify-static` + `harness-selftest`）；该路径已由真实 Android/Gradle 存量仓 v0.2.2→v0.2.3 验证（2026-11-10），profile 升级仍未验证。
+- 升级：kit 不提供 in-place 迁移命令（设计决定，避免覆盖宿主文档）。v0.2.13 起提供 `.harness-manifest.json` 基线 + `scripts/harness-upgrade --check/--plan`（只读；`--apply` 未实现）：`--check` 判 in sync / 本地漂移 / 版本不符，`--plan` 给出三方 diff；人工按 plan 回写 kit 管理面后跑 `verify-static` + `harness-selftest`。该路径已由真实 Android/Gradle 存量仓 v0.2.2→v0.2.3 验证（2026-11-10），profile 升级与 `harness-upgrade` 在真实仓的完整演练仍未验证（v0.3.0 候选）。

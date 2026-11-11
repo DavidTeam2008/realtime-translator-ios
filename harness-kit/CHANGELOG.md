@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.13 — 2026-11-11
+
+- **升级基线（只读）**：`harness-init` 现在在目标根写 `.harness-manifest.json`——记录 `kitVersion` / `profile` /
+  `options`（name/language/testCommand/adapters/branch）+ 每个 kit 管理文件的 sha256 + `.gitignore` 追加块哈希 +
+  init 时被跳过的文件；manifest 是可提交文件，作为升级与漂移检查的基线。
+- **新增 `scripts/harness-upgrade`（kit 侧，只读）**：`--check` 校验 manifest/目标文件/kit 版本
+  （in sync exit 0；本地漂移 exit 1；版本不符 exit 3；用法或 manifest 非法 exit 2），支持 `--json`；
+  `--plan` 用 manifest 的 profile/options 在临时目录重渲染新版并输出三方 diff
+  （SAME / LOCAL_ONLY / UPGRADE / ALREADY / CONFLICT / ADD / OBSOLETE / NOT_MANAGED / APPEND），
+  **不写目标仓**；legacy 目标（无 manifest）也可 `--plan` 预览。`--apply` 明确未实现（v0.3.0）。
+- 升级流程仍要求人工应用 diff + `make verify-static` + `harness-selftest`；kit 不提供 in-place 覆盖。
+- 测试新增 `test_harness_upgrade.py`（14 用例：manifest 契约/漂移/版本 exit 3/追加块/legacy/plan 分类/只读/JSON）；
+  kit 测试 142 → **156**。
+- 兼容：v0.2.13 之前接入的仓没有 manifest，`harness-upgrade --check` 提示走 playbook 手工升级路径；
+  init/模板/门禁行为无破坏性变化（新增 manifest 与 kit 侧脚本）。
+
 ## 0.2.12 — 2026-11-11
 
 - **证据链加固（P0 安全修复）**：`verify_claim.py` 不再信任证据自报的 counts。

@@ -1,0 +1,426 @@
+#!/usr/bin/env python3
+"""harness-upgrade: check or preview a harness-kit upgrade for an existing target (read-only).
+
+Usage:
+    python3 harness-kit/scripts/harness-upgrade --target ../myapp --check [--json]
+    python3 harness-kit/scripts/harness-upgrade --target ../myapp --plan \
+        [--profile standard] [--name MyApp] [--language python] \
+        [--test-command "make test"] [--adapters ci,githooks] [--json]
+
+What it does (v0.2.13, read-only — never writes the target):
+  --check  Compare the target's `.harness-manifest.json` against the target files and
+           against this kit's VERSION. Exit codes: 0 in sync; 1 local drift;
+           3 version mismatch (target pin / config.kitVersion vs kit); 2 usage or
+           invalid/missing manifest.
+  --plan   Render the current kit into a temp directory (same profile/options as the
+           target manifest, or explicit flags for legacy targets) and print a three-way
+           diff: SAME / LOCAL_ONLY / UPGRADE / CONFLICT / ADD / OBSOLETE / APPEND.
+           No target files are written. Use --fail-on-conflict to exit 1 on conflicts.
+  Both   Modes are safe for CI and for an AI agent: no network, no target writes.
+
+Contract: see harness-kit/SPEC.md §4/§8. Standard library only.
+`--apply` is intentionally not implemented in v0.2.13: apply the printed plan file by
+file and re-run `make verify-static` + `harness-selftest` (see docs/playbook.md 升级路径).
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+DEFAULT_KIT_ROOT = Path(__file__).resolve().parent.parent
+MANIFEST_NAME = ".harness-manifest.json"
+MANIFEST_SCHEMA_VERSION = 1
+EXIT_USAGE = 2
+EXIT_DRIFT = 1
+EXIT_VERSION = 3
+
+ACTIONS = ("SAME", "LOCAL_ONLY", "UPGRADE", "ALREADY", "CONFLICT", "ADD", "OBSOLETE", "APPEND", "NOT_MANAGED")
+
+
+class UpgradeError(Exception):
+    """User-facing failure (exit 2)."""
+
+
+# ── helpers ──────────────────────────────────────────────────────────────
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    return sha256_bytes(path.read_bytes())
+
+
+def load_json(path: Path) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise UpgradeError(f"无法读取/解析 {path}：{exc}") from exc
+
+
+def kit_version(kit_root: Path) -> str:
+    path = kit_root / "VERSION"
+    if not path.is_file():
+        raise UpgradeError(f"kit VERSION 不存在：{path}")
+    version = path.read_text(encoding="utf-8").strip()
+    if not version:
+        raise UpgradeError(f"kit VERSION 为空：{path}")
+    return version
+
+
+def load_manifest(target: Path) -> dict | None:
+    """Load and validate `.harness-manifest.json`; None = legacy target (no manifest)."""
+    path = target / MANIFEST_NAME
+    if not path.is_file():
+        return None
+    doc = load_json(path)
+    if not isinstance(doc, dict):
+        raise UpgradeError(f"{MANIFEST_NAME} 必须是 JSON object")
+    problems: list[str] = []
+    if doc.get("schemaVersion") != MANIFEST_SCHEMA_VERSION:
+        problems.append(f"schemaVersion 必须为 {MANIFEST_SCHEMA_VERSION}")
+    for key in ("kitVersion", "profile"):
+        if not isinstance(doc.get(key), str) or not str(doc.get(key)).strip():
+            problems.append(f"缺少字符串字段 {key}")
+    files = doc.get("files")
+    if not isinstance(files, list) or not files:
+        problems.append("files 必须是非空数组")
+    else:
+        for index, item in enumerate(files):
+            if not isinstance(item, dict):
+                problems.append(f"files[{index}] 必须是 object")
+                continue
+            rel = item.get("path")
+            if not isinstance(rel, str) or not rel.strip():
+                problems.append(f"files[{index}].path 缺失")
+                continue
+            rel_path = Path(rel)
+            if rel_path.is_absolute() or ".." in rel_path.parts:
+                problems.append(f"files[{index}].path 必须是仓库相对路径：{rel!r}")
+            if not isinstance(item.get("sha256"), str) or len(str(item.get("sha256"))) != 64:
+                problems.append(f"files[{index}].sha256 必须是 64 位 sha256")
+    appends = doc.get("appends")
+    if appends is None:
+        doc["appends"] = []
+    elif not isinstance(appends, list):
+        problems.append("appends 必须是数组")
+    else:
+        for index, item in enumerate(appends):
+            if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+                problems.append(f"appends[{index}] 需要 path")
+            elif not isinstance(item.get("sha256"), str) or len(str(item.get("sha256"))) != 64:
+                problems.append(f"appends[{index}].sha256 必须是 64 位 sha256")
+    if problems:
+        raise UpgradeError(f"{MANIFEST_NAME} 不可用：\n  - " + "\n  - ".join(problems))
+    return doc
+
+
+def config_version(target: Path) -> str | None:
+    path = target / "harness" / "config.json"
+    if not path.is_file():
+        return None
+    doc = load_json(path)
+    if not isinstance(doc, dict):
+        return None
+    value = doc.get("kitVersion")
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def append_block_sha(text: str) -> str:
+    """Hash the exact snippet `harness-init` appends to a file (marker preserved)."""
+    return sha256_bytes((text.rstrip() + "\n").encode("utf-8"))
+
+
+def render_kit_tree(
+    kit_root: Path,
+    target: Path,
+    *,
+    profile: str,
+    options: dict,
+    overrides: dict,
+) -> Path:
+    """Render the current kit into a temp dir via harness-init; return its root."""
+    init = kit_root / "scripts" / "harness-init"
+    if not init.is_file():
+        raise UpgradeError(f"kit 缺少 scripts/harness-init：{init}")
+    workdir = Path(tempfile.mkdtemp(prefix="harness-upgrade-"))
+    name = overrides.get("name") or options.get("name") or target.name
+    language = overrides.get("language") or options.get("language") or "other"
+    test_command = overrides.get("test_command") or options.get("testCommand")
+    adapters = overrides.get("adapters")
+    if adapters is None:
+        stored = options.get("adapters")
+        adapters = ",".join(stored) if isinstance(stored, list) and stored else "none"
+    cmd = [
+        sys.executable, str(init),
+        "--profile", profile,
+        "--target", str(workdir),
+        "--name", str(name),
+        "--language", str(language),
+        "--adapters", str(adapters),
+        "--force",
+        "--no-check",
+        "--root", str(kit_root),
+    ]
+    if test_command:
+        cmd += ["--test-command", str(test_command)]
+    proc = subprocess.run(cmd, cwd=str(kit_root), capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise UpgradeError(
+            "渲染新版本 kit 失败（harness-init）：\n" + (proc.stderr or proc.stdout).strip()
+        )
+    manifest = load_json(workdir / MANIFEST_NAME)
+    if not isinstance(manifest, dict):
+        raise UpgradeError("新渲染的 kit 没有生成 manifest（harness-init 异常）")
+    return workdir
+
+
+def current_sha(target: Path, rel: str) -> str | None:
+    path = target / rel
+    return sha256_file(path) if path.is_file() else None
+
+
+def classify(old_sha: str | None, cur_sha: str | None, new_sha: str) -> str:
+    if cur_sha is None:
+        return "ADD"
+    if old_sha is None:
+        return "SAME" if cur_sha == new_sha else "CONFLICT"
+    if old_sha == new_sha:
+        return "SAME" if cur_sha == old_sha else "LOCAL_ONLY"
+    if cur_sha == old_sha:
+        return "UPGRADE"
+    if cur_sha == new_sha:
+        return "ALREADY"
+    return "CONFLICT"
+
+
+def append_row(rows: list[dict], action: str, path: str, detail: str = "") -> None:
+    rows.append({"action": action, "path": path, "detail": detail})
+
+
+# ── modes ────────────────────────────────────────────────────────────────
+def run_check(target: Path, kit_root: Path) -> tuple[int, dict]:
+    version = kit_version(kit_root)
+    manifest = load_manifest(target)
+    if manifest is None:
+        raise UpgradeError(
+            f"目标仓没有 {MANIFEST_NAME}（v0.2.13 之前接入）。"
+            "先按 docs/playbook.md「升级路径」人工评估，或用 `--plan --profile <p>` 生成只读预览。"
+        )
+    problems: list[str] = []
+    drift: list[dict] = []
+    manifest_version = str(manifest.get("kitVersion"))
+    cfg_version = config_version(target)
+    if manifest_version != version:
+        problems.append(f"manifest.kitVersion={manifest_version} != kit VERSION={version}")
+    if cfg_version is not None and cfg_version != manifest_version:
+        problems.append(f"config.kitVersion={cfg_version} != manifest.kitVersion={manifest_version}")
+    for item in manifest["files"]:
+        rel = str(item["path"])
+        cur = current_sha(target, rel)
+        if cur is None:
+            drift.append({"action": "MISSING", "path": rel, "detail": "manifest 记录的文件不存在"})
+        elif cur != str(item["sha256"]):
+            drift.append({"action": "LOCAL_CHANGED", "path": rel, "detail": "文件内容与 manifest 不一致"})
+    for item in manifest.get("appends") or []:
+        rel = str(item["path"])
+        path = target / rel
+        if not path.is_file():
+            drift.append({"action": "MISSING", "path": rel, "detail": "追加块目标文件不存在"})
+            continue
+        marker = str(item.get("marker") or "# harness-kit")
+        if marker not in path.read_text(encoding="utf-8", errors="replace"):
+            drift.append({"action": "APPEND_MISSING", "path": rel, "detail": "缺少 kit 追加块"})
+    result = {
+        "mode": "check",
+        "target": str(target),
+        "kitVersion": version,
+        "manifestKitVersion": manifest_version,
+        "configKitVersion": cfg_version,
+        "problems": problems,
+        "drift": drift,
+        "inSync": not problems and not drift,
+    }
+    if problems:
+        return EXIT_VERSION, result
+    return (EXIT_DRIFT if drift else 0), result
+
+
+def run_plan(target: Path, kit_root: Path, args: argparse.Namespace) -> tuple[int, dict]:
+    version = kit_version(kit_root)
+    manifest = load_manifest(target)
+    if manifest is None:
+        print("NOTE: 目标仓没有 .harness-manifest.json（legacy），无升级基线；"
+              "所有与新版不同的现有文件将标为 CONFLICT，请逐文件人工确认。")
+    options = dict((manifest or {}).get("options") or {})
+    stored_profile = str((manifest or {}).get("profile") or "standard")
+    profile = args.profile or stored_profile
+    overrides = {
+        "name": args.name,
+        "language": args.language,
+        "test_command": args.test_command,
+        "adapters": args.adapters,
+    }
+    workdir = render_kit_tree(kit_root, target, profile=profile, options=options, overrides=overrides)
+    try:
+        new_manifest = load_json(workdir / MANIFEST_NAME)
+        if not isinstance(new_manifest, dict):
+            raise UpgradeError("渲染结果缺少 manifest")
+        old_files = {
+            str(item["path"]): str(item["sha256"])
+            for item in (manifest or {}).get("files", [])
+            if isinstance(item, dict) and item.get("path")
+        }
+        old_skipped = {
+            str(item) for item in (manifest or {}).get("skipped", []) if isinstance(item, str)
+        }
+        new_files = {
+            str(item["path"]): str(item["sha256"])
+            for item in new_manifest.get("files", [])
+            if isinstance(item, dict) and item.get("path")
+        }
+        rows: list[dict] = []
+        for rel in sorted(new_files):
+            new_sha = new_files[rel]
+            cur_sha = current_sha(target, rel)
+            old_sha = old_files.get(rel)
+            if rel in old_skipped:
+                append_row(rows, "NOT_MANAGED", rel, "init 时已存在，未纳入 kit 管理（保留）")
+                continue
+            action = classify(old_sha, cur_sha, new_sha)
+            detail = {
+                "SAME": "无需变更",
+                "LOCAL_ONLY": "本地有改动、上游未变（保留）",
+                "UPGRADE": "可安全替换为上游新版",
+                "ALREADY": "已是新版内容",
+                "CONFLICT": "本地与上游都改过（需人工合并）",
+                "ADD": "kit 新增管理文件",
+                "NOT_MANAGED": "init 时已存在，未纳入 kit 管理（保留）",
+            }[action]
+            append_row(rows, action, rel, detail)
+        for rel in sorted(set(old_files) - set(new_files)):
+            append_row(rows, "OBSOLETE", rel, "新版本不再管理（文件保留，从 manifest 移除）")
+        old_appends = {
+            str(item["path"]): str(item["sha256"])
+            for item in (manifest or {}).get("appends", [])
+            if isinstance(item, dict) and item.get("path")
+        }
+        new_appends = {
+            str(item["path"]): str(item["sha256"])
+            for item in new_manifest.get("appends", [])
+            if isinstance(item, dict) and item.get("path")
+        }
+        for rel in sorted(set(old_appends) | set(new_appends)):
+            old_sha = old_appends.get(rel)
+            new_sha = new_appends.get(rel)
+            path = target / rel
+            marker = "# harness-kit"
+            if new_sha is None:
+                append_row(rows, "OBSOLETE", rel, "追加块不再需要（保留现状）")
+            elif not path.is_file() or marker not in path.read_text(encoding="utf-8", errors="replace"):
+                append_row(rows, "APPEND", rel, "需要补 kit 追加块")
+            elif old_sha == new_sha:
+                append_row(rows, "SAME", rel, "追加块无需变更")
+            else:
+                append_row(rows, "CONFLICT", rel, "追加块上游已变（人工确认）")
+        summary = {action: sum(1 for row in rows if row["action"] == action) for action in ACTIONS}
+        result = {
+            "mode": "plan",
+            "target": str(target),
+            "kitVersion": version,
+            "manifestKitVersion": (manifest or {}).get("kitVersion"),
+            "profile": profile,
+            "rows": rows,
+            "summary": summary,
+            "readOnly": True,
+        }
+        return (EXIT_DRIFT if args.fail_on_conflict and summary.get("CONFLICT") else 0), result
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
+def print_check(result: dict) -> None:
+    print(f"target: {result['target']}")
+    print(f"kit VERSION: {result['kitVersion']} · manifest: {result['manifestKitVersion']} · "
+          f"config: {result['configKitVersion']}")
+    for problem in result["problems"]:
+        print(f"VERSION_MISMATCH  {problem}")
+    for item in result["drift"]:
+        print(f"{item['action']:<15} {item['path']}  ({item['detail']})")
+    if result["inSync"]:
+        print("IN SYNC（manifest 与目标文件、kit 版本一致）")
+    elif result["problems"]:
+        print(f"结论：VERSION_MISMATCH（exit {EXIT_VERSION}）— 目标 pin 与当前 kit 不一致，先升 kit 或换匹配版本")
+    else:
+        print(f"结论：DRIFT（exit {EXIT_DRIFT}）— 目标文件被本地修改或缺失")
+
+
+def print_plan(result: dict) -> None:
+    print(f"target: {result['target']} · kit VERSION: {result['kitVersion']} · profile: {result['profile']}")
+    print(f"{'ACTION':<10} {'PATH':<42} DETAIL")
+    for row in result["rows"]:
+        print(f"{row['action']:<10} {row['path']:<42} {row['detail']}")
+    summary = "，".join(f"{action}={count}" for action, count in result["summary"].items() if count)
+    print(f"\nsummary: {summary or '无差异'}")
+    print("read-only: 未写目标仓；按 UPGRADE/ADD/APPEND 逐文件人工应用，CONFLICT 需合并后再跑 make verify-static + selftest")
+
+
+# ── CLI ──────────────────────────────────────────────────────────────────
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Check or preview a harness-kit upgrade for a target project (read-only).",
+    )
+    parser.add_argument("--target", required=True, help="target project root")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="compare manifest/files/version (default)")
+    mode.add_argument("--plan", action="store_true", help="preview three-way diff in a temp render")
+    mode.add_argument("--apply", action="store_true", help="not implemented in v0.2.13 (exit 2)")
+    parser.add_argument("--profile", help="override profile for --plan (default: manifest profile)")
+    parser.add_argument("--name", help="render override for --plan (legacy targets)")
+    parser.add_argument("--language", help="render override for --plan (legacy targets)")
+    parser.add_argument("--test-command", help="render override for --plan (legacy targets)")
+    parser.add_argument("--adapters", help="render override for --plan (legacy targets)")
+    parser.add_argument("--fail-on-conflict", action="store_true", help="--plan exits 1 when CONFLICT exists")
+    parser.add_argument("--json", action="store_true", help="machine-readable output")
+    parser.add_argument("--root", default=str(DEFAULT_KIT_ROOT), help="kit root (default: script parent parent)")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    target = Path(args.target).expanduser().resolve()
+    kit_root = Path(args.root).expanduser().resolve()
+    if not target.is_dir():
+        print(f"ERROR: target 目录不存在：{target}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        if args.apply:
+            print("ERROR: --apply 在 v0.2.13 未实现（只读升级预览）。"
+                  "按 --plan 输出逐文件人工应用，再跑 make verify-static + harness-selftest。", file=sys.stderr)
+            return EXIT_USAGE
+        if args.plan:
+            code, result = run_plan(target, kit_root, args)
+            if args.json:
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            else:
+                print_plan(result)
+            return code
+        code, result = run_check(target, kit_root)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print_check(result)
+        return code
+    except UpgradeError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+
+
+if __name__ == "__main__":
+    sys.exit(main())

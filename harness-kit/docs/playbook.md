@@ -216,14 +216,18 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 
 ## 升级路径
 
-### 版本升级（已验证，2026-11-10）
+### 版本升级（v0.2.13 起：先 check/plan，再人工应用）
 
-kit 不提供 in-place 迁移命令；对已接入仓直接再 init 只会全 CONFLICT（还可能想写 `Makefile.harness`，与既有宿主 `Makefile` 冲突）。已验证的做法：
+kit 不提供 in-place 迁移命令；对已接入仓直接再 init 只会全 CONFLICT（还可能想写 `Makefile.harness`，与既有宿主 `Makefile` 冲突）。v0.2.13 起先用只读工具拿到准确基线：
 
-1. **临时渲染新版**：`python3 harness-kit/scripts/harness-init --profile <档> --language <语言> --target /tmp/kit-render-<ver> --no-check`（需要目标版本 kit）。
-2. **逐文件 diff**：`git diff --no-index <target>/<file> /tmp/kit-render-<ver>/<file>`；只回写 kit 管理面——`tools/`、`harness/config.json` 的 `kitVersion`/配置、Makefile 的 kit 目标段、CI/hook 模板。项目自有文档（AGENTS/CONTRIBUTING/README/docs/references）不回写。
+0. **检查基线与预览**（v0.2.13+，只读）：
+   `python3 <kit>/scripts/harness-upgrade --target <target> --check`（in sync 0 / 本地漂移 1 / 版本不符 3）；
+   `python3 <kit>/scripts/harness-upgrade --target <target> --plan`（三方 diff：SAME / LOCAL_ONLY / UPGRADE / ALREADY / CONFLICT / ADD / OBSOLETE / APPEND）。
+   旧仓（v0.2.13 之前接入）没有 `.harness-manifest.json`：`--check` 会提示走手工路径，`--plan` 仍可渲染预览。
+1. **临时渲染新版**（无 manifest 或需复核时）：`python3 harness-kit/scripts/harness-init --profile <档> --language <语言> --target /tmp/kit-render-<ver> --no-check`（需要目标版本 kit）。
+2. **逐文件 diff**：`git diff --no-index <target>/<file> /tmp/kit-render-<ver>/<file>`；只回写 kit 管理面——`tools/`、`harness/config.json` 的 `kitVersion`/配置、Makefile 的 kit 目标段、CI/hook 模板。项目自有文档（AGENTS/CONTRIBUTING/README/docs/references）不回写。**CONFLICT 行必须人工合并，不要整文件覆盖**。
 3. **配置迁移**：config schema 有变化时写映射（如 0.2.3 把宿主私有 `layers` 键映射为通用 `rules` + `symbolGuards`）；`kitVersion` 与 VERSION 对齐。
-4. **复核**：`make verify-static`，再用 `python3 <kit>/scripts/harness-selftest --target .` 做负向注入——升级后门禁仍必须按预期变红，否则视为升级引入回归。
+4. **复核**：`make verify-static`，再用 `python3 <kit>/scripts/harness-selftest --target .` 做负向注入——升级后门禁仍必须按预期变红，否则视为升级引入回归。升级后更新 `.harness-manifest.json` 的方式：以新版 kit 在临时目录 init 得到 manifest，按实际回写结果人工同步 files/append 哈希（`--apply` 计划在 v0.3.0）。
 5. **记录**：升级计划写实际卡点、映射表、selftest 前后矩阵；有宿主 fork 的，升级后应删除 fork、只留配置差异。
 
 **实测**：真实 Android/Gradle 存量仓 v0.2.2→v0.2.3：4 个宿主 fork 脚本换回上游、`layers`/`hygiene` 配置迁移、`static-gates` 证据落地；selftest 在升级前发现门禁模式被历史清洗成 `/local/`（M5/M8 失效），修复后 **8/8**。细节见该仓归档计划。
