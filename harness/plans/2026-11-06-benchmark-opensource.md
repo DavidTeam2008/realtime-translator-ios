@@ -491,6 +491,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.16：kit `v0.2.9` 发版完成：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入）；新增 agent-prompts.md（8 类场景模板 + 场景对照表）；kit **122 tests**；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync；iOS CI run `42846540918` success
 - [x] Phase 5.17：kit `v0.2.10` 发版完成：README 接入路径上移 + 命令内联 + 导航拆分；agent-prompts 19 类场景模板（发布前/对抗性评审等）；整体审查修复（SPEC/schema/锚点/路径/版本一致性）；kit **122 tests**；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync；iOS CI run `42854316813` success
 - [x] Phase 5.18：kit `v0.2.11` 发版完成：`prompts/` 单源 + `harness-prompt` CLI（list/show/copy/render；按场景拼前置、路径填充、阶段 WARN、剪贴板回退）；agent-prompts 改为生成物；接入模板修复（kit 路径/0A-0B/尖括号）；独立审计两轮后复验通过；kit **140 tests**；镜像 `main` `52e1ad7` + tag `v0.2.11`（CI run `42863127498` success）、`kit-drift` in sync；iOS CI run `42862894694` success
+- [x] Phase 5.19（本地完成，待提交/发版）：kit `v0.2.12` 证据链加固（P0）：重定位提案与独立评审冻结到 `harness/reviews/2026-11-11-kit-repositioning/`；`verify_claim` 增加 JUnit XML 独立重算 / commit 祖先 / dirty 复核；`requireArtifact` 默认 true；`harness-selftest` 新增 M9 伪造 PASS；计划模板补 `submitted`/`_archive`；README 定位句改为「给 AI Coding Agent 用的 Harness Engineering 项目管理工具」；kit **142 tests**；本地 `make verify-static` **PASS**（91 iOS 脚本单测 + 142 kit tests + docs/架构/计数/harness/计划/证据/adapters 全过）；源与提案冻结已提交（`3daa192` / `5a95c79`），**待镜像发版**
 - [ ] Phase 6（可选）产品可信度
 
 ## 验证证据
@@ -499,6 +500,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
+| `cd harness-kit && python3 -m unittest discover -s tests -q`（v0.2.12） | **PASS**：`Ran 142 tests OK`（含伪造 PASS 被拒 / artifact 重算不一致 / commit 非祖先 / dirty PASS 负向） | 本机 python3 3.14.7 | —（过程记录：kit v0.2.12 本地回归） |
+| 红队伪造证据实验（2026-11-11，加固前） | **复现 P0**：0 测试 + `passed:9999` + 无 artifact + done 计划 → `evidence validate` / `verify_claim --all` / `--fresh --strict` / `check_plan check` 全 PASS；加固后同 fixture → `verify_claim` 非 0（exit 2 UNVERIFIED） | 临时 git fixture；python3 3.14.7 | —（负向验证：伪造证据） |
 | `git ls-files '*.md' \| wc -l`；`git ls-files` | 40 个入库 markdown / 194 个入库文件 | 本机，HEAD `e5047b3` | —（基线盘点） |
 | `find harness/runs -type f \| wc -l`；`du -sh harness` | 447 个忽略文件 / 6.8MB；`harness/runs` 3.9MB | 本机 | —（基线盘点） |
 | `wc -l docs/14..docs/21` | 8 篇历史记录共 897 行；HANDOFF 483 行 | 本机 | —（基线盘点） |
@@ -611,6 +614,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - 提示词 CLI 的平台面：macOS/Linux 已验证（`pbcopy`/无剪贴板回退）；Windows `clip` 分支未实测。
 - 提示词库的人类外部走查未验证：陌生人只按 README「一条命令复制」在本机执行（含剪贴板）尚未做；Windows 的 `clip` 剪贴板分支未实测（macOS `pbcopy` 已实测、无剪贴板回退由单测覆盖）。
 
+- **v0.2.12 边界**：`check_plan` 仍只做计划一致性与 evidence id/commit 绑定，不委托 `verify_claim`（伪造 counts 需 `release-check`/`verify-claim` 拦）；xcresult 不做独立重算（判 UNVERIFIED，先转 JUnit XML）。二者列为 v0.2.13 候选。
+- **跨 Agent / 多 Agent 并行 / skill 主入口均未实测**：重定位提案中的 M1/M3 与 skill A/B 属路线图（v0.3.x），当前不对外声称；DSH 插件未安装实测（仅 spike 计划）。
 ## 参考（外部事实核对，2026-11-07）
 
 - Claude Code Hooks reference（生命周期/hook 事件/`.claude/settings.json` 可提交）：https://code.claude.com/docs/en/hooks
@@ -643,6 +648,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 21 | kit `v0.2.9` AI Agent 优先接入 + 提示词模板集 | README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排为 Agent 接入（推荐）→ 命令行手动接入；新增 docs/agent-prompts.md（公共前置 + 8 类场景模板 + 场景对照表）；SPEC/playbook/目录树/链接检查同步；kit 122 tests PASS；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync | 2026-11-10 |
 | 22 | kit `v0.2.10` README 重构 + 提示词模板扩充 + 整体审查修复 | README 接入路径上移、命令内联、`<kit>` 占位、导航拆分；agent-prompts 19 类场景模板（新增发布前/对抗性评审/自检/修 Bug/重构/依赖/文档/性能/安全/冷启动/方案评估）；adoption 索引分组；SPEC §5 去重、§3 可选段、§9 测试说明、config schema 补 `hygiene`/`layers`；smoke：3 profile init+门禁、adopt 双 flag、122 tests；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync | 2026-11-11 |
 | 23 | kit `v0.2.11`：提示词库 v2（单源 + 阶段前置）+ `harness-prompt` CLI | 新增 `prompts/`（2 前置 + 19 场景 + 2 附加片段）与 `scripts/harness-prompt`（`list`/`show`/`copy`/`render --check`：按场景拼前置、填 kit/目标路径、目标阶段/kit 目录 WARN、剪贴板回退、漂移校验）；`docs/agent-prompts.md` 改为生成物；`test_kit_prompts.py` 18 用例（kit 122→140）；修复接入模板缺 kit 路径、前置不适用未接入项目等直接可用性问题；独立审计（复用 auditor，只读）两轮：P1×3 + P2×8 修复后复验通过 | kit **140 tests PASS**；本地 `make verify-static` PASS；iOS CI run `42862894694` success；镜像 `main` `52e1ad7` + tag `v0.2.11`（CI run `42863127498` success）、tag clone 140 tests OK、`kit-drift` in sync | 已完成 | 2026-11-11 |
+| 24 | kit `v0.2.12` 证据链加固（重定位提案 P0 落地） | 独立红队实测旧 `verify_claim` 可被手写 PASS 证据绕过（0 测试 + `passed:9999` + 无 artifact 全绿）→ 实现 artifact 契约（`result.artifacts` / legacy `xcresultPath`）、JUnit XML 独立重算、commit 祖先/dirty 复核、`requireArtifact` 默认 true、selftest M9；`check_plan` 委托 verify_claim 与 xcresult 重算列为 v0.2.13；冻结提案/评审到 `harness/reviews/2026-11-11-kit-repositioning/`（含 sha256 + repro.sh） | kit 142 tests PASS；伪造 PASS 负向回归 PASS；本地 `make verify-static` 结果见验证证据；**待用户确认提交与发版** | 2026-11-11 |
 | 12 | 设备信任后复跑真机 + 取证 | 单元 120/120 PASS 并写设备证据（干净树，`verify-claim` PASS）；UI 仍 exit 74（网络配对限制）；首证因 dirty 工作树被判 FAIL → 改为「先提交再取证」；脚本改为失败不写证据（避免 `*-pass` 文件自相矛盾） | 2026-11-09 |
 | 11 | 用户按 README 走真机路径 + 开启分支保护 | 真机预热 6s/0 用例：脚本吞掉 `diagnostics.errors`，真实原因是测试 target 无 Team；已修脚本（打印原因+`APM_TEAM`+证书信任提示）与文档；分支保护已开（禁 force push/删除，普通 push 已实测通过） | 2026-11-09 |
 | 10 | 重登 gh + API 改名 | 组织策略「fine-grained token 有效期 ≤366 天」导致 403；用户重登为 classic token（`repo`/`workflow`）→ 改名成功、旧名 302/301 保留；同时确认 kit `v0.2.0` 发布链路可用 | 2026-11-09 |
@@ -651,7 +657,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.2.11 发版与整体审查记录已提交）。
+- 无未提交改动（kit v0.2.12 源与提案冻结已提交；待镜像发版后回填记录）。
+
 
 ## 下一步
 
@@ -667,6 +674,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 10. kit `v0.2.9`（AI Agent 优先接入 + 提示词模板集）已发版（镜像 `9ecf13f` + tag `v0.2.9`、CI success、drift in sync）：接入/需求/计划/分工/会话结束/交接/收尾模板已文档化；无脚本/门禁行为变化，Android 仓 pin 不变。
 11. kit `v0.2.10`（README 重构 + 提示词模板扩充 + 整体审查修复）已发版（镜像 `c80fb69` + tag `v0.2.10`、CI success、drift in sync）：doc-only，无脚本/门禁行为变化，Android 仓 pin 不变。
 12. kit `v0.2.11`（提示词库单源 + `harness-prompt` CLI）已发版（镜像 `52e1ad7` + tag `v0.2.11`、CI success、drift in sync）：新增脚本与文档单源，无 profile/模板/门禁行为变化，Android 仓 pin 不变；计划模板 `submitted:`/`_archive/` 约定列为 v0.2.12 候选。
+13. kit `v0.2.12`（证据链加固 + 重定位提案冻结）**本地完成、待提交与发版**：需用户确认 commit/push；发版后按既有链路推镜像、打 tag、tag clone 142 tests、`kit-drift`，并在本计划回填 CI run 与镜像 hash；Android 仓 pin 保持 v0.2.3（`requireArtifact` 仅影响新模板，旧仓无行为变化）。
+14. v0.3 入口重构（统一 `harness` CLI + AGENTS 入口 + 双状态对账改造 + skill A/B）与 v0.2.13（`check_plan` 委托 verify_claim、`.harness-manifest`、kitVersion 门禁）待本轮发版后启动；路线图与验收见 `harness/reviews/2026-11-11-kit-repositioning/report.md` §7。
 
 ## 待确认
 
