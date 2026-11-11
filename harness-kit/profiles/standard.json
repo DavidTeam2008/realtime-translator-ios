@@ -4,6 +4,12 @@
   "extends": "minimal",
   "files": [
     {
+      "src": "core/templates/docs/README.standard.md.template",
+      "dst": "docs/README.md",
+      "render": true,
+      "onConflict": "fail"
+    },
+    {
       "src": "core/templates/CONTRIBUTING.md.template",
       "dst": "CONTRIBUTING.md",
       "render": true,
@@ -86,6 +92,25 @@
       "dst": "tools/check_layers.py",
       "render": false,
       "onConflict": "fail"
+    },
+    {
+      "src": "core/tools/scorecard.py",
+      "dst": "tools/scorecard.py",
+      "render": false,
+      "onConflict": "fail"
+    },
+    {
+      "src": "scripts/harness-selftest",
+      "dst": "tools/harness_selftest",
+      "render": false,
+      "executable": true,
+      "onConflict": "fail"
+    },
+    {
+      "src": "core/templates/docs/harness-scorecard.md.template",
+      "dst": "docs/harness-scorecard.md",
+      "render": true,
+      "onConflict": "fail"
     }
   ],
   "makefile": "core/templates/makefiles/Makefile.standard.template",
@@ -98,7 +123,10 @@
     "verify-static",
     "verify-claim",
     "release",
-    "plan"
+    "plan",
+    "selftest",
+    "upgrade-check",
+    "scorecard"
   ],
   "defaultAdapters": [
     "githooks",

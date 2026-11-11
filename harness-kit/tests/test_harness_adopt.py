@@ -151,9 +151,24 @@ class HarnessAdoptTests(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def invoke(self, *args: str, target: Path | None = None) -> subprocess.CompletedProcess[str]:
+    def invoke(
+        self, *args: str, target: Path | None = None, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
         command = [sys.executable, str(ADOPT), "--target", str(target or self.target), *args]
-        return run(command, cwd=KIT)
+        return subprocess.run(
+            command, cwd=str(KIT), capture_output=True, text=True, timeout=120,
+            env={**os.environ, **(env or {})},
+        )
+
+    def shim_dir(self, *programs: str) -> tuple[Path, dict[str, str]]:
+        bindir = self.tmp / "shim-bin"
+        bindir.mkdir(exist_ok=True)
+        for program in programs:
+            path = bindir / program
+            path.write_text("#!/bin/sh\necho \"%s 0.0.0\"\nexit 0\n" % program, encoding="utf-8")
+            path.chmod(0o755)
+        env = {"PATH": str(bindir) + os.pathsep + os.environ.get("PATH", "")}
+        return bindir, env
 
     # ── packaging / CLI guard ────────────────────────────────────────
     def test_script_is_executable_with_shebang(self) -> None:
@@ -230,8 +245,13 @@ class HarnessAdoptTests(unittest.TestCase):
         absolute = [item["path"] for item in data["hygiene"]["absoluteSymlinks"]]
         self.assertIn("abs-link", absolute)
         self.assertTrue(data["hygiene"]["localPathHits"])
-        self.assertIn(data["recommendation"]["profile"], ("minimal", "standard", "strict"))
-        self.assertIn("testCommand", data["recommendation"])
+        recommendation = data["recommendation"]
+        self.assertEqual("standard", recommendation["recommended"])
+        self.assertIn(recommendation["alternative"], (None, "strict"))
+        self.assertIn("standard", recommendation["why"])
+        self.assertIn("testCommand", recommendation)
+        self.assertIn("testCommandSource", recommendation)
+        self.assertIsInstance(recommendation["testCommandExecutable"], bool)
         self.assertTrue(data["recommendation"]["risks"])
         self.assertFalse(data["writePlan"]["written"])
 
@@ -310,6 +330,176 @@ class HarnessAdoptTests(unittest.TestCase):
         data = json.loads(proc.stdout)  # raises if any non-JSON line leaked into stdout
         self.assertTrue(data["writePlan"]["written"])
         self.assertEqual(1, len(list((self.target / "harness" / "plans").glob("*-adopt-harness.md"))))
+
+    # ── Python test-command detection (O3) ─────────────────────────
+    def _python_target(self, name: str) -> Path:
+        target = self.tmp / name
+        (target / "src").mkdir(parents=True)
+        write(target / "pyproject.toml", "[project]\nname = \"demo\"\n")
+        write(target / "src" / "app.py", "def main():\n    return 0\n")
+        return target
+
+    def test_python_venv_and_pytest_detection(self) -> None:
+        target = self._python_target("py-venv")
+        write(target / "requirements.txt", "pytest==8.0.0\n")
+        venv_python = target / ".venv" / "bin" / "python"
+        write(
+            venv_python,
+            "#!/bin/sh\n"
+            'if [ "$1" = "-m" ] && [ "$2" = "pytest" ] && [ "$3" = "--version" ]; then\n'
+            '  echo "pytest 8.0.0"; exit 0\n'
+            "fi\n"
+            'echo "Python 3.12.0"; exit 0\n',
+        )
+        os.chmod(venv_python, 0o755)
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertEqual(".venv/bin/python -m pytest -q", recommendation["testCommand"])
+        self.assertIn("venv", recommendation["testCommandSource"])
+        self.assertIn("pytest", recommendation["testCommandSource"])
+        self.assertTrue(recommendation["testCommandExecutable"])
+
+    def test_python_uv_lock_suggestion(self) -> None:
+        target = self._python_target("py-uv")
+        write(target / "pyproject.toml", '[tool.pytest.ini_options]\naddopts = "-q"\n')
+        write(target / "uv.lock", "")
+        _bindir, env = self.shim_dir("uv")
+        proc = self.invoke("--json", target=target, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertEqual("uv run -m pytest -q", recommendation["testCommand"])
+        self.assertIn("uv.lock", recommendation["testCommandSource"])
+
+    def test_python_poetry_lock_suggestion(self) -> None:
+        target = self._python_target("py-poetry")
+        (target / "tests").mkdir()
+        write(target / "poetry.lock", "")
+        _bindir, env = self.shim_dir("poetry")
+        proc = self.invoke("--json", target=target, env=env)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertEqual("poetry run -m unittest discover -s tests -q", recommendation["testCommand"])
+        self.assertIn("poetry.lock", recommendation["testCommandSource"])
+
+    def test_python_plain_python3_fallback(self) -> None:
+        target = self._python_target("py-plain")
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertEqual("python3 -m unittest discover -q", recommendation["testCommand"])
+        self.assertIn("系统 python3", recommendation["testCommandSource"])
+
+    def test_test_command_override_is_probed(self) -> None:
+        proc = self.invoke("--json", "--test-command", "missing-program-xyz --flag")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertEqual("missing-program-xyz --flag", recommendation["testCommand"])
+        self.assertIn("--test-command", recommendation["testCommandSource"])
+        self.assertFalse(recommendation["testCommandExecutable"])
+        self.assertIn("未找到", recommendation["testCommandProbe"])
+        report = self.invoke("--test-command", "missing-program-xyz --flag").stdout
+        self.assertIn("探测结果", report)
+        self.assertIn("已验证命令", report)
+        self.assertIn("使用命令", report)
+
+    def test_profile_guidance_defaults_to_standard(self) -> None:
+        proc = self.invoke("--json")
+        data = json.loads(proc.stdout)
+        recommendation = data["recommendation"]
+        self.assertEqual("standard", recommendation["recommended"])
+        self.assertIn("存量仓库默认 standard", recommendation["why"])
+        report = self.invoke().stdout
+        self.assertIn("推荐 profile：**standard**", report)
+        self.assertIn("备选 profile", report)
+        self.assertIn("strict", report)
+
+    def test_strict_is_only_an_alternative_for_signal_rich_repos(self) -> None:
+        target = self.tmp / "rich-repo"
+        (target / "docs").mkdir(parents=True)
+        write(target / "AGENTS.md", "# Rules\n")
+        write(target / "docs" / "README.md", "# Docs\n")
+        for index in range(12):
+            write(target / f"docs\u002fdoc-{index}.md", f"# Doc {index}\n")
+        write(target / ".github" / "workflows" / "ci.yml", "name: ci\n")
+        write(target / ".githooks" / "pre-push", "#!/bin/sh\n")
+        write(target / "tests" / "test_app.py", "def test_ok():\n    assert True\n")
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertEqual("standard", recommendation["recommended"])
+        self.assertEqual("strict", recommendation["alternative"])
+        self.assertIn("显式", recommendation["why"])
+        self.assertIn("理由", recommendation["why"])
+
+    # ── --archive-report (O3) ───────────────────────────────────────
+    def test_archive_report_copies_without_rescan(self) -> None:
+        report = self.tmp / "inventory-report.md"
+        write(report, "# Baseline inventory\n\n- tracked: 42\n")
+        before = snapshot(self.target)
+        proc = self.invoke("--archive-report", str(report))
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("[OK] adoption report archived", proc.stdout)
+        archived = list((self.target / "harness" / "reports").glob("adoption-*.md"))
+        self.assertEqual(1, len(archived), proc.stdout)
+        archived_text = archived[0].read_text(encoding="utf-8")
+        self.assertIn("> sanitized：", archived_text)
+        self.assertIn("来源命令", archived_text)
+        self.assertIn("# Baseline inventory", archived_text)
+        self.assertIn("tracked: 42", archived_text)
+        after = snapshot(self.target)
+        new_entries = set(after) - set(before)
+        new_files = {entry for entry in new_entries if (self.target / entry).is_file()}
+        self.assertEqual(new_files, {f"harness/reports/{archived[0].name}"})
+        # 第二次归档拒绝覆盖
+        second = self.invoke("--archive-report", str(report))
+        self.assertEqual(second.returncode, 1, second.stdout + second.stderr)
+        self.assertIn("拒绝覆盖", second.stderr)
+        # 源文件缺失有可读错误
+        missing = self.invoke("--archive-report", str(self.tmp / "nope.md"))
+        self.assertEqual(missing.returncode, 1, missing.stdout + missing.stderr)
+        self.assertIn("不存在", missing.stderr)
+
+    def test_broken_venv_falls_back_to_next_candidate(self) -> None:
+        target = self._python_target("py-broken-venv")
+        write(target / "requirements.txt", "pytest==8.0.0\n")
+        broken = target / ".venv" / "bin" / "python"
+        write(broken, "#!/bin/sh\nexit 127\n")
+        os.chmod(broken, 0o755)
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertTrue(recommendation["testCommand"].startswith("python3"), recommendation)
+        probe = recommendation["testCommandProbe"]
+        self.assertIn("失败", probe)
+        self.assertIn(".venv/bin/python", probe)
+        self.assertIn("候选探测通过", recommendation["testCommandSource"])
+        report = self.invoke(target=target).stdout
+        self.assertIn("探测结果", report)
+        self.assertIn("已验证命令", report)
+
+    def test_archive_report_sanitizes_local_paths(self) -> None:
+        report = self.tmp / "leaky-report.md"
+        host_path = "/Us" + "ers/alice/secret-project"
+        volumes_path = "/Vol" + "umes/ExternalDK/data"
+        home_path = "/ho" + "me/bob/work"
+        write(
+            report,
+            f"# Inventory\n\n- repo: {self.target}\n- a: {host_path}\n"
+            f"- b: {volumes_path}\n- c: {home_path}\n",
+        )
+        proc = self.invoke("--archive-report", str(report), "--json")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        data = json.loads(proc.stdout)
+        self.assertTrue(data["sanitized"])
+        archived = self.target / data["path"]
+        text = archived.read_text(encoding="utf-8")
+        self.assertNotIn("alice", text)
+        self.assertNotIn("bob", text)
+        self.assertNotIn("ExternalDK", text)
+        self.assertIn("$HOME", text)
+        self.assertIn("<local-path>", text)
+        self.assertNotIn(str(self.target.resolve()), text)
 
     # ── non-git target ──────────────────────────────────────────────
     def test_non_git_target_is_scanned_without_git(self) -> None:

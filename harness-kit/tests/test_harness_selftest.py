@@ -225,6 +225,21 @@ class HarnessSelftestTests(unittest.TestCase):
             self.assertIn("PASS", line, f"{mutation_id} should be exercised, output:\n{output}")
         self.assertIn("RESULT PASS", output)
 
+    def test_m6_uses_archived_plan_when_no_active(self) -> None:
+        archived_host = self.tmp / "archived-host"
+        shutil.copytree(self.host, archived_host)
+        archive = archived_host / "harness" / "plans" / "_archive"
+        archived_plan = active_plan_body().replace("status: active", "status: done", 1)
+        write(archive / "2026-01-01-done.md", archived_plan)
+        commit_all(archived_host, "archived plan")
+        proc = self.invoke(archived_host, "--json")
+        self.assertEqual(proc.returncode, 0, self.combined(proc))
+        data = json.loads(proc.stdout)
+        m6 = next(item for item in data["mutations"] if item["id"] == "M6")
+        self.assertEqual("PASS", m6["status"], m6)
+        self.assertNotEqual("SKIP", m6["status"])
+        self.assertEqual(data["summary"]["skip"], data["summary"]["notApplicable"])
+
 
 if __name__ == "__main__":
     unittest.main()

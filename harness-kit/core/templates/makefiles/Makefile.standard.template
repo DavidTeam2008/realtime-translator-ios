@@ -2,7 +2,7 @@
 # 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
 # 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
 
-.PHONY: help status start verify handoff release check check-plan-strict check-evidence check-host verify-static verify-claim plan release
+.PHONY: help status start verify handoff release check check-plan-strict check-evidence check-host verify-static verify-claim plan release selftest upgrade-check scorecard
 
 help: ## 显示可用目标
 	@echo "{{PROJECT_NAME}} · harness 目标"
@@ -25,9 +25,10 @@ check: ## 文档 + 指令 + 计划静态门禁（日常；未提交段差异只�
 	@python3 tools/check_docs.py
 	@python3 tools/check_agents.py
 	@python3 tools/check_plan.py check --lenient-uncommitted
+	@python3 tools/scorecard.py --check-stale
 
-check-plan-strict: ## 计划严格校验（未提交段必须与 git 一致）
-	@python3 tools/check_plan.py check
+check-plan-strict: ## 计划严格校验（未提交段 / 归档 / submitted scope）
+	@python3 tools/check_plan.py check --strict
 
 check-evidence: ## 证据 schema 校验
 	@python3 tools/evidence.py validate
@@ -35,6 +36,18 @@ check-evidence: ## 证据 schema 校验
 check-host: ## 宿主卫生 / 分层守卫（未配置 hygiene/layers 时 SKIP）
 	@python3 tools/check_hygiene.py
 	@python3 tools/check_layers.py
+
+selftest: ## 负向注入自检（证明门禁会红；需 tools/harness_selftest）
+	@test -f tools/harness_selftest || { echo "缺少 tools/harness_selftest：用 v0.4.0+ 的 profile 重新 init，或从 kit 复制 scripts/harness-selftest"; exit 2; }
+	@python3 tools/harness_selftest --target .
+
+upgrade-check: ## 只读检查 kit 升级项（需要 KIT_ROOT 指向 kit 克隆）
+	@test -n "$(KIT_ROOT)" || { echo "用法：make upgrade-check KIT_ROOT=<kit 克隆路径>"; exit 2; }
+	@test -f "$(KIT_ROOT)/scripts/harness-upgrade" || { echo "KIT_ROOT 下缺少 scripts/harness-upgrade：$(KIT_ROOT)"; exit 2; }
+	@python3 "$(KIT_ROOT)/scripts/harness-upgrade" --target . --check
+
+scorecard: ## 生成/刷新评分卡草稿（harness/reviews/<date>-scorecard.md）
+	@python3 tools/scorecard.py --generate
 
 verify-static: check check-plan-strict check-evidence check-host ## 本地静态门禁（含证据、宿主检查与计划严格校验）
 

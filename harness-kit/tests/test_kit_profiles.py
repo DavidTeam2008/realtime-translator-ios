@@ -79,10 +79,27 @@ class HarnessInitProfileTests(unittest.TestCase):
                 if profile in ("standard", "strict"):
                     self.assertTrue((target / "harness" / "plans" / "_template.md").is_file())
                     self.assertTrue((target / "tools" / "verify_claim.py").is_file())
+                    # v0.4.0：scorecard / selftest / 评分卡模板进入 standard（strict 继承）
+                    self.assertTrue((target / "tools" / "scorecard.py").is_file())
+                    self.assertTrue((target / "tools" / "harness_selftest").is_file())
+                    self.assertTrue((target / "docs" / "harness-scorecard.md").is_file())
+                    makefile = target / (
+                        "Makefile.harness" if (target / "Makefile.harness").is_file() else "Makefile"
+                    )
+                    makefile_text = makefile.read_text(encoding="utf-8")
+                    for target_name in ("selftest:", "upgrade-check:", "scorecard:"):
+                        self.assertIn(target_name, makefile_text)
                     static = run(["make", "verify-static"], cwd=target)
                     self.assertEqual(static.returncode, 0, f"{profile} verify-static failed:\n{static.stdout}\n{static.stderr}")
+                    scorecard = run(["make", "scorecard"], cwd=target)
+                    self.assertEqual(
+                        scorecard.returncode, 0,
+                        f"{profile} make scorecard failed:\n{scorecard.stdout}\n{scorecard.stderr}",
+                    )
+                    reviews = sorted((target / "harness" / "reviews").glob("*-scorecard.md"))
+                    self.assertEqual(1, len(reviews), scorecard.stdout)
+                    self.assertIn("checkedAt:", reviews[0].read_text(encoding="utf-8"))
                 if profile == "strict":
-                    self.assertTrue((target / "docs" / "harness-scorecard.md").is_file())
                     self.assertTrue((target / ".dsh" / "skills" / "red-team" / "SKILL.md").is_file())
                 # no unresolved placeholders / Duiyi terms in the generated tree
                 for path in tree_files(target):
@@ -215,6 +232,27 @@ class HarnessInitProfileTests(unittest.TestCase):
         draft_path.write_text(json.dumps(draft), encoding="utf-8")
         write = run([sys.executable, "tools/evidence.py", "write", "--from-json", str(draft_path)], cwd=target)
         self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
+        # v0.4.0：证据与 artifact 必须被 git 跟踪，verify_claim 才可复核；提交后再写 docs-pass 证据。
+        for cmd in (["git", "add", "-A"], ["git", "add", "-f", "harness/runs/junit.xml"],
+                    ["git", "commit", "-q", "-m", "test evidence"]):
+            done = run(cmd, cwd=target)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        docs_draft = {
+            "schemaVersion": 1,
+            "claim": "docs-pass",
+            "command": "python3 tools/check_docs.py",
+            "environment": {"project": "Evidence Demo", "toolchain": "python", "os": "test"},
+            "result": {"status": "SUCCEEDED", "passed": 0, "failed": 0, "skipped": 0, "durationSec": 0.0},
+            "verdict": "PASS",
+            "verifier": "kit-test",
+        }
+        docs_path = self.tmp / "docs-draft.json"
+        docs_path.write_text(json.dumps(docs_draft), encoding="utf-8")
+        docs_write = run([sys.executable, "tools/evidence.py", "write", "--from-json", str(docs_path)], cwd=target)
+        self.assertEqual(docs_write.returncode, 0, docs_write.stdout + docs_write.stderr)
+        for cmd in (["git", "add", "-A"], ["git", "commit", "-q", "-m", "docs evidence"]):
+            done = run(cmd, cwd=target)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         claim = run([sys.executable, "tools/verify_claim.py", "--all"], cwd=target)
         self.assertEqual(claim.returncode, 0, claim.stdout + claim.stderr)
         self.assertRegex(claim.stdout, r"CLAIM .*: PASS — ")
@@ -249,6 +287,28 @@ class HarnessInitProfileTests(unittest.TestCase):
         draft_path.write_text(json.dumps(draft), encoding="utf-8")
         write = run([sys.executable, "tools/evidence.py", "write", "--from-json", str(draft_path)], cwd=target)
         self.assertEqual(write.returncode, 0, write.stdout + write.stderr)
+        for cmd in (["git", "add", "-A"], ["git", "add", "-f", "harness/runs/junit.xml"],
+                    ["git", "commit", "-q", "-m", "test evidence"]):
+            done = run(cmd, cwd=target)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        docs_draft = {
+            "schemaVersion": 1,
+            "claim": "docs-pass",
+            "command": "python3 tools/check_docs.py",
+            "environment": {"project": "Release Demo", "toolchain": "python", "os": "test"},
+            "result": {"status": "SUCCEEDED", "passed": 0, "failed": 0, "skipped": 0, "durationSec": 0.0},
+            "verdict": "PASS",
+            "verifier": "kit-test",
+        }
+        docs_path = self.tmp / "docs-draft.json"
+        docs_path.write_text(json.dumps(docs_draft), encoding="utf-8")
+        docs_write = run([sys.executable, "tools/evidence.py", "write", "--from-json", str(docs_path)], cwd=target)
+        self.assertEqual(docs_write.returncode, 0, docs_write.stdout + docs_write.stderr)
+        for cmd in (["git", "add", "-A"], ["git", "commit", "-q", "-m", "docs evidence"]):
+            done = run(cmd, cwd=target)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        scorecard = run(["make", "scorecard"], cwd=target)
+        self.assertEqual(scorecard.returncode, 0, scorecard.stdout + scorecard.stderr)
         release = run(["make", "release-check"], cwd=target)
         self.assertEqual(release.returncode, 0, release.stdout + release.stderr)
 

@@ -3,7 +3,8 @@
 
 Usage:
     python3 harness-kit/scripts/harness-adopt --target ../myapp \
-        [--report REPORT.md] [--json] [--write-plan] [--root KIT_ROOT]
+        [--report REPORT.md] [--json] [--write-plan] [--test-command CMD] \
+        [--archive-report EXISTING.md] [--root KIT_ROOT]
 
 The default mode is strictly read-only: it never modifies --target. It prints a
 Markdown inventory (overview / docs / hygiene / recommendations / next steps) to stdout.
@@ -13,6 +14,14 @@ Writing is opt-in:
   --write-plan    render core/templates/harness/plans/_adoption.md.template into
                   <target>/harness/plans/<UTC-date>-adopt-harness.md (requires that
                   directory to exist; an existing plan is never overwritten)
+  --test-command  override the detected test command (report marks source/probe)
+  --archive-report
+                  copy an EXISTING inventory report to
+                  <target>/harness/reports/adoption-<YYYY-MM-DD>.md (no rescan;
+                  refuses to overwrite). Use after adoption to keep the baseline
+
+Profile guidance: existing repositories default to `standard`; `strict` is an
+explicit opt-in that must state why (adapters / red-team / release-check).
 
 Contract: sibling conventions of harness-kit/SPEC.md §8 (init) and §9 (tests).
 Standard library only; no network; no third-party dependencies.
@@ -25,6 +34,8 @@ import argparse
 import json
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -276,14 +287,160 @@ def primary_language(languages: list[str]) -> str:
     return languages[0] if languages else "other"
 
 
-def suggest_test_command(target: Path, primary: str) -> str:
+PROBE_ARGUMENTS = {"go": ["version"], "xcodebuild": ["-version"]}
+PYTEST_CONFIG_FILES = ("pytest.ini", "setup.cfg", "tox.ini")
+PYTEST_REQUIREMENT_FILES = (
+    "requirements.txt",
+    "requirements-dev.txt",
+    "requirements-test.txt",
+)
+
+
+def python_runner(target: Path) -> list[dict]:
+    """Python 解释器/启动器候选顺序：.venv → venv → uv（uv.lock）→ poetry（poetry.lock）→ python3。"""
+    launchers: list[dict] = []
+    for venv_name in (".venv", "venv"):
+        for relative in ("bin/python", "Scripts/python.exe"):
+            if (target / venv_name / relative).is_file():
+                launchers.append(
+                    {
+                        "label": f"{venv_name}/{relative}",
+                        "program": f"{venv_name}/{relative}",
+                        "note": f"检测到 {venv_name}/ 虚拟环境",
+                    }
+                )
+    if (target / "uv.lock").is_file():
+        launchers.append({"label": "uv run", "program": "uv", "note": "检测到 uv.lock（需已安装 uv）"})
+    if (target / "poetry.lock").is_file():
+        launchers.append(
+            {"label": "poetry run", "program": "poetry", "note": "检测到 poetry.lock（需已安装 poetry）"}
+        )
+    launchers.append({"label": "python3", "program": "python3", "note": "使用系统 python3"})
+    return launchers
+
+
+def pytest_evidence(target: Path) -> str | None:
+    """文件级判断项目是否用 pytest（不执行任何测试）。"""
+    pyproject = read_text(target / "pyproject.toml", limit=64 * 1024)
+    if "pytest" in pyproject:
+        return "pyproject.toml 提到 pytest"
+    for name in PYTEST_CONFIG_FILES:
+        if "pytest" in read_text(target / name, limit=64 * 1024):
+            return f"{name} 提到 pytest"
+    for name in PYTEST_REQUIREMENT_FILES:
+        text = read_text(target / name, limit=64 * 1024).lower()
+        if any(line.strip().startswith("pytest") or "pytest" in line for line in text.splitlines()):
+            return f"{name} 含 pytest 依赖"
+    return None
+
+
+def probe_candidate(target: Path, command: str) -> tuple[bool, str]:
+    """实际验证候选：跑一次只读 `--version`（10s 超时），失败继续下一候选。"""
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return False, "命令无法解析（引号不配对）"
+    if not parts:
+        return False, "命令为空"
+    first = parts[0]
+    if "/" in first or first.startswith("."):
+        if not (target / first).is_file():
+            return False, f"相对路径不存在：{first}"
+        if first.endswith(("python", "python3", "python.exe")):
+            probe = [first, "--version"]
+        else:
+            return True, f"相对路径存在：{first}（不执行 --version）"
+    elif "python" in Path(first).name:
+        if "-m" in parts and "pytest" in parts:
+            index = parts.index("-m")
+            probe = parts[: index + 2] + ["--version"]
+        else:
+            probe = [first, "--version"]
+    elif first in PROBE_ARGUMENTS:
+        probe = [first, *PROBE_ARGUMENTS[first]]
+    else:
+        probe = [first, "--version"]
+    try:
+        result = subprocess.run(
+            probe, cwd=str(target), capture_output=True, text=True, timeout=10
+        )
+    except FileNotFoundError:
+        return False, f"未找到可执行程序：{probe[0]}"
+    except subprocess.TimeoutExpired:
+        return False, f"探测超时（10s）：{' '.join(probe)}"
+    except OSError as exc:
+        return False, f"探测失败：{exc}"
+    if result.returncode == 0:
+        first_line = (result.stdout or result.stderr).strip().splitlines()
+        detail = first_line[0][:80] if first_line else "exit 0"
+        return True, f"探测通过：{detail}"
+    stderr = (result.stderr or result.stdout).strip().splitlines()
+    detail = stderr[0][:120] if stderr else f"exit {result.returncode}"
+    return False, f"探测失败（exit {result.returncode}）：{detail}"
+
+
+def python_test_candidates(target: Path) -> list[dict]:
+    pytest_note = pytest_evidence(target)
+    runners: list[tuple[str, str]] = []
+    if pytest_note:
+        runners.append(("pytest", pytest_note))
+    runners.append(("unittest", "未发现 pytest 或作为回退"))
+    candidates: list[dict] = []
+    for launcher in python_runner(target):
+        for runner, runner_note in runners:
+            if runner == "pytest":
+                body = "-m pytest -q"
+            elif (target / "tests").is_dir():
+                body = "-m unittest discover -s tests -q"
+            else:
+                body = "-m unittest discover -q"
+            candidates.append(
+                {
+                    "command": f"{launcher['label']} {body}",
+                    "source": f"{launcher['note']}；{runner_note}",
+                }
+            )
+    return candidates
+
+
+def select_test_command(target: Path, primary: str) -> dict:
+    """返回 {suggested, verified, probe, command, source}；候选探测失败会落到下一候选。"""
     if primary == "python":
-        pyproject = read_text(target / "pyproject.toml", limit=64 * 1024)
-        if "pytest" in pyproject:
-            return "python3 -m pytest -q"
-        if (target / "tests").is_dir():
-            return "python3 -m unittest discover -s tests -q"
-        return "python3 -m unittest discover -q"
+        candidates = python_test_candidates(target)
+        probes: list[str] = []
+        verified: dict | None = None
+        for candidate in candidates:
+            ok, note = probe_candidate(target, candidate["command"])
+            probes.append(f"{candidate['command']} → {'通过' if ok else '失败'}（{note}）")
+            if ok and verified is None:
+                verified = candidate
+                break
+        chosen = verified or candidates[0]
+        if verified:
+            source = f"{chosen['source']}；候选探测通过"
+        else:
+            source = f"{chosen['source']}；候选探测均失败（需宿主确认测试环境）"
+            probes.append("回退到建议命令（未验证可执行）")
+        return {
+            "suggested": candidates[0]["command"],
+            "verified": verified["command"] if verified else None,
+            "probe": "；".join(probes),
+            "command": chosen["command"],
+            "source": source,
+        }
+    command, note = suggest_simple_command(target, primary)
+    ok, probe_note = probe_candidate(target, command)
+    return {
+        "suggested": command,
+        "verified": command if ok else None,
+        "probe": f"{command} → {'通过' if ok else '失败'}（{probe_note}）",
+        "command": command,
+        "source": note + ("；探测通过" if ok else "；探测未通过（需宿主确认测试环境）"),
+    }
+
+
+def suggest_simple_command(target: Path, primary: str) -> tuple[str, str]:
+    """非 Python 语言的建议命令（沿用原有启发式）。"""
     if primary == "node":
         package = target / "package.json"
         if package.is_file():
@@ -293,21 +450,38 @@ def suggest_test_command(target: Path, primary: str) -> str:
                 data = {}
             scripts = data.get("scripts") if isinstance(data, dict) else None
             if isinstance(scripts, dict) and str(scripts.get("test") or "").strip():
-                return "npm test"
-        return "node --test"
+                return "npm test", "from package.json scripts.test"
+        return "node --test", "no scripts.test/servable package.json; using node --test (Node 18+)"
     if primary == "swift":
         if (target / "Package.swift").is_file():
-            return "swift test"
-        return "xcodebuild test  # add -scheme / -destination for this project"
+            return "swift test", "from Package.swift (SwiftPM)"
+        if any(target.glob("*.xcodeproj")):
+            return (
+                "xcodebuild test",
+                "Xcode project detected: pass --test-command with -scheme/-destination; "
+                "the kit cannot infer the scheme",
+            )
+        return "swift test", "no Package.swift; adjust for this Xcode project"
     if primary == "android":
-        # Keep this in sync with harness-init's android suggestion (C2 contract).
-        return "./gradlew testDebugUnitTest" if (target / "gradlew").is_file() else "gradle testDebugUnitTest"
+        return (
+            "./gradlew testDebugUnitTest" if (target / "gradlew").is_file() else "gradle testDebugUnitTest",
+            "Gradle project detected; JDK/wrapper versions are pinned by the project",
+        )
     if primary == "go":
-        return "go test ./..."
-    return "make test"
+        return "go test ./...", "go default"
+    return "make test", "unknown language; edit commands.test in harness/config.json"
 
 
-def recommend_profile(docs_count: int, gates: dict, has_ci: bool, has_hooks: bool, has_tests: bool) -> tuple[str, str]:
+def suggest_test_command(target: Path, primary: str) -> tuple[str, str]:
+    """兼容入口：返回 (最终建议命令, 来源说明)；候选验证结果见 select_test_command。"""
+    selection = select_test_command(target, primary)
+    return selection["command"], selection["source"]
+
+
+def recommend_profile(
+    docs_count: int, gates: dict, has_ci: bool, has_hooks: bool, has_tests: bool
+) -> dict:
+    """统一口径（V7）：存量仓库默认 standard；strict 只能显式选择并说明理由。"""
     score = 0
     reasons: list[str] = []
     if docs_count >= 5:
@@ -328,15 +502,26 @@ def recommend_profile(docs_count: int, gates: dict, has_ci: bool, has_hooks: boo
     if has_tests:
         score += 1
         reasons.append("已探测到测试入口")
-    if score >= 4:
-        profile = "strict"
-    elif score >= 2:
-        profile = "standard"
+    recommended = "standard"
+    alternative = "strict" if score >= 4 else None
+    why = (
+        f"启发式得分 {score}："
+        + ("、".join(reasons) if reasons else "未命中加强信号")
+        + "；存量仓库默认 standard（唯一 active 计划 + 三值证据 + CI 已足够）。"
+    )
+    if alternative:
+        why += (
+            " strict 仅当确有 adapters / red-team / release-check 的真实需求时，"
+            "由用户显式要求并写明理由后再选。"
+        )
     else:
-        profile = "minimal"
-    rationale = f"启发式得分 {score}：" + ("、".join(reasons) if reasons else "未命中加强信号")
-    rationale += f" → 建议 profile={profile}（接入时可用 --profile 覆盖）"
-    return profile, rationale
+        why += " 当前信号不足以证明需要 strict（adapters / red-team / release-check）。"
+    return {
+        "recommended": recommended,
+        "alternative": alternative,
+        "why": why,
+        "score": score,
+    }
 
 
 # ── findings ─────────────────────────────────────────────────────────────
@@ -450,7 +635,9 @@ def missing_gitignore_entries(target: Path) -> list[str]:
 
 
 # ── inventory ────────────────────────────────────────────────────────────
-def collect_inventory(target: Path, kit_root: Path) -> dict:
+def collect_inventory(
+    target: Path, kit_root: Path, test_command_override: str | None = None
+) -> dict:
     version = read_text(kit_root / "VERSION").strip() or "unknown"
     repo = inspect_repo(target)
     tracked = list(repo["tracked"]) or walk_project(target)
@@ -458,7 +645,24 @@ def collect_inventory(target: Path, kit_root: Path) -> dict:
 
     languages, build_files = detect_languages(target)
     primary = primary_language(languages)
-    test_command = suggest_test_command(target, primary)
+    selection = select_test_command(target, primary)
+    if test_command_override:
+        probed, probe_note = probe_candidate(target, test_command_override)
+        test_command = test_command_override
+        test_command_suggested = selection["suggested"]
+        test_command_verified = test_command_override if probed else None
+        test_command_probe = (
+            f"{test_command_override} → {'通过' if probed else '失败'}（{probe_note}）"
+        )
+        test_command_source = "--test-command 覆盖（同时保留建议命令）"
+        test_command_executable = probed
+    else:
+        test_command = selection["command"]
+        test_command_suggested = selection["suggested"]
+        test_command_verified = selection["verified"]
+        test_command_probe = selection["probe"]
+        test_command_source = selection["source"]
+        test_command_executable = bool(selection["verified"])
 
     gates_present = {name: (target / name).exists() for name in GATE_FILES}
     workflows = sorted(path.name for path in (target / ".github" / "workflows").glob("*.yml"))
@@ -468,7 +672,7 @@ def collect_inventory(target: Path, kit_root: Path) -> dict:
     has_tests = (target / "tests").is_dir() or any(
         name in tracked_set for name in ("pytest.ini", "tox.ini")
     ) or test_command != "make test"
-    profile, profile_rationale = recommend_profile(
+    profile_info = recommend_profile(
         docs_count=len([rel for rel in tracked if rel.startswith("docs/") and rel.lower().endswith(".md")]),
         gates=gates_present,
         has_ci=has_ci,
@@ -532,11 +736,14 @@ def collect_inventory(target: Path, kit_root: Path) -> dict:
 
     next_steps = [
         "审阅本报告（默认只读：未改动目标项目）",
-        f"运行 harness-init 接入（建议 --profile {profile}）："
-        f"`python3 harness-kit/scripts/harness-init --profile {profile} --target <target>`",
+        f"运行 harness-init 接入（默认 --profile {profile_info['recommended']}；"
+        f"strict 仅显式选择并写理由）："
+        f"`python3 harness-kit/scripts/harness-init --profile {profile_info['recommended']} --target <target>`",
         "先处理高风险项（被跟踪构建产物 / 绝对符号链接 / 本机路径）再提交",
         "用 `--write-plan` 生成改造计划草稿，补目标、验收与 scope.allow",
-        "接入后运行 `make check` 与 `make verify-static` 复核",
+        "接入后运行 `make check` / `make verify-static` 复核，并 `make scorecard` / `make selftest` 建立基线",
+        "接入完成后归档盘点报告："
+        "`python3 harness-kit/scripts/harness-adopt --target . --archive-report <本报告路径>`",
     ]
 
     data: dict = {
@@ -582,9 +789,16 @@ def collect_inventory(target: Path, kit_root: Path) -> dict:
             "gitignoreMissing": gitignore_missing,
         },
         "recommendation": {
-            "profile": profile,
-            "profileRationale": profile_rationale,
+            "recommended": profile_info["recommended"],
+            "alternative": profile_info["alternative"],
+            "why": profile_info["why"],
+            "score": profile_info["score"],
             "testCommand": test_command,
+            "testCommandSuggested": test_command_suggested,
+            "testCommandVerified": test_command_verified,
+            "testCommandSource": test_command_source,
+            "testCommandExecutable": test_command_executable,
+            "testCommandProbe": test_command_probe,
             "risks": risks,
         },
         "nextSteps": next_steps,
@@ -665,9 +879,24 @@ def render_markdown(data: dict) -> str:
         "",
         "## 建议",
         "",
-        f"- 建议 profile：**{recommendation['profile']}**",
-        f"- 判断理由：{recommendation['profileRationale']}",
-        f"- 建议 test 命令：`{recommendation['testCommand']}`",
+        f"- 推荐 profile：**{recommendation['recommended']}**（存量仓库默认；接入时用 `--profile` 覆盖）",
+        f"- 备选 profile："
+        + (
+            f"**{recommendation['alternative']}**（仅显式选择并说明理由）"
+            if recommendation["alternative"]
+            else "无（未发现需要 strict 的信号）"
+        ),
+        f"- 判断理由：{recommendation['why']}",
+        f"- 建议：`{recommendation['testCommandSuggested']}`",
+        f"- 探测结果（候选命令跑一次 `--version`，不跑全量测试）："
+        f"{recommendation['testCommandProbe'] or '（非 Python 语言，未做候选探测）'}",
+        "- 已验证命令："
+        + (
+            f"`{recommendation['testCommandVerified']}`"
+            if recommendation["testCommandVerified"]
+            else "（无；先在宿主跑通，或用 `--test-command` 覆盖并在接入后复验）"
+        ),
+        f"- 使用命令：`{recommendation['testCommand']}`（{recommendation['testCommandSource']}）",
         f"- 风险清单（{len(recommendation['risks'])}）：",
         *_indent([f"- [{item['severity']}] {item['detail']}" for item in recommendation["risks"]] or ["- （无）"]),
         "",
@@ -739,7 +968,12 @@ def placeholder_values(data: dict, report_ref: str) -> dict[str, str]:
         "PRIMARY_LANGUAGE": overview["primaryLanguage"],
         "LANGUAGES": ", ".join(overview["languages"]) or "unknown",
         "TEST_COMMAND": recommendation["testCommand"],
-        "PROFILE": recommendation["profile"],
+        "TEST_COMMAND_VERIFIED": recommendation["testCommandVerified"] or "（未验证）",
+        "TEST_COMMAND_SOURCE": recommendation["testCommandSource"],
+        "TEST_COMMAND_EXECUTABLE": "true" if recommendation["testCommandExecutable"] else "false",
+        "PROFILE": recommendation["recommended"],
+        "PROFILE_ALTERNATIVE": recommendation["alternative"] or "none",
+        "PROFILE_WHY": recommendation["why"],
         "KIT_VERSION": data["kitVersion"],
         "DATE": date,
         "YEAR": date[:4],
@@ -771,7 +1005,7 @@ def placeholder_values(data: dict, report_ref: str) -> dict[str, str]:
         "GITIGNORE_MISSING": ", ".join(hygiene["gitignoreMissing"]) or "none",
         # Adoption-specific aliases (templates may use either naming style)
         "ADOPTION_DATE": date,
-        "ADOPTION_PROFILE": recommendation["profile"],
+        "ADOPTION_PROFILE": recommendation["recommended"],
         "ADOPTION_SUMMARY": summary,
         "ADOPTION_FINDINGS": findings,
         "ADOPTION_RISKS": risks,
@@ -819,6 +1053,60 @@ def render_adoption_plan(target: Path, kit_root: Path, data: dict, *, report_ref
     return {"written": True, "path": str(output)}
 
 
+LOCAL_SEGMENT_RE = re.compile(r"/(?:Users|home|Volumes)/[^\s'\"`<>()\[\]{}|]+")
+
+
+def sanitize_report_text(text: str, target: Path) -> str:
+    """归档前脱敏：目标仓根相对化、用户主目录 → $HOME、常见本机路径段 → 占位。"""
+    try:
+        root = str(target.resolve())
+    except OSError:  # pragma: no cover - 防御
+        root = str(target)
+    if root and root != "/":
+        text = text.replace(root + "/", "").replace(root, ".")
+    home = str(Path.home())
+    if home and home != "/":
+        text = text.replace(home, "$HOME")
+    return LOCAL_SEGMENT_RE.sub("<local-path>", text)
+
+
+def archive_report(target: Path, source: Path) -> dict:
+    """把既有盘点报告脱敏后复制到 <target>/harness/reports/adoption-<UTC-YYYY-MM-DD>.md。
+
+    只归档、不重新扫描；拒绝覆盖已有归档报告；复制前做文本脱敏。
+    """
+    source = source.expanduser()
+    if not source.is_file():
+        raise AdoptError(f"--archive-report 文件不存在：{source}")
+    date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    reports_dir = target / "harness" / "reports"
+    destination = reports_dir / f"adoption-{date}.md"
+    if destination.exists():
+        raise AdoptError(f"拒绝覆盖已有归档报告：{destination}")
+    try:
+        original = source.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        raise AdoptError(f"无法读取待归档报告：{exc}") from exc
+    header = (
+        "> sanitized：本报告归档时已脱敏（目标仓根相对化、用户主目录 → `$HOME`、"
+        "本机路径段 → `<local-path>`）；只复制既有报告，未重新扫描。\n"
+        f"> 来源命令：`harness-adopt --archive-report {source.name}`"
+        f"（UTC {date} 归档）\n\n"
+    )
+    try:
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        destination.write_text(header + sanitize_report_text(original, target), encoding="utf-8")
+    except OSError as exc:
+        raise AdoptError(f"无法归档报告：{exc}") from exc
+    return {
+        "archived": True,
+        "sanitized": True,
+        "path": destination.relative_to(target).as_posix(),
+        "sourceName": source.name,
+        "archivedAt": f"{date}",
+    }
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -834,6 +1122,10 @@ def build_parser() -> argparse.ArgumentParser:
             "  python3 harness-kit/scripts/harness-adopt --target ../myapp --report adopt-report.md\n"
             "  python3 harness-kit/scripts/harness-adopt --target ../myapp --json\n"
             "  python3 harness-kit/scripts/harness-adopt --target ../myapp --write-plan\n"
+            "  python3 harness-kit/scripts/harness-adopt --target ../myapp "
+            "--test-command '.venv/bin/python -m pytest -q'\n"
+            "  python3 harness-kit/scripts/harness-adopt --target . "
+            "--archive-report /tmp/adoption-report.md\n"
         ),
     )
     parser.add_argument("--target", required=True, help="existing project directory to inventory (required)")
@@ -843,6 +1135,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--write-plan",
         action="store_true",
         help="render the adoption plan template into <target>/harness/plans/ (requires that directory)",
+    )
+    parser.add_argument(
+        "--test-command",
+        help="override the detected test command (report marks source and executable probe)",
+    )
+    parser.add_argument(
+        "--archive-report",
+        metavar="PATH",
+        help="copy an existing inventory report into <target>/harness/reports/ "
+        "(no rescan; refuses to overwrite)",
     )
     parser.add_argument("--root", default=str(DEFAULT_KIT_ROOT), help="kit root (default: script parent parent)")
     return parser
@@ -857,7 +1159,14 @@ def main(argv: list[str] | None = None) -> int:
             raise AdoptError(f"target directory does not exist: {target}")
         if not kit_root.is_dir():
             raise AdoptError(f"kit root does not exist: {kit_root}")
-        data = collect_inventory(target, kit_root)
+        if args.archive_report:
+            archived = archive_report(target, Path(args.archive_report))
+            if args.json:
+                print(json.dumps(archived, ensure_ascii=False, indent=2))
+            else:
+                print(f"[OK] adoption report archived: {archived['path']}")
+            return 0
+        data = collect_inventory(target, kit_root, test_command_override=args.test_command)
         report_ref = "（未生成；可用 --report 生成）"
         if args.report:
             report_path = Path(args.report).expanduser()

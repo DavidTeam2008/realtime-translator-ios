@@ -2,7 +2,7 @@
 """通用宿主卫生检查（配置驱动；标准库；不联网）。
 
 用法：
-    python3 tools/check_hygiene.py [--root PATH]
+    python3 tools/check_hygiene.py [--root PATH] [--verbose]
 
 根目录默认「本脚本上级目录」；`--root` 可覆盖。配置唯一来源是
 `<root>/harness/config.json` 的 `hygiene` 段（**可选**）：
@@ -23,6 +23,8 @@
 - 检查项：被跟踪的构建产物、根目录文件白名单、绝对符号链接、跟踪文本文件里
   的本机路径、超过 `maxTrackedFileBytes` 的跟踪文件。
 - 非 git 仓库 → `[SKIP]`，exit 0（没有「跟踪文件」可查）。
+- 本机路径扫描输出覆盖范围：`扫描 S / 跳过 K（pattern=count…）`；`--verbose`
+  额外列出最多 20 个被跳过的路径（skipLocalPathScan 的覆盖范围必须可见）。
 - 有违规 → 逐条 `[FAIL]`，exit 1。
 
 不写文件、不联网、无第三方依赖。
@@ -148,7 +150,7 @@ def tracked_symlinks(root: Path) -> list[tuple[str, str]]:
     return links
 
 
-def check_hygiene(root: Path, hygiene: dict) -> list[str]:
+def check_hygiene(root: Path, hygiene: dict) -> dict:
     problems: list[str] = []
     artifact_globs = list_field(hygiene, "trackedArtifactGlobs")
     root_allowlist = set(list_field(hygiene, "rootAllowlist"))
@@ -158,6 +160,14 @@ def check_hygiene(root: Path, hygiene: dict) -> list[str]:
     local_patterns = compile_local_patterns(list_field(hygiene, "localPathPatterns"))
 
     files = tracked_files(root) or []
+    stats = {
+        "tracked": len(files),
+        "localScanned": 0,
+        "skippedLocal": 0,
+        "skipPatterns": {},
+        "skippedPaths": [],
+        "localPathScanEnabled": bool(local_patterns),
+    }
 
     # 1) 被跟踪的构建产物
     for relative in files:
@@ -179,10 +189,15 @@ def check_hygiene(root: Path, hygiene: dict) -> list[str]:
             if target.startswith("/"):
                 problems.append(f"绝对符号链接：{relative} -> {target}")
 
-    # 4) 跟踪文本文件里的本机路径
+    # 4) 跟踪文本文件里的本机路径（同时统计 skipLocalPathScan 的覆盖范围）
     if local_patterns:
         for relative in files:
-            if any(relative.startswith(prefix) for prefix in skip_scan):
+            matched_skips = [prefix for prefix in skip_scan if relative.startswith(prefix)]
+            if matched_skips:
+                stats["skippedLocal"] += 1
+                stats["skippedPaths"].append(relative)
+                for prefix in matched_skips:
+                    stats["skipPatterns"][prefix] = stats["skipPatterns"].get(prefix, 0) + 1
                 continue
             suffix = Path(relative).suffix or Path(relative).name
             if suffix not in TEXT_SUFFIXES:
@@ -196,6 +211,7 @@ def check_hygiene(root: Path, hygiene: dict) -> list[str]:
                 text = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
+            stats["localScanned"] += 1
             for pattern_text, pattern in local_patterns:
                 match = pattern.search(text)
                 if match:
@@ -208,7 +224,8 @@ def check_hygiene(root: Path, hygiene: dict) -> list[str]:
         if path.is_file() and not path.is_symlink() and path.stat().st_size > max_bytes:
             problems.append(f"跟踪文件超过 {max_bytes} bytes：{relative}")
 
-    return problems
+    stats["problems"] = problems
+    return stats
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -218,6 +235,11 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=Path(__file__).resolve().parent.parent,
         help="项目根（默认脚本上级目录）",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="列出被 skipLocalPathScan 跳过的路径（最多 20 个）",
     )
     args = parser.parse_args(argv)
     root = args.root.expanduser().resolve()
@@ -239,18 +261,34 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        problems = check_hygiene(root, hygiene)
+        stats = check_hygiene(root, hygiene)
     except ConfigError as exc:
         fail(f"配置不可用：{exc}")
         return 1
+
+    problems = stats["problems"]
+    if stats["localPathScanEnabled"]:
+        pattern_counts = "、".join(
+            f"{pattern}={count}"
+            for pattern, count in sorted(stats["skipPatterns"].items())
+        ) or "无"
+        print(
+            f"[OK] 本机路径扫描：扫描 {stats['localScanned']} 个跟踪文件 / "
+            f"跳过 {stats['skippedLocal']}（{pattern_counts}）"
+        )
+        if args.verbose and stats["skippedPaths"]:
+            for skipped in stats["skippedPaths"][:20]:
+                print(f"[SKIP] {skipped}")
+            hidden = len(stats["skippedPaths"]) - 20
+            if hidden > 0:
+                print(f"[SKIP] …（还有 {hidden} 个被跳过的路径）")
 
     if problems:
         for problem in problems:
             fail(problem)
         print(f"[FAIL] check_hygiene 发现 {len(problems)} 个卫生问题（exit 1）")
         return 1
-    count = len(tracked_files(root) or [])
-    print(f"[OK] 卫生检查：{count} 个跟踪文件，0 违规")
+    print(f"[OK] 卫生检查：{stats['tracked']} 个跟踪文件，0 违规")
     return 0
 
 

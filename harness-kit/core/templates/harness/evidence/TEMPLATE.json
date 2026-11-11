@@ -9,9 +9,12 @@
   },
   "command": "{{TEST_COMMAND}}",
   "environment": {
+    "id": "local",
     "project": "{{PROJECT_NAME}}",
     "toolchain": "{{PROJECT_LANGUAGE}}",
-    "os": "example"
+    "os": "example",
+    "python": "3.x",
+    "requires": []
   },
   "result": {
     "status": "UNKNOWN",
@@ -19,7 +22,8 @@
     "failed": 0,
     "skipped": 0,
     "durationSec": 0,
-    "artifacts": []
+    "artifacts": [],
+    "artifactMode": "sanitized-copy"
   },
   "verdict": "UNVERIFIED",
   "verifier": "example"

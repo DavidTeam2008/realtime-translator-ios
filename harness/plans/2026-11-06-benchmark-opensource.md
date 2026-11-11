@@ -491,6 +491,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.16：kit `v0.2.9` 发版完成：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入）；新增 agent-prompts.md（8 类场景模板 + 场景对照表）；kit **122 tests**；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync；iOS CI run `42846540918` success
 - [x] Phase 5.17：kit `v0.2.10` 发版完成：README 接入路径上移 + 命令内联 + 导航拆分；agent-prompts 19 类场景模板（发布前/对抗性评审等）；整体审查修复（SPEC/schema/锚点/路径/版本一致性）；kit **122 tests**；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync；iOS CI run `42854316813` success
 - [x] Phase 5.18：kit `v0.2.11` 发版完成：`prompts/` 单源 + `harness-prompt` CLI（list/show/copy/render；按场景拼前置、路径填充、阶段 WARN、剪贴板回退）；agent-prompts 改为生成物；接入模板修复（kit 路径/0A-0B/尖括号）；独立审计两轮后复验通过；kit **140 tests**；镜像 `main` `52e1ad7` + tag `v0.2.11`（CI run `42863127498` success）、`kit-drift` in sync；iOS CI run `42862894694` success
+- [x] Phase 5.23（本地完成，待提交/发版，2026-11-11）：kit `v0.4.0` 存量接入反馈收口（barra 报告 15 项 + 红队 P0×5/P1×11 审查回应）——barra standard 档接入报告 P0/P1/P2 共 15 项（submitted scope 审计、done 零未验证+归档回读、证据 tracked/递归/SUPERSEDED、JUnit 默认脱敏、layers 覆盖率、claim 环境模型、profile 口径统一、scorecard、Makefile selftest/upgrade-check、盘点归档、测试命令探测、selftest M6、hygiene 覆盖报告、prompt 阶段检测）；方案冻结于 `harness/reviews/2026-11-11-adoption-feedback-v04/plan.md`；落地：submitted 按提交时点 scope + 例外表、归档计划审计/回读、done 零未验证+waiver、证据与 artifact 入库/递归/SUPERSEDED/必需 claim、JUnit 默认脱敏复制、claim environment/floorByEnvironment/skipped 容差、layers tracked+untracked、profile/测试命令口径统一、adopt 盘点归档、scorecard+Makefile selftest/upgrade-check、prompt 阶段检测、selftest M6 归档 fixture。验收：kit **270 tests PASS**；`make verify-static` PASS（91 iOS 脚本单测 + 270 kit tests + docs/架构/计数/harness/计划/证据/adapters）；standard init 端到端 smoke（make check/scorecard/upgrade-check/selftest/verify-static PASS）；barra 只读复验（layers 171 tracked、verify_claim 归档 UNVERIFIED 可见、check-plan strict 拦截 submitted 越界、status/handoff 归档回读；/tmp 迁移后 strict PASS）
 - [x] Phase 5.22（本地完成，待提交/发版）：kit `v0.3.0` 分发与定位收口：router skill 源（`skills/harness/`：SKILL + 9 references）与 `scripts/harness-skill`（install/check/list；manifest 记录；显式 opt-in，A/B 未完成不默认）；`harness.py intake`（需求卡机检验收判据）；`harness.py release --check`（fresh 证据分级发布检查）；`doctor --agent` 能力探测；新增 `docs/why.md`（定位/卖点/边界/与 Claude Code 关系）并重写 README 开篇与 SPEC §0 非目标；kit **175 tests**；本地 `make verify-static` **PASS**（91 iOS 脚本单测 + 175 kit tests + docs/架构/计数/harness/计划/证据/adapters 全过）；源已提交（`053af1d` / `3ec1eca`）；**已发版**：iOS CI run `42969964875` success、镜像 main `0cb27a2` + tag `v0.3.0`（镜像 CI run `42970134741` success）、tag clone 175 tests OK、`kit-drift` in sync
 - [x] Phase 5.21（本地完成，待提交/发版）：kit `v0.3.0-alpha.1` 统一入口 + 双状态对账：新增 `tools/harness.py`（`status` 一屏状态/`start` 幂等建计划/`verify` 自动同步未提交段+verify-static+计划严格校验+证据摘要/`handoff`/`plan check`/`upgrade` 指引）；`check_plan.py check --lenient-uncommitted` 与 `check-plan-strict`（verify-static 依赖）；三档 Makefile 增 `status/start/verify/handoff`；AGENTS 模板加入口与命令；新增 `test_harness_cli.py` 6 用例 + lenient 负向 1 用例；kit **163 tests**；本地 `make verify-static` **PASS**（91 iOS 脚本单测 + 163 kit tests + docs/架构/计数/harness/计划/证据/adapters 全过）；router skill 与 A/B 顺延 v0.3.0；源已提交（`c271e80` / `dd84351`）；**已发版**：iOS CI run `42968665548` success、镜像 main `a391ae8` + tag `v0.3.0-alpha.1`（镜像 CI run `42968809291` success）、tag clone 163 tests OK、`kit-drift` in sync
 - [x] Phase 5.20（本地完成，待提交/发版）：kit `v0.2.13` 升级基线：`harness-init` 写 `.harness-manifest.json`（kitVersion/profile/options/文件 sha256/append 块/skipped）；新增 `scripts/harness-upgrade`（`--check` 版本/漂移 exit 3/1/0；`--plan` 按 manifest options 重渲染三方 diff、只读；`--apply` 未实现）；真实 Android 仓（v0.2.3，legacy 无 manifest）只读预览 SAME=13 / CONFLICT=16、目标仓 0 改动；kit **156 tests**；本地 `make verify-static` **PASS**（91 iOS 脚本单测 + 156 kit tests + docs/架构/计数/harness/计划/证据/adapters 全过）；源已提交（`1d423af` / `a0b3a59`）；**已发版**：iOS CI run `42967370934` success、镜像 main `ceffca9` + tag `v0.2.13`（镜像 CI run `42967522199` success）、tag clone 156 tests OK、`kit-drift` in sync
@@ -503,6 +504,9 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
+| `cd harness-kit && python3 -m unittest discover -s tests -q`（v0.4.0） | **PASS**：`Ran 270 tests OK`（证据链 28 用例、scorecard、layers untracked、submitted scope/归档 strict、脱敏等） | 本机 python3 3.14.7 | —（过程记录：kit v0.4.0 本地回归） |
+| v0.4.0 标准档 init 端到端 smoke | **PASS**：`make check` / `make scorecard` / `make upgrade-check KIT_ROOT=…` / `make selftest`（PASS 5 / SKIP 4，SKIP≠PASS）/ `make verify-static`；status 显示 kit 0.4.0 | 本机 temp git 仓 | —（过程记录：v0.4.0 smoke） |
+| barra 只读复验（v0.4.0 候选） | **PASS（只读）**：`check_layers` 171 tracked/0 untracked；`verify_claim` 归档 UNVERIFIED 未接管 → exit 2；`check_plan` daily WARN / strict FAIL（4 个 submitted 越界 + 3 条归档未验证）；status/handoff 归档回读；/tmp 迁移（supersedes+waiver+例外表）后 strict PASS | 本机 + barra HEAD `bab9ac6`（只读） | —（过程记录：barra 复验） |
 | kit v0.3.0 发版（2026-11-11） | **PASS**：iOS main `3ec1eca` 推送 → CI run `42969964875` success；`make kit-publish` → 镜像 main `0cb27a2`；annotated tag `v0.3.0`（`e3913ad` → `0cb27a2`）；镜像 CI run `42970134741` success；tag clone VERSION `0.3.0` / `harness-skill` 可执行 / skill 源存在 / `render --check` OK / **175 tests OK**；`make kit-drift` in sync（`0cb27a2`） | 本机 + GitHub Actions 公开 API | —（外部记录：镜像发布 v0.3.0） |
 | `cd harness-kit && python3 -m unittest discover -s tests -q`（v0.3.0） | **PASS**：`Ran 175 tests OK`（router skill/installer 7 用例、intake/release 4 用例、doctor --agent 1 用例） | 本机 python3 3.14.7 | —（过程记录：kit v0.3.0 本地回归） |
 | v0.3.0 功能 smoke（init 仓） | **PASS**：`harness-skill install/check`（双 agent + manifest 记录 + 漂移 exit 1）；`intake` 有效卡建计划且 `make check` PASS、模糊判据 exit 2 且不建计划；`release --check` 无证据 exit 2 / fresh 可重算证据 PASS；`doctor --agent` 输出 Agent/CLI/skill 根/manifest | 本机 temp git 仓；kit 175 tests 覆盖 | —（过程记录：v0.3.0 功能 smoke） |
@@ -662,6 +666,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 21 | kit `v0.2.9` AI Agent 优先接入 + 提示词模板集 | README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排为 Agent 接入（推荐）→ 命令行手动接入；新增 docs/agent-prompts.md（公共前置 + 8 类场景模板 + 场景对照表）；SPEC/playbook/目录树/链接检查同步；kit 122 tests PASS；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync | 2026-11-10 |
 | 22 | kit `v0.2.10` README 重构 + 提示词模板扩充 + 整体审查修复 | README 接入路径上移、命令内联、`<kit>` 占位、导航拆分；agent-prompts 19 类场景模板（新增发布前/对抗性评审/自检/修 Bug/重构/依赖/文档/性能/安全/冷启动/方案评估）；adoption 索引分组；SPEC §5 去重、§3 可选段、§9 测试说明、config schema 补 `hygiene`/`layers`；smoke：3 profile init+门禁、adopt 双 flag、122 tests；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync | 2026-11-11 |
 | 23 | kit `v0.2.11`：提示词库 v2（单源 + 阶段前置）+ `harness-prompt` CLI | 新增 `prompts/`（2 前置 + 19 场景 + 2 附加片段）与 `scripts/harness-prompt`（`list`/`show`/`copy`/`render --check`：按场景拼前置、填 kit/目标路径、目标阶段/kit 目录 WARN、剪贴板回退、漂移校验）；`docs/agent-prompts.md` 改为生成物；`test_kit_prompts.py` 18 用例（kit 122→140）；修复接入模板缺 kit 路径、前置不适用未接入项目等直接可用性问题；独立审计（复用 auditor，只读）两轮：P1×3 + P2×8 修复后复验通过 | kit **140 tests PASS**；本地 `make verify-static` PASS；iOS CI run `42862894694` success；镜像 `main` `52e1ad7` + tag `v0.2.11`（CI run `42863127498` success）、tag clone 140 tests OK、`kit-drift` in sync | 已完成 | 2026-11-11 |
+| 28 | kit `v0.4.0` 接入反馈收口（15 项 + 红队 P0/P1） | submitted 按提交时点 scope/例外表/归档 status 硬校验；done 零未验证/waiver；证据+artifact 入库/递归/SUPERSEDED/必需 claim/接管；JUnit 默认脱敏复制；claim environment/floorByEnvironment/skipped 容差；layers tracked+untracked；profile/测试命令统一；scorecard+selftest/upgrade-check；prompt 阶段检测；selftest M6 归档 fixture | kit 270 tests PASS；`make verify-static` PASS；standard init smoke PASS；barra 只读复验通过（迁移路径在 /tmp 验证） | 2026-11-11 |
 | 27 | kit `v0.3.0` 分发与定位收口 | router skill 单入口（SKILL + 9 references）+ `harness-skill` install/check/list（manifest 记录、漂移检测、显式 opt-in）；intake 需求卡机检（模糊判据拒绝）；release --check（fresh 证据）；doctor --agent 能力探测；docs/why.md 定位文档 + README/SPEC 非目标重写；10 个新用例（kit 163→175） | kit 175 tests PASS；本地 `make verify-static` PASS；iOS main `3ec1eca` → CI run `42969964875` success；镜像 main `0cb27a2` + tag `v0.3.0`（CI run `42970134741` success）；tag clone 175 tests OK；`kit-drift` in sync | 2026-11-11 |
 | 26 | kit `v0.3.0-alpha.1` 目标侧统一入口 + 双状态对账 | 新增 `tools/harness.py`（status/start/verify/handoff/plan/upgrade；status 只读 + JSON；start 幂等且建完 make check 绿；verify 自动同步「未提交改动」+ verify-static + 计划严格校验 + 证据摘要）；`check_plan.py --lenient-uncommitted`（日常 only WARN）+ Makefile `check-plan-strict`（verify-static 依赖）；三档 Makefile 入口 target；AGENTS 模板入口；7 个新用例（kit 156→163）；真实 init 仓 smoke：status/start/verify/handoff 全 exit 0 | kit 163 tests PASS；本地 `make verify-static` PASS；iOS main `dd84351` → CI run `42968665548` success；镜像 main `a391ae8` + tag `v0.3.0-alpha.1`（CI run `42968809291` success）；tag clone 163 tests OK；`kit-drift` in sync；router skill/A-B 顺延 v0.3.0 | 2026-11-11 |
 | 25 | kit `v0.2.13` 升级基线（manifest + 只读 upgrade） | `harness-init` 写 `.harness-manifest.json`（含 options，供升级重渲染）；新增 `scripts/harness-upgrade`：`--check` 对比 manifest/文件/kit 版本（in sync 0 / 漂移 1 / 版本不符 3），`--plan` 在临时目录重渲染并输出 SAME/LOCAL_ONLY/UPGRADE/ALREADY/CONFLICT/ADD/OBSOLETE/NOT_MANAGED/APPEND（只读，不写目标）；legacy 目标也可预览；`--apply` 明确未实现；14 个新用例（kit 142→156）；真实 Android 仓 v0.2.3 只读预览：SAME=13 / CONFLICT=16 / 0 写入 | kit 156 tests PASS；本地 `make verify-static` PASS；Android 预览 exit 0 且目标仓 0 改动；iOS main `a0b3a59` → CI run `42967370934` success；镜像 main `ceffca9` + tag `v0.2.13`（CI run `42967522199` success）；tag clone 156 tests OK；`kit-drift` in sync | 2026-11-11 |
@@ -674,15 +679,64 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.3.0 发版记录已提交）。
-
-
-
-
-
-
-
-
+- 文件 / 意图 / 是否可丢弃：
+  - `harness-kit/CHANGELOG.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/README.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/SPEC.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/VERSION` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/config.schema.json` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/AGENTS.md.template` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/HARNESS.md.template` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/docs/harness-scorecard.md.template` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/harness/config.json.template` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/harness/evidence/README.md.template` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/harness/evidence/TEMPLATE.json` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/harness/evidence/schema.json` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/harness/plans/_template.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/makefiles/Makefile.standard.template` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/makefiles/Makefile.strict.template` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/tools/check_hygiene.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/tools/check_layers.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/tools/check_plan.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/tools/evidence_from_junit.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/tools/harness.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/tools/verify_claim.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/docs/adoption.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/docs/agent-prompts.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/docs/playbook.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/docs/why.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/profiles/standard.json` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/profiles/strict.json` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/prompts/adopt-brownfield.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/scripts/harness-adopt` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/scripts/harness-init` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/scripts/harness-prompt` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/scripts/harness-selftest` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/skills/harness/SKILL.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/skills/harness/references/adopt.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/skills/harness/references/collaborate.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/skills/harness/references/plan.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/skills/harness/references/release.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/skills/harness/references/status.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/skills/harness/references/verify.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_core_plan_evidence_claim.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_evidence_junit.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_harness_adopt.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_harness_cli.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_harness_selftest.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_kit_host_tools.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_kit_profiles.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_kit_prompts.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness/plans/2026-11-06-benchmark-opensource.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/templates/docs/README.standard.md.template` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/core/tools/scorecard.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_core_evidence_chain_v04.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_harness_prompt.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness-kit/tests/test_kit_scorecard_v04.py` / v0.4.0 接入反馈收口（未提交）
+  - `harness/reviews/2026-11-11-adoption-feedback-v04/README.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness/reviews/2026-11-11-adoption-feedback-v04/barra-validation.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness/reviews/2026-11-11-adoption-feedback-v04/plan.md` / v0.4.0 接入反馈收口（未提交）
+  - `harness/reviews/2026-11-11-adoption-feedback-v04/red-team-plan-review.md` / v0.4.0 接入反馈收口（未提交）
 
 ## 下一步
 
@@ -703,7 +757,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 15. kit `v0.2.13`（升级基线 + 只读 `harness-upgrade`）**已发版**（iOS CI run `42967370934` success；镜像 `main` `ceffca9` + tag `v0.2.13`；镜像 CI run `42967522199` success；tag clone 156 tests OK；`kit-drift` in sync）。`--check` 的 kitVersion exit 3 由 kit 侧脚本承担（`harness status` 在 v0.3.0）；`--apply` 应用、`check_plan` 委托 verify_claim、真实仓完整升级演练列入 v0.3.0 候选。
 16. kit `v0.3.0-alpha.1`（统一 `harness.py` 入口 + 双状态对账 + Makefile/AGENTS 入口）**已发版**（iOS CI run `42968665548` success；镜像 `main` `a391ae8` + tag `v0.3.0-alpha.1`；镜像 CI run `42968809291` success；tag clone 163 tests OK；`kit-drift` in sync）。router skill 与 A/B 顺延 v0.3.0。
 17. kit `v0.3.0`（router skill + intake + release 分级 + doctor --agent + 文档定位重写）**已发版**（iOS CI run `42969964875` success；镜像 `main` `0cb27a2` + tag `v0.3.0`；镜像 CI run `42970134741` success；tag clone 175 tests OK；`kit-drift` in sync）。A/B 未执行 → skill 显式 opt-in。
-18. 下一步：v0.3.1 跨 Agent 真实交接演练 + adapters 修复；v0.3.2 多 Agent 并发协议；v0.4 行为级 A/B + DSH 插件决策。路线图见 `harness/reviews/2026-11-11-kit-repositioning/report.md` §7。
+18. kit `v0.4.0`（存量接入反馈收口）**本地完成，待提交/发版**：见本计划 Phase 5.23 与 `harness/reviews/2026-11-11-adoption-feedback-v04/`；发布循环待用户确认。
+19. 下一步：v0.4.x 跨 Agent 真实交接演练 + 多 Agent 并发协议（原 v0.3.1/v0.3.2 内容顺延）；v0.5 行为级 A/B + DSH 插件决策。路线图见 `harness/reviews/2026-11-11-kit-repositioning/report.md` §7（按 v0.4.0 反馈更新排序）。
 
 ## 待确认
 

@@ -1,32 +1,50 @@
-# harness 评分卡
+# harness 评分卡 · {{PROJECT_NAME}}
 
-> 周期：每月或大改后；人工评审为主，机检数据只作证据。最后更新：{{YEAR}}。
+> 由 `make scorecard`（`tools/scorecard.py --generate`）生成/刷新草稿；生成器只填事实、不自动打分。
+> **自评不是认证**；「独立复评」列为 TBD 时本卡不算完成证据。最后更新：{{YEAR}}。
 > 运行手册见 [`../HARNESS.md`](../HARNESS.md)，审查流程与红队协议见 [`../{{REFERENCES_DIR}}/workflow.md`](../{{REFERENCES_DIR}}/workflow.md)。
 
-## 1. 评分口径
+## 1. 快照元数据（由生成器填写）
+
+| 项 | 值 |
+| --- | --- |
+| checkedAt | 生成时写入（UTC，`YYYY-MM-DDTHH:MM:SSZ`） |
+| commit | 生成时写入（HEAD 短 hash；dirty 数量一并记录） |
+| kitVersion | {{KIT_VERSION}} |
+| evidence | 各 claim 的最新证据 ID 与 verdict；无证据按 UNVERIFIED |
+| 测试基线 | floor / expectedSkipped（来自 `{{HARNESS_DIR}}/test-baseline.json` 与 config claims） |
+| 文档计数 | `{{DOCS_DIR}}/` + `{{REFERENCES_DIR}}/` + 根文档中现有文件数 |
+
+> 过期判定：`make check` 会跑 `tools/scorecard.py --check-stale`；超过 `maxAgeDays`（默认 30 天）
+> 或 `maxCommits`（默认 50 个提交）只 WARN，不阻断。过期后重新 `make scorecard` 并复评。
+
+## 2. 评分口径
 
 - 每项 1–5 分：1 = 缺失；3 = 有规则但不可机检；5 = 有门禁 + 有证据 + 定期复核。
 - 评分必须附证据（文件 / 命令 / 证据 ID）；无证据的评分按“未验证”处理。
-- 分数变化写进 `{{HARNESS_DIR}}/reviews/` 的当月报告。
+- 自评与独立复评**分列**：独立复评由未参与实现的人 / Agent 只读仓库后填写，不参考起草过程。
+- 分数变化写进 `{{HARNESS_DIR}}/reviews/` 的当月报告；自评只能在「自评」列，不能替代复评。
 
-## 2. 五子系统评分
+## 3. 五子系统评分
 
-| 子系统 | 关注点 | 分数（1–5） | 证据 | 改进项 |
+| 子系统 | 关注点 | 自评（1–5） | 独立复评（1–5） | 证据 |
 | --- | --- | --- | --- | --- |
-| Instructions | 根 / 嵌套指令、预算、路由、引用可解析 |  |  |  |
-| State | 计划状态机、handoff、唯一 active、证据绑定 |  |  |  |
-| Verification | 静态 / 动态门禁、证据三值、skip 白名单 |  |  |  |
-| Scope | 改动范围声明、越界拦截、DoD |  |  |  |
-| Session Lifecycle | 冷启动、健康检查、收尾与交接 |  |  |  |
+| Instructions | 根 / 嵌套指令、预算、路由、引用可解析 | TBD | TBD | `make check` / check_agents |
+| State | 计划状态机、handoff、唯一 active、证据绑定 | TBD | TBD | check_plan / verify-claim |
+| Verification | 静态 / 动态门禁、证据三值、skip 白名单 | TBD | TBD | 门禁快照 / selftest |
+| Scope | 改动范围声明、越界拦截、DoD | TBD | TBD | check_plan / scope.allow |
+| Session Lifecycle | 冷启动、健康检查、收尾与交接 | TBD | TBD | make status / handoff |
 
-## 3. 月度审计最小动作
+## 4. 月度审计最小动作
 
-1. 跑 `{{CHECK_COMMAND}}` 与 `{{VERIFY_COMMAND}}`，记录退出码与输出摘要。
-2. 对每项打分并填证据；缺失证据的项目直接降为 1–2 分。
-3. 把重复出现 ≥2 次的失败模式转成规则或门禁，写进改进项。
-4. 报告放 `{{HARNESS_DIR}}/reviews/`，作者回应写回对应计划。
+1. `make scorecard` 生成新草稿（自动跑门禁并记录命令 / exit / 关键输出）。
+2. 逐项自评并填证据；缺失证据的项目直接降为 1–2 分。
+3. 需要独立复评时，交给未参与实现的人 / Agent 只读仓库复评，填「独立复评」列。
+4. 把重复出现 ≥2 次的失败模式转成规则或门禁，写进改进项。
+5. 报告放 `{{HARNESS_DIR}}/reviews/`，作者回应写回对应计划。
 
-## 4. 结论
+## 5. 结论
 
 - 总分 = 五项之和（5–25）；低于 15 分或任一子系统 ≤ 2 分时，先补门禁再扩规模。
 - 对外只引用报告链接与证据 ID，不引用起草过程。
+- 局限：静态门禁不证明行为正确；真机 / 性能 / 翻译质量仍需人工或宿主传感器验证。

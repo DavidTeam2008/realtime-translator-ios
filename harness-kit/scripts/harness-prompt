@@ -40,7 +40,19 @@ PREAMBLE_FILES = {
     "adopted": "_preamble-adopted.md",
     "adoption": "_preamble-adoption.md",
 }
-STAGE_LABELS = {"unadopted": "未接入", "adopted": "已接入", "any": "附加"}
+STAGE_LABELS = {
+    "unadopted": "未接入",
+    "legacy": "已接入（legacy，无 manifest）",
+    "partial": "部分接入",
+    "mismatch": "manifest 与实际安装不一致",
+    "adopted": "已接入",
+    "any": "附加",
+}
+MANIFEST_NAME = ".harness-manifest.json"
+HARNESS_MAKEFILE_TARGET_RE = re.compile(
+    r"(?m)^(?:help|status|start|verify|handoff|release|check|verify-static|verify-claim|"
+    r"check-host|selftest|scorecard|plan)\s*:"
+)
 GROUP_ORDER = ("接入与接手", "需求、计划与开发", "评审与发布", "协作与收尾", "附加片段")
 CLIPBOARD_CANDIDATES = (
     ("pbcopy",),
@@ -313,12 +325,113 @@ def resolve_target(args: argparse.Namespace) -> Path:
     return target
 
 
-def detect_target_stage(target: Path) -> str:
-    """Best-effort: adopted = has a harness Makefile and harness/config.json."""
-    has_makefile = (target / "Makefile").is_file() or (target / "Makefile.harness").is_file()
-    if has_makefile and (target / "harness" / "config.json").is_file():
-        return "adopted"
-    return "unadopted"
+def makefile_text(target: Path) -> str:
+    for name in ("Makefile", "Makefile.harness"):
+        path = target / name
+        if not path.is_file():
+            continue
+        try:
+            return path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+    return ""
+
+
+def load_profile_definition(kit_root: Path, profile_name: str) -> dict | None:
+    """读取 profile（跟随一层 extends），返回合并后的定义。"""
+    path = kit_root / "profiles" / f"{profile_name}.json"
+    if not path.is_file():
+        return None
+    try:
+        profile = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(profile, dict):
+        return None
+    inherited = profile.get("extends")
+    if isinstance(inherited, str) and inherited:
+        parent = load_profile_definition(kit_root, inherited)
+        if parent is None:
+            return None
+        merged_files: dict[str, dict] = {
+            str(item.get("dst")): item for item in parent.get("files") or [] if isinstance(item, dict)
+        }
+        merged_files.update(
+            {
+                str(item.get("dst")): item
+                for item in profile.get("files") or []
+                if isinstance(item, dict)
+            }
+        )
+        merged = dict(parent)
+        merged.update(profile)
+        merged["files"] = list(merged_files.values())
+        return merged
+    return profile
+
+
+def expected_profile_files(kit_root: Path, profile_name: str) -> list[str] | None:
+    profile = load_profile_definition(kit_root, profile_name)
+    if profile is None:
+        return None
+    files = [
+        str(item["dst"])
+        for item in profile.get("files") or []
+        if isinstance(item, dict) and isinstance(item.get("dst"), str)
+    ]
+    return files
+
+
+def infer_installed_profile(target: Path) -> str | None:
+    if (target / "tools" / "doctor.py").is_file() or (target / "tools" / "adapters.py").is_file():
+        return "strict"
+    if (target / "tools" / "verify_claim.py").is_file() or (target / "harness" / "evidence").is_dir():
+        return "standard"
+    if (target / "tools" / "check_docs.py").is_file() or (target / "AGENTS.md").is_file():
+        return "minimal"
+    return None
+
+
+def detect_target_stage(target: Path, kit_root: Path) -> tuple[str, list[str]]:
+    """返回 (stage, missing)；stage ∈ adopted | partial | mismatch | legacy | unadopted。
+
+    真源是 `.harness-manifest.json`（init 写入的 profile / kitVersion / 文件清单）；
+    按该 profile 在 kit 中的期望文件集判断完整性。没有 manifest 但已有
+    `harness/config.json` 或 `tools/check_plan.py` → legacy（旧版接入，需迁移）。
+    """
+    manifest_path = target / MANIFEST_NAME
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return "mismatch", [f"{MANIFEST_NAME} 无法解析：{exc}"]
+        if not isinstance(manifest, dict):
+            return "mismatch", [f"{MANIFEST_NAME} 顶层必须是对象"]
+        profile_name = manifest.get("profile")
+        if not isinstance(profile_name, str) or not profile_name:
+            return "mismatch", [f"{MANIFEST_NAME} 缺少 profile"]
+        expected = expected_profile_files(kit_root, profile_name)
+        if expected is None:
+            return "mismatch", [f"manifest.profile={profile_name!r} 不在 kit profiles 中"]
+        missing = [rel for rel in expected if not (target / rel).is_file()]
+        makefile_present = (target / "Makefile").is_file() or (target / "Makefile.harness").is_file()
+        if not makefile_present:
+            missing.append("Makefile 或 Makefile.harness")
+        inferred = infer_installed_profile(target)
+        if inferred is not None and inferred != profile_name and not missing:
+            return "mismatch", [
+                f"manifest.profile={profile_name}，实际安装特征={inferred}"
+            ]
+        if missing:
+            return "partial", missing
+        return "adopted", []
+    if (target / "harness" / "config.json").is_file() or (target / "tools" / "check_plan.py").is_file():
+        return "legacy", [f"{MANIFEST_NAME}（legacy 接入：无法校验 profile 完整性，按迁移矩阵升级）"]
+    return "unadopted", [
+        MANIFEST_NAME,
+        "harness/config.json",
+        "tools/check_plan.py",
+    ]
 
 
 def target_warnings(prompt: dict, target: Path, kit_root: Path) -> list[str]:
@@ -331,20 +444,25 @@ def target_warnings(prompt: dict, target: Path, kit_root: Path) -> list[str]:
         )
     if prompt["kind"] != "task":
         return warnings
-    actual = detect_target_stage(target)
+    actual, missing = detect_target_stage(target, kit_root)
     if actual == prompt["stage"]:
         return warnings
-    actual_label = "已接入" if actual == "adopted" else "未接入"
+    actual_label = STAGE_LABELS.get(actual, actual)
     expected_label = "已接入" if prompt["stage"] == "adopted" else "未接入"
-    hint = (
-        f"若还没接入：先用 adopt-new / adopt-brownfield 场景。"
-        if actual == "unadopted"
-        else "若已接入：日常任务请用 fix-bug / request-feature 等场景，不要重复 init。"
-    )
+    if actual in ("partial", "mismatch"):
+        hint = "若正在接入/升级中：先按缺失项补齐或重跑 harness-init，不要跳到日常任务。"
+    elif actual == "legacy":
+        hint = "legacy 接入仍可继续日常任务，但建议按 playbook 的 v0.3.0→v0.4.0 迁移矩阵补齐 manifest 与门禁。"
+    elif actual == "unadopted":
+        hint = "若还没接入：先用 adopt-new / adopt-brownfield 场景。"
+    else:
+        hint = "若已接入：日常任务请用 fix-bug / request-feature 等场景，不要重复 init。"
     warnings.append(
         f"[WARN] 目标仓库看起来{actual_label} harness-kit，但「{prompt['id']}」是{expected_label}场景模板："
         f"前置 0A/0B 与正文命令可能不适用。{hint}"
     )
+    if actual in ("partial", "mismatch") and missing:
+        warnings.append("[WARN] 目标仓库接入缺口：" + "、".join(missing))
     return warnings
 
 
@@ -397,11 +515,13 @@ def cmd_list(args: argparse.Namespace) -> int:
     if args.stage != "all":
         prompts = [prompt for prompt in prompts
                    if (prompt["kind"] == "addon" if args.stage == "addon" else prompt["stage"] == args.stage)]
+    target_stage, target_missing = detect_target_stage(target, kit_root)
     if args.json:
         print(json.dumps({
             "kit": str(kit_root),
             "target": str(target),
-            "targetStage": detect_target_stage(target),
+            "targetStage": target_stage,
+            "targetMissing": target_missing,
             "version": kit_version(kit_root),
             "prompts": [{key: prompt[key] for key in (
                 "id", "title", "short", "number", "group", "stage", "kind", "when",
@@ -409,9 +529,15 @@ def cmd_list(args: argparse.Namespace) -> int:
             )} for prompt in prompts],
         }, ensure_ascii=False, indent=2))
         return 0
-    stage = detect_target_stage(target)
+    stage = target_stage
+    stage_label = STAGE_LABELS.get(stage, stage)
+    suffix = ""
+    if target_missing and stage in ("partial", "mismatch"):
+        suffix = f"；缺少/不一致：{'、'.join(target_missing)}"
+    elif target_missing and stage == "legacy":
+        suffix = "；建议按迁移矩阵升级（见 playbook）"
     print(f"harness-kit 提示词库 v{kit_version(kit_root)}（kit：{kit_root}）")
-    print(f"目标仓库：{target}（{'已接入' if stage == 'adopted' else '未接入'} harness-kit）")
+    print(f"目标仓库：{target}（{stage_label}{suffix}）")
     if target == kit_root.resolve() or kit_root.resolve() in target.parents:
         print(
             f"[WARN] 目标仓库是 kit 克隆目录；请在目标项目根目录运行，或加 --target <项目路径>。",

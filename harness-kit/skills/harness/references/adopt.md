@@ -9,11 +9,12 @@
 
 ## 存量项目（先只读）
 1. `python3 <kit>/scripts/harness-adopt --target <路径> --report <仓库外路径> --json`：只读盘点，不改目标仓。
-2. 按报告定 profile（存量优先 standard）、真实测试命令、文档蒸馏与清洁顺序。
+2. 按报告定 profile（**存量默认 standard；strict 必须在计划/对话里写明理由**，不要因为盘点分数高就升档）、真实测试命令（报告给「建议/探测/已验证」三列，优先 `.venv`/uv/poetry）、文档蒸馏与清洁顺序。
 3. `harness-init --dry-run` → 用户确认 → init（已有文件默认 CONFLICT，不 `--force`）→ 首次 `make check`。
 4. 用 `harness.py status` 接手；后续按 playbook 七步法推进，每步一个可验证点。
+5. 接入后收口：`harness-adopt --archive-report <盘点报告>` 归档（脱敏）→ `make scorecard` → `make selftest` → 「未验证项」清零或写豁免 → `make release`。
 
 ## 硬约束
 - 先只读、先 dry-run；`--force` 必须用户明确同意并先备份。
 - 不自动重写业务代码；文档语义蒸馏由人或 Agent 完成后由门禁验收。
-- 接入完成后：`git commit`（问用户）→ `test-count` 证据需要真实 JUnit XML（见 `verify.md`）。
+- 接入完成后：`git commit`（问用户）→ `test-count` 证据需要真实 JUnit XML（见 `verify.md`），证据与 artifact 一并入库。

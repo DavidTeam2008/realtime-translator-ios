@@ -230,6 +230,61 @@ def active_plan(plans: list[Plan]) -> Plan | None:
     return active[0] if active else None
 
 
+def load_archived_plans(root: Path, config: dict) -> list[Plan]:
+    """读取 plans/_archive/*.md（按文件名倒序，最新在前）；用于无 active 时回读。"""
+    directory = config_path(root, config, "plans") / "_archive"
+    if not directory.is_dir():
+        return []
+    plans: list[Plan] = []
+    for path in sorted(directory.glob("*.md"), reverse=True):
+        if path.name.startswith("_"):
+            continue
+        try:
+            plans.append(Plan(path, path.read_text(encoding="utf-8")))
+        except OSError:
+            continue
+    return plans
+
+
+def plan_unverified(plan: Plan) -> str:
+    """「未验证项」正文（排除「未验证豁免」节）。"""
+    lines = plan.body.splitlines()
+    starts: list[tuple[int, str]] = []
+    for index, line in enumerate(lines):
+        match = re.match(r"^##\s+(.+?)\s*$", line)
+        if match:
+            starts.append((index, match.group(1)))
+    for position, (index, title) in enumerate(starts):
+        lowered = title.lower()
+        if "豁免" in title or "waiver" in lowered or "未验证" not in title:
+            continue
+        end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
+        return "\n".join(lines[index + 1:end]).strip()
+    return ""
+
+
+def plan_summary(plan: Plan, root: Path) -> dict:
+    """计划摘要（active 与归档共用；归档回读不把它当当前计划）。"""
+    try:
+        rel = plan.path.relative_to(root).as_posix()
+    except ValueError:
+        rel = plan.path.as_posix()
+    goal = plan.goal_text()
+    return {
+        "id": plan.meta.get("id"),
+        "path": rel,
+        "archived": plan.path.parent.name == "_archive",
+        "status": plan.status,
+        "level": plan.meta.get("level"),
+        "owner": plan.meta.get("owner"),
+        "updated": plan.meta.get("updated"),
+        "submitted": str(plan.meta.get("submitted") or ""),
+        "goal": goal.splitlines()[0] if goal else "",
+        "unverified": plan_unverified(plan),
+        "next": plan.section("下一步"),
+    }
+
+
 # ── 需求卡（intake）────────────────────────────────────────────────────────
 def markdown_sections(text: str) -> dict[str, str]:
     """Split a markdown file into {heading: body} for `## ` headings."""
@@ -399,6 +454,7 @@ def evidence_summary(root: Path, config: dict) -> dict:
     directory = config_path(root, config, "evidence")
     counts = {"PASS": 0, "FAIL": 0, "UNVERIFIED": 0, "other": 0}
     claims: dict[str, dict] = {}
+    entries: list[dict] = []
     if directory.is_dir():
         for path in sorted(directory.glob("*.json")):
             if not EVIDENCE_ID_RE.fullmatch(path.stem):
@@ -415,7 +471,24 @@ def evidence_summary(root: Path, config: dict) -> dict:
             counts[verdict if verdict in counts else "other"] += 1
             claim = str(doc.get("claim") or "?")
             claims[claim] = {"id": path.stem, "verdict": verdict}
-    return {"counts": counts, "claims": claims, "total": sum(counts.values())}
+            entries.append({
+                "id": path.stem,
+                "claim": claim,
+                "verdict": verdict,
+                "createdAt": str(doc.get("createdAt") or ""),
+            })
+    archived_total = 0
+    if directory.is_dir():
+        for path in directory.rglob("*.json"):
+            if EVIDENCE_ID_RE.fullmatch(path.stem) and "_archive" in path.relative_to(directory).parts:
+                archived_total += 1
+    return {
+        "counts": counts,
+        "claims": claims,
+        "entries": entries,
+        "total": sum(counts.values()),
+        "archivedTotal": archived_total,
+    }
 
 
 # ── 子命令：status ───────────────────────────────────────────────────────
@@ -424,6 +497,8 @@ def build_status(root: Path, config: dict) -> dict:
     manifest_version = manifest.get("kitVersion") if manifest else None
     plans = load_plans(root, config)
     plan = active_plan(plans)
+    archived = load_archived_plans(root, config)
+    last_plan = archived[0] if archived else None
     evidence = evidence_summary(root, config)
     skills: list[str] = []
     for agent, rel in (("dsh", ".dsh/skills/harness/SKILL.md"), ("claude-code", ".claude/skills/harness/SKILL.md")):
@@ -445,7 +520,13 @@ def build_status(root: Path, config: dict) -> dict:
     if manifest is None:
         actions.append("没有 `.harness-manifest.json`（v0.2.13 之前接入）：升级/漂移检查走 playbook 手工路径")
     if plan is None:
-        actions.append("创建首个计划：`python3 tools/harness.py start --topic <topic> --goal \"<目标>\"`")
+        if last_plan is not None:
+            actions.append(
+                f"无 active 计划；先读上一计划 {last_plan.meta.get('id')}（{last_plan.path.relative_to(root).as_posix() if last_plan.path.is_relative_to(root) else last_plan.path}）："
+                "核对「未验证项」与「下一步」后再决定新建计划"
+            )
+        else:
+            actions.append("创建首个计划：`python3 tools/harness.py start --topic <topic> --goal \"<目标>\"`")
     else:
         unresolved = [path for path in scoped_actual if not path_covered(declared, path)]
         stale = [path for path in declared if not path_covered(set(scoped_actual), path)]
@@ -465,23 +546,19 @@ def build_status(root: Path, config: dict) -> dict:
         "manifestKitVersion": manifest_version,
         "profile": (manifest or {}).get("profile"),
         "versionProblem": version_problem,
-        "plan": None if plan is None else {
-            "id": plan.meta.get("id"),
-            "path": plan.rel,
-            "status": plan.status,
-            "level": plan.meta.get("level"),
-            "owner": plan.meta.get("owner"),
-            "updated": plan.meta.get("updated"),
-            "goal": plan.goal_text().splitlines()[0] if plan.goal_text() else "",
-        },
+        "plan": None if plan is None else plan_summary(plan, root),
+        "lastPlan": None if last_plan is None else plan_summary(last_plan, root),
         "plans": len(plans),
+        "archivedPlans": len(archived),
         "activePlans": sum(1 for item in plans if item.status == "active"),
         "git": {
             "dirty": sorted(actual),
             "scoped": scoped_actual,
             "declared": sorted(declared),
-            "inSync": not [p for p in scoped_actual if not path_covered(declared, p)]
-                      and not [p for p in declared if not path_covered(set(scoped_actual), p)],
+            "inSync": None if plan is None else (
+                not [p for p in scoped_actual if not path_covered(declared, p)]
+                and not [p for p in declared if not path_covered(set(scoped_actual), p)]
+            ),
         },
         "evidence": evidence,
         "skills": skills,
@@ -505,12 +582,35 @@ def cmd_status(root: Path, args: argparse.Namespace) -> int:
     if plan is not None:
         plan_line = f"{plan['id']} ({plan['status']}/{plan['level']}, owner={plan['owner']}, updated={plan['updated']})"
     print(f"计划: {plan_line}")
+    last = result["lastPlan"]
+    if plan is None and last is not None:
+        print(f"上一计划（已归档）: {last['id']} ({last['status']}, updated={last['updated']}) · {last['path']}")
+        print("        归档时点快照：未验证项可能已被后续证据解决；这是历史，不是当前计划。")
+        newer = [
+            item for item in result["evidence"].get("entries", [])
+            if item["verdict"] == "PASS" and str(item["createdAt"])[:10] > str(last["updated"] or "")
+        ]
+        if newer:
+            shown = "、".join(item["id"] for item in newer[:5])
+            print(f"        归档后新增 PASS 证据：{shown}{'…' if len(newer) > 5 else ''}")
+        unverified = (last["unverified"] or "").strip()
+        if unverified:
+            preview = re.sub(r"\s+", " ", unverified)[:300]
+            print(f"上一计划未验证项: {preview}{'…' if len(preview) >= 300 else ''}")
+        next_step = (last["next"] or "").strip()
+        if next_step:
+            preview = re.sub(r"\s+", " ", next_step)[:300]
+            print(f"上一计划下一步: {preview}{'…' if len(preview) >= 300 else ''}")
     if plan is not None and plan["goal"]:
         print(f"目标: {plan['goal'][:100]}")
     git_info = result["git"]
-    print(f"未提交: {len(git_info['dirty'])} 个（scope 内 {len(git_info['scoped'])}；与计划声明{'一致' if git_info['inSync'] else '不一致'}）")
+    if plan is None:
+        print(f"未提交: {len(git_info['dirty'])} 个（无 active 计划，不做范围校验）")
+    else:
+        print(f"未提交: {len(git_info['dirty'])} 个（scope 内 {len(git_info['scoped'])}；与计划声明{'一致' if git_info['inSync'] else '不一致'}）")
     counts = result["evidence"]["counts"]
-    print(f"证据: {result['evidence']['total']} 条（PASS={counts['PASS']} / UNVERIFIED={counts['UNVERIFIED']} / FAIL={counts['FAIL']}）")
+    archived_note = f"；归档 {result['evidence'].get('archivedTotal', 0)} 条（不参与判定）" if result['evidence'].get('archivedTotal') else ""
+    print(f"证据: {result['evidence']['total']} 条（PASS={counts['PASS']} / UNVERIFIED={counts['UNVERIFIED']} / FAIL={counts['FAIL']}{archived_note}）")
     print(f"skill: {', '.join(result['skills']) if result['skills'] else '未安装（可选；kit 侧 harness-skill install）'}")
     if result["versionProblem"]:
         print(f"[WARN] {result['versionProblem']}")
@@ -698,7 +798,9 @@ def cmd_verify(root: Path, args: argparse.Namespace) -> int:
     plan_code = 0
     if plans:
         print("== plan check (strict) ==")
-        proc = subprocess.run([sys.executable, "tools/check_plan.py", "check"], cwd=str(root))
+        proc = subprocess.run(
+            [sys.executable, "tools/check_plan.py", "check", "--strict"], cwd=str(root)
+        )
         plan_code = proc.returncode
     claims_code = 0
     if (root / "tools" / "verify_claim.py").is_file():
@@ -730,6 +832,8 @@ def cmd_handoff(root: Path, args: argparse.Namespace) -> int:
         return int(exc.code or 1)
     plans = load_plans(root, config)
     plan = active_plan(plans)
+    archived = load_archived_plans(root, config)
+    last_plan = archived[0] if archived else None
     if plan is not None:
         sync_uncommitted(plan, root)
     brief = subprocess.run(
@@ -744,8 +848,10 @@ def cmd_handoff(root: Path, args: argparse.Namespace) -> int:
             "id": plan.meta.get("id"), "status": plan.status, "level": plan.meta.get("level"),
             "owner": plan.meta.get("owner"), "updated": plan.meta.get("updated"),
             "path": plan.rel, "goal": plan.goal_text(), "next": plan.section("下一步"),
-            "unverified": plan.section("未验证项", "未验证"),
+            "unverified": plan_unverified(plan),
         },
+        "lastPlan": None if last_plan is None else plan_summary(last_plan, root),
+        "archivedPlans": len(archived),
         "evidence": evidence,
         "plans": len(plans),
         "briefExit": brief.returncode,
@@ -754,12 +860,30 @@ def cmd_handoff(root: Path, args: argparse.Namespace) -> int:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     if plan is None:
-        print("没有 active 计划：无交接状态可固化。先 `python3 tools/harness.py start --topic <topic>`。")
+        if last_plan is None:
+            print("没有 active 计划：无交接状态可固化。先 `python3 tools/harness.py start --topic <topic>`。")
+            return 0
+        summary = plan_summary(last_plan, root)
+        counts = evidence["counts"]
+        print("# handoff（无 active 计划；回读最近归档计划·历史快照）")
+        print(f"上一计划: {summary['id']} status={summary['status']} updated={summary['updated']} path={summary['path']}")
+        newer = [
+            item for item in evidence.get("entries", [])
+            if item["verdict"] == "PASS" and str(item["createdAt"])[:10] > str(summary["updated"] or "")
+        ]
+        if newer:
+            print(f"归档后新增 PASS 证据: {'、'.join(item['id'] for item in newer[:5])}")
+        print(f"目标: {summary['goal'] or '（未填写）'}")
+        print(f"未验证项: {summary['unverified'] or '（无）'}")
+        print(f"下一步: {summary['next'] or '（未填写）'}")
+        archived_note = f"；归档 {evidence.get('archivedTotal', 0)} 条（不参与判定）" if evidence.get("archivedTotal") else ""
+        print(f"证据: {evidence['total']} 条（PASS={counts['PASS']} / UNVERIFIED={counts['UNVERIFIED']} / FAIL={counts['FAIL']}{archived_note}）")
+        print("提示：归档计划不是当前计划；核对未验证项后新建计划再继续。")
         return 0
     print(f"# handoff · {plan.meta.get('id')}")
     print(f"status={plan.status} level={plan.meta.get('level')} owner={plan.meta.get('owner')} updated={plan.meta.get('updated')}")
     print(f"目标: {plan.goal_text().splitlines()[0] if plan.goal_text() else '（未填写）'}")
-    unverified = plan.section("未验证项", "未验证")
+    unverified = plan_unverified(plan)
     print(f"未验证项: {unverified or '（无）'}")
     counts = evidence["counts"]
     print(f"证据: {evidence['total']} 条（PASS={counts['PASS']} / UNVERIFIED={counts['UNVERIFIED']} / FAIL={counts['FAIL']}）")

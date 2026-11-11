@@ -180,33 +180,128 @@ class IntakeReleaseTests(unittest.TestCase):
     def test_release_passes_with_fresh_rerunnable_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             host = init_host(Path(tmp), "release-pass")
-            (host / "harness" / "runs").mkdir(parents=True, exist_ok=True)
-            (host / "harness" / "runs" / "junit.xml").write_text(
+            artifacts = host / "harness" / "evidence" / "artifacts"
+            artifacts.mkdir(parents=True, exist_ok=True)
+            (artifacts / "junit.xml").write_text(
                 '<testsuite name="s" tests="1"><testcase classname="t" name="ok"/></testsuite>',
                 encoding="utf-8",
             )
             commit = git(host, "rev-parse", "--short=12", "HEAD").stdout.strip()
-            evidence = {
+            base = {
                 "schemaVersion": 1,
-                "id": "20260101T000000Z-tests-pass",
-                "claim": "tests-pass",
                 "createdAt": "2026-01-01T00:00:00Z",
                 "git": {"commit": commit, "dirty": False},
-                "command": "make test",
                 "environment": {"project": "CLI Demo", "toolchain": "python", "os": "test"},
-                "result": {
-                    "status": "SUCCEEDED", "passed": 1, "failed": 0, "skipped": 0,
-                    "durationSec": 0.1, "artifacts": ["harness/runs/junit.xml"],
-                },
                 "verdict": "PASS",
                 "verifier": "kit-test",
             }
-            (host / "harness" / "evidence" / "20260101T000000Z-tests-pass.json").write_text(
-                json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            tests = dict(base)
+            tests.update({
+                "id": "20260101T000000Z-tests-pass",
+                "claim": "tests-pass",
+                "command": "make test",
+                "result": {
+                    "status": "SUCCEEDED", "passed": 1, "failed": 0, "skipped": 0,
+                    "durationSec": 0.1, "artifacts": ["harness/evidence/artifacts/junit.xml"],
+                },
+            })
+            docs = dict(base)
+            docs.update({
+                "id": "20260101T000001Z-docs-pass",
+                "claim": "docs-pass",
+                "command": "python3 tools/check_docs.py",
+                "result": {"status": "SUCCEEDED", "passed": 0, "failed": 0, "skipped": 0},
+            })
+            for doc in (tests, docs):
+                (host / "harness" / "evidence" / f"{doc['id']}.json").write_text(
+                    json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+            assert git(host, "add", "-A").returncode == 0
+            assert git(host, "commit", "-q", "-m", "evidence").returncode == 0
             proc = harness(host, "release", "--check")
             self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
             self.assertIn("== release: PASS ==", proc.stdout)
+
+
+ARCHIVED_PLAN = """---
+id: 2026-11-11-previous-task
+status: done
+level: L2
+owner: kit-test
+updated: 2026-11-11
+scope:
+  allow:
+    - harness/
+acceptance:
+  - done
+verify:
+  - make check
+---
+
+# 2026-11-11-previous-task · 上一轮任务
+
+## 目标与非目标
+
+- 目标：上一轮任务
+
+## 验收
+
+- [x] done
+
+## 验证证据
+
+| 命令 | 结果 | 环境 | 证据ID |
+| --- | --- | --- | --- |
+| make check | 基线 | 本机 | —（过程记录） |
+
+## 未验证项
+
+- 服务器 pytest 未取回
+
+## 下一步
+
+1. SSH 恢复后补跑服务器测试
+"""
+
+
+class ArchivedPlanReadbackTests(unittest.TestCase):
+    def _host_with_archived_plan(self, tmp: str) -> Path:
+        host = init_host(Path(tmp), "archive-host")
+        archive = host / "harness" / "plans" / "_archive"
+        archive.mkdir(parents=True, exist_ok=True)
+        (archive / "2026-11-11-previous-task.md").write_text(ARCHIVED_PLAN, encoding="utf-8")
+        assert git(host, "add", "-A").returncode == 0
+        assert git(host, "commit", "-q", "-m", "archive plan").returncode == 0
+        return host
+
+    def test_status_reads_back_archived_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            host = self._host_with_archived_plan(tmp)
+            proc = harness(host, "status")
+            self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+            self.assertIn("无 active 计划", proc.stdout)
+            self.assertIn("上一计划", proc.stdout)
+            self.assertIn("服务器 pytest 未取回", proc.stdout)
+            self.assertIn("SSH 恢复后补跑服务器测试", proc.stdout)
+            self.assertNotIn("创建首个计划", proc.stdout)
+            data = json.loads(harness(host, "status", "--json").stdout)
+            self.assertIsNone(data["plan"])
+            self.assertIsNone(data["git"]["inSync"])
+            self.assertEqual(1, data["archivedPlans"])
+            self.assertEqual("2026-11-11-previous-task", data["lastPlan"]["id"])
+            self.assertIn("服务器 pytest 未取回", data["lastPlan"]["unverified"])
+
+    def test_handoff_reads_back_archived_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            host = self._host_with_archived_plan(tmp)
+            proc = harness(host, "handoff")
+            self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+            self.assertIn("回读最近归档计划", proc.stdout)
+            self.assertIn("2026-11-11-previous-task", proc.stdout)
+            self.assertIn("服务器 pytest 未取回", proc.stdout)
+            data = json.loads(harness(host, "handoff", "--json").stdout)
+            self.assertIsNone(data["plan"])
+            self.assertEqual("2026-11-11-previous-task", data["lastPlan"]["id"])
 
 
 class MinimalProfileTests(unittest.TestCase):

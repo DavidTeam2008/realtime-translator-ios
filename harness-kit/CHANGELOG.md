@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.4.0 — 2026-11-11
+
+> 来源：真实存量仓库（Python/MySQL 单体，standard 档）接入反馈 15 项（P0×6 / P1×6 / P2×3）+
+> 独立红队对冻结方案的 P0×5 / P1×11 审查。主题：**闭环可回读、绕过路径收口、接入体验一致**。
+
+### 安全边界与状态真源
+
+- **`submitted` 增量 scope 审计**：`check_plan` 对每个 submitted commit 读取**提交时点**的计划
+  scope；越界 FAIL；计划 scope 在提交后被修改 → WARN（`--strict` FAIL）；计划与提交同批修改
+  → `--strict` FAIL；merge 只与第一父比较（two-tree diff）。`scope.exceptions` 改为
+  「提交范围例外」表（路径/理由/负责人/到期日，理由≥5 字、到期≤上限）。
+- **归档计划不再免检**：`_archive/*.md` 扫描；`status` 非 done/archived → 硬 FAIL；归档 done
+  的内容问题日常 WARN、`check-plan-strict`（`--strict`）FAIL，并提示「先归档再跑门禁」不可用。
+- **done 零未验证**：「未验证项」非空时必须有「未验证豁免」表，逐条覆盖（去 markdown 修饰后
+  匹配）、理由非空泛、到期 ≤ `config.waiver.maxDays`（默认 90 天）且未过期。
+- **归档回读**：无 active 计划时 `harness.py status` / `handoff` 回读最近归档计划，标注
+  「归档时点快照」+ 列出归档后新增 PASS 证据；`git.inSync=null` 不再伪造「一致」。
+- **证据入库**：当前证据 JSON 与其 artifact 都必须被 git 跟踪，否则 PASS → UNVERIFIED
+  （`--strict` 下 `--allow-untracked` 无效）；递归扫描证据目录，`_archive` 证据输出
+  `SUPERSEDED` 不参与聚合；归档 FAIL/UNVERIFIED 必须由当前 PASS 证据 `supersedes` 合法接管，
+  否则聚合 UNVERIFIED；**必需 claim 完整性**（`required` 默认 true）缺失 → UNVERIFIED。
+- **JUnit 默认脱敏**：`evidence_from_junit` 默认复制脱敏产物到 `<evidence>/artifacts/`
+  （删 system-out/err、hostname、敏感 property；failure/error message/type 与 testcase
+  classname/file/文本脱敏；仓库根相对化、`$HOME`）；5 MiB 上限、symlink 拒绝、原子写、
+  脱敏后重算计数不一致 exit 2；`--keep-raw` 为显式逃生口（仓库外路径会判 UNVERIFIED）。
+- **测试环境模型**：claim `environment`（id/requires/os/python，边界匹配）、
+  `floorByEnvironment`、`expectedSkipped` int/{min,max}/{byEnvironment} + 区间宽度上限
+  （`harden.maxSkippedRange`，默认 5）；环境不匹配 → UNVERIFIED；static claim 不再做 freshness
+  STALE 判定。
+- **传感器可信度**：`check_layers` 文件发现改为 `git ls-files` + 未跟踪源文件，默认排除
+  `.venv/node_modules/build/...`，输出 tracked/untracked、每规则 eligible/matched/violations；
+  规则 0 匹配 WARN（`--strict` FAIL）；`check_hygiene` 输出跳过文件数与 pattern，`--verbose`
+  列出跳过路径。
+- **接入体验**：profile 口径统一为「standard 默认；strict 显式选择 + 理由」；Python 测试命令
+  候选链 `.venv→venv→uv→poetry→python3` 并逐候选探测可执行性；`harness-adopt --archive-report`
+  UTC 日期归档 + 脱敏；`harness-prompt` 阶段检测升级为
+  adopted/partial(缺项)/mismatch/legacy/unadopted（以 manifest 为真源）。
+- **评分卡进 standard**：新增 `tools/scorecard.py`（`--generate` 记录门禁快照/证据 ID/测试与
+  文档计数，不自动打分；`--check-stale` 缺省/超 30 天/超 50 commits/commit 非祖先 → WARN，
+  `--strict` exit 1），`make scorecard`；strict `release-check` 增加 scorecard 时效门禁。
+- **Makefile/标准档**：新增 `selftest`（`tools/harness_selftest`）、`upgrade-check`
+  （需 `KIT_ROOT`）、`scorecard`；`check-plan-strict` 使用 `check_plan.py check --strict`。
+- **selftest**：M6 无 active 时用归档计划构造两个 active fixture（不再静默 SKIP）；注入断言支持
+  `expect_contains`；汇总区分「不适用」并注明 SKIP ≠ PASS。
+
+### 兼容与迁移
+
+- 已接入 v0.3.0 的仓库升级后可能出现新的红/WARN：submitted 越界、done 计划未验证项、证据/artifact
+  未入库、归档计划内容问题、layers 未跟踪源文件；迁移矩阵与修复命令见 `docs/playbook.md`
+  「v0.3.0 → v0.4.0 升级自检」。legacy 归档计划的 scope 审计使用当前 scope 并 WARN（提交早于
+  计划文件无法回溯）；建议补「未验证豁免」/「提交范围例外」后重跑 strict。
+- 新增证据字段（可选）：`environment.id/requires/os/python`、`supersedes/supersededBy`、
+  `artifactMode`；新增 config 段（可选）：`scorecard`、`harden.maxSkippedRange`、
+  `waiver.maxDays`、`claims[].required/environment/floorByEnvironment`、`layers.exclude`。
+- 测试：kit 175 → **270**。
+
 ## 0.3.0 — 2026-11-11
 
 - **router skill（显式安装，默认不启用）**：新增 `skills/harness/`（`SKILL.md` + 9 个 references：

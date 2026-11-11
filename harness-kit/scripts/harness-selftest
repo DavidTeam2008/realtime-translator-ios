@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -188,6 +189,7 @@ class Mutation:
     applicable: bool = True
     skip_reason: str = ""
     mutate: Callable[[Path], None] | None = None
+    expect_contains: str | None = None
     cleanup: Callable[[Path], None] | None = None
 
 
@@ -231,13 +233,9 @@ def build_mutations(repo: Path, config: dict, staging: Path) -> list[Mutation]:
         "M5", "根指令追加本机路径标记", "tools/check_agents.py", mutate=sensitive_marker,
     ))
 
+    second_active_fragment = "同时存在 2 个 active"
     active = find_active_plan(repo)
-    if active is None:
-        mutations.append(Mutation(
-            "M6", "复制 active 计划为第二个 active", "tools/check_plan.py", ["check"],
-            applicable=False, skip_reason="没有 active 计划（host 还没有进行中的计划）",
-        ))
-    else:
+    if active is not None:
         target = active.with_name("__selftest__-second-active.md")
 
         def second_active(repo: Path, source: Path = active, destination: Path = target) -> None:
@@ -245,8 +243,34 @@ def build_mutations(repo: Path, config: dict, staging: Path) -> list[Mutation]:
 
         mutations.append(Mutation(
             "M6", "复制 active 计划为第二个 active", "tools/check_plan.py", ["check"],
-            mutate=second_active,
+            mutate=second_active, expect_contains=second_active_fragment,
         ))
+    else:
+        # 没有 active 计划时，用最近归档计划造两个 active fixture；归档计划缺失才 SKIP。
+        plans_dir = repo / "harness" / "plans"
+        archived = sorted((plans_dir / "_archive").glob("*.md"), reverse=True) if (plans_dir / "_archive").is_dir() else []
+        if not archived:
+            mutations.append(Mutation(
+                "M6", "用归档计划造两个 active", "tools/check_plan.py", ["check"],
+                applicable=False, skip_reason="既没有 active 计划，也没有归档计划可作 fixture",
+            ))
+        else:
+            latest = archived[0]
+            fixtures = [
+                plans_dir / "__selftest__-archived-a.md",
+                plans_dir / "__selftest__-archived-b.md",
+            ]
+
+            def archived_active(repo: Path, source: Path = latest, targets: list[Path] = fixtures) -> None:
+                text = read_text(source)
+                text = re.sub(r"(?m)^status:\s*\S+\s*$", "status: active", text, count=1)
+                for destination in targets:
+                    write_text(destination, text)
+
+            mutations.append(Mutation(
+                "M6", "用归档计划造两个 active", "tools/check_plan.py", ["check"],
+                mutate=archived_active, expect_contains=second_active_fragment,
+            ))
 
     evidence = evidence_docs(repo)
     staging.mkdir(parents=True, exist_ok=True)
@@ -372,12 +396,11 @@ def build_mutations(repo: Path, config: dict, staging: Path) -> list[Mutation]:
 
 
 # ── execution ─────────────────────────────────────────────────────────────
-def run_gate(repo: Path, mutation: Mutation) -> int:
+def run_gate(repo: Path, mutation: Mutation) -> subprocess.CompletedProcess[str]:
     script = repo / mutation.gate
     if not script.is_file():
         raise SelftestError(f"gate 脚本不存在：{mutation.gate}")
-    proc = run([sys.executable, str(script), *mutation.args], cwd=repo)
-    return proc.returncode
+    return run([sys.executable, str(script), *mutation.args], cwd=repo)
 
 
 def execute_mutations(repo: Path, mutations: list[Mutation]) -> list[dict]:
@@ -388,9 +411,10 @@ def execute_mutations(repo: Path, mutations: list[Mutation]) -> list[dict]:
             "description": mutation.description,
             "gate": mutation.gate,
             "args": mutation.args,
-            "expected": "!=0",
+            "expected": ("!=0" if mutation.expect_contains is None else f"!=0 & {mutation.expect_contains}"),
             "exit": None,
             "status": SKIP,
+            "applicable": mutation.applicable and mutation.mutate is not None,
             "skipReason": mutation.skip_reason,
             "detail": "",
         }
@@ -399,11 +423,18 @@ def execute_mutations(repo: Path, mutations: list[Mutation]) -> list[dict]:
             continue
         try:
             mutation.mutate(repo)
-            exit_code = run_gate(repo, mutation)
+            proc = run_gate(repo, mutation)
+            exit_code = proc.returncode
+            output = (proc.stdout or "") + (proc.stderr or "")
             record["exit"] = exit_code
-            record["status"] = PASS if exit_code != 0 else FAIL
             if exit_code == 0:
+                record["status"] = FAIL
                 record["detail"] = "门禁没有拒绝该注入（期望非 0）"
+            elif mutation.expect_contains and mutation.expect_contains not in output:
+                record["status"] = FAIL
+                record["detail"] = f"输出缺少预期片段：{mutation.expect_contains}"
+            else:
+                record["status"] = PASS
         except SelftestError as exc:
             record["status"] = FAIL
             record["detail"] = str(exc)
@@ -446,7 +477,8 @@ def render_matrix(result: dict) -> str:
     summary = result["summary"]
     verdict = "PASS" if result["ok"] else "FAIL"
     lines.append(
-        f"summary: PASS {summary['pass']} / FAIL {summary['fail']} / SKIP {summary['skip']} -> RESULT {verdict}"
+        f"summary: PASS {summary['pass']} / FAIL {summary['fail']} / SKIP {summary['skip']}"
+        f"（不适用 {summary.get('notApplicable', 0)}；SKIP ≠ PASS） -> RESULT {verdict}"
     )
     if result.get("kept"):
         lines.append(f"kept workdir: {result['kept']}")
@@ -512,7 +544,7 @@ def main(argv: list[str] | None = None) -> int:
         "baseline": {"gate": "make check", "exit": None, "ok": False},
         "mutations": [],
         "recovery": {"gate": "make check", "exit": None, "ok": False},
-        "summary": {"pass": 0, "fail": 0, "skip": 0},
+        "summary": {"pass": 0, "fail": 0, "skip": 0, "notApplicable": 0},
         "ok": False,
         "exitCode": 2,
         "kept": str(workdir) if args.keep else None,
@@ -551,7 +583,7 @@ def main(argv: list[str] | None = None) -> int:
         mutations = build_mutations(repo, config, workdir / STAGING_DIRNAME)
         results = execute_mutations(repo, mutations)
         result["mutations"] = results
-        counts = {"pass": 0, "fail": 0, "skip": 0}
+        counts = {"pass": 0, "fail": 0, "skip": 0, "notApplicable": 0}
         for item in results:
             if item["status"] == PASS:
                 counts["pass"] += 1
@@ -559,6 +591,8 @@ def main(argv: list[str] | None = None) -> int:
                 counts["fail"] += 1
             else:
                 counts["skip"] += 1
+                if not item.get("applicable", True):
+                    counts["notApplicable"] += 1
         result["summary"] = counts
 
         recovery = run(["make", "check"], cwd=repo)

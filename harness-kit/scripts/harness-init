@@ -458,6 +458,15 @@ def write_summary(target: Path, profile_name: str, created: list[str], skipped: 
     print("  3. Read HARNESS.md (standard/strict) or docs/README.md, then AGENTS.md.")
     print("  4. Commit the scaffold; keep plans/evidence in the harness/ workspace.")
     print("  5. Optional: install git hooks (`git config core.hooksPath .githooks`).")
+    print(
+        "  6. Brownfield only: archive the read-only inventory report after adoption "
+        "(keeps the pre-adoption baseline in-repo):"
+    )
+    print(
+        "     <kit>/scripts/harness-adopt --target . "
+        "--archive-report <path-to-inventory-report.md>"
+    )
+    print("  7. Build the baseline: `make scorecard` (draft) and `make selftest` (mutation check).")
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -2,8 +2,9 @@
 
 ## 交接
 - `python3 tools/harness.py handoff`（或 `--json`）：输出计划/状态/证据/未验证/下一步；先自动同步未提交段。
+- 没有 active 计划时 handoff 回读最近归档计划，并明确标注「历史快照」；不要把归档未验证项当成当前 blocker，也不要往 `_archive` 写东西。
 - 交接内容以仓库计划为准；对话里说过的等于没说过。
-- 下一棒冷启动：`harness.py status` → 读 active 计划 → 从“下一步”继续。
+- 下一棒冷启动：`harness.py status` → 读 active 计划（无则读 `lastPlan` + 归档后新增 PASS 证据）→ 从“下一步”继续。
 
 ## 多 Agent（当前 = 串行接力，v0.3.2 才规划并发门禁）
 - 同一时间只允许一个 active 计划；并行前先约定写作用域，用独立分支/worktree，合并前统一跑 `verify`。

@@ -13,7 +13,7 @@
   "properties": {
     "kitVersion": {
       "type": "string",
-      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
     },
     "project": {
       "type": "object",
@@ -168,13 +168,52 @@
             "type": "string"
           },
           "expectedSkipped": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
           },
           "command": {
             "type": "string"
           },
           "requireArtifact": {
             "type": "boolean"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "environment": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "requires": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "os": {
+                "type": "string"
+              },
+              "python": {
+                "type": "string"
+              }
+            }
+          },
+          "floorByEnvironment": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         }
       }
@@ -252,6 +291,50 @@
           "items": {
             "type": "object"
           }
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "scorecard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxAgeDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxCommits": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "harden": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxSkippedRange": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "exceptionMaxDays": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     }

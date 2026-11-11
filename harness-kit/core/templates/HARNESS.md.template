@@ -27,19 +27,25 @@ harness 的目标是让完成声明**可复跑、可否定、可交接**，而�
 | `make check` / `make verify-static` | 静态传感器 | 文档链接/围栏/索引/预算/指令/计划/证据 |
 | `{{HARNESS_DIR}}/evidence/*.json` + `make verify-claim` | 证据传感器 | 三值判定（PASS/FAIL/UNVERIFIED） |
 | 计划 front matter + `make plan` | 状态传感器 | 唯一 active、验收、范围、未提交改动 |
+| `make check` 的 scorecard 过期提醒 + `make scorecard` | 复核传感器 | 评分卡草稿（自评/独立复评 TBD）；过期只 WARN |
+| `make selftest` | 门禁自检 | 负向注入：证明门禁真的会红 |
 | CI / pre-push（若启用） | 自动化传感器 | `make verify-static` |
 
 ## 4. 证据政策
 
-- 证据是**摘要**（1–3KB JSON）：命令、环境、计数、commit、verdict；原始产物不入库。
+- 证据是**摘要**（1–3KB JSON）：命令、环境、计数、commit、verdict；原始日志不入库。
+- **证据 JSON 与 `artifacts/` 里的脱敏 JUnit 都必须 `git add` 入库**；未跟踪证据/artifact 的 PASS 会被判 UNVERIFIED。
+- **必需 claim 完整性**：`config.claims` 每项 `required` 默认 true；某个 claim 没有当前证据 → UNVERIFIED（不能只交一条）。
+- **归档**：`{{HARNESS_DIR}}/evidence/_archive/` 的证据只输出 `SUPERSEDED`、不参与判定；归档 FAIL/UNVERIFIED 必须由当前 PASS 证据的 `supersedes` 声明接管，否则聚合 UNVERIFIED。
 - 无证据的“已验证”按未验证处理；换机器无法复核的产物（截图/构建目录）标 UNVERIFIED。
 - 三类判定：PASS（可复跑通过）/ FAIL（有反证）/ UNVERIFIED（证据不足，不算通过）。
-- 证据不防伪；高风险改动仍走独立复核与人工体验。
+- 证据不防伪；高风险改动仍走独立复核与人工体验。门禁能证明“仓库内部自洽 + artifact 可按当前文件重算”，不能证明测试真实执行/环境/评审独立性。
 
 ## 5. 采用与升级
 
 - 模板版本与目录见 `{{HARNESS_DIR}}/../`（kit 源与采用指南由引入方保存）。
-- 升级 profile 时只增补文件，不回写已改过的项目规则；升级后重跑 `make check` / `make verify-static`。
+- 升级 profile 时只增补文件，不回写已改过的项目规则；升级后重跑 `make check` / `make verify-static`；v0.4 行为变更按 kit playbook 的「版本升级」矩阵逐项处理。
+- `done` 计划未验证项必须清零，或用「未验证豁免」表逐条覆盖；归档计划 status 只能是 done/archived，归档问题 daily WARN、`check-plan-strict` FAIL。
 
 ## 6. 运行手册
 
@@ -48,6 +54,9 @@ make check            # 静态门禁
 make verify-static    # 静态 + 证据校验
 make verify-claim     # 证据三值判定
 make plan TOPIC=x     # 新建计划
+make selftest         # 负向注入自检（证明门禁会红）
+make scorecard        # 生成评分卡草稿
+make upgrade-check KIT_ROOT=<kit>  # kit 升级检查（只读）
 {{TEST_COMMAND}}      # 项目测试
 make release-check    # 发布前 strict（strict profile）
 make doctor           # 环境自检（strict profile）

@@ -2,7 +2,7 @@
 """harness-kit 通用计划校验器（标准库；无第三方依赖；不联网）。
 
 用法（脚本被 init 复制到目标项目 tools/ 下）：
-  python3 tools/check_plan.py [check] [--root PATH]
+  python3 tools/check_plan.py [check] [--lenient-uncommitted] [--strict] [--root PATH]
   python3 tools/check_plan.py new TOPIC [--root PATH]
   python3 tools/check_plan.py brief [PLAN_PATH] [--root PATH]
 
@@ -25,12 +25,21 @@ check 校验（FAIL 会计入退出码 1，WARN 不阻断）：
   - done：front matter `submitted` 必填（逗号/空格分隔短 hash），每个 token
     必须可解析且是 HEAD 祖先；被引用证据的 git.commit 必须等于 HEAD 或前缀
     匹配某个 submitted token。
+  - done：「未验证项」必须清零，或由「未验证豁免」表（项目/理由/负责人/到期日）
+    逐条覆盖；豁免到期日不得早于今天。缺表/空泛条目/未覆盖项 → FAIL。
+  - `submitted` 的每个 commit 都做改动范围审计：改动文件必须命中 scope.allow
+    或 scope.exceptions；过程目录（paths.evidence / paths.plans / paths.reviews）
+    默认豁免。merge commit 只与第一父比较。越界 → FAIL。
   - active：「未提交改动」节与 `git status --short` 交叉比对；scope.allow 之外
     的改动、声明与真实改动不一致均 FAIL；缺该节时 WARN（无法核对）。
     无扩展名的根级文件（Makefile / GNUmakefile / Dockerfile / LICENSE / NOTICE）
     可以直接声明为未提交改动。
+  - `harness/plans/_archive/*.md` 也会被扫描，但所有问题降级为 WARN（历史归档
+    不阻断升级，也不能静默消失）；归档计划不参与唯一 active 判定。
   - `new`：从 <plans>/_template.md 生成 <YYYY-MM-DD>-<topic>.md，并尽力替换
     常见占位符（<date>/<topic>/<主题>/{{DATE}}/{{TOPIC}}、status 占位）。
+  - `--strict`：归档计划问题由 WARN 升 FAIL；submitted 审计使用提交时点的计划 scope，
+    计划与提交同批修改 / 计划晚于提交 → FAIL（pre-push / release 用）。
   - `brief`：打印 active 计划摘要；无 active 计划 → exit 1。
 
 退出码：0 = 通过（允许 WARN）；1 = FAIL / 配置或计划不可用；2 = 用法错误。
@@ -433,6 +442,13 @@ def load_plans(root: Path, config: dict) -> list[Plan]:
     return [read_plan(path) for path in plan_files(root, config)]
 
 
+def archived_plan_files(root: Path, config: dict) -> list[Path]:
+    archive = config_path(root, config, "plans") / "_archive"
+    if not archive.is_dir():
+        return []
+    return sorted(path for path in archive.glob("*.md") if path.name != "_template.md")
+
+
 def plan_rel(root: Path, path: Path) -> str:
     try:
         return str(path.relative_to(root))
@@ -509,6 +525,208 @@ def commit_bound(root: Path, commit: str, tokens: list[str]) -> bool:
         if sha:
             candidates.append(sha)
     return any(candidate.startswith(commit) or commit.startswith(candidate) for candidate in candidates)
+
+
+def git_commit_files(root: Path, rev: str) -> list[str] | None:
+    """返回某个 commit 的改动文件（相对仓库根）；merge 只与第一父比较。
+
+    无法读取时返回 None（调用方降级为 WARN，不伪造通过）。
+    """
+    sha = git_sha(root, rev)
+    if sha is None:
+        return None
+    code, out, _ = git(root, ["rev-list", "--parents", "-n", "1", sha])
+    if code != 0:
+        return None
+    parents = out.split()[1:]
+    if len(parents) > 1:
+        # 只与第一父比较（-m 会展开第二父 diff，不能用于 scope 审计）。
+        code, out, _ = git(root, ["diff", "--name-only", "-r", parents[0], sha])
+    else:
+        code, out, _ = git(root, ["diff-tree", "--no-commit-id", "--name-only", "-r", "--root", sha])
+    if code != 0:
+        return None
+    paths = {line.strip() for line in out.splitlines() if line.strip()}
+    return sorted(paths)
+
+
+PROCESS_PATH_KEYS = ("evidence", "plans", "reviews")
+
+
+def process_prefixes(config: dict) -> tuple[str, ...]:
+    """状态/过程目录：计划、证据、审查的改动默认不参与 scope 审计。"""
+    paths = config.get("paths") if isinstance(config.get("paths"), dict) else {}
+    prefixes: list[str] = []
+    for key in PROCESS_PATH_KEYS:
+        value = paths.get(key)
+        if isinstance(value, str) and value.strip():
+            prefixes.append(value.strip().rstrip("/"))
+    return tuple(prefixes)
+
+
+def is_process_path(path: str, prefixes: tuple[str, ...]) -> bool:
+    return any(path == prefix or path.startswith(prefix + "/") for prefix in prefixes)
+
+
+SCOPE_EXCEPTION_ALIASES = ("提交范围例外", "范围例外", "scope exceptions")
+SCOPE_EXCEPTION_COLUMNS = {
+    "path": ("路径", "文件", "path"),
+    "reason": ("理由", "原因"),
+    "owner": ("负责人", "owner"),
+    "expires": ("到期", "过期", "expires"),
+}
+
+
+def git_tracked(root: Path, relative: str) -> bool:
+    code, _, _ = git(root, ["ls-files", "--error-unmatch", "--", relative])
+    return code == 0
+
+
+def plan_at_commit(root: Path, plan: Plan, token: str) -> Plan | None:
+    """读取某个提交时点的计划内容（用于按提交时 scope 审计）。"""
+    try:
+        relative = plan.path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return None
+    code, out, _ = git(root, ["show", f"{token}:{relative}"])
+    if code != 0 or not out.strip():
+        return None
+    block, body = split_front_matter(out)
+    if block is None:
+        return None
+    return Plan(path=plan.path, text=out, body=body,
+                meta=parse_front_matter(block), sections=parse_sections(body),
+                has_front_matter=True)
+
+
+def scope_exceptions(plan: Plan, config: dict) -> tuple[list[str], list[str], list[str]]:
+    """scope.exceptions 路径 + 问题；优先「提交范围例外」表（含理由/负责人/到期日）。"""
+    paths: list[str] = []
+    errors: list[str] = []
+    warnings: list[str] = []
+    legacy = meta_list(plan.meta, "scope.exceptions")
+    if legacy:
+        paths.extend(legacy)
+        warnings.append("scope.exceptions 使用了标量列表（无理由/负责人/到期日）；建议改用「提交范围例外」表")
+    section = find_section_excluding(plan, SCOPE_EXCEPTION_ALIASES, ())
+    if section is None:
+        return paths, errors, warnings
+    header, rows = evidence_table(plan, section)
+    if not header:
+        errors.append("「提交范围例外」节缺少表格（列：路径/理由/负责人/到期日）")
+        return paths, errors, warnings
+    mapping: dict[str, int] = {}
+    for key, aliases in SCOPE_EXCEPTION_COLUMNS.items():
+        for index, cell in enumerate(header):
+            if any(alias in cell for alias in aliases):
+                mapping[key] = index
+                break
+    missing = [key for key in SCOPE_EXCEPTION_COLUMNS if key not in mapping]
+    if missing:
+        errors.append("「提交范围例外」表缺列：" + "、".join(missing))
+        return paths, errors, warnings
+    max_days = 365
+    waiver_cfg = config.get("waiver") if isinstance(config.get("waiver"), dict) else {}
+    if isinstance(waiver_cfg.get("exceptionMaxDays"), int):
+        max_days = int(waiver_cfg["exceptionMaxDays"])
+    for row in rows:
+        cells = list(row) + [""] * max(0, len(header) - len(row))
+
+        def cell(key: str) -> str:
+            index = mapping[key]
+            return cells[index].strip().strip("`") if index < len(cells) else ""
+
+        path, reason, owner, expires = cell("path"), cell("reason"), cell("owner"), cell("expires")
+        if not all((path, reason, owner, expires)):
+            errors.append(f"「提交范围例外」行不完整（路径/理由/负责人/到期日均必填）：{' | '.join(row)}")
+            continue
+        if len(reason.strip()) < 5:
+            errors.append(f"「提交范围例外」理由过于空泛：{path}")
+            continue
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", expires):
+            errors.append(f"「提交范围例外」到期日需 YYYY-MM-DD：{expires}")
+            continue
+        try:
+            expires_date = dt.date.fromisoformat(expires)
+        except ValueError:
+            errors.append(f"「提交范围例外」到期日非法：{expires}")
+            continue
+        if expires_date < dt.date.today():
+            errors.append(f"「提交范围例外」已过期：{path}")
+            continue
+        if (expires_date - dt.date.today()).days > max_days:
+            errors.append(f"「提交范围例外」到期日超过 {max_days} 天上限：{path}（{expires}）")
+            continue
+        paths.append(path)
+    return paths, errors, warnings
+
+
+def check_submitted_scope(
+    plan: Plan, root: Path, config: dict, *, strict: bool = False
+) -> tuple[list[str], list[str]]:
+    """审计 submitted 已提交增量：按提交时点 scope，防止提交后再放宽 allow。"""
+    errors: list[str] = []
+    warnings: list[str] = []
+    tokens = submitted_tokens(plan)
+    if not tokens:
+        return errors, warnings
+    if not git_is_repo(root):
+        warnings.append("不是 git 仓库：无法审计 submitted 的改动范围")
+        return errors, warnings
+    prefixes = process_prefixes(config)
+    current_exceptions, exc_errors, exc_warnings = scope_exceptions(plan, config)
+    errors.extend(exc_errors)
+    warnings.extend(exc_warnings)
+    for token in tokens:
+        if not re.fullmatch(r"[0-9a-fA-F]{4,40}", token):
+            continue  # hash 合法性由 check_evidence 报错
+        sha = git_sha(root, token)
+        if sha is None:
+            continue
+        changed = git_commit_files(root, token)
+        if changed is None:
+            warnings.append(f"submitted commit {token} 的改动无法读取（merge/root diff 失败），未做 scope 审计")
+            continue
+        historical = plan_at_commit(root, plan, token)
+        if historical is None:
+            allow = meta_list(plan.meta, "scope.allow") + current_exceptions
+            warnings.append(
+                f"submitted commit {token} 早于计划文件（或计划不在该提交中）；"
+                "用当前 scope 审计，存在提交后放宽 allow 的风险"
+            )
+        else:
+            allow = meta_list(historical.meta, "scope.allow")
+            hist_exceptions, hist_errors, hist_warnings = scope_exceptions(historical, config)
+            allow = allow + hist_exceptions
+            errors.extend(hist_errors)
+            warnings.extend(hist_warnings)
+            current_allow = sorted(meta_list(plan.meta, "scope.allow"))
+            if sorted(meta_list(historical.meta, "scope.allow")) != current_allow:
+                (errors if strict else warnings).append(
+                    f"计划 scope.allow 在提交 {token} 之后被修改（当前与提交时点不一致）；审计以提交时点为准"
+                )
+            if strict and plan.path.name and any(path.endswith(".md") for path in changed):
+                try:
+                    relative = plan.path.resolve().relative_to(root.resolve()).as_posix()
+                except ValueError:
+                    relative = ""
+                if relative and relative in changed:
+                    errors.append(
+                        f"submitted commit {token} 与计划文件同批修改（scope 可能被同批放宽）；strict 拒绝"
+                    )
+        for path in changed:
+            if in_allow(path, allow) or is_process_path(path, prefixes):
+                continue
+            errors.append(f"submitted commit {token} 修改了 scope.allow/例外之外的文件：{path}")
+    return errors, warnings
+
+
+def plan_archived(path: Path, plans_dir: Path) -> bool:
+    try:
+        path.relative_to(plans_dir / "_archive")
+        return True
+    except ValueError:
+        return False
 
 
 def path_covered(declared: set[str], target: str) -> bool:
@@ -599,6 +817,132 @@ def check_uncommitted(plan: Plan, root: Path, config: dict) -> tuple[list[str], 
     return errors, warnings
 
 
+UNVERIFIED_ALIASES = ("未验证项", "未验证")
+WAIVER_ALIASES = ("未验证豁免", "豁免", "waiver")
+WAIVER_COLUMNS = {
+    "item": ("项目", "未验证项"),
+    "reason": ("理由", "原因"),
+    "owner": ("负责人", "owner"),
+    "expires": ("到期", "过期", "expires"),
+}
+
+
+def find_section_excluding(plan: Plan, aliases: tuple[str, ...], exclude: tuple[str, ...]) -> Section | None:
+    for section in plan.sections:
+        norm = section.norm.lower()
+        if any(word in norm for word in exclude):
+            continue
+        if any(norm == alias.lower() or norm.startswith(alias.lower()) or alias.lower() in norm for alias in aliases):
+            return section
+    return None
+
+
+def unverified_items(plan: Plan) -> list[str]:
+    """「未验证项」正文按条目聚合（支持 `-` / `*` / `1.` 列表与段落）。"""
+    section = find_section_excluding(plan, UNVERIFIED_ALIASES, ("豁免", "waiver"))
+    text = section_meaningful(plan, section)
+    items: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("|") or is_placeholder_line(stripped):
+            continue
+        if stripped.startswith(("- ", "* ")) or re.match(r"^\d+[.、)]", stripped):
+            items.append(stripped)
+        elif items:
+            items[-1] = f"{items[-1]} {stripped}"
+        else:
+            items.append(stripped)
+    return items
+
+
+def waiver_rows(plan: Plan) -> tuple[list[dict], list[str]]:
+    """解析「未验证豁免」表；列：项目 / 理由 / 负责人 / 到期日。"""
+    section = find_section_excluding(plan, WAIVER_ALIASES, ())
+    if section is None:
+        return [], []
+    header, rows = evidence_table(plan, section)
+    if not header:
+        return [], ["「未验证豁免」节缺少表格（列：项目/理由/负责人/到期日）"]
+    mapping: dict[str, int] = {}
+    for key, aliases in WAIVER_COLUMNS.items():
+        for index, cell in enumerate(header):
+            if any(alias in cell for alias in aliases):
+                mapping[key] = index
+                break
+    missing = [key for key in WAIVER_COLUMNS if key not in mapping]
+    if missing:
+        return [], ["「未验证豁免」表缺列：" + "、".join(missing) + "（需要 项目/理由/负责人/到期日）"]
+    parsed: list[dict] = []
+    errors: list[str] = []
+    for row in rows:
+        cells = list(row) + [""] * max(0, len(header) - len(row))
+
+        def cell(key: str) -> str:
+            index = mapping[key]
+            return cells[index].strip().strip("`") if index < len(cells) else ""
+
+        item, reason, owner, expires = cell("item"), cell("reason"), cell("owner"), cell("expires")
+        if not all((item, reason, owner, expires)):
+            errors.append(f"「未验证豁免」行不完整（项目/理由/负责人/到期日均必填）：{' | '.join(row)}")
+            continue
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", expires):
+            errors.append(f"「未验证豁免」到期日需 YYYY-MM-DD：{expires}")
+            continue
+        try:
+            expires_date = dt.date.fromisoformat(expires)
+        except ValueError:
+            errors.append(f"「未验证豁免」到期日非法：{expires}")
+            continue
+        if expires_date < dt.date.today():
+            errors.append(f"「未验证豁免」已过期：{item}（{expires}）")
+            continue
+        parsed.append({"item": item, "reason": reason, "owner": owner, "expires": expires})
+    return parsed, errors
+
+
+def normalize_match_text(text: str) -> str:
+    """豁免/未验证项匹配前的归一：去 markdown 修饰与多余空白、大小写。"""
+    return re.sub(r"[\s`*_]+", " ", text).strip().lower()
+
+
+def check_done_unverified(plan: Plan, config: dict) -> list[str]:
+    """done 计划未验证项必须清零，或被有效期内的豁免逐条覆盖。"""
+    items = unverified_items(plan)
+    if not items:
+        return []
+    rows, errors = waiver_rows(plan)
+    if errors:
+        return errors
+    if not rows:
+        return [
+            "done 计划「未验证项」未清零，且缺少「未验证豁免」表"
+            "（列：项目/理由/负责人/到期日；见 docstring）"
+        ]
+    waiver_cfg = config.get("waiver") if isinstance(config.get("waiver"), dict) else {}
+    max_days = waiver_cfg.get("maxDays", 90)
+    if not isinstance(max_days, int) or isinstance(max_days, bool) or max_days <= 0:
+        errors.append("config.waiver.maxDays 必须是正整数")
+        max_days = 90
+    for row in rows:
+        try:
+            expires_date = dt.date.fromisoformat(row["expires"])
+        except ValueError:
+            errors.append(f"「未验证豁免」到期日非法：{row['expires']}")
+            continue
+        if (expires_date - dt.date.today()).days > max_days:
+            errors.append(
+                f"「未验证豁免」到期日超过 {max_days} 天上限：{row['item']}（{row['expires']}）"
+            )
+        if len(row["reason"].strip()) < 5:
+            errors.append(f"「未验证豁免」理由过于空泛：{row['item']}")
+    normalized_items = [normalize_match_text(item) for item in items]
+    normalized_rows = [normalize_match_text(row["item"]) for row in rows]
+    for item, normalized in zip(items, normalized_items):
+        if not any(row and (row in normalized or normalized in row) for row in normalized_rows):
+            errors.append(f"「未验证项」未被豁免覆盖：{item[:100]}")
+    return errors
+
+
 def check_evidence(plan: Plan, root: Path, config: dict) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -653,6 +997,9 @@ def check_evidence(plan: Plan, root: Path, config: dict) -> tuple[list[str], lis
                 issue.append(f"证据 JSON 无法解析：{evidence_id}")
                 continue
             referenced[evidence_id] = doc
+            evidence_rel = f"{config['paths']['evidence'].rstrip('/')}/{evidence_id}.json"
+            if git_is_repo(root) and not git_tracked(root, evidence_rel):
+                warnings.append(f"证据未被 git 跟踪：{evidence_id}（verify_claim 会判 UNVERIFIED）")
             if doc.get("verdict") == "PASS":
                 pass_ids += 1
             else:
@@ -684,10 +1031,13 @@ def check_evidence(plan: Plan, root: Path, config: dict) -> tuple[list[str], lis
                 errors.append(f"证据 git.commit 非法（应为 7–40 位短 hash）：{evidence_id} = {commit!r}")
             elif not commit_bound(root, commit, done_tokens):
                 errors.append(f"证据 commit 未绑定 submitted/HEAD：{evidence_id}（commit={commit}）")
+        errors.extend(check_done_unverified(plan, config))
     return errors, warnings
 
 
-def check_plan(plan: Plan, root: Path, config: dict, *, lenient_uncommitted: bool = False) -> tuple[list[str], list[str]]:
+def check_plan(
+    plan: Plan, root: Path, config: dict, *, lenient_uncommitted: bool = False, strict: bool = False
+) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
     if not plan.has_front_matter:
@@ -722,6 +1072,9 @@ def check_plan(plan: Plan, root: Path, config: dict, *, lenient_uncommitted: boo
     evidence_errors, evidence_warnings = check_evidence(plan, root, config)
     errors.extend(evidence_errors)
     warnings.extend(evidence_warnings)
+    scope_errors, scope_warnings = check_submitted_scope(plan, root, config, strict=strict)
+    errors.extend(scope_errors)
+    warnings.extend(scope_warnings)
     if status == "active":
         uncommitted_errors, uncommitted_warnings = check_uncommitted(plan, root, config)
         if lenient_uncommitted:
@@ -733,18 +1086,18 @@ def check_plan(plan: Plan, root: Path, config: dict, *, lenient_uncommitted: boo
     return errors, warnings
 
 
-def run_check(root: Path, config: dict, *, lenient_uncommitted: bool = False) -> int:
+def run_check(root: Path, config: dict, *, lenient_uncommitted: bool = False, strict: bool = False) -> int:
     plans = load_plans(root, config)
     print(f"检查 {plan_rel(root, config_path(root, config, 'plans'))}/*.md（跳过 _template.md）：")
-    if not plans:
-        info("没有计划文件（新项目可先运行 check_plan.py new TOPIC）")
-        print("结论：PASS（0 个计划）")
-        return 0
-    active = [plan for plan in plans if plan.status == "active"]
     errors_total = 0
     warnings_total = 0
+    if not plans:
+        info("没有计划文件（新项目可先运行 check_plan.py new TOPIC）")
+    active = [plan for plan in plans if plan.status == "active"]
     for plan in plans:
-        errors, warnings = check_plan(plan, root, config, lenient_uncommitted=lenient_uncommitted)
+        errors, warnings = check_plan(
+            plan, root, config, lenient_uncommitted=lenient_uncommitted, strict=strict
+        )
         tag = "FAIL" if errors else "OK"
         print(f"[{tag}]  {plan_rel(root, plan.path)}  status={plan.status or '缺失'}")
         for item in errors:
@@ -757,6 +1110,42 @@ def run_check(root: Path, config: dict, *, lenient_uncommitted: bool = False) ->
         names = "、".join(plan_rel(root, plan.path) for plan in active)
         print(f"[FAIL] 同时存在 {len(active)} 个 active 计划（只允许 1 个）：{names}")
         errors_total += 1
+    archived = archived_plan_files(root, config)
+    if archived:
+        mode = "strict：问题 FAIL" if strict else "问题降级 WARN"
+        print(f"扫描归档计划 {len(archived)} 个（{mode}）：")
+        printed = 0
+        for path in archived:
+            plan = read_plan(path)
+            if plan.status not in ("done", "archived"):
+                message = f"归档计划 status 必须是 done/archived，实际 {plan.status or '缺失'}"
+                print(f"[FAIL] {plan_rel(root, plan.path)}（归档）：{message}")
+                errors_total += 1
+                continue
+            errors, warnings = check_plan(plan, root, config, strict=strict)
+            if not errors and not warnings:
+                continue
+            if strict:
+                print(f"[FAIL] {plan_rel(root, plan.path)}  status={plan.status}（归档）")
+                for item in errors:
+                    print(f"       [FAIL] [archived] {item}")
+                for item in warnings:
+                    print(f"       [WARN] {item}")
+                errors_total += len(errors)
+                warnings_total += len(warnings)
+            else:
+                print(f"[WARN] {plan_rel(root, plan.path)}  status={plan.status}（归档；strict 下 FAIL）")
+                for item in errors:
+                    if printed < 20:
+                        print(f"       [WARN] [archived] {item}")
+                    printed += 1
+                for item in warnings:
+                    if printed < 20:
+                        print(f"       [WARN] {item}")
+                    printed += 1
+                warnings_total += len(errors) + len(warnings)
+        if not strict and printed > 20:
+            print(f"       …另有 {printed - 20} 条归档问题未逐条展开（运行 check-plan-strict 查看）")
     verdict = "PASS" if errors_total == 0 else "FAIL"
     print(f"结论：{verdict}（{len(plans)} 个计划，{errors_total} error / {warnings_total} warn）")
     return 0 if errors_total == 0 else 1
@@ -833,7 +1222,8 @@ def cmd_brief(root: Path, config: dict, path_arg: str | None) -> int:
 # ── main ─────────────────────────────────────────────────────────────────
 def main(argv: list[str]) -> int:
     lenient = "--lenient-uncommitted" in argv
-    argv = [item for item in argv if item != "--lenient-uncommitted"]
+    strict = "--strict" in argv
+    argv = [item for item in argv if item not in ("--lenient-uncommitted", "--strict")]
     root, args = parse_cli(argv)
     if args and args[0] in ("-h", "--help", "help"):
         print(__doc__)
@@ -843,8 +1233,8 @@ def main(argv: list[str]) -> int:
     rest = args[1:]
     if command == "check":
         if rest:
-            fail(f"用法：check_plan.py check [--lenient-uncommitted] [--root PATH]（未知参数：{' '.join(rest)}）", 2)
-        return run_check(root, config, lenient_uncommitted=lenient)
+            fail(f"用法：check_plan.py check [--lenient-uncommitted] [--strict] [--root PATH]（未知参数：{' '.join(rest)}）", 2)
+        return run_check(root, config, lenient_uncommitted=lenient, strict=strict)
     if command == "new":
         if not rest:
             fail("用法：check_plan.py new TOPIC", 2)

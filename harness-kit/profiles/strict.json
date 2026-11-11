@@ -10,12 +10,6 @@
       "onConflict": "fail"
     },
     {
-      "src": "core/templates/docs/harness-scorecard.md.template",
-      "dst": "docs/harness-scorecard.md",
-      "render": true,
-      "onConflict": "fail"
-    },
-    {
       "src": "core/templates/harness/reviews/README.md.template",
       "dst": "harness/reviews/README.md",
       "render": true,
@@ -73,7 +67,10 @@
     "doctor",
     "adapters-sync",
     "adapters-check",
-    "plan"
+    "plan",
+    "selftest",
+    "upgrade-check",
+    "scorecard"
   ],
   "defaultAdapters": [
     "claude-code",

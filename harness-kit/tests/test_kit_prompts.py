@@ -35,10 +35,29 @@ ANGLE_TOKEN_RE = re.compile(r"<([^<>\s][^<>\n]{0,40})>")
 
 
 def make_adopted_target(root: Path) -> Path:
-    """Create the minimal directories that make detect_target_stage() say adopted."""
-    (root / "harness").mkdir(parents=True, exist_ok=True)
+    """v0.4.0：manifest 是真源；按 minimal profile 的期望文件集建 fixture。"""
+    root.mkdir(parents=True, exist_ok=True)
+    profile = json.loads((KIT / "profiles" / "minimal.json").read_text(encoding="utf-8"))
+    files = []
+    for item in profile["files"]:
+        destination = item["dst"]
+        path = root / destination
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# fixture\n", encoding="utf-8")
+        files.append({"path": destination, "sha256": "0" * 64, "src": item["src"]})
     (root / "Makefile").write_text("# fixture\n", encoding="utf-8")
-    (root / "harness" / "config.json").write_text("{}\n", encoding="utf-8")
+    manifest = {
+        "schemaVersion": 1,
+        "kitVersion": "0.4.0",
+        "profile": "minimal",
+        "generatedAt": "2026-01-01T00:00:00Z",
+        "files": files,
+        "appends": [],
+        "skipped": [],
+    }
+    (root / ".harness-manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     return root
 
 

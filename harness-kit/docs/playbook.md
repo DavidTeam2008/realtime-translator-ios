@@ -30,8 +30,8 @@ test -f Makefile && echo "有 Makefile（init 会写 Makefile.harness 而不是�
 | 你的情况 | 选择 |
 | --- | --- |
 | 只要规则与文档门禁、还没有稳定测试 | `minimal` |
-| 有真实仓库、需要计划/证据/CI 防盗绿 | `standard`（推荐默认） |
-| 长期维护、发布前要强门禁与红队、多 Agent 适配 | `strict` |
+| 有真实仓库、需要计划/证据/CI 防盗绿 | `standard`（**存量仓库默认**） |
+| 长期维护、发布前要强门禁与红队、多 Agent 适配 | `strict`（**仅显式选择并写明理由**；默认不升） |
 
 ```bash
 python3 harness-kit/scripts/harness-init --profile standard --target ../myapp --name MyApp --dry-run
@@ -189,7 +189,14 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 - 退出信号：正向全 0，且负向注入时按预期非 0（每项记录「注入前 / 注入后 / 恢复后」exit；selftest 输出表格即证据）。
 - 回滚：`git checkout -- <file>` 恢复注入改动；负向注入必须在干净工作树上做。
 
-### ⑦ 冷启动首访验收
+### ⑦ 接入后收口（归档 / 评分卡 / 自检 / waiver）
+
+- 归档只读盘点报告：`python3 harness-kit/scripts/harness-adopt --target . --archive-report <报告路径>`（只复制到 `harness/reports/adoption-<YYYY-MM-DD>.md`，拒绝覆盖，不重扫）。
+- 生成评分卡草稿：`make scorecard`（`harness/reviews/<date>-scorecard.md`；自评 / 独立复评分列）。
+- 负向注入自检：`make selftest`（证明门禁会红；需要 clean tree）。
+- 未验证项清零，或写计划「未验证豁免」表（理由 / 负责人 / 到期日）后归档。
+
+### ⑧ 冷启动首访验收
 
 - 让未参与改造的人（或新会话）只按 README → `docs/README.md` 走：回答 5 问（是什么 / 为什么值得看 / 怎么跑 / 怎么验证 / 怎么复制 harness），并跑 `make check`。
 - 退出信号：5 问可答、命令 exit 0；卡点列表写入计划的「未验证项 / 下一步」。
@@ -202,7 +209,7 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 3. **构建缓存入库**：`build/`、`DerivedData/`、`.cache/` 被跟踪会让证据写入因 dirty tree 失败；先出库 + `.gitignore`。
 4. **本机路径泄漏**：home 目录路径、设备 ID、Team 不要入库；`check_agents.py` 扫到即清，不要加白名单绕过。
 5. **升级没有 in-place 命令**：版本升级与 profile 升级都是「临时渲染新版 → 逐文件 diff → 人工合并」；版本升级已在 Android/Gradle 存量仓验证（v0.2.2→v0.2.3），profile 升级（minimal→standard→strict）仍未验证。
-6. **profile 选择**：存量仓库优先 `standard`（计划 + 证据 + CI）；`minimal` 只适合先立规则，`strict` 等适配器/红队有真实需求再加。
+6. **profile 选择**：统一口径——存量仓库**默认 `standard`**（计划 + 证据 + CI）；`minimal` 只适合先立规则；`strict`（adapters / red-team / release-check）必须由用户**显式选择并写清理由**，报告里的备选不自动采用。
 
 ## 常见坑
 
@@ -228,6 +235,8 @@ Agent 与人共用同一条链（不依赖提示词复制）：
 > 可选：router skill 显式安装 `<kit>/scripts/harness-skill --target . install`（装到 `.dsh/skills/` / `.claude/skills/`；A/B 未完成，默认不装）。
 
 > 严格校验在 `check-plan-strict` / `verify-static` / CI；计划未提交段不再需要手抄，`verify`/`handoff` 会按 `git status` 重写。
+>
+> 接入后基线/自检：`make scorecard`（评分卡草稿，过期由 `make check` WARN）、`make selftest`（负向注入）、`make upgrade-check KIT_ROOT=<kit>`（只读升级检查）。
 
 ## 升级路径
 
@@ -242,10 +251,30 @@ kit 不提供 in-place 迁移命令；对已接入仓直接再 init 只会全 CO
 1. **临时渲染新版**（无 manifest 或需复核时）：`python3 harness-kit/scripts/harness-init --profile <档> --language <语言> --target /tmp/kit-render-<ver> --no-check`（需要目标版本 kit）。
 2. **逐文件 diff**：`git diff --no-index <target>/<file> /tmp/kit-render-<ver>/<file>`；只回写 kit 管理面——`tools/`、`harness/config.json` 的 `kitVersion`/配置、Makefile 的 kit 目标段、CI/hook 模板。项目自有文档（AGENTS/CONTRIBUTING/README/docs/references）不回写。**CONFLICT 行必须人工合并，不要整文件覆盖**。
 3. **配置迁移**：config schema 有变化时写映射（如 0.2.3 把宿主私有 `layers` 键映射为通用 `rules` + `symbolGuards`）；`kitVersion` 与 VERSION 对齐。
-4. **复核**：`make verify-static`，再用 `python3 <kit>/scripts/harness-selftest --target .` 做负向注入——升级后门禁仍必须按预期变红，否则视为升级引入回归。升级后更新 `.harness-manifest.json` 的方式：以新版 kit 在临时目录 init 得到 manifest，按实际回写结果人工同步 files/append 哈希（`--apply` 计划在 v0.3.0）。
+4. **复核**：`make verify-static`，再用 `python3 <kit>/scripts/harness-selftest --target .` 做负向注入——升级后门禁仍必须按预期变红，否则视为升级引入回归。升级后更新 `.harness-manifest.json` 的方式：以新版 kit 在临时目录 init 得到 manifest，按实际回写结果人工同步 files/append 哈希（`--apply` 仍未实现，计划在 v0.4.x）。
 5. **记录**：升级计划写实际卡点、映射表、selftest 前后矩阵；有宿主 fork 的，升级后应删除 fork、只留配置差异。
 
 **实测**：真实 Android/Gradle 存量仓 v0.2.2→v0.2.3：4 个宿主 fork 脚本换回上游、`layers`/`hygiene` 配置迁移、`static-gates` 证据落地；selftest 在升级前发现门禁模式被历史清洗成 `/local/`（M5/M8 失效），修复后 **8/8**。细节见该仓归档计划。
+
+### v0.3.0 → v0.4.0 升级自检（行为变更，逐项处理）
+
+v0.4.0 是**行为变更**版本：更严的审计与默认脱敏会让旧仓出现新的红/WARN。升级步骤同「版本升级」，
+应用新版 kit 管理面后先跑 `make verify-static`，按下表逐项处理（不要为了变绿删检查或放宽配置）：
+
+| 变更 | 旧仓预期 | 修复动作 |
+| --- | --- | --- |
+| `submitted` 每个 commit 按**提交时点** scope 审计（越界 FAIL；merge 只比第一父） | `check` 红；提交后补 allow 不再能洗白 | 收窄 scope，或补「提交范围例外」表（路径/理由/负责人/到期日）；历史 commit 早于计划文件时给 WARN（不可回溯，别靠它变绿） |
+| 归档计划不再免检 | `status` 非 done/archived → **daily 也 FAIL**；归档 done 的内容问题：`make check` **WARN**，`check-plan-strict`/pre-push **FAIL** | 先修计划再归档；归档 done 问题补「未验证豁免」/「提交范围例外」后再跑 strict，不要当绿 |
+| `done` 计划未验证项必须清零或有「未验证豁免」表 | `check` 红 | 清零未验证项，或补豁免表（理由≥5 字 / 负责人 / 到期日≤90 天；逐条覆盖） |
+| 证据/artifact 需 git 跟踪；JUnit 默认脱敏并复制入库 | 未跟踪 PASS 证据 → `UNVERIFIED`；旧 artifact 路径 → WARN/重跑 | `git add harness/evidence`；用新版 `tools/evidence_from_junit.py` 重生成（默认脱敏；`--keep-raw` 仅显式逃生） |
+| 归档证据 `SUPERSEDED` 只列出、不改退出码；但归档 FAIL/UNVERIFIED 必须被当前 PASS 证据 `supersedes` 合法接管，否则聚合 UNVERIFIED；归档计划可由 status/handoff 回读 | 旧仓可能有未接管的归档 UNVERIFIED → `verify-claim` exit 2 | 在当前 PASS 证据里加 `supersedes: [<归档id>]`（同 claim），或把归档证据归档理由写清；不要直接删文件 |
+| `check_layers` 改 `git ls-files` + untracked、默认排除 `.venv`/`build` 等、规则 0 匹配 WARN | 旧 `layers` 配置可能扫到 `.venv` 或 `matched=0` WARN | 按新格式补 `exclude`；先修 `sourceRoot`/`pathPrefix`/`extensions`，再考虑 `--strict` |
+| `scorecard` 进 standard；`make check` 对过期只 WARN | 无 scorecard → WARN（不阻断） | `make scorecard` 生成草稿；人工自评 / 独立复评；过期后重新生成 |
+| 新 Makefile target：`selftest` / `upgrade-check` / `scorecard`；`check` 增加 `scorecard --check-stale` | 旧 `Makefile.harness` 缺 target → `make selftest` 失败 | 用新版 profile 重新渲染 Makefile（或手工同步 kit 目标段）；`make upgrade-check KIT_ROOT=<kit>` 看差异 |
+| 新 profile 安装项：`tools/scorecard.py`、`tools/harness_selftest`、`docs/harness-scorecard.md`；`check-plan-strict` 改用 `--strict` | 旧 standard 仓缺这些文件时 `detect_target_stage` 判 partial；`make check` 可能因缺 `tools/scorecard.py` 失败 | 按「版本升级」回写 kit 管理面文件；`harness-prompt list --target .` 的 `targetStage` 应为 adopted |
+
+升级后必须再跑一次 `python3 <kit>/scripts/harness-selftest --target .`：证明门禁仍会红；
+selftest 矩阵异常（SKIP≠PASS）时先修门禁，不要发布。
 
 ### profile 升级（仍未验证）
 
@@ -264,6 +293,9 @@ kit 不提供 in-place 迁移命令；对已接入仓直接再 init 只会全 CO
 | `make release-check` | 0（fresh 证据）/2（无证据或 STALE）/1（有 FAIL） | 仅 strict；要求证据 fresh 且 strict。**刚接入无证据时 exit 2 属预期** |
 | `make doctor` | 0（OK/WARN）/2（缺必需项） | strict：python3/git/测试命令可执行性检查 |
 | `make adapters-check` | 0（一致）/1（漂移） | strict：skills 单源同步后应一致 |
+| `make scorecard` | 0 | 生成 `harness/reviews/<date>-scorecard.md` 草稿；自评/独立复评 TBD |
+| `make check` 的 scorecard 提醒 | 0（WARN 不算失败） | 过期/缺失只 WARN；`--strict` 才 exit 1（发布门禁可用） |
+| `make selftest` | 0（全拦截）/1（门禁空转）/2（环境或基线红） | 负向注入；SKIP ≠ PASS |
 
 **本机限制**：静态门禁只需要 Python 3 + make + git，不联网、不需要宿主语言工具链；测试类 claim 需要宿主自己的构建/测试环境，kit 不代跑、也无法在无该环境的机器上验证——环境不满足时写“未验证”，不要把环境失败记成代码失败。
 
@@ -276,3 +308,8 @@ kit 不提供 in-place 迁移命令；对已接入仓直接再 init 只会全 CO
 - [ ] standard+：真实测试跑通并把 evidence 写入 `harness/evidence/`，`verify_claim --all` 为 0
 - [ ] strict：`make release-check` 在 fresh 证据下 exit 0；`make adapters-check` exit 0
 - [ ] 计划/handoff 记录：实际卡点、未验证项、下一步（供下一位维护者恢复）
+
+> 实测（2026-11-11，Python/MySQL 存量仓）：升级 v0.4.0 后 `make check` 仍 PASS（归档问题为 WARN），
+> `check-plan-strict` 暴露 4 个 submitted 越界文件与 3 条归档未验证项；补「未验证豁免」+「提交范围例外」+
+> 当前证据 `supersedes` 后 strict 转 PASS（仍保留“计划晚于提交”的 WARN）。逐项证据见该仓的
+> `harness/reports/` 与 kit 的 `harness/reviews/2026-11-11-adoption-feedback-v04/barra-validation.md`。

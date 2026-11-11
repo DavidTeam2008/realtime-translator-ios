@@ -3,7 +3,7 @@ name: harness
 description: Harness Engineering 项目管理入口。接入/接手项目、建计划、实现、完成前验证与证据、评审、发布、交接换 Agent、kit 升级——一律先运行 `python3 tools/harness.py status`，按输出与路由执行；未接入仓库先走 adopt。
 license: MIT
 compatibility: 目标仓库需已接入 harness-kit（harness/config.json + tools/harness.py）；未接入时先走 references/adopt.md
-metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.3.0}
+metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.4.0}
 ---
 # harness · 项目入口
 
@@ -29,7 +29,8 @@ metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.3.0}
 ## 2. 硬约束（不可协商）
 
 - **作用域**：只改计划 `scope.allow` 覆盖的文件；越界先停下更新计划并说明。
-- **证据**：没有证据不写“已完成/已验证”；未运行写“未验证 + 手动步骤”。test-count PASS 需要可重算 artifact（JUnit XML）。
+- **证据**：没有证据不写“已完成/已验证”；未运行写“未验证 + 手动步骤”。test-count PASS 需要可重算 artifact（JUnit XML），**证据 JSON 与 artifact 都必须 git 入库**；归档证据不参与判定。
+- **归档**：`_archive` 计划/证据是历史快照，不是当前状态；没有 active 计划时先读 status/handoff 的归档回读，再决定新建计划。
 - **门禁**：`make check` / `harness.py verify` 红了先修根因；不删除、不弱化、不绕过门禁。
 - **问人**：push、发布、删除、改规则/门禁、`--force` 覆盖前先问。
 - **单一状态源**：计划与证据是仓库文件；不把进度只留在对话里。

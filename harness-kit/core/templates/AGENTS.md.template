@@ -17,6 +17,9 @@
 | 验证 + 计划严格校验 | `{{VERIFY_COMMAND}}`；或 `python3 tools/harness.py verify`（自动同步未提交段） |
 | 交接摘要 | `python3 tools/harness.py handoff`（或 `make handoff`） |
 | 项目测试 | `{{TEST_COMMAND}}` |
+| 负向注入自检（证明门禁会红） | `make selftest` |
+| 评分卡草稿（自评 / 独立复评 TBD） | `make scorecard` |
+| kit 升级检查（只读；需 KIT_ROOT） | `make upgrade-check KIT_ROOT=<kit 克隆路径>` |
 
 命令细节与验证矩阵见 [`{{REFERENCES_DIR}}/verification.md`]({{REFERENCES_DIR}}/verification.md)。
 
@@ -37,7 +40,7 @@
 2. **边界清晰**：跨层依赖只经公开接口/协议；不把实现细节写进文档、测试替身或脚本。
 3. **计划先行**：L2 与跨会话任务先写 `{{HARNESS_DIR}}/plans/` 计划，声明 `scope`；越界先停并更新计划。
 4. **测试只增不减**：不删除、不放宽既有断言；无法验证时必须写“未验证”与实际原因。
-5. **证据说话**：完成声明附命令、退出码与环境；启用证据目录时另附证据 ID，无证据一律按未验证处理。
+5. **证据说话**：完成声明附命令、退出码与环境；启用证据目录时另附证据 ID，无证据一律按未验证处理。证据 JSON 与 artifact 必须 git 入库；归档/旧证据只在 `SUPERSEDED` 中列出，不作为当前通过依据。
 6. **门禁必须绿**：`{{CHECK_COMMAND}}` PASS 才能宣称完成；环境不可用时标注“未验证”，不得写成通过。
 7. **单一配置源**：路径、命令、预算只在 `{{HARNESS_DIR}}/config.json` 维护；脚本不得硬编码第二份。
 

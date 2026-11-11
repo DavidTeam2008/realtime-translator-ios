@@ -66,7 +66,17 @@
   ],
   "freshness": {
     "tests-pass": ["**/*.py", "**/*.swift", "**/*.ts", "tests/**"],
-    "docs-pass": ["{{DOCS_DIR}}/**", "{{REFERENCES_DIR}}/**", "{{ROOT_AGENTS}}", "{{HARNESS_DIR}}/**"]
+    "docs-pass": [
+      "{{DOCS_DIR}}/**",
+      "{{REFERENCES_DIR}}/**",
+      "{{ROOT_AGENTS}}",
+      "{{HARNESS_DIR}}/AGENTS.md",
+      "{{HARNESS_DIR}}/README.md"
+    ]
+  },
+  "scorecard": {
+    "maxAgeDays": 30,
+    "maxCommits": 50
   },
   "adapters": {
     "claudeCode": {

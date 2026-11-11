@@ -37,7 +37,17 @@
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "os": { "type": "string" },
+        "id": {
+          "type": "string",
+          "description": "测试环境标识（local / ci / server …），供 claim.environment 与 expectedSkipped.byEnvironment 匹配"
+        },
+        "requires": {
+          "type": ["array", "string"],
+          "items": { "type": "string" },
+          "description": "该环境提供的能力：数组或逗号分隔字符串（如 [\"mysql\",\"model-cache\"]）"
+        },
+        "os": { "type": "string", "description": "操作系统；claim.environment.os 为前缀匹配" },
+        "python": { "type": "string", "description": "Python 版本；claim.environment.python 为前缀匹配" },
         "toolchain": { "type": "string" },
         "project": { "type": "string" }
       }
@@ -52,11 +62,31 @@
         "failed": { "type": "integer", "minimum": 0 },
         "skipped": { "type": "integer", "minimum": 0 },
         "durationSec": { "type": "number", "minimum": 0 },
-        "artifacts": { "type": "array", "items": { "type": "string" } }
+        "artifacts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "仓库相对路径；test-count PASS 需要有可重算的 JUnit XML"
+        },
+        "artifactMode": {
+          "type": "string",
+          "enum": ["sanitized-copy", "raw"],
+          "description": "sanitized-copy = 默认脱敏复制入库；raw = --keep-raw 旧行为"
+        },
+        "xcresultPath": { "type": ["string", "null"], "description": "legacy：xcresult 路径（不可重算 → UNVERIFIED）" }
       }
     },
     "verdict": { "type": "string", "enum": ["PASS", "FAIL", "UNVERIFIED"] },
     "verifier": { "type": "string", "minLength": 1 },
-    "notes": { "type": "string" }
+    "notes": { "type": "string" },
+    "supersedes": {
+      "type": ["string", "array"],
+      "items": { "type": "string" },
+      "description": "当前证据取代的旧证据 id（字符串或数组）；用于解释 _archive 证据"
+    },
+    "supersededBy": {
+      "type": ["string", "array"],
+      "items": { "type": "string" },
+      "description": "归档证据声明被哪个当前证据取代（字符串或数组）"
+    }
   }
 }

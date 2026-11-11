@@ -111,7 +111,7 @@ git add -A && git commit -m "chore: adopt harness-kit standard profile"
 python3 /path/to/harness-kit/scripts/harness-adopt --target ../legacy-app --report /tmp/adoption.md
 python3 /path/to/harness-kit/scripts/harness-adopt --target ../legacy-app --json
 
-# ② 定 profile / 基线 / 真实测试命令（存量优先 standard）
+# ② 定 profile / 基线 / 真实测试命令（存量默认 standard；strict 需显式选择并写理由）
 # ③ scaffold：先 --dry-run 再 init（已有文件默认 CONFLICT；--force 会备份后覆盖）
 python3 /path/to/harness-kit/scripts/harness-init --profile standard --target ../legacy-app \
   --language android --test-command "./gradlew testDebugUnitTest"
@@ -119,10 +119,14 @@ python3 /path/to/harness-kit/scripts/harness-init --profile standard --target ..
 # ④ 文档蒸馏 → ⑤ 清洁 → ⑥ config hygiene/layers + CI/hooks + JUnit 证据
 # ⑦ 负向注入验收：
 python3 /path/to/harness-kit/scripts/harness-selftest --target ../legacy-app
+
+# ⑧ 接入后收口：归档盘点报告 → 评分卡 → 自检 → 未验证项清零/豁免
+python3 /path/to/harness-kit/scripts/harness-adopt --target . --archive-report /tmp/adoption.md
+# 之后在目标仓内：make scorecard && make selftest
 ```
 
 - 七步法每一步的退出信号/回滚见 [playbook「存量项目（brownfield）改造」](playbook.md#存量项目brownfield改造七步法)。
-- 接入前建议记录**基线评分**（见 §5），接入后再复评，才能回答"到底改善了没有"。
+- 接入前建议记录**基线评分**（见 §5），接入后再复评，才能回答"到底改善了没有"。盘点报告在只读阶段放目标仓之外是刻意的；接入完成后用 `--archive-report` 归档到`harness/reports/adoption-<YYYY-MM-DD>.md`，仓库内才有可追溯的接入前基线。
 
 ## 4. 接入后：场景提示词模板
 
@@ -172,7 +176,7 @@ python3 /path/to/harness-kit/scripts/harness-selftest --target ../legacy-app
 
 ### 5.1 评分口径（先对齐，避免"自嗨分"）
 
-- 五子系统各 1–5 分，口径见 kit 的 [评分卡模板](../core/templates/docs/harness-scorecard.md.template)：
+- 五子系统各 1–5 分，口径见 standard profile 自带的 `docs/harness-scorecard.md`（模板：[评分卡模板](../core/templates/docs/harness-scorecard.md.template)）：
   **1 = 缺失；3 = 有规则但不可机检；5 = 有门禁 + 有证据 + 定期复核**。
 - 每一分必须附证据（文件/命令/证据 ID）；没有证据的评分按未验证处理。
 - 自评与独立复评**分列**；独立复评的输入只有仓库，不参考起草过程。
@@ -209,8 +213,9 @@ python3 /path/to/harness-kit/scripts/harness-selftest --target ../legacy-app
 
 ```text
 接入前：harness-adopt --report（只读盘点）→ 人工按评分卡打分 → 存入改造计划作为基线
-接入后：make check / make verify-static / make verify-claim + harness-selftest
-        → 再按同一评分卡打分 → 与独立复评分列
+接入后：make scorecard 生成草稿（自动跑门禁、记录 exit/证据 ID/测试与文档计数）
+        → 人工填「自评」→ 独立复评填「独立复评」列 → 过期由 make check WARN
+        → 需要时 make selftest 证明门禁仍会红
 ```
 
 **注意**：接入 ≠ 问题消失。kit 只覆盖结构性、可机检的部分；文档语义正确性、代码质量、真机/性能验证仍需要人或宿主传感器（detekt/lint/真机测试等）。分数提升反映的是"可验证性与可维护性"，不是产品质量自动提升。
@@ -234,7 +239,9 @@ python3 /path/to/harness-kit/scripts/harness-selftest --target ../legacy-app
 - [ ] 文档蒸馏完成（当前/历史分层、索引 100%、链接可用）
 - [ ] 一条真实测试证据 PASS，`make verify-claim` exit 0
 - [ ] CI（或 pre-push）跑 `make verify-static`
-- [ ] `harness-selftest --target .` exit 0（门禁证明会红）
+- [ ] `make selftest` exit 0（门禁证明会红）
+- [ ] `make scorecard` 生成评分卡草稿；过期由 `make check` WARN；自评 / 独立复评分列
+- [ ] 盘点报告已归档到 `harness/reports/adoption-<YYYY-MM-DD>.md`
 - [ ] 接入前后五子系统评分各一份（自评 + 可选独立复评）
 
 ## 7. FAQ

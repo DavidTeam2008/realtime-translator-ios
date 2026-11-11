@@ -49,6 +49,50 @@ def wrapper(*suites: str) -> str:
     )
 
 
+def leaky_xml(root: Path, hostname: str = "build-server-01") -> str:
+    """JUnit fixture that leaks a hostname, system-out/err and local absolute paths."""
+    home = str(Path.home())
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<testsuite name="leak" hostname="{hostname}" tests="3" failures="0" skipped="1" time="0.3">\n'
+        "  <properties>\n"
+        f'    <property name="repo.root" value="{root}"/>\n'
+        f'    <property name="java.home" value="{home}"/>\n'
+        f'    <property name="pytest.rootdir" value="{root}/build"/>\n'
+        '    <property name="os" value="linux"/>\n'
+        "  </properties>\n"
+        '  <testcase name="t1" classname="A" time="0.1"/>\n'
+        '  <testcase name="t2" classname="A" time="0.1"/>\n'
+        '  <testcase name="t3" classname="A" time="0.1"><skipped/></testcase>\n'
+        f"  <system-out>log at {root}/build/log.txt</system-out>\n"
+        "  <system-err>boom</system-err>\n"
+        "</testsuite>"
+    )
+
+
+def expanded_leak_xml(root: Path) -> str:
+    """Fixture that leaks through failure messages, classname/file attrs and element text."""
+    import socket
+
+    home = str(Path.home())
+    local_host = socket.gethostname() or "localhost"
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<testsuite name="expanded" hostname="build-server-01" tests="2" failures="1" time="0.2">\n'
+        "  <properties>\n"
+        f'    <property name="root" value="{root}"/>\n'
+        f'    <property name="host" value="{local_host}"/>\n'
+        "  </properties>\n"
+        f'  <testcase name="t1" classname="{root}.CaseA" file="{home}/src/test_a.py" time="0.1">\n'
+        f'    <failure message="on {local_host}: assert failed at {root}/src/x.py" '
+        f'type="AssertionError">{home}/log.txt</failure>\n'
+        "  </testcase>\n"
+        '  <testcase name="t2" classname="CaseB" time="0.1"/>\n'
+        f"  <system-out>out {root}</system-out>\n"
+        "</testsuite>"
+    )
+
+
 class JUnitAdapterTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="junit-evidence-")
@@ -339,6 +383,167 @@ class JUnitAdapterTests(unittest.TestCase):
             "evidence record was not written",
         )
 
+
+    # --- v0.4.0: default sanitize-copy ------------------------------------
+    def test_default_sanitizes_and_copies_artifact(self) -> None:
+        self.write("reports/TEST-leak.xml", leaky_xml(self.root))
+        data = self.payload("--xml", "reports/TEST-leak.xml")
+        result = data["result"]
+        self.assertEqual(result["artifactMode"], "sanitized-copy")
+        self.assertEqual((result["passed"], result["failed"], result["skipped"]), (2, 0, 1))
+        artifacts = result["artifacts"]
+        self.assertEqual(len(artifacts), 1)
+        rel = artifacts[0]
+        self.assertFalse(Path(rel).is_absolute(), f"artifact must be repo-relative: {rel}")
+        self.assertTrue(rel.startswith("harness/evidence/artifacts/"), rel)
+        copied = self.root / rel
+        self.assertTrue(copied.is_file())
+        content = copied.read_text(encoding="utf-8")
+        for leaked in (
+            "build-server-01",
+            "system-out",
+            "system-err",
+            "repo.root",
+            str(self.root),
+            str(Path.home()),
+        ):
+            self.assertNotIn(leaked, content, f"artifact still leaks {leaked!r}")
+        self.assertIn('name="os" value="linux"', content)  # benign property kept
+
+    def test_keep_raw_inside_root_keeps_legacy_artifacts(self) -> None:
+        self.write("reports/TEST-a.xml", suite_xml("a", '<testcase name="t1" time="0.1"/>'))
+        data = self.payload("--xml", "reports/TEST-a.xml", "--keep-raw")
+        self.assertEqual(data["result"]["artifactMode"], "raw")
+        self.assertEqual(data["result"]["artifacts"], ["reports/TEST-a.xml"])
+
+    def test_keep_raw_outside_root_requires_allow_flag(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="junit-outside-") as outside_tmp:
+            outside = Path(outside_tmp) / "TEST-out.xml"
+            outside.write_text(suite_xml("out", '<testcase name="t1"/>'), encoding="utf-8")
+            base = ["--xml", str(outside), "--command", "make test", "--keep-raw"]
+            refused = run_tool(["--root", str(self.root), *base], self.root)
+            self.assertEqual(refused.returncode, 2, refused.stdout + refused.stderr)
+            self.assertIn("仓库外", refused.stderr)
+            self.assertIn("默认脱敏复制模式", refused.stderr)
+            allowed = run_tool(
+                ["--root", str(self.root), *base, "--allow-outside-root"], self.root
+            )
+            self.assertEqual(allowed.returncode, 0, allowed.stdout + allowed.stderr)
+            self.assertIn("verify_claim 会判 UNVERIFIED", allowed.stderr)
+            payload = json.loads(allowed.stdout)
+            self.assertEqual(payload["result"]["artifactMode"], "raw")
+            self.assertEqual(payload["result"]["artifacts"], [str(outside.resolve())])
+            self.assertIn("verify_claim 会判 UNVERIFIED", payload.get("notes", ""))
+
+    def test_input_over_5mib_exits_2(self) -> None:
+        big = self.write("reports/TEST-big.xml", "<testsuite/>")
+        big.write_text(
+            "<testsuite>" + ("x" * (5 * 1024 * 1024 + 16)) + "</testsuite>",
+            encoding="utf-8",
+        )
+        result = self.invoke("--xml", "reports/TEST-big.xml")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("5 MiB", result.stderr)
+
+    def test_artifacts_dir_override_and_outside_rejected(self) -> None:
+        self.write("reports/TEST-a.xml", suite_xml("a", '<testcase name="t1"/>'))
+        data = self.payload("--xml", "reports/TEST-a.xml", "--artifacts-dir", "build/custom-artifacts")
+        artifact = data["result"]["artifacts"][0]
+        self.assertTrue(artifact.startswith("build/custom-artifacts/"), artifact)
+        self.assertTrue((self.root / artifact).is_file())
+        with tempfile.TemporaryDirectory(prefix="junit-artifacts-") as outside_tmp:
+            outside = Path(outside_tmp) / "artifacts"
+            refused = self.invoke(
+                "--xml", "reports/TEST-a.xml", "--artifacts-dir", str(outside)
+            )
+            self.assertEqual(refused.returncode, 2, refused.stdout + refused.stderr)
+            self.assertIn("必须在仓库内", refused.stderr)
+
+    # --- v0.4.0 red-team hardening --------------------------------------
+    def test_symlink_input_is_rejected(self) -> None:
+        real = self.write("reports/TEST-real.xml", suite_xml("a", '<testcase name="t1"/>'))
+        link = self.root / "reports" / "TEST-link.xml"
+        link.symlink_to(real)
+        result = self.invoke("--xml", "reports/TEST-link.xml")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("符号链接", result.stderr)
+
+    def test_symlink_artifacts_dir_is_rejected(self) -> None:
+        self.write("reports/TEST-a.xml", suite_xml("a", '<testcase name="t1"/>'))
+        real_dir = self.root / "build" / "real-artifacts"
+        real_dir.mkdir(parents=True)
+        link = self.root / "artifacts-link"
+        link.symlink_to(real_dir)
+        result = self.invoke("--xml", "reports/TEST-a.xml", "--artifacts-dir", "artifacts-link")
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("符号链接", result.stderr)
+
+    def test_sanitize_covers_failure_and_testcase_attributes(self) -> None:
+        self.write("reports/TEST-expanded.xml", expanded_leak_xml(self.root))
+        payload = self.payload("--xml", "reports/TEST-expanded.xml")
+        result = payload["result"]
+        self.assertEqual(result["artifactMode"], "sanitized-copy")
+        self.assertEqual((result["passed"], result["failed"], result["skipped"]), (1, 1, 0))
+        artifact = self.root / result["artifacts"][0]
+        content = artifact.read_text(encoding="utf-8")
+        for leaked in (
+            "build-server-01",
+            "system-out",
+            str(self.root),
+            str(Path.home()),
+        ):
+            self.assertNotIn(leaked, content, f"artifact still leaks {leaked!r}")
+        self.assertIn("$HOME", content)  # home path is normalized, not dropped silently
+        self.assertIn("$HOST", content)  # remaining hostname occurrences are normalized
+
+    def test_environment_privacy_warning(self) -> None:
+        self.write("reports/TEST-a.xml", suite_xml("a", '<testcase name="t1"/>'))
+        value = f"{self.root}/project"
+        result = self.invoke(
+            "--xml", "reports/TEST-a.xml",
+            "--environment", "id=local",
+            "--environment", f"root={value}",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("[WARN] --environment root", result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["environment"]["root"], value)
+
+    def test_sanitize_count_mismatch_exits_2(self) -> None:
+        import contextlib
+        import importlib.util
+        import io
+
+        self.write("reports/TEST-a.xml", suite_xml("a", '<testcase name="t1"/>'))
+        spec = importlib.util.spec_from_file_location("_junit_tool_test", TOOL)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        real_aggregate = module.aggregate
+        calls = {"count": 0}
+
+        def corrupted(element: object) -> object:
+            calls["count"] += 1
+            counts = real_aggregate(element)
+            if calls["count"] >= 2:  # sanitized re-aggregate differs from the raw counts
+                counts.tests += 1
+            return counts
+
+        module.aggregate = corrupted
+        stderr = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(stderr):
+                code = module.main(
+                    [
+                        "--root", str(self.root),
+                        "--xml", "reports/TEST-a.xml",
+                        "--command", "make test",
+                    ]
+                )
+        finally:
+            module.aggregate = real_aggregate
+        self.assertEqual(code, 2, stderr.getvalue())
+        self.assertIn("脱敏后计数与原始 JUnit 不一致", stderr.getvalue())
 
 if __name__ == "__main__":
     unittest.main()

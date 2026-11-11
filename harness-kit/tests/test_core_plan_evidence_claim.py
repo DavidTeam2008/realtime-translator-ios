@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 import subprocess
@@ -148,6 +149,37 @@ def plan_front(
         lines += ["scope:", "  allow:", "    - harness/"]
         lines += [f"    - {entry}" for entry in extra_scope]
     lines += ["acceptance:", "  - make check 通过", "verify:", "  - python3 tools/check_plan.py check"]
+    if submitted is not None:
+        lines.append(f"submitted: {submitted}")
+    return "\n".join(lines)
+
+
+def plan_front_allow(
+    allow: tuple[str, ...],
+    *,
+    status: str = "active",
+    submitted: str | None = None,
+    exceptions: tuple[str, ...] = (),
+) -> str:
+    lines = [
+        "id: 2026-01-01-demo",
+        f"status: {status}",
+        "level: L2",
+        "owner: test",
+        "updated: 2026-01-01",
+        "scope:",
+        "  allow:",
+    ]
+    lines += [f"    - {item}" for item in allow]
+    lines += ["  deny: []"]
+    if exceptions:
+        lines += ["  exceptions:"] + [f"    - {item}" for item in exceptions]
+    lines += [
+        "acceptance:",
+        "  - make check 通过",
+        "verify:",
+        "  - python3 tools/check_plan.py check",
+    ]
     if submitted is not None:
         lines.append(f"submitted: {submitted}")
     return "\n".join(lines)
@@ -361,9 +393,10 @@ class KitCoreTest(unittest.TestCase):
         self.assert_fail(self.check_plan("check"), "缺少 front matter submitted")
 
     def test_check_plan_done_valid_passes(self) -> None:
-        self.write_evidence(evidence_doc(VALID_EVIDENCE_ID, "docs-pass", "PASS", commit=self.base))
+        submitted = self.commit_change("harness/notes.md", "notes\n", "in-scope change")
+        self.write_evidence(evidence_doc(VALID_EVIDENCE_ID, "docs-pass", "PASS", commit=submitted))
         rows = f"| `make test` | **PASS** | 本机 | {VALID_EVIDENCE_ID} |"
-        self.write_plan(plan_body(rows, uncommitted=False), status="done", submitted=self.base)
+        self.write_plan(plan_body(rows, uncommitted=False), status="done", submitted=submitted)
         self.commit_all()
         proc = self.check_plan("check")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
@@ -536,7 +569,7 @@ class KitCoreTest(unittest.TestCase):
         self.write_evidence(evidence_doc("20260101T000000Z-docs-pass", "docs-pass", "PASS", commit=self.base))
         self.write_evidence(evidence_doc("20260101T000001Z-docs-fail", "docs-fail", "PASS", commit=self.base))
         self.write_evidence(evidence_doc("20260101T000002Z-docs-nocmd", "docs-nocmd", "PASS", commit=self.base))
-        proc = self.verify_claim("--all")
+        proc = self.verify_claim("--all", "--allow-untracked")
         self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
         self.assertRegex(proc.stdout, r"CLAIM 20260101T000000Z-docs-pass: PASS — ")
         self.assertRegex(proc.stdout, r"CLAIM 20260101T000001Z-docs-fail: FAIL — ")
@@ -546,7 +579,7 @@ class KitCoreTest(unittest.TestCase):
         self.write_config([dict(STATIC_CLAIM)])
         self.commit_all()
         self.write_evidence(evidence_doc("20260101T000000Z-docs-pass", "docs-pass", "PASS", commit=self.base))
-        proc = self.verify_claim("--all")
+        proc = self.verify_claim("--all", "--allow-untracked")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn("结论：PASS", proc.stdout)
 
@@ -573,7 +606,7 @@ class KitCoreTest(unittest.TestCase):
             result={"passed": 120, "failed": 0, "skipped": 1, "artifacts": ["build/junit.xml"]},
         )
         self.write_evidence(good)
-        proc = self.verify_claim("--all")
+        proc = self.verify_claim("--all", "--allow-untracked")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertRegex(proc.stdout, r"tests-pass: PASS — .*重算")
         # requireArtifact 缺省为 true：缺 artifact → UNVERIFIED
@@ -586,7 +619,7 @@ class KitCoreTest(unittest.TestCase):
         )
         self.write_evidence(no_artifact)
         (self.root / "harness" / "evidence" / "20260101T000000Z-tests-pass.json").unlink()
-        proc = self.verify_claim("--all")
+        proc = self.verify_claim("--all", "--allow-untracked")
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertRegex(proc.stdout, r"tests-pass: UNVERIFIED — .*requireArtifact")
         # 自报 counts 与 artifact 重算不一致 → FAIL（伪造 PASS 的核心路径）
@@ -599,7 +632,7 @@ class KitCoreTest(unittest.TestCase):
         )
         self.write_evidence(forged)
         (self.root / "harness" / "evidence" / "20260101T000001Z-tests-pass.json").unlink()
-        proc = self.verify_claim("--all")
+        proc = self.verify_claim("--all", "--allow-untracked")
         self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
         self.assertIn("与 artifact 重算不一致", proc.stdout)
         # 非 XML artifact（如 xcresult）无法独立重算 → UNVERIFIED
@@ -613,14 +646,14 @@ class KitCoreTest(unittest.TestCase):
         )
         self.write_evidence(xc)
         (self.root / "harness" / "evidence" / "20260101T000002Z-tests-pass.json").unlink()
-        proc = self.verify_claim("--all")
+        proc = self.verify_claim("--all", "--allow-untracked")
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertIn("无法独立重算", proc.stdout)
         # legacy opt-out（requireArtifact=false）且无 artifact：provenance 通过后接受自报 counts
         self.write_config([dict(TEST_COUNT_CLAIM, requireArtifact=False)])
         self.write_evidence(no_artifact)
         (self.root / "harness" / "evidence" / "20260101T000003Z-tests-pass.json").unlink()
-        proc = self.verify_claim("--all")
+        proc = self.verify_claim("--all", "--allow-untracked")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn("legacy", proc.stdout)
         # 低于 floor（artifact 重算 100） → FAIL
@@ -634,7 +667,7 @@ class KitCoreTest(unittest.TestCase):
         )
         self.write_evidence(low)
         (self.root / "harness" / "evidence" / "20260101T000001Z-tests-pass.json").unlink()
-        proc = self.verify_claim("--all")
+        proc = self.verify_claim("--all", "--allow-untracked")
         self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
         self.assertIn("passed=100", proc.stdout)
 
@@ -690,9 +723,16 @@ class KitCoreTest(unittest.TestCase):
 
     def test_verify_claim_freshness_ignores_process_dirs(self) -> None:
         # evidence / plans / reviews 是过程状态，不使 claim 失效
-        self.write_config([dict(STATIC_CLAIM)], freshness={"docs-pass": ["harness/**"]})
+        self.write_config([dict(TEST_COUNT_CLAIM)], freshness={"tests-pass": ["**/*.py", "harness/**"]})
+        self.write_baseline(floor=1, expected_skipped=0)
+        (self.root / "build").mkdir()
+        (self.root / "build" / "junit.xml").write_text(junit_xml(passed=1), encoding="utf-8")
         head = self.commit_all()
-        self.write_evidence(evidence_doc("20260101T000000Z-docs-pass", "docs-pass", "PASS", commit=head))
+        self.write_evidence(evidence_doc(
+            "20260101T000000Z-tests-pass", "tests-pass", "PASS", commit=head,
+            result={"passed": 1, "failed": 0, "skipped": 0, "artifacts": ["build/junit.xml"]},
+        ))
+        self.commit_all("evidence")
         (self.root / "harness" / "plans").mkdir(parents=True, exist_ok=True)
         (self.root / "harness" / "plans" / "note.md").write_text("draft\n", encoding="utf-8")
         proc = self.verify_claim("--all", "--fresh")
@@ -704,9 +744,16 @@ class KitCoreTest(unittest.TestCase):
         self.assertIn("STALE", proc.stdout)
 
     def test_verify_claim_freshness_clean_and_dirty(self) -> None:
-        self.write_config([dict(STATIC_CLAIM)], freshness={"docs-pass": ["docs/**"]})
-        self.write_evidence(evidence_doc("20260101T000000Z-docs-pass", "docs-pass", "PASS", commit=self.base))
-        self.commit_all()
+        self.write_config([dict(TEST_COUNT_CLAIM)], freshness={"tests-pass": ["docs/**"]})
+        self.write_baseline(floor=1, expected_skipped=0)
+        (self.root / "build").mkdir()
+        (self.root / "build" / "junit.xml").write_text(junit_xml(passed=1), encoding="utf-8")
+        head = self.commit_all()
+        self.write_evidence(evidence_doc(
+            "20260101T000000Z-tests-pass", "tests-pass", "PASS", commit=head,
+            result={"passed": 1, "failed": 0, "skipped": 0, "artifacts": ["build/junit.xml"]},
+        ))
+        self.commit_all("evidence")
         proc = self.verify_claim("--all", "--fresh")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertNotIn("STALE", proc.stdout)
@@ -719,7 +766,17 @@ class KitCoreTest(unittest.TestCase):
         # --strict → PASS 降级 UNVERIFIED
         proc = self.verify_claim("--all", "--fresh", "--strict")
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
-        self.assertRegex(proc.stdout, r"CLAIM 20260101T000000Z-docs-pass: UNVERIFIED — .*STALE")
+        self.assertRegex(proc.stdout, r"CLAIM 20260101T000000Z-tests-pass: UNVERIFIED — .*STALE")
+
+    def test_verify_claim_static_freshness_not_applicable(self) -> None:
+        self.write_config([dict(STATIC_CLAIM)], freshness={"docs-pass": ["docs/**"]})
+        self.write_evidence(evidence_doc("20260101T000000Z-docs-pass", "docs-pass", "PASS", commit=self.base))
+        self.commit_all()
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "note.md").write_text("# note\n", encoding="utf-8")
+        proc = self.verify_claim("--all", "--fresh")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("freshness 不适用", proc.stdout)
 
     def test_verify_claim_no_evidence_is_unverified(self) -> None:
         self.write_config([dict(STATIC_CLAIM)])
@@ -745,6 +802,196 @@ class KitCoreTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         proc = run([sys.executable, str(tools_dir / "verify_claim.py"), "--all"], cwd=self.root)
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)  # 无证据 → UNVERIFIED
+
+
+    # ── v0.4.0：submitted scope / 归档 / done 未验证项 ─────────────
+    def test_submitted_scope_out_of_allow_fails(self) -> None:
+        self.commit_all("fixtures")
+        submitted = self.commit_change("src/app.py", "x = 1\n", "out of scope")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(
+            plan_front_allow(("harness/",), submitted=submitted),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan")
+        self.assert_fail(self.check_plan("check"), "submitted commit", "src/app.py")
+
+    def test_submitted_scope_exceptions_allow(self) -> None:
+        self.commit_all("fixtures")
+        submitted = self.commit_change("src/app.py", "x = 1\n", "explicit exception")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(
+            plan_front_allow(("harness/",), submitted=submitted, exceptions=("src/",)),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan")
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_submitted_scope_process_paths_exempt(self) -> None:
+        self.commit_all("fixtures")
+        submitted = self.commit_change("harness/evidence/notes.json", "{}\n", "evidence")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(
+            plan_front_allow(("src/",), submitted=submitted),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan")
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+
+
+    def test_submitted_scope_self_relax_after_commit_fails(self) -> None:
+        self.commit_all("fixtures")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(plan_front_allow(("harness/",)), plan_body(rows), "2026-01-01-demo")
+        self.commit_all("plan v1")
+        submitted = self.commit_change("src/app.py", "x = 1\n", "out of scope")
+        self.write_plan_id(
+            plan_front_allow(("harness/", "src/"), submitted=submitted),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan v2")
+        self.assert_fail(self.check_plan("check"), "scope.allow/例外之外", "src/app.py")
+
+    def test_submitted_scope_plan_created_after_commit_strict_fails(self) -> None:
+        self.commit_all("fixtures")
+        submitted = self.commit_change("src/app.py", "x = 1\n", "before plan")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(
+            plan_front_allow(("src/",), submitted=submitted),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan")
+        daily = self.check_plan("check")
+        self.assertEqual(daily.returncode, 0, daily.stdout + daily.stderr)
+        self.assertIn("早于计划文件", daily.stdout)
+        strict = self.check_plan("check", "--strict")
+        self.assertEqual(strict.returncode, 0, strict.stdout + strict.stderr)
+        self.assertIn("早于计划文件", strict.stdout)
+
+    def test_strict_archive_fails_but_daily_warns(self) -> None:
+        self.commit_all("fixtures")
+        submitted = self.commit_change("src/app.py", "x = 1\n", "archived out of scope")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        archive = self.root / "harness" / "plans" / "_archive"
+        archive.mkdir(parents=True, exist_ok=True)
+        plan = plan_front_allow(("harness/",), status="done", submitted=submitted)
+        (archive / "2026-01-01-old.md").write_text(
+            f"---\n{plan}\n---\n\n{plan_body(rows, uncommitted=False)}", encoding="utf-8"
+        )
+        self.commit_all("archive")
+        daily = self.check_plan("check")
+        self.assertEqual(daily.returncode, 0, daily.stdout + daily.stderr)
+        strict = self.check_plan("check", "--strict")
+        self.assertEqual(strict.returncode, 1, strict.stdout + strict.stderr)
+        self.assertIn("src/app.py", strict.stdout)
+
+    def test_archived_active_status_fails_even_daily(self) -> None:
+        archive = self.root / "harness" / "plans" / "_archive"
+        archive.mkdir(parents=True, exist_ok=True)
+        plan = plan_front_allow(("harness/",), status="active")
+        (archive / "2026-01-01-unfinished.md").write_text(
+            f"---\n{plan}\n---\n\n{plan_body('| `make check` | 基线 | 本机 | —（过程记录） |')}",
+            encoding="utf-8",
+        )
+        self.commit_all("archive active")
+        proc = self.check_plan("check")
+        self.assert_fail(proc, "归档计划 status", "done/archived")
+
+    def test_scope_exception_table_allows(self) -> None:
+        self.commit_all("fixtures")
+        expires = (dt.date.today() + dt.timedelta(days=30)).isoformat()
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        body = plan_body(rows) + (
+            "\n## 提交范围例外\n\n"
+            "| 路径 | 理由 | 负责人 | 到期日 |\n| --- | --- | --- | --- |\n"
+            f"| src/ | 一次性迁移脚本 | test | {expires} |\n"
+        )
+        self.write_plan_id(plan_front_allow(("harness/",)), body, "2026-01-01-demo")
+        self.commit_all("plan")
+        submitted = self.commit_change("src/legacy.py", "x = 1\n", "exception")
+        self.write_plan_id(
+            plan_front_allow(("harness/",), submitted=submitted), body, "2026-01-01-demo"
+        )
+        self.commit_all("plan submitted")
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_submitted_merge_commit_audited_against_first_parent(self) -> None:
+        self.commit_all("fixtures")
+        branch = git(self.root, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        self.commit_change("harness/base.md", "base\n", "base")
+        assert git(self.root, "checkout", "-q", "-b", "feature").returncode == 0
+        self.commit_change("src/feature.py", "x = 1\n", "feature")
+        assert git(self.root, "checkout", "-q", branch).returncode == 0
+        self.commit_change("harness/main.md", "main\n", "main")
+        assert git(self.root, "merge", "--no-ff", "feature", "-m", "merge feature").returncode == 0
+        merge = head_short(self.root, 12)
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(
+            plan_front_allow(("harness/",), submitted=merge),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan")
+        self.assert_fail(self.check_plan("check"), "submitted commit", "src/feature.py")
+
+    def test_archived_plan_scope_issues_are_warn_only(self) -> None:
+        self.commit_all("fixtures")
+        submitted = self.commit_change("src/app.py", "x = 1\n", "archived out of scope")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        archive = self.root / "harness" / "plans" / "_archive"
+        archive.mkdir(parents=True, exist_ok=True)
+        plan = plan_front_allow(("harness/",), status="done", submitted=submitted)
+        (archive / "2026-01-01-old.md").write_text(
+            f"---\n{plan}\n---\n\n{plan_body(rows, uncommitted=False)}", encoding="utf-8"
+        )
+        self.commit_all()
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("归档", proc.stdout)
+        self.assertIn("src/app.py", proc.stdout)
+        self.assertNotIn("[FAIL]", proc.stdout)
+
+    def _done_plan_with_unverified(self, unverified: str, waiver: str = "") -> None:
+        submitted = self.commit_change("harness/notes.md", "notes\n", "in-scope")
+        self.write_evidence(evidence_doc(VALID_EVIDENCE_ID, "docs-pass", "PASS", commit=submitted))
+        rows = f"| `make test` | **PASS** | 本机 | {VALID_EVIDENCE_ID} |"
+        body = plan_body(rows, uncommitted=False) + f"\n## 未验证项\n\n{unverified}\n"
+        if waiver:
+            body += f"\n## 未验证豁免\n\n{waiver}\n"
+        self.write_plan(body, status="done", submitted=submitted)
+        self.commit_all()
+
+    def test_done_unverified_without_waiver_fails(self) -> None:
+        self._done_plan_with_unverified("- 服务器全量 pytest 未取回")
+        self.assert_fail(self.check_plan("check"), "未验证项", "未验证豁免")
+
+    def test_done_unverified_with_valid_waiver_passes(self) -> None:
+        self._done_plan_with_unverified(
+            "- 服务器全量 pytest 未取回",
+            "| 项目 | 理由 | 负责人 | 到期日 |\n| --- | --- | --- | --- |\n"
+            f"| 服务器全量 pytest | SSH 门禁恢复前无法跑 | test | {(dt.date.today() + dt.timedelta(days=30)).isoformat()} |",
+        )
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_done_unverified_with_expired_waiver_fails(self) -> None:
+        self._done_plan_with_unverified(
+            "- 服务器全量 pytest 未取回",
+            "| 项目 | 理由 | 负责人 | 到期日 |\n| --- | --- | --- | --- |\n"
+            "| 服务器全量 pytest | 过期 | test | 2000-01-01 |",
+        )
+        self.assert_fail(self.check_plan("check"), "已过期")
+
+    def test_done_unverified_not_covered_by_waiver_fails(self) -> None:
+        self._done_plan_with_unverified(
+            "- 服务器全量 pytest 未取回",
+            "| 项目 | 理由 | 负责人 | 到期日 |\n| --- | --- | --- | --- |\n"
+            "| 另一个问题 | 无关 | test | 2099-12-31 |",
+        )
+        self.assert_fail(self.check_plan("check"), "未被豁免覆盖")
 
     def test_missing_config_fails_readably(self) -> None:
         (self.root / "harness" / "config.json").unlink()

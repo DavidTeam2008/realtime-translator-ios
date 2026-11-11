@@ -173,6 +173,21 @@ class CheckHygieneTests(HostSensorCase):
         result = run_tool("check_hygiene.py", self.root)
         self.assert_result(result, 1, "缺少配置文件", "harness/config.json")
 
+    def test_skip_local_path_scan_reports_counts_and_verbose(self) -> None:
+        hygiene = {
+            **HYGIENE,
+            "skipLocalPathScan": ["harness/config.json", "docs/_archive/"],
+        }
+        self.clean_project(hygiene=hygiene)
+        self.write("docs/_archive/old.md", "# archived\n")
+        self.write("docs/keep.md", "# keep\n")
+        self.commit()
+        default = run_tool("check_hygiene.py", self.root)
+        output = self.assert_result(default, 0, "[OK]", "本机路径扫描", "跳过 2", "docs/_archive/")
+        self.assertNotIn("[SKIP] docs/_archive/old.md", output)
+        verbose = run_tool("check_hygiene.py", self.root, "--verbose")
+        self.assert_result(verbose, 0, "[SKIP] docs/_archive/old.md")
+
     def test_default_root_is_script_parent(self) -> None:
         self.clean_project()
         target_tools = self.root / "tools"
@@ -261,6 +276,83 @@ class CheckLayersTests(HostSensorCase):
         self.clean_project(layers={"sourceRoot": "missing-src", "rules": []})
         result = run_tool("check_layers.py", self.root)
         self.assert_result(result, 1, "源码目录不存在", "missing-src")
+
+    def test_untracked_source_files_are_scanned(self) -> None:
+        self.clean_project(layers=self.base_layers())
+        # v0.4：untracked 源文件同样参与（不能靠未 add 绕过）；存在 untracked 时 WARN（CI 只覆盖 tracked）
+        self.write("src/domain/Untracked.kt", "import android.os.Build\n")
+        result = run_tool("check_layers.py", self.root)
+        output = self.assert_result(
+            result, 1, "git 跟踪", "untracked 1", "src/domain/Untracked.kt:domain"
+        )
+        self.assertIn("未跟踪源文件", output)
+
+    def test_untracked_clean_sources_only_warn(self) -> None:
+        self.clean_project(layers=self.base_layers())
+        self.write("src/domain/Untracked.kt", "import os\n")
+        result = run_tool("check_layers.py", self.root)
+        output = self.assert_result(result, 0, "[WARN]", "未跟踪源文件", "untracked 1")
+        self.assertNotIn("[FAIL]", output)
+
+    def test_strict_rule_with_zero_matches_fails(self) -> None:
+        layers = self.base_layers()
+        layers["rules"] = list(layers["rules"]) + [
+            {"name": "ghost", "pathPrefix": "src/ghost/", "forbiddenImports": ["android."]}
+        ]
+        self.clean_project(layers=layers)
+        self.write("src/domain/ok.py", "import os\n")
+        self.commit()
+        relaxed = run_tool("check_layers.py", self.root)
+        self.assert_result(relaxed, 0, "[WARN]", "规则 ghost")
+        strict = run_tool("check_layers.py", self.root, "--strict")
+        self.assert_result(strict, 1, "严格模式", "规则 ghost")
+
+    def test_default_and_configured_excludes_are_counted(self) -> None:
+        layers = self.base_layers()
+        layers["exclude"] = ["src/legacy/"]
+        self.clean_project(layers=layers)
+        self.write("src/domain/ok.py", "import os\n")
+        self.write("src/.venv/lib/junk.py", "import android.os.Build\n")
+        self.write("src/legacy/old.py", "import android.os.Build\n")
+        self.write("src/build/gen.py", "import android.os.Build\n")
+        self.write("src/node_modules/pkg/evil.py", "import android.os.Build\n")
+        self.commit()
+        result = run_tool("check_layers.py", self.root)
+        output = self.assert_result(result, 0, "[OK]", "排除 4 个文件", "0 违规")
+        for skipped in (".venv", "legacy", "build/", "node_modules"):
+            self.assertNotIn(skipped, output)
+
+    def test_rule_with_zero_matches_warns_without_failing(self) -> None:
+        layers = self.base_layers()
+        layers["rules"] = list(layers["rules"]) + [
+            {"name": "ghost", "pathPrefix": "src/ghost/", "forbiddenImports": ["android."]}
+        ]
+        self.clean_project(layers=layers)
+        self.write("src/domain/ok.py", "import os\n")
+        self.commit()
+        result = run_tool("check_layers.py", self.root)
+        output = self.assert_result(result, 0, "[WARN]", "规则 ghost", "matched=0")
+        self.assertIn("eligible=", output)
+
+    def test_coverage_lines_for_rules_and_guards(self) -> None:
+        layers = self.base_layers(
+            symbolGuards=[
+                {"name": "engine", "classes": ["Engine"], "allowedPaths": ["src/services/**"]}
+            ]
+        )
+        self.clean_project(layers=layers)
+        self.write("src/domain/Model.kt", "class Model\n")
+        self.write("src/services/Engine.kt", "class Engine\n")
+        self.commit()
+        result = run_tool("check_layers.py", self.root)
+        output = self.assert_result(result, 0, "规则 domain：eligible=", "matched=", "violations=")
+        self.assertIn("符号守卫 engine：eligible=", output)
+
+    def test_filesystem_fallback_when_not_a_git_repo(self) -> None:
+        self.write("harness/config.json", json.dumps({"layers": self.base_layers()}, ensure_ascii=False))
+        self.write("src/domain/Bad.py", "from android.os import Build\n")
+        result = run_tool("check_layers.py", self.root)
+        self.assert_result(result, 1, "文件系统遍历", "src/domain/Bad.py:domain")
 
 
 if __name__ == "__main__":
