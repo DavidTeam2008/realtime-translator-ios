@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0-alpha.1 — 2026-11-11
+
+- **目标侧统一入口 `tools/harness.py`（v0.3.0-alpha 第一步）**：`status`（一屏状态 + 建议下一步，`--json`）、
+  `start`（幂等建 active 计划，自动 owner/scope/验收骨架，建完 `make check` 即绿）、`verify`
+  （自动同步计划「未提交改动」段 → 运行 `make verify-static` → 计划严格校验 → 证据三值摘要；`--claims-strict` 可阻断）、
+  `handoff`（交接摘要，`--json`）、`plan check`（默认日常宽松，`--strict` 严格）、`upgrade`（指引 kit 侧只读升级）。
+- **计划↔git 双状态对账改造**：`check_plan.py check --lenient-uncommitted`（日常 `make check` 对未提交段差异只告警）；
+  新增 Makefile `check-plan-strict`（`verify-static` 依赖它），`verify`/CI 走严格模式；`harness verify` 自动回写计划未提交段。
+- **Makefile / AGENTS 入口**：三档 Makefile 增加 `status` / `start` / `verify` / `handoff`（minimal 仅 `status`/`verify`）；
+  根 `AGENTS.md` 模板新增「一屏状态 / 开工 / 交接」命令行与冷启动第一命令提示。
+- 新增 `tests/test_harness_cli.py`（6 用例：status 只读/JSON、start 幂等且 make check 即绿、verify 同步、handoff、plan check、minimal 降级）；
+  `check_plan` 新增 lenient 负向用例；kit 测试 156 → **163**。
+- 未在本版：router skill 与 A/B（需先有 CLI，顺延至 v0.3.0）；`--apply`、`check_plan` 委托 `verify_claim` 仍在 v0.3.0 候选。
+- 兼容：新增 `tools/harness.py` 与目标 Makefile target；`check` 的语义从「严格」转为「日常宽松 + 独立严格 target」，
+  升级时需回写 Makefile（playbook 升级路径）。旧仓不升级则行为不变。
+
 ## 0.2.13 — 2026-11-11
 
 - **升级基线（只读）**：`harness-init` 现在在目标根写 `.harness-manifest.json`——记录 `kitVersion` / `profile` /

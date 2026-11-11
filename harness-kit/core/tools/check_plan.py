@@ -687,7 +687,7 @@ def check_evidence(plan: Plan, root: Path, config: dict) -> tuple[list[str], lis
     return errors, warnings
 
 
-def check_plan(plan: Plan, root: Path, config: dict) -> tuple[list[str], list[str]]:
+def check_plan(plan: Plan, root: Path, config: dict, *, lenient_uncommitted: bool = False) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
     if not plan.has_front_matter:
@@ -724,12 +724,16 @@ def check_plan(plan: Plan, root: Path, config: dict) -> tuple[list[str], list[st
     warnings.extend(evidence_warnings)
     if status == "active":
         uncommitted_errors, uncommitted_warnings = check_uncommitted(plan, root, config)
-        errors.extend(uncommitted_errors)
+        if lenient_uncommitted:
+            # 日常 make check：未提交段落差异只告警；harness verify / handoff / CI 用严格模式。
+            warnings.extend(f"[daily-warn] {item}" for item in uncommitted_errors)
+        else:
+            errors.extend(uncommitted_errors)
         warnings.extend(uncommitted_warnings)
     return errors, warnings
 
 
-def run_check(root: Path, config: dict) -> int:
+def run_check(root: Path, config: dict, *, lenient_uncommitted: bool = False) -> int:
     plans = load_plans(root, config)
     print(f"检查 {plan_rel(root, config_path(root, config, 'plans'))}/*.md（跳过 _template.md）：")
     if not plans:
@@ -740,7 +744,7 @@ def run_check(root: Path, config: dict) -> int:
     errors_total = 0
     warnings_total = 0
     for plan in plans:
-        errors, warnings = check_plan(plan, root, config)
+        errors, warnings = check_plan(plan, root, config, lenient_uncommitted=lenient_uncommitted)
         tag = "FAIL" if errors else "OK"
         print(f"[{tag}]  {plan_rel(root, plan.path)}  status={plan.status or '缺失'}")
         for item in errors:
@@ -828,6 +832,8 @@ def cmd_brief(root: Path, config: dict, path_arg: str | None) -> int:
 
 # ── main ─────────────────────────────────────────────────────────────────
 def main(argv: list[str]) -> int:
+    lenient = "--lenient-uncommitted" in argv
+    argv = [item for item in argv if item != "--lenient-uncommitted"]
     root, args = parse_cli(argv)
     if args and args[0] in ("-h", "--help", "help"):
         print(__doc__)
@@ -837,8 +843,8 @@ def main(argv: list[str]) -> int:
     rest = args[1:]
     if command == "check":
         if rest:
-            fail(f"用法：check_plan.py [check] [--root PATH]（未知参数：{' '.join(rest)}）", 2)
-        return run_check(root, config)
+            fail(f"用法：check_plan.py check [--lenient-uncommitted] [--root PATH]（未知参数：{' '.join(rest)}）", 2)
+        return run_check(root, config, lenient_uncommitted=lenient)
     if command == "new":
         if not rest:
             fail("用法：check_plan.py new TOPIC", 2)

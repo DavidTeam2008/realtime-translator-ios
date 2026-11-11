@@ -7,7 +7,7 @@
 > 当前范围：**单工作流接力与分工**；多 Agent 并行门禁见路线图（v0.3.2），不在当前承诺内。
 
 - 仓库名 `harness-engineering-kit`（原名 `harness-kit`；目录、命令与 tag 前缀沿用短名）
-- 版本：`0.2.13`（见 [`VERSION`](VERSION)）
+- 版本：`0.3.0-alpha.1`（见 [`VERSION`](VERSION)）
 - **[AI coding Agent 接入指南（新项目 / 存量项目）](docs/adoption.md)** · **[提示词库：接入 / 开发 / 评审 / 发布 / 交接 / 收尾](docs/agent-prompts.md)** ← 先看这两个
 - 命令行手动接入：[采用 playbook](docs/playbook.md)（新项目五步 / 存量七步）
 - 深入：[演化与治理](docs/governance.md) · [内部契约 SPEC](SPEC.md)
@@ -140,6 +140,7 @@ python3 <kit>/scripts/harness-selftest --target ../legacy-app
 | **门禁自测** | `scripts/harness-selftest`（kit 侧） | 目标仓临时副本里做基线检查、逐项注入（M1–M9；M9 伪造 PASS 证据必须被拒）、断言门禁非 0、恢复后复核全绿；默认不写目标仓 |
 | **存量项目盘点** | `scripts/harness-adopt`（kit 侧） | 只读盘点 + `--report` / `--json` / `--write-plan`（改造计划草稿） |
 | **提示词即取即用** | `scripts/harness-prompt`（kit 侧） | `list` / `show` / `copy` / `render --check`：按所选场景拼前置（目标阶段不符给 WARN）、填 kit 与目标路径、剪贴板；文档由 `prompts/` 单源生成并受测试保护 |
+| **统一入口 / 一屏状态** | `tools/harness.py`（init 复制到宿主） | `status`（Agent 冷启动第一命令，`--json`）/ `start`（幂等建计划，建完即绿）/ `verify`（自动同步未提交段 + `verify-static` + 计划严格校验 + 证据摘要；`--claims-strict` 可阻断）/ `handoff`（交接摘要）/ `plan check` / `upgrade`（指引 kit 侧只读升级） |
 | **工程化升级（只读）** | `scripts/harness-upgrade`（kit 侧）+ `.harness-manifest.json` | `--check`：manifest / 目标文件 / kit 版本三方校验（in sync 0 / 本地漂移 1 / 版本不符 3）；`--plan`：同 profile/options 重渲染的新版三方 diff（SAME/LOCAL_ONLY/UPGRADE/ALREADY/CONFLICT/ADD/OBSOLETE/NOT_MANAGED/APPEND），**不写目标仓**；`--apply` v0.3.0 才有（当前按 plan 人工应用） |
 | 语言探测 | `scripts/harness-init` | `python` / `swift` / `node` / `go` / `android` / `other` |
 | 适配器 | `adapters/` | `githooks` / `ci` / `claude-code` / `dsh`（预留） |
@@ -164,7 +165,7 @@ kit 的目标不是"规则越多越安全"，而是**能机检的就不写进指
 - **预算即设计**：根 `AGENTS.md` ≈1650 token 预算，三份 references 各 ≈950–1000 token；新增规则顶预算必须删/合并旧规则；
 - **渐进披露**：根指令只指路，目录级规则在嵌套 `AGENTS.md`，细节在 `references/`，流程在 skills/adapters；不一次塞满上下文；
 - **删除优先 + 薄适配**：模型/Agent 已能稳定做对的事降级或删除；Agent 私有能力只进 `adapters/`，不污染核心规则；
-- **门禁会腐烂，所以能自测**：`harness-selftest` 负向注入（含 M9 伪造证据）+ 156 个 kit 测试；门禁空转（例：模式被改坏）会当场变红。
+- **门禁会腐烂，所以能自测**：`harness-selftest` 负向注入（含 M9 伪造证据）+ 163 个 kit 测试；门禁空转（例：模式被改坏）会当场变红。
 
 完整机制（版本演化、行为级评估计划、删除/降级流程、踩刹车信号）见 **[governance.md](docs/governance.md)**。
 
@@ -221,7 +222,7 @@ harness-kit/
 ├── docs/playbook.md     # 新项目五步法 + 存量项目七步法 + 常见坑 + 升级路径
 ├── docs/governance.md   # 演化与治理（反臃肿、版本策略、多人协作）
 ├── CHANGELOG.md         # 版本变更记录
-└── tests/               # kit 自身 unittest（标准库，156 个测试）
+└── tests/               # kit 自身 unittest（标准库，163 个测试）
 ```
 
 宿主目标（init 之后，按 profile 增减；以 SPEC §2 为准）：
@@ -241,6 +242,7 @@ harness-kit/
 │   ├── evidence/                 # standard+：schema/TEMPLATE/摘要 JSON
 │   └── reviews/                  # strict：独立审查记录
 ├── tools/*.py                    # 按 profile 复制（standard+ 含 check_hygiene / check_layers）
+├── tools/harness.py              # v0.3.0+：统一入口（status/start/verify/handoff）
 ├── .githooks/pre-push            # standard+（可选）
 ├── .github/workflows/verify.yml  # standard+（可选）
 └── .dsh/skills/ / .claude/       # strict + 对应适配器（可选）
@@ -250,11 +252,12 @@ harness-kit/
 
 > Agent 场景用 `<kit>/scripts/harness-prompt copy <场景>` 一条命令取提示词（见 [提示词库](docs/agent-prompts.md)）；下面是人/Agent 共用的命令循环。
 
-1. **做任务前**：`make plan TOPIC=<topic>` 建计划，填 front matter（owner/scope/验收/verify）；同一时间只允许一个 active。
-2. **每次改动后**：`make check`（静态门禁，必须 0）。
-3. **完成声明前**：`make verify-static`；测试类声明先写 evidence（`tools/evidence.py write`），再 `make verify-claim` 取 PASS / FAIL / UNVERIFIED。
-4. **发布前（strict）**：`make release-check`——证据必须 fresh 且 strict。
-5. **交接/中断**：更新计划（进度、证据、未验证、未提交、下一步），用 `python3 tools/check_plan.py brief` 生成摘要。
+1. **冷启动/接手**：`make status`（或 `python3 tools/harness.py status`）——一屏状态 + 建议下一步。
+2. **做任务前**：`make start TOPIC=<topic> GOAL="<目标>" SCOPE="src/ ..."`（或 `harness.py start`）——幂等建 active 计划，建完 `make check` 即绿。
+3. **每次改动后**：`make check`（日常静态门禁；计划「未提交改动」差异只告警）。
+4. **完成声明前**：`python3 tools/harness.py verify`——自动同步未提交段 + `make verify-static` + 计划严格校验 + 证据三值摘要（`--claims-strict` 可阻断）。
+5. **发布前（strict）**：`make release-check`——证据必须 fresh 且 strict。
+6. **交接/中断**：`python3 tools/harness.py handoff`（或 `make handoff`），输出计划/证据/未验证/下一步摘要。
 
 > 核心约定：**没有 evidence id 的"已验证"按未验证处理**；UNVERIFIED（exit 2）不是通过。
 
@@ -295,13 +298,13 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 ## 局限与未验证（别当成能力）
 
 - **结构可验证 ≠ 行为正确**：静态门禁与证据判定证明"流程可复核"，不证明产品行为/性能/真机结果正确——这些仍靠宿主动态测试、真机与人工评审。
-- **行为级评估尚未实现**：当前只有结构门禁 + 156 个 kit 测试 + 宿主 `harness-selftest`；"接入后 Agent 表现提升多少"的 A/B 评估是 v0.3+ 议题（见 governance §2.4），未做前不对外声称。
+- **行为级评估尚未实现**：当前只有结构门禁 + 163 个 kit 测试 + 宿主 `harness-selftest`；"接入后 Agent 表现提升多少"的 A/B 评估是 v0.3+ 议题（见 governance §2.4），未做前不对外声称。
 - **多人协作未验证**：唯一 active 计划、scope、证据绑定、CI required checks 能提供机制层支持；人类多人并行采用、人类陌生人首访仍未验证。
 - **版本升级已验证，profile 升级未验证**：v0.2.2→v0.2.3 已在真实 Android/Gradle 仓验证；minimal→standard→strict 的 profile 升级路径仍未在真实项目验证。
 - **语言/测试框架需要你提供**：`{{TEST_COMMAND}}` 与 `commands.test` 必须填真实命令；kit 不代跑、不解析测试输出（只提供 JUnit XML → evidence 转换）。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：按预算与白名单修内容，不要删检查绕过。
 - **外部试点有限**：空白 Python/Node/SwiftPM 项目、真实 Android/Gradle 存量仓已完成；其他语言生态、超大仓性能未验证。
-- **kit 自身测试**：156 个测试（三档 init、`make check`/`verify-static`/`check-host`、证据三值/伪造证据负向/artifact 重算、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest M1–M9、manifest/upgrade `--check`/`--plan`、Android 推断、dry-run/冲突/备份、无专有引用、版本引用一致、提示词单源与生成文档同步/CLI 前置选择）；随来源仓库 `verify` workflow 运行。
+- **kit 自身测试**：163 个测试（三档 init、`make check`/`verify-static`/`check-host`、证据三值/伪造证据负向/artifact 重算、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest M1–M9、manifest/upgrade `--check`/`--plan`、统一入口 `harness.py`（status/start/verify/handoff）、Android 推断、dry-run/冲突/备份、无专有引用、版本引用一致、提示词单源与生成文档同步/CLI 前置选择）；随来源仓库 `verify` workflow 运行。
 - **升级是"检查 + 人工应用"**：v0.2.13 的 `harness-upgrade` 只读（`--apply` 未实现）；无 manifest 的旧仓（v0.2.13 之前接入）走 playbook 手工升级路径。
 - **test-count 证据要求 artifact**：只有 JUnit XML 能被独立重算；xcresult 目前判 UNVERIFIED（先用 `evidence_from_junit.py` 转换）；显式 `requireArtifact=false` 的 legacy claim 仍接受自报值，但原因会标注"未重算"（不推荐）。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前为预留。
@@ -310,4 +313,4 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.13`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.3.0-alpha.1`；向后兼容策略见 [SPEC §10](SPEC.md)。

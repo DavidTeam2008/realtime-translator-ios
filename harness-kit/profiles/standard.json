@@ -18,6 +18,6 @@
     { "src": "core/tools/check_layers.py", "dst": "tools/check_layers.py", "render": false, "onConflict": "fail" }
   ],
   "makefile": "core/templates/makefiles/Makefile.standard.template",
-  "makeTargets": ["check", "verify-static", "verify-claim", "plan"],
+  "makeTargets": ["status", "start", "verify", "handoff", "check", "verify-static", "verify-claim", "plan"],
   "defaultAdapters": ["githooks", "ci"]
 }

@@ -92,7 +92,7 @@ def kit_version(kit_root: Path) -> str:
         version = version_file.read_text(encoding="utf-8").strip()
     except OSError as exc:
         raise InitError(f"cannot read {version_file}: {exc}") from exc
-    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version):
         raise InitError(f"invalid VERSION: {version!r}")
     return version
 

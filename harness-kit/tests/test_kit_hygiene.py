@@ -38,7 +38,7 @@ class NoProjectSpecificRefsTests(unittest.TestCase):
 
     def test_version_single_source(self) -> None:
         version = (KIT / "VERSION").read_text(encoding="utf-8").strip()
-        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+        self.assertRegex(version, r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 
     def test_version_references_consistent(self) -> None:
         version = (KIT / "VERSION").read_text(encoding="utf-8").strip()

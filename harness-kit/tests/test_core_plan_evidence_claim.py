@@ -423,6 +423,18 @@ class KitCoreTest(unittest.TestCase):
         )
         self.assert_fail(self.check_plan("check"), "计划声明无未提交改动")
 
+    def test_check_plan_lenient_uncommitted_warns_only(self) -> None:
+        rows = "| `make check` | 基线盘点 | 本机 | —（基线盘点） |"
+        self.write_plan(plan_body(rows))
+        self.commit_all()
+        (self.root / "harness" / "config.json").write_text(
+            (self.root / "harness" / "config.json").read_text(encoding="utf-8") + "\n",
+            encoding="utf-8",
+        )
+        proc = self.check_plan("check", "--lenient-uncommitted")
+        self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+        self.assertIn("daily-warn", proc.stdout)
+
     def test_check_plan_out_of_scope_change_fails(self) -> None:
         rows = "| `make check` | 基线盘点 | 本机 | —（基线盘点） |"
         self.write_plan(plan_body(rows))

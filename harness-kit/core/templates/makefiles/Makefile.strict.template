@@ -2,17 +2,33 @@
 # 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
 # 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
 
-.PHONY: help check check-evidence check-host adapters-check adapters-sync verify-static verify-claim release-check doctor plan
+.PHONY: help status start verify handoff check check-plan-strict check-evidence check-host adapters-check adapters-sync verify-static verify-claim release-check doctor plan
 
 help: ## 显示可用目标
 	@echo "{{PROJECT_NAME}} · harness 目标"
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-18s %s\n", $$1, $$2}'
 
-check: ## 文档 + 指令 + 计划 + 适配层静态门禁
+status: ## 一屏状态（只读；Agent 冷启动第一命令）
+	@python3 tools/harness.py status
+
+start: ## 新建计划：make start TOPIC=<topic> [GOAL="..."] [SCOPE="dir1 dir2"]
+	@test -n "$(TOPIC)" || { echo "用法：make start TOPIC=<topic> [GOAL=\"...\"] [SCOPE=\"dir1 dir2\"]"; exit 2; }
+	@python3 tools/harness.py start --topic "$(TOPIC)" $(if $(GOAL),--goal "$(GOAL)") $(foreach s,$(SCOPE),--scope $(s))
+
+verify: ## 同步未提交段 + 静态门禁 + 计划严格校验
+	@python3 tools/harness.py verify
+
+handoff: ## 交接摘要（同步未提交段）
+	@python3 tools/harness.py handoff
+
+check: ## 文档 + 指令 + 计划 + 适配层静态门禁（日常；未提交段差异只告警）
 	@python3 tools/check_docs.py
 	@python3 tools/check_agents.py
-	@python3 tools/check_plan.py
+	@python3 tools/check_plan.py check --lenient-uncommitted
 	@python3 tools/adapters.py check
+
+check-plan-strict: ## 计划严格校验（未提交段必须与 git 一致）
+	@python3 tools/check_plan.py check
 
 check-evidence: ## 证据 schema 校验
 	@python3 tools/evidence.py validate
@@ -21,7 +37,7 @@ check-host: ## 宿主卫生 / 分层守卫（未配置 hygiene/layers 时 SKIP�
 	@python3 tools/check_hygiene.py
 	@python3 tools/check_layers.py
 
-verify-static: check check-evidence check-host ## 本地静态门禁（含证据与宿主检查）
+verify-static: check check-plan-strict check-evidence check-host ## 本地静态门禁（含证据、宿主检查与计划严格校验）
 
 verify-claim: ## 证据三值判定（PASS / FAIL / UNVERIFIED）
 	@python3 tools/verify_claim.py --all

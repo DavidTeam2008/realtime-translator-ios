@@ -214,6 +214,18 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 6. **别把 kit 文件当产品代码**：生成物是研发流程约束（规则/门禁/证据），不要 import 进业务运行时，也不要让 CI 依赖宿主语言之外的解释器。
 7. **新建计划草稿会让 `make check` 变红**：`make plan` 生成的是待填草稿；先补「目标/验收/下一步/scope.allow」并删掉占位符，或删除草稿，再继续。
 
+## 日常循环（v0.3.0-alpha.1 起）
+
+Agent 与人共用同一条链（不依赖提示词复制）：
+
+1. `make status`（或 `python3 tools/harness.py status`）——一屏状态 + 建议下一步；冷启动第一命令。
+2. `make start TOPIC=<topic> GOAL="<目标>" SCOPE="src/ ..."`——幂等建 active 计划；建完 `make check` 即绿（未提交段差异只告警）。
+3. 实现；`make check` 日常门禁。
+4. 完成前 `python3 tools/harness.py verify`——自动同步计划「未提交改动」段 → `make verify-static` → 计划严格校验 → 证据三值摘要；`--claims-strict` 可把 UNVERIFIED/FAIL 计入门禁。
+5. 交接/中断 `python3 tools/harness.py handoff`（`--json` 可机读）。
+
+> 严格校验在 `check-plan-strict` / `verify-static` / CI；计划未提交段不再需要手抄，`verify`/`handoff` 会按 `git status` 重写。
+
 ## 升级路径
 
 ### 版本升级（v0.2.13 起：先 check/plan，再人工应用）

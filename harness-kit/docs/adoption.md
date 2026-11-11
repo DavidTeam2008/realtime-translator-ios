@@ -42,6 +42,7 @@ cd /path/to/your-project                             # 在目标仓库根目录�
 
 - 失败按提示修内容，不删检查；测试命令必须真实存在。
 - 接入后从每次任务都走：计划 → 实现 → `make verify-static` → 证据 → `verify-claim` → 交接。
+- **v0.3.0+ 统一入口**：接入后第一条命令 `python3 tools/harness.py status`（或 `make status`）；建计划 `harness.py start`，完成前 `harness.py verify`，交接 `harness.py handoff`（详见 playbook「日常循环」）。
 - test-count 类完成声明需要可重算的 **JUnit XML artifact**（`tools/evidence_from_junit.py`）；xcresult 等不可重算产物会判 UNVERIFIED。
 
 ### 2.2 存量项目（Agent-first，先只读）

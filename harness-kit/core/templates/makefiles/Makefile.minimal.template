@@ -2,11 +2,17 @@
 # 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
 # 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
 
-.PHONY: help check verify-static
+.PHONY: help status verify check verify-static
 
 help: ## 显示可用目标
 	@echo "{{PROJECT_NAME}} · harness 目标"
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-18s %s\n", $$1, $$2}'
+
+status: ## 一屏状态（只读；Agent 冷启动第一命令）
+	@python3 tools/harness.py status
+
+verify: ## 同步状态 + 静态门禁（minimal 无计划/证据）
+	@python3 tools/harness.py verify
 
 check: ## 文档 + 指令静态门禁
 	@python3 tools/check_docs.py

@@ -60,7 +60,12 @@
   ],
   "makefile": "core/templates/makefiles/Makefile.strict.template",
   "makeTargets": [
+    "status",
+    "start",
+    "verify",
+    "handoff",
     "check",
+    "check-plan-strict",
     "verify-static",
     "verify-claim",
     "release-check",
