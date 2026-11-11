@@ -178,7 +178,7 @@ class SkillScopeTests(unittest.TestCase):
                           .read_text(encoding="utf-8"))
         self.assertEqual(VERSION, meta["kitVersion"])
         self.assertIn("agents", meta["agents"])
-        self.assertTrue(meta["kitRoot"].endswith("harness-kit"))
+        self.assertEqual(KIT.resolve().as_posix(), meta["kitRoot"])
         check = self.skill("check", "--scope", "user")
         self.assertEqual(0, check.returncode, check.stdout + check.stderr)
         self.assertIn("in sync", check.stdout)
