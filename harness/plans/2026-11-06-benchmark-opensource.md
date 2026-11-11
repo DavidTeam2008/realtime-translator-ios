@@ -491,7 +491,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.16：kit `v0.2.9` 发版完成：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入）；新增 agent-prompts.md（8 类场景模板 + 场景对照表）；kit **122 tests**；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync；iOS CI run `42846540918` success
 - [x] Phase 5.17：kit `v0.2.10` 发版完成：README 接入路径上移 + 命令内联 + 导航拆分；agent-prompts 19 类场景模板（发布前/对抗性评审等）；整体审查修复（SPEC/schema/锚点/路径/版本一致性）；kit **122 tests**；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync；iOS CI run `42854316813` success
 - [x] Phase 5.18：kit `v0.2.11` 发版完成：`prompts/` 单源 + `harness-prompt` CLI（list/show/copy/render；按场景拼前置、路径填充、阶段 WARN、剪贴板回退）；agent-prompts 改为生成物；接入模板修复（kit 路径/0A-0B/尖括号）；独立审计两轮后复验通过；kit **140 tests**；镜像 `main` `52e1ad7` + tag `v0.2.11`（CI run `42863127498` success）、`kit-drift` in sync；iOS CI run `42862894694` success
-- [x] Phase 5.20（本地完成，待提交/发版）：kit `v0.2.13` 升级基线：`harness-init` 写 `.harness-manifest.json`（kitVersion/profile/options/文件 sha256/append 块/skipped）；新增 `scripts/harness-upgrade`（`--check` 版本/漂移 exit 3/1/0；`--plan` 按 manifest options 重渲染三方 diff、只读；`--apply` 未实现）；真实 Android 仓（v0.2.3，legacy 无 manifest）只读预览 SAME=13 / CONFLICT=16、目标仓 0 改动；kit **156 tests**；本地 `make verify-static` **PASS**（91 iOS 脚本单测 + 156 kit tests + docs/架构/计数/harness/计划/证据/adapters 全过）；源已提交（`1d423af`），待镜像发版
+- [x] Phase 5.20（本地完成，待提交/发版）：kit `v0.2.13` 升级基线：`harness-init` 写 `.harness-manifest.json`（kitVersion/profile/options/文件 sha256/append 块/skipped）；新增 `scripts/harness-upgrade`（`--check` 版本/漂移 exit 3/1/0；`--plan` 按 manifest options 重渲染三方 diff、只读；`--apply` 未实现）；真实 Android 仓（v0.2.3，legacy 无 manifest）只读预览 SAME=13 / CONFLICT=16、目标仓 0 改动；kit **156 tests**；本地 `make verify-static` **PASS**（91 iOS 脚本单测 + 156 kit tests + docs/架构/计数/harness/计划/证据/adapters 全过）；源已提交（`1d423af` / `a0b3a59`）；**已发版**：iOS CI run `42967370934` success、镜像 main `ceffca9` + tag `v0.2.13`（镜像 CI run `42967522199` success）、tag clone 156 tests OK、`kit-drift` in sync
 - [x] Phase 5.19（本地完成，待提交/发版）：kit `v0.2.12` 证据链加固（P0）：重定位提案与独立评审冻结到 `harness/reviews/2026-11-11-kit-repositioning/`；`verify_claim` 增加 JUnit XML 独立重算 / commit 祖先 / dirty 复核；`requireArtifact` 默认 true；`harness-selftest` 新增 M9 伪造 PASS；计划模板补 `submitted`/`_archive`；README 定位句改为「给 AI Coding Agent 用的 Harness Engineering 项目管理工具」；kit **142 tests**；本地 `make verify-static` **PASS**（91 iOS 脚本单测 + 142 kit tests + docs/架构/计数/harness/计划/证据/adapters 全过）；源与提案冻结已提交（`3daa192` / `5a95c79`）；**已发版**：iOS CI run `42965932382` success、镜像 main `0330974` + tag `v0.2.12`（镜像 CI run `42966078254` success）、tag clone 142 tests OK、`kit-drift` in sync
 - [ ] Phase 6（可选）产品可信度
 
@@ -501,6 +501,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
+| kit v0.2.13 发版（2026-11-11） | **PASS**：iOS main `a0b3a59` 推送 → CI run `42967370934` success；`make kit-publish` → 镜像 main `ceffca9`；annotated tag `v0.2.13`（`8ae4b24` → `ceffca9`）；镜像 CI run `42967522199` success；tag clone VERSION `0.2.13` / `harness-upgrade` 可执行 / `render --check` OK / **156 tests OK**；`make kit-drift` in sync（`ceffca9`） | 本机 + GitHub Actions 公开 API | —（外部记录：镜像发布 v0.2.13） |
 | `make verify-static`（v0.2.13 本地，2026-11-11） | **PASS**（exit 0）：91 个 iOS 脚本单测 + **156** 个 kit tests；docs/架构/计数/harness/计划/证据/adapters 全过 | 本机 python3 3.14.7 / make 3.81 | —（过程记录：v0.2.13 集成门禁） |
 | `cd harness-kit && python3 -m unittest discover -s tests -q`（v0.2.13） | **PASS**：`Ran 156 tests OK`（新增 manifest/upgrade 14 用例：manifest 契约、in sync/漂移/版本 exit 3、append 缺失、legacy、plan 分类、只读、JSON、`--apply` 未实现） | 本机 python3 3.14.7 | —（过程记录：kit v0.2.13 本地回归） |
 | `scripts/harness-upgrade --target /tmp/android-up-preview --plan`（真实 Android 仓 v0.2.3，只读） | **PASS**：legacy 无 manifest → 预览 SAME=13 / CONFLICT=16，exit 0；目标仓 `git status` 前后一致（0 写入） | 本机 python3 3.14.7；浅克隆 Android 仓 | —（过程记录：legacy 升级预览） |
@@ -653,7 +654,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 | 21 | kit `v0.2.9` AI Agent 优先接入 + 提示词模板集 | README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排为 Agent 接入（推荐）→ 命令行手动接入；新增 docs/agent-prompts.md（公共前置 + 8 类场景模板 + 场景对照表）；SPEC/playbook/目录树/链接检查同步；kit 122 tests PASS；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync | 2026-11-10 |
 | 22 | kit `v0.2.10` README 重构 + 提示词模板扩充 + 整体审查修复 | README 接入路径上移、命令内联、`<kit>` 占位、导航拆分；agent-prompts 19 类场景模板（新增发布前/对抗性评审/自检/修 Bug/重构/依赖/文档/性能/安全/冷启动/方案评估）；adoption 索引分组；SPEC §5 去重、§3 可选段、§9 测试说明、config schema 补 `hygiene`/`layers`；smoke：3 profile init+门禁、adopt 双 flag、122 tests；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync | 2026-11-11 |
 | 23 | kit `v0.2.11`：提示词库 v2（单源 + 阶段前置）+ `harness-prompt` CLI | 新增 `prompts/`（2 前置 + 19 场景 + 2 附加片段）与 `scripts/harness-prompt`（`list`/`show`/`copy`/`render --check`：按场景拼前置、填 kit/目标路径、目标阶段/kit 目录 WARN、剪贴板回退、漂移校验）；`docs/agent-prompts.md` 改为生成物；`test_kit_prompts.py` 18 用例（kit 122→140）；修复接入模板缺 kit 路径、前置不适用未接入项目等直接可用性问题；独立审计（复用 auditor，只读）两轮：P1×3 + P2×8 修复后复验通过 | kit **140 tests PASS**；本地 `make verify-static` PASS；iOS CI run `42862894694` success；镜像 `main` `52e1ad7` + tag `v0.2.11`（CI run `42863127498` success）、tag clone 140 tests OK、`kit-drift` in sync | 已完成 | 2026-11-11 |
-| 25 | kit `v0.2.13` 升级基线（manifest + 只读 upgrade） | `harness-init` 写 `.harness-manifest.json`（含 options，供升级重渲染）；新增 `scripts/harness-upgrade`：`--check` 对比 manifest/文件/kit 版本（in sync 0 / 漂移 1 / 版本不符 3），`--plan` 在临时目录重渲染并输出 SAME/LOCAL_ONLY/UPGRADE/ALREADY/CONFLICT/ADD/OBSOLETE/NOT_MANAGED/APPEND（只读，不写目标）；legacy 目标也可预览；`--apply` 明确未实现；14 个新用例（kit 142→156）；真实 Android 仓 v0.2.3 只读预览：SAME=13 / CONFLICT=16 / 0 写入 | kit 156 tests PASS；本地 `make verify-static` PASS；Android 预览 exit 0 且目标仓 0 改动；**待提交与发版** | 2026-11-11 |
+| 25 | kit `v0.2.13` 升级基线（manifest + 只读 upgrade） | `harness-init` 写 `.harness-manifest.json`（含 options，供升级重渲染）；新增 `scripts/harness-upgrade`：`--check` 对比 manifest/文件/kit 版本（in sync 0 / 漂移 1 / 版本不符 3），`--plan` 在临时目录重渲染并输出 SAME/LOCAL_ONLY/UPGRADE/ALREADY/CONFLICT/ADD/OBSOLETE/NOT_MANAGED/APPEND（只读，不写目标）；legacy 目标也可预览；`--apply` 明确未实现；14 个新用例（kit 142→156）；真实 Android 仓 v0.2.3 只读预览：SAME=13 / CONFLICT=16 / 0 写入 | kit 156 tests PASS；本地 `make verify-static` PASS；Android 预览 exit 0 且目标仓 0 改动；iOS main `a0b3a59` → CI run `42967370934` success；镜像 main `ceffca9` + tag `v0.2.13`（CI run `42967522199` success）；tag clone 156 tests OK；`kit-drift` in sync | 2026-11-11 |
 | 24 | kit `v0.2.12` 证据链加固（重定位提案 P0 落地） | 独立红队实测旧 `verify_claim` 可被手写 PASS 证据绕过（0 测试 + `passed:9999` + 无 artifact 全绿）→ 实现 artifact 契约（`result.artifacts` / legacy `xcresultPath`）、JUnit XML 独立重算、commit 祖先/dirty 复核、`requireArtifact` 默认 true、selftest M9；`check_plan` 委托 verify_claim 与 xcresult 重算列为 v0.2.13；冻结提案/评审到 `harness/reviews/2026-11-11-kit-repositioning/`（含 sha256 + repro.sh） | kit 142 tests PASS；伪造 PASS 负向回归 PASS；本地 `make verify-static` PASS；iOS main `8471fe5` 推送 → CI run `42965932382` success；镜像 main `0330974` + tag `v0.2.12`（CI run `42966078254` success）；tag clone 142 tests OK；`kit-drift` in sync | 2026-11-11 |
 | 12 | 设备信任后复跑真机 + 取证 | 单元 120/120 PASS 并写设备证据（干净树，`verify-claim` PASS）；UI 仍 exit 74（网络配对限制）；首证因 dirty 工作树被判 FAIL → 改为「先提交再取证」；脚本改为失败不写证据（避免 `*-pass` 文件自相矛盾） | 2026-11-09 |
 | 11 | 用户按 README 走真机路径 + 开启分支保护 | 真机预热 6s/0 用例：脚本吞掉 `diagnostics.errors`，真实原因是测试 target 无 Team；已修脚本（打印原因+`APM_TEAM`+证书信任提示）与文档；分支保护已开（禁 force push/删除，普通 push 已实测通过） | 2026-11-09 |
@@ -663,7 +664,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.2.13 源已提交；待镜像发版后回填记录）。
+- `harness/plans/2026-11-06-benchmark-opensource.md` / 回填 kit v0.2.13 发版记录（CI run / 镜像 hash / tag clone / drift）。
+
 
 
 
@@ -684,7 +686,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 12. kit `v0.2.11`（提示词库单源 + `harness-prompt` CLI）已发版（镜像 `52e1ad7` + tag `v0.2.11`、CI success、drift in sync）：新增脚本与文档单源，无 profile/模板/门禁行为变化，Android 仓 pin 不变；计划模板 `submitted:`/`_archive/` 约定列为 v0.2.12 候选。
 13. kit `v0.2.12`（证据链加固 + 重定位提案冻结）**已发版**（iOS CI run `42965932382` success；镜像 `main` `0330974` + tag `v0.2.12`；镜像 CI run `42966078254` success；tag clone 142 tests OK；`kit-drift` in sync）。Android 仓 pin 保持 v0.2.3（`requireArtifact` 仅影响新模板，旧仓无行为变化）。
 14. v0.3 入口重构（统一 `harness` CLI + AGENTS 入口 + 双状态对账改造 + skill A/B）与 v0.2.13（`check_plan` 委托 verify_claim、`.harness-manifest`、kitVersion 门禁）待本轮发版后启动；路线图与验收见 `harness/reviews/2026-11-11-kit-repositioning/report.md` §7。
-15. kit `v0.2.13`（升级基线 + 只读 `harness-upgrade`）**本地完成、待提交与发版**：`--check` 的 kitVersion exit 3 由 kit 侧脚本承担（`harness status` 在 v0.3.0）；`check_plan` 委托 verify_claim、`.harness-manifest` 的 `--apply` 应用与真实仓升级演练列入 v0.3.0 候选。
+15. kit `v0.2.13`（升级基线 + 只读 `harness-upgrade`）**已发版**（iOS CI run `42967370934` success；镜像 `main` `ceffca9` + tag `v0.2.13`；镜像 CI run `42967522199` success；tag clone 156 tests OK；`kit-drift` in sync）。`--check` 的 kitVersion exit 3 由 kit 侧脚本承担（`harness status` 在 v0.3.0）；`--apply` 应用、`check_plan` 委托 verify_claim、真实仓完整升级演练列入 v0.3.0 候选。
+16. 下一步按已确认路线图启动 **v0.3.0-alpha**（统一 `harness` CLI + AGENTS 入口 + 双状态对账改造 + skill A/B）；路线图见 `harness/reviews/2026-11-11-kit-repositioning/report.md` §7。
 
 ## 待确认
 
