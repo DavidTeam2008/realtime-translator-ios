@@ -682,10 +682,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-kit v0.5.0 发版修复（测试不再依赖克隆目录名）：
-
-- `harness-kit/tests/test_harness_skill.py`
-- `harness/plans/2026-11-06-benchmark-opensource.md`
+- 无未提交改动（kit v0.5.0 源已提交 `38dbd69` / `3fdfa7f` / `1bb72e8`；镜像发布与发版记录待补）。
 
 ## 下一步
 
