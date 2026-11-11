@@ -14,10 +14,12 @@
 - 字段以 [`schema.json`](schema.json) 为准；可从 [`TEMPLATE.json`](TEMPLATE.json) 复制后填写。
 - 必需：`schemaVersion` / `id` / `claim` / `createdAt` / `git{commit,dirty}` / `command` / `environment` / `result` / `verdict` / `verifier`。
 - `verdict` 只能是 PASS / FAIL / UNVERIFIED；`git.dirty` 必须为 false 才代表可复核的提交态。
+- **test-count 的 PASS 证据必须带 `result.artifacts`（JUnit XML，仓库相对路径）**：`verify-claim` 会从 XML 独立重算 counts，与自报值不一致即 FAIL；缺 artifact 或只有 xcresult 等不可重算产物 → UNVERIFIED。
 
 ## 3. 生成与校验
 
 - 用工具写入（自动填 id / 时间 / git 信息）：`python3 tools/evidence.py write --claim tests-pass`；要求工作树干净。
+- 测试证据先用 `python3 tools/evidence_from_junit.py --xml <glob> --command "<测试命令>" --output <tmp.json>` 生成 payload（含 `result.artifacts`），再 `evidence.py write --from-json <tmp.json>`；xcresult 请先转 JUnit XML。
 - 全量校验：`make check-evidence`（或 `python3 tools/evidence.py validate`）。
 - 三值判定：`make verify-claim`（或 `python3 tools/verify_claim.py --all`）；无证据 = FAIL，环境不可复核 = UNVERIFIED。
 

@@ -55,7 +55,7 @@
       "baseline": "{{HARNESS_DIR}}/test-baseline.json",
       "floor": "unit.floor",
       "expectedSkipped": "unit.expectedSkipped",
-      "requireArtifact": false,
+      "requireArtifact": true,
       "command": "{{TEST_COMMAND}}"
     },
     {

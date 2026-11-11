@@ -42,6 +42,7 @@ cd /path/to/your-project                             # 在目标仓库根目录�
 
 - 失败按提示修内容，不删检查；测试命令必须真实存在。
 - 接入后从每次任务都走：计划 → 实现 → `make verify-static` → 证据 → `verify-claim` → 交接。
+- test-count 类完成声明需要可重算的 **JUnit XML artifact**（`tools/evidence_from_junit.py`）；xcresult 等不可重算产物会判 UNVERIFIED。
 
 ### 2.2 存量项目（Agent-first，先只读）
 

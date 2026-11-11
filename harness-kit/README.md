@@ -1,11 +1,13 @@
 # harness-engineering-kit
 
-> **Harness Engineering 项目脚手架**：按 **Instructions / State / Verification / Scope / Session Lifecycle** 五子系统，生成与项目无关的模板、门禁与证据链，让“完成”可验证。
+> **给 AI Coding Agent 用的 Harness Engineering 项目管理工具**：按 **Instructions / State / Verification / Scope / Session Lifecycle** 五子系统，把规则、状态与证据落成仓库里的文件、门禁与命令，让多个 Agent / 模型在同一仓库上接力开发、让“完成”可复核。
 
-**把“agent 说完成了”变成“证据说了算”。** 不是框架，也不是依赖；生成物可整目录删除。
+**把“agent 说完成了”变成“证据说了算”。** test-count 证据必须由可重算的 JUnit XML 支撑（伪造/矛盾会被门禁拒绝）；不是框架，也不是依赖；生成物可整目录删除。
+
+> 当前范围：**单工作流接力与分工**；多 Agent 并行门禁见路线图（v0.3.2），不在当前承诺内。
 
 - 仓库名 `harness-engineering-kit`（原名 `harness-kit`；目录、命令与 tag 前缀沿用短名）
-- 版本：`0.2.11`（见 [`VERSION`](VERSION)）
+- 版本：`0.2.12`（见 [`VERSION`](VERSION)）
 - **[AI coding Agent 接入指南（新项目 / 存量项目）](docs/adoption.md)** · **[提示词库：接入 / 开发 / 评审 / 发布 / 交接 / 收尾](docs/agent-prompts.md)** ← 先看这两个
 - 命令行手动接入：[采用 playbook](docs/playbook.md)（新项目五步 / 存量七步）
 - 深入：[演化与治理](docs/governance.md) · [内部契约 SPEC](SPEC.md)
@@ -39,7 +41,7 @@ Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力
 | 新会话失忆：不知道做到哪、哪些没验证 | AGENTS 路由 + 唯一 active 计划 + 交接摘要，只读仓库即可恢复上下文 |
 | Agent 越改越宽：顺手重构、动无关文件 | 计划 `scope.allow/deny` 与 `git status` 交叉核对，越界 FAIL |
 | 文档断链、索引缺失、过期结论被当现状 | `check_docs` / `check_agents` / `check_hygiene` 静态门禁 |
-| 门禁"永远绿"，没人知道是否还有效 | `harness-selftest` 负向注入：M1–M8 逐项制造违规，断言门禁必须变红 |
+| 门禁"永远绿"，没人知道是否还有效 | `harness-selftest` 负向注入：M1–M9 逐项制造违规，断言门禁必须变红 |
 | 换模型/换 Agent/换人就要重写规则 | 规则与门禁是仓库文件与命令，不绑定任何 Agent；适配层薄、可选 |
 
 ## 适合谁 / 不适合谁
@@ -132,10 +134,10 @@ python3 <kit>/scripts/harness-selftest --target ../legacy-app
 | --- | --- | --- |
 | 指令层 / 静态门禁 | `AGENTS.md` 模板 + `tools/check_docs.py` / `check_agents.py` | 目录页规则、链接/围栏/索引/预算、预算与敏感串、`§` 引用 |
 | 计划状态 | `tools/check_plan.py` + `harness/plans/` | front matter、唯一 active、证据表、done/submitted 绑定 |
-| 证据三值 | `tools/evidence.py` + `verify_claim.py` | PASS / FAIL / UNVERIFIED；无 evidence id 即未验证 |
-| **JUnit XML 适配器** | `tools/evidence_from_junit.py`（standard+） | 聚合 JUnit XML（pytest/unittest、Gradle、JUnit 等）为 evidence JSON；缺文件/解析失败 exit 2 |
+| 证据三值 + 独立重算 | `tools/evidence.py` + `verify_claim.py` | PASS / FAIL / UNVERIFIED；无 evidence id 即未验证；test-count 的 PASS 要求 JUnit XML artifact 重算 counts 一致 + commit 祖先 + clean tree |
+| **JUnit XML 适配器** | `tools/evidence_from_junit.py`（standard+） | 聚合 JUnit XML（pytest/unittest、Gradle、JUnit 等）为 evidence JSON（`result.artifacts`）；缺文件/解析失败 exit 2 |
 | **宿主卫生 / 分层门禁** | `tools/check_hygiene.py` / `check_layers.py`（standard+，可选配置） | 构建产物、根文件白名单、绝对符号链接、跟踪文件本机路径、超大文件；import 方向与 symbol guard；缺配置自动 SKIP |
-| **门禁自测** | `scripts/harness-selftest`（kit 侧） | 目标仓临时副本里做基线检查、逐项注入、断言门禁非 0、恢复后复核全绿；默认不写目标仓 |
+| **门禁自测** | `scripts/harness-selftest`（kit 侧） | 目标仓临时副本里做基线检查、逐项注入（M1–M9；M9 伪造 PASS 证据必须被拒）、断言门禁非 0、恢复后复核全绿；默认不写目标仓 |
 | **存量项目盘点** | `scripts/harness-adopt`（kit 侧） | 只读盘点 + `--report` / `--json` / `--write-plan`（改造计划草稿） |
 | **提示词即取即用** | `scripts/harness-prompt`（kit 侧） | `list` / `show` / `copy` / `render --check`：按所选场景拼前置（目标阶段不符给 WARN）、填 kit 与目标路径、剪贴板；文档由 `prompts/` 单源生成并受测试保护 |
 | **版本升级路径** | playbook「升级路径」 | 无 in-place 命令：临时渲染 + 逐文件 diff + `harness-selftest` 复核；已在 Android/Gradle 存量仓验证 v0.2.2→v0.2.3（2026-11-10）；profile 升级仍未验证 |
@@ -162,7 +164,7 @@ kit 的目标不是"规则越多越安全"，而是**能机检的就不写进指
 - **预算即设计**：根 `AGENTS.md` ≈1650 token 预算，三份 references 各 ≈950–1000 token；新增规则顶预算必须删/合并旧规则；
 - **渐进披露**：根指令只指路，目录级规则在嵌套 `AGENTS.md`，细节在 `references/`，流程在 skills/adapters；不一次塞满上下文；
 - **删除优先 + 薄适配**：模型/Agent 已能稳定做对的事降级或删除；Agent 私有能力只进 `adapters/`，不污染核心规则；
-- **门禁会腐烂，所以能自测**：`harness-selftest` 负向注入 + 140 个 kit 端到端用例；门禁空转（例：模式被改坏）会当场变红。
+- **门禁会腐烂，所以能自测**：`harness-selftest` 负向注入（含 M9 伪造证据）+ 142 个 kit 测试；门禁空转（例：模式被改坏）会当场变红。
 
 完整机制（版本演化、行为级评估计划、删除/降级流程、踩刹车信号）见 **[governance.md](docs/governance.md)**。
 
@@ -218,7 +220,7 @@ harness-kit/
 ├── docs/playbook.md     # 新项目五步法 + 存量项目七步法 + 常见坑 + 升级路径
 ├── docs/governance.md   # 演化与治理（反臃肿、版本策略、多人协作）
 ├── CHANGELOG.md         # 版本变更记录
-└── tests/               # kit 自身 unittest（标准库，140 个端到端用例）
+└── tests/               # kit 自身 unittest（标准库，142 个测试）
 ```
 
 宿主目标（init 之后，按 profile 增减；以 SPEC §2 为准）：
@@ -291,17 +293,18 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 ## 局限与未验证（别当成能力）
 
 - **结构可验证 ≠ 行为正确**：静态门禁与证据判定证明"流程可复核"，不证明产品行为/性能/真机结果正确——这些仍靠宿主动态测试、真机与人工评审。
-- **行为级评估尚未实现**：当前只有结构门禁 + 140 个 kit 测试 + 宿主 `harness-selftest`；"接入后 Agent 表现提升多少"的 A/B 评估是 v0.3+ 议题（见 governance §2.4），未做前不对外声称。
+- **行为级评估尚未实现**：当前只有结构门禁 + 142 个 kit 测试 + 宿主 `harness-selftest`；"接入后 Agent 表现提升多少"的 A/B 评估是 v0.3+ 议题（见 governance §2.4），未做前不对外声称。
 - **多人协作未验证**：唯一 active 计划、scope、证据绑定、CI required checks 能提供机制层支持；人类多人并行采用、人类陌生人首访仍未验证。
 - **版本升级已验证，profile 升级未验证**：v0.2.2→v0.2.3 已在真实 Android/Gradle 仓验证；minimal→standard→strict 的 profile 升级路径仍未在真实项目验证。
 - **语言/测试框架需要你提供**：`{{TEST_COMMAND}}` 与 `commands.test` 必须填真实命令；kit 不代跑、不解析测试输出（只提供 JUnit XML → evidence 转换）。
 - **宿主已有文档/规则时首次 `make check` 可能不绿**：按预算与白名单修内容，不要删检查绕过。
 - **外部试点有限**：空白 Python/Node/SwiftPM 项目、真实 Android/Gradle 存量仓已完成；其他语言生态、超大仓性能未验证。
-- **kit 自身测试**：140 个端到端用例（三档 init、`make check`/`verify-static`/`check-host`、证据三值、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest、Android 推断、dry-run/冲突/备份、无专有引用、版本引用一致、提示词单源与生成文档同步/CLI 前置选择）；随来源仓库 `verify` workflow 运行。
+- **kit 自身测试**：142 个测试（三档 init、`make check`/`verify-static`/`check-host`、证据三值/伪造证据负向/artifact 重算、strict `release-check`、存量盘点、JUnit 聚合、宿主传感器、门禁 selftest M1–M9、Android 推断、dry-run/冲突/备份、无专有引用、版本引用一致、提示词单源与生成文档同步/CLI 前置选择）；随来源仓库 `verify` workflow 运行。
+- **test-count 证据要求 artifact**：只有 JUnit XML 能被独立重算；xcresult 目前判 UNVERIFIED（先用 `evidence_from_junit.py` 转换）；显式 `requireArtifact=false` 的 legacy claim 仍接受自报值，但原因会标注"未重算"（不推荐）。
 - **适配器成熟度不一**：`githooks`/`ci` 有模板；`claude-code` 为薄适配；`dsh` 当前为预留。
 - **未做外部安全审计**：kit 只承诺不联网、不写目标之外文件（SPEC §8.7），但未在第三方 CI/受限沙箱验证。
 - **提示词 CLI 平台面**：macOS/Linux 已验证（`pbcopy` / 无剪贴板回退）；Windows 的 `clip` 分支未实测；报告路径示例使用 POSIX 临时目录。
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.11`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.2.12`；向后兼容策略见 [SPEC §10](SPEC.md)。

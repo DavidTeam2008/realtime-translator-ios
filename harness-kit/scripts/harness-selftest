@@ -22,6 +22,9 @@ Behavior:
        M7  evidence files moved away (only if any)  -> tools/verify_claim.py --all
        M8  local marker in tracked file (only when  -> tools/check_hygiene.py
            config has a `hygiene` section and the gate exists)
+       M9  forged PASS evidence: no artifact / fake  -> tools/verify_claim.py --all
+           counts, real HEAD commit (only when the host
+           has a requireArtifact=true test-count evidence)
   5. Run `make check` again to prove the clone recovered; non-zero => exit 1.
   6. Print a matrix (or JSON with --json); exit 0 only if every applied mutation
      was rejected by its gate, conditional mutations were skipped cleanly, and the
@@ -166,6 +169,16 @@ def first_tracked_text_file(repo: Path) -> Path | None:
 
 
 # ── mutations ─────────────────────────────────────────────────────────────
+def dotted_int(document: object, dotted: str) -> int | None:
+    """Read an integer from a dotted path (e.g. unit.floor)."""
+    current = document
+    for part in dotted.split("."):
+        if not isinstance(current, dict) or part not in current:
+            return None
+        current = current[part]
+    return current if isinstance(current, int) and not isinstance(current, bool) else None
+
+
 @dataclass
 class Mutation:
     mutation_id: str
@@ -280,6 +293,79 @@ def build_mutations(repo: Path, config: dict, staging: Path) -> list[Mutation]:
             applicable=tracked is not None,
             skip_reason="没有可用的跟踪文本文件" if tracked is None else "",
             mutate=volume_marker,
+        ))
+
+    # M9：伪造 PASS 证据（无 artifact、虚报 counts、commit=HEAD）必须被 verify_claim 拒绝。
+    test_count_claim = next(
+        (
+            claim
+            for claim in (config.get("claims") or [])
+            if isinstance(claim, dict)
+            and claim.get("type") == "test-count"
+            and claim.get("requireArtifact", True) is not False
+        ),
+        None,
+    )
+    target_evidence: list[Path] = []
+    if test_count_claim is not None:
+        for path in evidence:
+            try:
+                doc = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(doc, dict) and doc.get("claim") == test_count_claim.get("name"):
+                target_evidence.append(path)
+    if test_count_claim is None or not target_evidence:
+        mutations.append(Mutation(
+            "M9", "伪造 PASS 证据（无 artifact / 虚报 counts）", "tools/verify_claim.py", ["--all"],
+            applicable=False,
+            skip_reason="host 没有 requireArtifact=true 的 test-count 证据（无法构造伪造用例）",
+        ))
+    else:
+        forged_path = target_evidence[0]
+        floor_value = 0
+        expected_value = 0
+        baseline_rel = test_count_claim.get("baseline")
+        floor_key = test_count_claim.get("floor")
+        skipped_key = test_count_claim.get("expectedSkipped")
+        if isinstance(baseline_rel, str) and isinstance(floor_key, str) and isinstance(skipped_key, str):
+            try:
+                baseline = json.loads((repo / baseline_rel).read_text(encoding="utf-8"))
+                floor_value = dotted_int(baseline, floor_key) or 0
+                expected_value = dotted_int(baseline, skipped_key) or 0
+            except (OSError, json.JSONDecodeError):
+                pass
+
+        def forge_pass(
+            repo: Path,
+            path: Path = forged_path,
+            floor_number: int = floor_value,
+            skipped_number: int = expected_value,
+        ) -> None:
+            head = git(repo, "rev-parse", "--short=12", "HEAD").stdout.strip()
+            forged = {
+                "schemaVersion": 1,
+                "id": path.stem,
+                "claim": test_count_claim.get("name"),
+                "createdAt": "2026-01-01T00:00:00Z",
+                "git": {"commit": head, "dirty": False},
+                "command": "make test",
+                "environment": {"source": "selftest-forged"},
+                "result": {
+                    "status": "SUCCEEDED",
+                    "passed": floor_number + 1000,
+                    "failed": 0,
+                    "skipped": skipped_number,
+                    "durationSec": 0.1,
+                },
+                "verdict": "PASS",
+                "verifier": "selftest-forged",
+            }
+            write_text(path, json.dumps(forged, ensure_ascii=False, indent=2) + "\n")
+
+        mutations.append(Mutation(
+            "M9", "伪造 PASS 证据（无 artifact / 虚报 counts）", "tools/verify_claim.py", ["--all"],
+            mutate=forge_pass,
         ))
 
     return mutations

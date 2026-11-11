@@ -82,7 +82,7 @@ git add -A && git commit -m "harness scaffold"
 #    然后新建计划：填必填节 + 提交（草稿未填/未提交时 make check 红是预期）
 make plan TOPIC=<topic>        # 补目标/验收/下一步/scope.allow 后提交
 
-# 3b) 跑真实测试 → 写证据（证据要求 clean tree；claim 定义在 harness/config.json）
+# 3b) 跑真实测试 → 生成 JUnit XML → evidence_from_junit → evidence.py write（clean tree；claim 定义在 harness/config.json）
 <你的测试命令>
 cat > /tmp/evidence-draft.json <<'JSON'
 {
@@ -101,9 +101,9 @@ python3 tools/evidence.py write --from-json /tmp/evidence-draft.json
 python3 tools/verify_claim.py --all
 ```
 
-- 证据是**可被反驳的对象**：test-count 类 claim 由基线（`harness/test-baseline.json`）约束门槛与 skip；static 类 claim 复跑静态脚本。
+- 证据是**可被反驳的对象**：test-count 类 claim 由基线（`harness/test-baseline.json`）约束门槛与 skip，并要求 JUnit XML artifact 可重算；static 类 claim 复跑静态脚本。
 - **kit 不解析测试输出**：`passed/failed/skipped` 要由宿主写进 evidence 草稿（如 `swift test` 的 `Executed N test`、`node --test` 的 `# pass N`）；不同测试框架的计数口径以宿主为准。
-- 伪造不可行：`write` 要求 clean tree，证据绑定 git commit；`verify-claim --fresh` 会比较证据 commit 与工作树，`--strict` 下 STALE/缺失一律不能判 PASS。
+- 伪造成本被抬高：`write` 要求 clean tree，证据绑定 git commit；`verify-claim` 复核 commit 祖先/dirty，并从 JUnit XML 重算 counts（与自报不一致→FAIL）；`--fresh` 再比较证据 commit 与工作树。**不承诺绝对防伪**（能写仓库的人仍可伪造），但矛盾/无产物会被拒绝。
 
 **退出信号**：`verify_claim --all`：全 PASS → 0；任一 FAIL → 1；否则任一 UNVERIFIED → 2（exit 2 不是通过）。strict 档发布前用 `make release-check` 收口。
 
@@ -210,7 +210,7 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 2. **测试命令不存在**：`commands.test` 写了项目里跑不通的命令，证据永远写不出来；先在宿主仓库手动跑通再写入配置。
 3. **AGENTS 超预算**：规则越加越多会顶格；按“目录页 ≤200 行”收敛，细节下沉 `references/` 或嵌套 AGENTS。
 4. **`§` 引用错节号**：引用 `§6` 但目标文件没有 `## 6.` 标题 → `check_agents` 报错；改引用或补标题，不要删校验。
-5. **伪造证据不可行也不划算**：无产物/命令记录、dirty tree、commit 不可达都会被判 FAIL/UNVERIFIED；如实写“未验证 + 手动步骤”。
+5. **伪造证据会被门禁抓住**：counts 与 JUnit XML 不一致、无产物、dirty tree、commit 不可达都会判 FAIL/UNVERIFIED；如实写“未验证 + 手动步骤”。
 6. **别把 kit 文件当产品代码**：生成物是研发流程约束（规则/门禁/证据），不要 import 进业务运行时，也不要让 CI 依赖宿主语言之外的解释器。
 7. **新建计划草稿会让 `make check` 变红**：`make plan` 生成的是待填草稿；先补「目标/验收/下一步/scope.allow」并删掉占位符，或删除草稿，再继续。
 

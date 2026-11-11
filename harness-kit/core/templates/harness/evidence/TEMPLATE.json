@@ -18,7 +18,8 @@
     "passed": 0,
     "failed": 0,
     "skipped": 0,
-    "durationSec": 0
+    "durationSec": 0,
+    "artifacts": []
   },
   "verdict": "UNVERIFIED",
   "verifier": "example"

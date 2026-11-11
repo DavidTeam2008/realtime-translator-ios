@@ -14,9 +14,13 @@ config.claims（type=test-count|static）。
 判定规则：
   - 证据 verdict=FAIL → FAIL；verdict=UNVERIFIED → UNVERIFIED；verdict 非法 → FAIL。
   - verdict=PASS 时按 claim 类型复核：
-    * test-count：读 claim.baseline + claim.floor / claim.expectedSkipped（点号路径）；
-      要求 result.xcresultPath 非空（缺失 → UNVERIFIED，无法确认测试真实执行）、
-      failed==0、passed>=floor、skipped==expectedSkipped。
+    * test-count：读 claim.baseline + claim.floor / claim.expectedSkipped（点号路径）。
+      provenance：git.commit 必须可解析且是 HEAD 或其祖先，git.dirty 必须为 false。
+      artifact：result.artifacts（数组；result.xcresultPath 为 legacy 兼容）必须存在；
+      claim.requireArtifact 缺省为 **true**（显式 false 仅用于 legacy opt-out）；
+      有 JUnit XML artifact 时从 XML 独立重算 passed/failed/skipped，与自报值不一致 → FAIL；
+      无 artifact 或只有非 XML artifact（xcresult 等）→ UNVERIFIED（无法独立重算）。
+      再要求 failed==0、passed>=floor、skipped==expectedSkipped。
     * static：复跑 claim.command；exit 0 → PASS，非 0 → FAIL，command 缺失 → UNVERIFIED。
   - --fresh 按 config.freshness[claim] 的 glob 比较 evidence.git.commit 与当前工作树
     （含已提交增量、未提交与未跟踪文件）；有相关变更即 STALE。--strict 隐含 --fresh，
@@ -30,10 +34,12 @@ config.claims（type=test-count|static）。
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 CONFIG_REL = Path("harness") / "config.json"
@@ -213,6 +219,66 @@ def dotted_get(document: object, dotted: str) -> object:
     return current
 
 
+def git_is_ancestor(root: Path, commit: str) -> bool:
+    """commit 是否为 HEAD 本身或其祖先（防止伪造/游离 commit 冒充完成）。"""
+    code, _, _ = git(root, ["merge-base", "--is-ancestor", commit, "HEAD"])
+    return code == 0
+
+
+def artifact_paths(root: Path, doc: dict) -> tuple[list[str], list[str]]:
+    """返回 (合法的仓库相对 artifact 路径, 问题列表)。
+
+    契约：result.artifacts（数组）为规范字段；result.xcresultPath 作为 legacy 兼容。
+    路径必须是仓库相对路径、不得含 `..`、文件/目录必须存在。
+    """
+    result = doc.get("result") if isinstance(doc.get("result"), dict) else {}
+    raw: list[str] = []
+    items = result.get("artifacts")
+    if isinstance(items, list):
+        raw.extend(item.strip() for item in items if isinstance(item, str) and item.strip())
+    legacy = result.get("xcresultPath")
+    if isinstance(legacy, str) and legacy.strip() and legacy.strip() not in raw:
+        raw.append(legacy.strip())
+    valid: list[str] = []
+    problems: list[str] = []
+    seen: set[str] = set()
+    for rel in raw:
+        if rel in seen:
+            continue
+        seen.add(rel)
+        candidate = Path(rel)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            problems.append(f"artifact 路径必须是仓库相对路径且不含 ..：{rel!r}")
+            continue
+        if not (root / candidate).exists():
+            problems.append(f"artifact 不存在：{rel}")
+            continue
+        valid.append(rel)
+    return valid, problems
+
+
+def recount_junit(root: Path, rel: str) -> tuple[tuple[int, int, int] | None, str]:
+    """从 JUnit XML 独立重算 passed/failed/skipped；失败返回 (None, 原因)。"""
+    script = Path(__file__).resolve().parent / "evidence_from_junit.py"
+    if not script.is_file():
+        return None, "缺 tools/evidence_from_junit.py，无法重算（test-count PASS 需要可重算 artifact）"
+    try:
+        spec = importlib.util.spec_from_file_location("_kit_evidence_from_junit", script)
+        if spec is None or spec.loader is None:
+            return None, "无法加载 tools/evidence_from_junit.py"
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module  # dataclass 需要模块已注册
+        spec.loader.exec_module(module)
+        element = ET.parse(root / rel).getroot()
+        counts = module.aggregate(element)
+    except (OSError, ET.ParseError) as exc:
+        return None, f"JUnit XML 无法解析/读取：{rel}：{exc}"
+    except Exception as exc:  # pragma: no cover - 防御（模块加载异常等）
+        return None, f"JUnit 重算失败：{rel}：{exc}"
+    passed = max(0, counts.tests - counts.failed - counts.skipped)
+    return (passed, counts.failed, counts.skipped), ""
+
+
 def evaluate_test_count(root: Path, config: dict, claim: dict, doc: dict) -> tuple[str, str]:
     baseline_rel = claim.get("baseline")
     floor_key = claim.get("floor")
@@ -234,21 +300,68 @@ def evaluate_test_count(root: Path, config: dict, claim: dict, doc: dict) -> tup
     expected = dotted_get(baseline, skipped_key)
     if not isinstance(floor, int) or isinstance(floor, bool) or not isinstance(expected, int) or isinstance(expected, bool):
         return "FAIL", f"baseline 缺少整数 {floor_key}/{skipped_key}"
+
+    # provenance：PASS 证据必须来自 clean tree，且 commit 可解析、是 HEAD 祖先。
+    git_meta = doc.get("git") if isinstance(doc.get("git"), dict) else {}
+    commit = str(git_meta.get("commit") or "").strip().lower()
+    if not commit:
+        return "FAIL", "证据缺 git.commit，无法确认 provenance"
+    if git_sha(root, commit) is None:
+        return "FAIL", f"git.commit 无法解析：{commit}"
+    if not git_is_ancestor(root, commit):
+        return "FAIL", f"git.commit 不是 HEAD 或其祖先：{commit}"
+    if git_meta.get("dirty") is not False:
+        return "FAIL", "verdict=PASS 但 git.dirty 非 false（dirty 证据不可判 PASS）"
+
     result = doc.get("result") if isinstance(doc.get("result"), dict) else {}
-    artifact = str(result.get("xcresultPath") or "").strip()
-    if bool(claim.get("requireArtifact", False)) and not artifact:
-        return "UNVERIFIED", "result.xcresultPath 缺失（claim.requireArtifact=true），无法确认测试真实执行"
     counts = {key: result.get(key) for key in ("passed", "failed", "skipped")}
     if any(not isinstance(value, int) or isinstance(value, bool) for value in counts.values()):
         return "FAIL", "result.passed/failed/skipped 需为整数"
-    passed, failed, skipped = counts["passed"], counts["failed"], counts["skipped"]
+    require_artifact = claim.get("requireArtifact", True) is not False
+    artifacts, problems = artifact_paths(root, doc)
+    if problems:
+        return "FAIL", "；".join(problems)
+    if not artifacts:
+        if require_artifact:
+            return (
+                "UNVERIFIED",
+                "缺可重算 artifact（claim.requireArtifact 默认 true；用 tools/evidence_from_junit.py 生成 JUnit XML 后重试）",
+            )
+        # 显式 opt-out 的 legacy claim：仍在 provenance 通过后接受自报 counts，但注明未重算。
+        passed, failed, skipped = counts["passed"], counts["failed"], counts["skipped"]
+        note = "；未重算（claim.requireArtifact=false，legacy）"
+    else:
+        xml_artifacts = [rel for rel in artifacts if rel.lower().endswith(".xml")]
+        if not xml_artifacts:
+            if require_artifact:
+                return "UNVERIFIED", "artifact 无法独立重算（需要 JUnit XML；xcresult 请先转换为 JUnit）"
+            passed, failed, skipped = counts["passed"], counts["failed"], counts["skipped"]
+            note = "；未重算（非 XML artifact 且 claim.requireArtifact=false）"
+        else:
+            totals = [0, 0, 0]
+            for rel in xml_artifacts:
+                recounted, reason = recount_junit(root, rel)
+                if recounted is None:
+                    return "FAIL", reason
+                totals[0] += recounted[0]
+                totals[1] += recounted[1]
+                totals[2] += recounted[2]
+            passed, failed, skipped = totals
+            claimed = (counts["passed"], counts["failed"], counts["skipped"])
+            if claimed != (passed, failed, skipped):
+                return (
+                    "FAIL",
+                    "证据自报 counts 与 artifact 重算不一致："
+                    f"自报={claimed} / 重算={(passed, failed, skipped)}",
+                )
+            note = f"；已从 {len(xml_artifacts)} 个 JUnit XML 重算"
     if failed != 0:
         return "FAIL", f"failed={failed}（要求 0）"
     if passed < floor:
         return "FAIL", f"passed={passed} < {floor_key}={floor}"
     if skipped != expected:
         return "FAIL", f"skipped={skipped} != {skipped_key}={expected}"
-    return "PASS", f"passed={passed}≥{floor_key}={floor}，failed=0，skipped={skipped}=={skipped_key}"
+    return "PASS", f"passed={passed}≥{floor_key}={floor}，failed=0，skipped={skipped}=={skipped_key}{note}"
 
 
 def evaluate_static(root: Path, config: dict, claim: dict, doc: dict) -> tuple[str, str]:

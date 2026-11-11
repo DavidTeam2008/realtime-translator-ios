@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.12 — 2026-11-11
+
+- **证据链加固（P0 安全修复）**：`verify_claim.py` 不再信任证据自报的 counts。
+  test-count 的 PASS 现在要求：`git.commit` 可解析且是 HEAD 或其祖先、`git.dirty=false`；
+  `result.artifacts`（JUnit XML）必须存在，并从 XML **独立重算** passed/failed/skipped，
+  与自报值不一致即 FAIL；缺 artifact 或只有 xcresult 等不可重算产物 → UNVERIFIED。
+  `claim.requireArtifact` 缺省改为 `true`（显式 `false` 仅为 legacy opt-out，原因中标注“未重算”）。
+- **`harness-selftest` 新增 M9**：在临时副本中伪造 PASS 证据（HEAD commit、虚报 counts、无 artifact），
+  断言 `verify_claim.py --all` 必须非 0；仅当宿主存在 `requireArtifact=true` 的 test-count 证据时执行。
+- 测试：新增伪造 PASS / artifact 重算不一致 / commit 非祖先 / dirty PASS 负向用例；
+  profile 证据链测试改用 JUnit XML artifact；kit 测试 140 → 142。
+- 计划模板补 `submitted` 说明与 `_archive/` 完成流程；README 定位改为
+  「给 AI Coding Agent 用的 Harness Engineering 项目管理工具」。
+- 兼容性：已有宿主若 `claim.requireArtifact=false` 且无 artifact 仍可判 PASS（标注未重算）；
+  仅有 xcresult 证据的宿主会从 PASS 降为 UNVERIFIED，需先用 `tools/evidence_from_junit.py`
+  生成 JUnit XML。无 profile / 模板结构变更。
+
 ## 0.2.11 — 2026-11-11
 
 - **提示词库改为单源生成**：新增 `prompts/`（2 份阶段前置 + 19 个场景模板 + 2 个附加片段），

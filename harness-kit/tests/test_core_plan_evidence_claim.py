@@ -183,6 +183,19 @@ def plan_body(
     return "\n".join(parts)
 
 
+def junit_xml(*, passed: int, failed: int = 0, skipped: int = 0) -> str:
+    """Minimal JUnit XML fixture that the verifier can recompute counts from."""
+    cases: list[str] = []
+    for _ in range(passed):
+        cases.append('<testcase classname="t" name="ok"/>')
+    for _ in range(failed):
+        cases.append('<testcase classname="t" name="bad"><failure message="x"/></testcase>')
+    for _ in range(skipped):
+        cases.append('<testcase classname="t" name="skip"><skipped/></testcase>')
+    total = passed + failed + skipped
+    return f'<testsuite name="suite" tests="{total}">' + "".join(cases) + "</testsuite>"
+
+
 def evidence_doc(
     evidence_id: str,
     claim: str,
@@ -534,58 +547,134 @@ class KitCoreTest(unittest.TestCase):
         self.assertRegex(proc.stdout, r"CLAIM 20260101T000000Z-docs-pass: UNVERIFIED — ")
 
     def test_verify_claim_test_count_rules(self) -> None:
-        self.write_config([dict(TEST_COUNT_CLAIM)])
+        self.write_config([dict(TEST_COUNT_CLAIM, requireArtifact=True)])
         self.write_baseline(floor=120, expected_skipped=1)
+        (self.root / "build").mkdir()
+        (self.root / "build" / "junit.xml").write_text(junit_xml(passed=120, skipped=1), encoding="utf-8")
         self.commit_all()
-        # 正常：passed=120、skipped=1、xcresultPath 存在
+        # 正常：artifact 存在，自报 counts 与 JUnit 重算一致 → PASS
         good = evidence_doc(
             "20260101T000000Z-tests-pass",
             "tests-pass",
             "PASS",
             commit=self.base,
-            result={"passed": 120, "failed": 0, "skipped": 1, "xcresultPath": "build/test.xcresult"},
+            result={"passed": 120, "failed": 0, "skipped": 1, "artifacts": ["build/junit.xml"]},
         )
         self.write_evidence(good)
         proc = self.verify_claim("--all")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        self.assertRegex(proc.stdout, r"tests-pass: PASS — ")
-        # 默认不要求产物路径（通用项目）：缺 artifact 仍 PASS
-        no_path = evidence_doc(
+        self.assertRegex(proc.stdout, r"tests-pass: PASS — .*重算")
+        # requireArtifact 缺省为 true：缺 artifact → UNVERIFIED
+        no_artifact = evidence_doc(
             "20260101T000001Z-tests-pass",
             "tests-pass",
             "PASS",
             commit=self.base,
-            result={"passed": 120, "failed": 0, "skipped": 1, "xcresultPath": None},
+            result={"passed": 120, "failed": 0, "skipped": 1},
         )
-        (self.root / "harness" / "evidence" / f"{no_path['id']}.json").write_text(
-            json.dumps(no_path), encoding="utf-8"
-        )
-        proc = self.verify_claim("--all")
-        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        # claim.requireArtifact=true 时缺产物 → UNVERIFIED
-        strict_claim = dict(TEST_COUNT_CLAIM, requireArtifact=True)
-        self.write_config([strict_claim])
-        (self.root / "harness" / "evidence" / f"{no_path['id']}.json").write_text(
-            json.dumps(no_path), encoding="utf-8"
-        )
+        self.write_evidence(no_artifact)
         (self.root / "harness" / "evidence" / "20260101T000000Z-tests-pass.json").unlink()
         proc = self.verify_claim("--all")
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertRegex(proc.stdout, r"tests-pass: UNVERIFIED — .*requireArtifact")
-        # 低于 floor → FAIL
-        low = evidence_doc(
+        # 自报 counts 与 artifact 重算不一致 → FAIL（伪造 PASS 的核心路径）
+        forged = evidence_doc(
             "20260101T000002Z-tests-pass",
             "tests-pass",
             "PASS",
             commit=self.base,
-            result={"passed": 100, "failed": 0, "skipped": 1, "xcresultPath": "build/test.xcresult"},
+            result={"passed": 9999, "failed": 0, "skipped": 1, "artifacts": ["build/junit.xml"]},
         )
-        (self.root / "harness" / "evidence" / f"{low['id']}.json").write_text(
-            json.dumps(low), encoding="utf-8"
+        self.write_evidence(forged)
+        (self.root / "harness" / "evidence" / "20260101T000001Z-tests-pass.json").unlink()
+        proc = self.verify_claim("--all")
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertIn("与 artifact 重算不一致", proc.stdout)
+        # 非 XML artifact（如 xcresult）无法独立重算 → UNVERIFIED
+        (self.root / "build" / "test.xcresult").mkdir()
+        xc = evidence_doc(
+            "20260101T000003Z-tests-pass",
+            "tests-pass",
+            "PASS",
+            commit=self.base,
+            result={"passed": 120, "failed": 0, "skipped": 1, "artifacts": ["build/test.xcresult"]},
         )
+        self.write_evidence(xc)
+        (self.root / "harness" / "evidence" / "20260101T000002Z-tests-pass.json").unlink()
+        proc = self.verify_claim("--all")
+        self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
+        self.assertIn("无法独立重算", proc.stdout)
+        # legacy opt-out（requireArtifact=false）且无 artifact：provenance 通过后接受自报 counts
+        self.write_config([dict(TEST_COUNT_CLAIM, requireArtifact=False)])
+        self.write_evidence(no_artifact)
+        (self.root / "harness" / "evidence" / "20260101T000003Z-tests-pass.json").unlink()
+        proc = self.verify_claim("--all")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("legacy", proc.stdout)
+        # 低于 floor（artifact 重算 100） → FAIL
+        (self.root / "build" / "junit-low.xml").write_text(junit_xml(passed=100, skipped=1), encoding="utf-8")
+        low = evidence_doc(
+            "20260101T000004Z-tests-pass",
+            "tests-pass",
+            "PASS",
+            commit=self.base,
+            result={"passed": 100, "failed": 0, "skipped": 1, "artifacts": ["build/junit-low.xml"]},
+        )
+        self.write_evidence(low)
+        (self.root / "harness" / "evidence" / "20260101T000001Z-tests-pass.json").unlink()
         proc = self.verify_claim("--all")
         self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
         self.assertIn("passed=100", proc.stdout)
+
+    def test_verify_claim_rejects_forged_pass_without_artifact(self) -> None:
+        """P0 回归：0 测试 + passed=9999 + 无 artifact + HEAD commit 必须被拒绝。"""
+        self.write_config([dict(TEST_COUNT_CLAIM)])
+        self.write_baseline(floor=120, expected_skipped=1)
+        head = self.commit_all()
+        forged = evidence_doc(
+            "20260101T000000Z-tests-pass",
+            "tests-pass",
+            "PASS",
+            commit=head,
+            result={"passed": 9999, "failed": 0, "skipped": 1},
+        )
+        self.write_evidence(forged)
+        proc = self.verify_claim("--all")
+        self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertRegex(proc.stdout, r"tests-pass: UNVERIFIED — .*artifact")
+
+    def test_verify_claim_rejects_bad_commit_and_dirty(self) -> None:
+        self.write_config([dict(TEST_COUNT_CLAIM)])
+        self.write_baseline(floor=1, expected_skipped=0)
+        (self.root / "build").mkdir()
+        (self.root / "build" / "junit.xml").write_text(junit_xml(passed=1), encoding="utf-8")
+        head = self.commit_all()
+        # commit 不存在 → FAIL
+        bad_commit = evidence_doc(
+            "20260101T000000Z-tests-pass",
+            "tests-pass",
+            "PASS",
+            commit="deadbeef",
+            result={"passed": 1, "failed": 0, "skipped": 0, "artifacts": ["build/junit.xml"]},
+        )
+        self.write_evidence(bad_commit)
+        proc = self.verify_claim("--all")
+        self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("git.commit 无法解析", proc.stdout)
+        # dirty=true 的 PASS 证据 → FAIL
+        dirty = evidence_doc(
+            "20260101T000001Z-tests-pass",
+            "tests-pass",
+            "PASS",
+            commit=head,
+            dirty=True,
+            result={"passed": 1, "failed": 0, "skipped": 0, "artifacts": ["build/junit.xml"]},
+        )
+        (self.root / "harness" / "evidence" / "20260101T000000Z-tests-pass.json").unlink()
+        self.write_evidence(dirty)
+        proc = self.verify_claim("--all")
+        self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("git.dirty", proc.stdout)
 
     def test_verify_claim_freshness_ignores_process_dirs(self) -> None:
         # evidence / plans / reviews 是过程状态，不使 claim 失效

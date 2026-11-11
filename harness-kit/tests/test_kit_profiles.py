@@ -197,12 +197,17 @@ class HarnessInitProfileTests(unittest.TestCase):
         for cmd in (["git", "add", "-A"], ["git", "commit", "-q", "-m", "harness scaffold"]):
             done = run(cmd, cwd=target)
             self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        (target / "harness" / "runs").mkdir(parents=True, exist_ok=True)
+        (target / "harness" / "runs" / "junit.xml").write_text(
+            '<testsuite name="s" tests="1"><testcase classname="t" name="ok"/></testsuite>',
+            encoding="utf-8",
+        )
         draft = {
             "schemaVersion": 1,
             "claim": "tests-pass",
             "command": "echo ok",
             "environment": {"project": "Evidence Demo", "toolchain": "python", "os": "test"},
-            "result": {"status": "SUCCEEDED", "passed": 1, "failed": 0, "skipped": 0, "durationSec": 0.1},
+            "result": {"status": "SUCCEEDED", "passed": 1, "failed": 0, "skipped": 0, "durationSec": 0.1, "artifacts": ["harness/runs/junit.xml"]},
             "verdict": "PASS",
             "verifier": "kit-test",
         }
@@ -226,12 +231,17 @@ class HarnessInitProfileTests(unittest.TestCase):
         for cmd in (["git", "add", "-A"], ["git", "commit", "-q", "-m", "harness scaffold"]):
             done = run(cmd, cwd=target)
             self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        (target / "harness" / "runs").mkdir(parents=True, exist_ok=True)
+        (target / "harness" / "runs" / "junit.xml").write_text(
+            '<testsuite name="s" tests="1"><testcase classname="t" name="ok"/></testsuite>',
+            encoding="utf-8",
+        )
         draft = {
             "schemaVersion": 1,
             "claim": "tests-pass",
             "command": "echo ok",
             "environment": {"project": "Release Demo", "toolchain": "python", "os": "test"},
-            "result": {"status": "SUCCEEDED", "passed": 1, "failed": 0, "skipped": 0, "durationSec": 0.1},
+            "result": {"status": "SUCCEEDED", "passed": 1, "failed": 0, "skipped": 0, "durationSec": 0.1, "artifacts": ["harness/runs/junit.xml"]},
             "verdict": "PASS",
             "verifier": "kit-test",
         }

@@ -187,7 +187,7 @@ class HarnessSelftestTests(unittest.TestCase):
         self.assertTrue(data["ok"])
         self.assertEqual(0, data["exitCode"])
         ids = [item["id"] for item in data["mutations"]]
-        self.assertEqual(["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"], ids)
+        self.assertEqual(["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"], ids)
 
     # ── dirty target ────────────────────────────────────────────────
     def test_dirty_target_exits_two(self) -> None:
@@ -220,7 +220,7 @@ class HarnessSelftestTests(unittest.TestCase):
         proc = self.invoke(conditional_host)
         self.assertEqual(proc.returncode, 0, self.combined(proc))
         output = proc.stdout
-        for mutation_id in ("M6", "M7", "M8"):
+        for mutation_id in ("M6", "M7", "M8", "M9"):
             line = next((line for line in output.splitlines() if line.startswith(mutation_id)), "")
             self.assertIn("PASS", line, f"{mutation_id} should be exercised, output:\n{output}")
         self.assertIn("RESULT PASS", output)
