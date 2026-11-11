@@ -736,6 +736,9 @@ def collect_inventory(
 
     next_steps = [
         "审阅本报告（默认只读：未改动目标项目）",
+        "装一次入口 skill（用户级，所有仓库可见）："
+        "`<kit>/scripts/harness-skill install --scope user`；"
+        "之后在任意仓库对 Agent 说「接入这个项目」即可，不需要再生成提示词",
         f"运行 harness-init 接入（默认 --profile {profile_info['recommended']}；"
         f"strict 仅显式选择并写理由）："
         f"`python3 harness-kit/scripts/harness-init --profile {profile_info['recommended']} --target <target>`",

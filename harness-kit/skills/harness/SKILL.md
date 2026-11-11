@@ -1,16 +1,24 @@
 ---
 name: harness
-description: Harness Engineering 项目管理入口。接入/接手项目、建计划、实现、完成前验证与证据、评审、发布、交接换 Agent、kit 升级——一律先运行 `python3 tools/harness.py status`，按输出与路由执行；未接入仓库先走 adopt。
+description: Harness Engineering 项目管理入口（接入 / 升级 / 接手 / 计划 / 验证 / 评审 / 发布 / 交接）。未接入的仓库先走 adopt：定位 kit → 只读盘点 → dry-run → init；已接入先运行 python3 tools/harness.py status。触发：用 harness-kit 接入或改造存量项目、接手项目、建计划、完成前验证、发布前检查、交接、升级 kit。
 license: MIT
-compatibility: 目标仓库需已接入 harness-kit（harness/config.json + tools/harness.py）；未接入时先走 references/adopt.md
-metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.4.0}
+compatibility: 已接入仓库用仓库内工具（tools/harness.py）；未接入仓库用 kit 脚本（kit 位置见用户级 install.json、仓内/父目录 harness-kit/，或问用户一次）。
+metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.5.0}
 ---
 # harness · 项目入口
 
-## 0. 永远先看状态
+## 0. 先定位 kit，再看状态
 
-运行 `python3 tools/harness.py status --json`；失败或没有该脚本 = 仓库未接入 → `references/adopt.md`。
-不要凭对话记忆判断进度；平台/版本以 status 输出为准。
+1. **kit 位置**（按顺序，找到即停，不要猜）：
+   - 用户级安装记录：`~/.agents/skills/.harness-kit-skill.json` 的 `kitRoot`；
+   - 仓库内或父目录的 `harness-kit/VERSION`；
+   - 都没有：问用户一次 kit 路径。
+2. **版本核对**：读 `<kit>/VERSION`；低于 front matter 的 `min_version` 时提示升级 kit 并重装 skill（`<kit>/scripts/harness-skill install --scope user --force`），不自行改仓库。
+3. **已接入**（仓库有 `tools/harness.py`）：运行 `python3 tools/harness.py status --json`，按输出路由。
+4. **未接入**（没有 `tools/harness.py`）：走 `references/adopt.md`；不要伪造 `make` / 门禁输出。
+
+> 本 skill 是默认入口。只有不支持 skills 的宿主才用提示词兜底：
+> `<kit>/scripts/harness-prompt copy <场景>`（或 `docs/agent-prompts.md`）。两者冲突时以本 skill + kit 文档为准。
 
 ## 1. 按意图路由
 
@@ -34,6 +42,7 @@ metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.4.0}
 - **门禁**：`make check` / `harness.py verify` 红了先修根因；不删除、不弱化、不绕过门禁。
 - **问人**：push、发布、删除、改规则/门禁、`--force` 覆盖前先问。
 - **单一状态源**：计划与证据是仓库文件；不把进度只留在对话里。
+- **不装 skill 也能工作**：skill 只是入口；所有事实与流程都在仓库文件和 kit 文档里。
 
 ## 3. 输出协议（固定五段）
 

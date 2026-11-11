@@ -68,8 +68,8 @@ harness-kit/
 ├── scripts/harness-selftest  # kit 侧门禁自测：临时副本注入 → 断言门禁非 0 → 恢复复核（无扩展名）
 ├── scripts/harness-prompt    # 提示词库 CLI：list / show / copy / render（按场景拼前置、填路径；无扩展名）
 ├── scripts/harness-upgrade   # kit 侧只读升级：--check（版本/漂移）与 --plan（三方 diff）；无 --apply（无扩展名）
-├── scripts/harness-skill     # kit 侧 router skill：install/check/list（显式 opt-in；无扩展名）
-├── skills/harness/           # 单入口 SKILL.md + references/（9 个按阶段 playbook；随 harness-skill 安装）
+├── scripts/harness-skill     # kit 侧入口 skill：install/check/list/uninstall（--scope user/project；无扩展名）
+├── skills/harness/           # 单入口 SKILL.md + references/（9 个按阶段 playbook；随 harness-skill 安装；v0.5.0 起文档默认入口）
 ├── prompts/                  # 提示词单源（2 前置 + 19 场景 + 2 附加片段；front matter 契约见 §9）
 ├── docs/adoption.md          # 接入指南（AI coding Agent 优先 + 命令行手动接入 + 前后评分案例）
 ├── docs/agent-prompts.md     # 由 prompts/ 生成的提示词库（勿手改；render --check 防漂移）
@@ -103,7 +103,7 @@ harness-kit/
 ├── .gitignore                        # append 块
 ├── .githooks/pre-push                # standard/strict（可选初始化）
 ├── .github/workflows/verify.yml      # standard/strict（可选初始化）
-├── .dsh/skills/harness/              # 可选：router skill（kit 侧 harness-skill install；默认不装）
+├── .dsh/skills/harness/              # 可选：入口 skill 项目级安装（harness-skill --scope project）；用户级装在 ~/.agents/skills/harness
 └── .claude/…                         # strict + claude-code adapter（可选初始化）
 ```
 
@@ -117,7 +117,7 @@ harness-kit/
 
 ```json
 {
-  "kitVersion": "0.4.0",
+  "kitVersion": "0.5.0",
   "project": { "name": "{{PROJECT_NAME}}", "language": "{{PROJECT_LANGUAGE}}" },
   "paths": {
     "docs": "docs",
@@ -173,7 +173,7 @@ harness-kit/
 | `check_agents.py` | 同上 | 根/嵌套 AGENTS 存在与字节上限、token 预算、敏感串扫描、`§N`/`第 N 节` 引用解析（目标标题存在）；exit 1 |
 | `check_plan.py` | `python3 tools/check_plan.py [check\|new TOPIC\|brief] [--lenient-uncommitted\|--strict] [--root PATH]` | 计划 front matter（status/level/owner/updated/scope.allow/acceptance/verify）、唯一 active、必填节、验证证据表（命令/结果/环境/证据ID）、evidence id 必须存在且 PASS、done 必须有 `submitted` 且证据 commit 绑定、未提交改动与 `git status` 一致；**v0.4：submitted 每个 commit 按提交时点 scope 审计（merge 只与第一父比较）**；`_archive/*.md` 也扫描，`status` 非 done/archived 硬 FAIL；done「未验证项」需「未验证豁免」表逐条覆盖（理由≥5 字、到期≤`waiver.maxDays`）；`--strict` 把归档内容问题升 FAIL；exit 1 |
 | `harness.py` | `python3 tools/harness.py {status\|start\|intake\|verify\|release\|handoff\|plan check\|upgrade} [--json] [--scope P …] [--claims-strict]` | v0.3.0+ 目标侧统一入口：`status` 只读一屏状态 + 建议下一步（`--json`）；**无 active 时回读最近归档计划（lastPlan，注明归档快照/归档后新增 PASS 证据）**；`start` 幂等建计划；`verify` 同步未提交段 → `make verify-static` → `check_plan.py check --strict` → `verify_claim --all` 摘要；`handoff` 无 active 时输出归档回读；`release` fresh 证据；`plan check`；`upgrade` 指引。exit：0 通过 / 1 门禁或计划失败 / 2 用法或能力缺失 |
-| `harness-skill`（kit 侧） | `python3 harness-kit/scripts/harness-skill --target PATH {install\|check\|list} [--agent dsh,claude-code] [--force] [--dry-run] [--json]` | 把 `skills/harness/` 渲染到目标 `.dsh/skills/harness/` 与/或 `.claude/skills/harness/`；install 记录 manifest `skills.harness`（version/agents/files sha256）；check 漂移 exit 1、未安装 exit 2；A/B 未完成 → 默认不安装。 |
+| `harness-skill`（kit 侧） | `python3 harness-kit/scripts/harness-skill [--target PATH] {install\|check\|list\|uninstall} [--scope project\|user] [--agent dsh,agents,claude-code] [--force] [--dry-run] [--json]` | 把 `skills/harness/` 渲染到 `--scope project`（`<target>/.dsh/skills`、`.agents/skills`、`.claude/skills`，manifest 记录）或 `--scope user`（`~/.agents/skills`、`$DSH_HOME/skills`、`~/.claude/skills`，元数据 `~/.agents/skills/.harness-kit-skill.json` 记录 kitRoot/version/hashes，不入库）；check 漂移 exit 1、未安装 exit 2；uninstall 默认拒绝删除有本地修改的目录（`--force` 才行）。**v0.5.0 起文档默认入口是 `--scope user` 一次安装；行为级 A/B 后置。** |
 | `evidence.py` | `python3 tools/evidence.py {ls\|validate\|write} [--claim NAME …] [--root PATH]` | 读写 `harness/evidence/<UTC>-<claim>.json`（schema 见 `harness/evidence/schema.json`）；自动填 `git.commit/dirty`；`write` 要求 clean tree |
 | `verify_claim.py` | `python3 tools/verify_claim.py --all [--fresh] [--strict] [--allow-untracked] [--root PATH]` | 三值：`CLAIM <id>: PASS|FAIL|UNVERIFIED — reason`；聚合 exit：任一 FAIL→1，否则任一 UNVERIFIED→2，全 PASS→0。test-count 的 PASS 复核：`git.commit` 可解析且为 HEAD 祖先、`git.dirty=false`；`result.artifacts`（或 legacy `result.xcresultPath`）必须存在，JUnit XML 从 XML 独立重算 passed/failed/skipped 且与自报值一致，缺 artifact / 只有非 XML artifact → UNVERIFIED；`claim.requireArtifact` 缺省 **true**（显式 false 为 legacy opt-out，原因标注“未重算”）。**v0.4：递归扫描证据并分类 `_archive`（输出 SUPERSEDED、不参与聚合）；当前证据与 artifact 必须 git tracked（未跟踪 PASS→UNVERIFIED，`--strict` 下 `--allow-untracked` 无效）；必需 claim（`required` 默认 true）缺当前证据→UNVERIFIED；归档 FAIL/UNVERIFIED 必须有当前 PASS 证据 `supersedes` 合法接管；claim `environment`/`floorByEnvironment` 不匹配→UNVERIFIED；`expectedSkipped` 支持 int/区间/byEnvironment 且区间宽度受 `harden.maxSkippedRange` 限制；static claim 不做 freshness 判定**；`--fresh` 按 config.freshness 比较证据 commit 与工作树（evidence/plans/reviews 过程目录不计入）；`--strict` 时 STALE→UNVERIFIED |
 | `scorecard.py` | `python3 tools/scorecard.py [--generate] [--check-stale] [--strict] [--json] [--root PATH]` | standard+：`--generate` 跑门禁快照并写 `harness/reviews/<UTC-date>-scorecard.md`（checkedAt/commit/证据 ID/测试与文档计数/五子系统自评+独立复评 TBD，**不自动打分**）；`--check-stale` 对缺失/超 30 天/超 50 commits/commit 非 HEAD 祖先 WARN，`--strict` exit 1；`--json` 供测试 |
@@ -273,7 +273,7 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
   - `test_kit_host_tools.py`（gates）：tmp git fixture + `harness/config.json`；`check_hygiene.py` 覆盖被跟踪构建产物 / 根文件白名单 / 绝对符号链接 / 本机路径四类违规与正常情况、缺 `hygiene` 段 SKIP；`check_layers.py` 覆盖违规 import / `allowedImports` 覆盖 / `symbolGuards`、缺 `layers` 段 SKIP；≥8 用例。
   - `test_harness_upgrade.py`（state）：`harness-init` 写 manifest（schema/kitVersion/profile/options/文件 sha256/append 块/skipped；dry-run 不写）；`harness-upgrade --check` 的 in sync（0）、本地漂移（1）、config.kitVersion 伪造（3）、append 块缺失（1）、legacy 无 manifest（2）；`--plan` 的 SAME/LOCAL_ONLY/UPGRADE/CONFLICT/ADD/OBSOLETE 分类、legacy 预览、`--fail-on-conflict`、只读（git status 不变）、`--json` 契约、`--apply` exit 2。
   - `test_harness_cli.py`（state）：`tools/harness.py` 的 status（无计划/JSON/只读）、start（幂等、owner/scope 自动填充、建完 `make check` exit 0）、intake（需求卡→计划 / 模糊判据拒绝且不建计划）、verify（同步「未提交改动」+ `== verify: PASS ==`）、release（无证据 exit 2 / fresh 可重算证据 PASS）、handoff（`--json` 契约）、plan check（默认宽松）、upgrade 指引（`--apply` exit 2）、minimal profile（status 可用、start exit 2）；`check_plan.py check --lenient-uncommitted` 的 WARN 负向用例。
-  - `test_harness_skill.py`（state）：`scripts/harness-skill install/check/list`（单/双 agent、manifest 记录、漂移检测、冲突/--force、dry-run、legacy 无 manifest、未安装 exit 2）；SKILL.md front matter / ≤120 行 / references ≥6 且总行 ≤1200。
+  - `test_harness_skill.py`（state）：`scripts/harness-skill install/check/list/uninstall`（单/双 agent、manifest 记录、漂移检测、冲突/--force、dry-run、legacy 无 manifest、未安装 exit 2、`--scope user` 元数据/隔离环境/卸载、`.agents` 目标、删除保护）；SKILL.md front matter / ≤120 行 / references ≥6 且总行 ≤1200。
   - `test_harness_selftest.py`（gates）：`harness-init --profile standard` 生成临时宿主 + git commit；正常 target → `scripts/harness-selftest` exit 0 且输出含 mutation 行；条件宿主（active 计划 + 证据 + hygiene）→ M6/M7/M8/M9 均被执行；target 脏 → exit 2；baseline 红（预先提交未登记 docs）→ exit 2。
   - `test_core_evidence_chain_v04.py`（v0.4）：证据归档 SUPERSEDED/必需 claim/未跟踪证据与 artifact/`supersedes` 接管/environment/`floorByEnvironment`/skipped 区间与宽度/static freshness。
   - `test_kit_scorecard_v04.py`（v0.4）：scorecard 生成、过期与 `--strict`、缺文件行为。
@@ -286,6 +286,7 @@ python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
 - `KIT_VERSION` 单一来源 `harness-kit/VERSION`（kit 自身）与目标项目 `harness/config.json.kitVersion`。
 - 向后兼容：新增 config 字段必须可选；破坏性变更需在 README 的 changelog 记录。
 - 仓库改名：`harness-kit` → `harness-engineering-kit`（2026-11-10，GitHub 301 重定向；目录、命令、tag 前缀沿用短名 `harness-kit`）。
+- v0.5.0：入口改为 skill 优先（`harness-skill --scope user` 一次安装、任意仓库会话可见；`--scope project` 供团队 pin 版本），`uninstall`/`--scope` 与用户级元数据；`harness-adopt`/`harness-init`/`harness-prompt` 引导 skill 优先、提示词降级为兜底；SKILL.md 增加 kit 定位与版本地板（min_version），`references/adopt.md` 自足（不再依赖提示词）；门禁/`tools/`/config schema 无行为变更。行为级 A/B 后置（v0.5.x），未执行前不声称 skill 提升 Agent 表现。
 - v0.4.0：接入反馈 15 项 + 红队 P0 收口（submitted 按提交时点 scope、归档计划审计/回读、证据与 artifact 入库、required claim、SUPERSEDED/接管、JUnit 默认脱敏、environment/floorByEnvironment、layers tracked+untracked、scorecard、Makefile selftest/upgrade-check/scorecard、`check-plan-strict --strict`）。升级前按 `docs/playbook.md` 迁移矩阵自检；新增证据/config 字段均为可选。
 - v0.3.0：目标侧统一入口 `tools/harness.py`（status/start/intake/verify/release/handoff）；`check_plan.py check --lenient-uncommitted` 供日常 `make check`，严格校验由 `check-plan-strict`（verify-static/CI）承担；升级时需回写 Makefile 增加 `status/start/verify/release/handoff/check-plan-strict` 与 `harness/requirements/` 模板（旧仓不升级则行为不变）。router skill 是显式安装（`harness-skill`），不进入 init 默认产物。
 - 升级：kit 不提供 in-place 迁移命令（设计决定，避免覆盖宿主文档）。v0.2.13 起提供 `.harness-manifest.json` 基线 + `scripts/harness-upgrade --check/--plan`（只读；`--apply` 未实现）：`--check` 判 in sync / 本地漂移 / 版本不符，`--plan` 给出三方 diff；人工按 plan 回写 kit 管理面后跑 `verify-static` + `harness-selftest`。该路径已由真实 Android/Gradle 存量仓 v0.2.2→v0.2.3 验证（2026-11-10），profile 升级与 `harness-upgrade` 在真实仓的完整演练仍未验证（v0.3.0 候选）。

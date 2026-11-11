@@ -467,6 +467,11 @@ def write_summary(target: Path, profile_name: str, created: list[str], skipped: 
         "--archive-report <path-to-inventory-report.md>"
     )
     print("  7. Build the baseline: `make scorecard` (draft) and `make selftest` (mutation check).")
+    print(
+        "  8. Agent entry: install the harness skill once (user scope; every repo sees it), "
+        "then just ask the agent to adopt/work:"
+    )
+    print("     <kit>/scripts/harness-skill install --scope user")
 
 
 def build_parser() -> argparse.ArgumentParser:

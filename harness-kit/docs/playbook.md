@@ -1,7 +1,7 @@
 # 采用 playbook：五步改造法（Harness Engineering 五子系统落地）
 
 > 给宿主项目做一次 Harness Engineering 改造的操作手册：按 Instructions / State / Verification / Scope / Session Lifecycle 五子系统落地。每步给出**命令**、**可检查的输出/退出信号**与**回滚点**。
-> 前置约定与完整契约见 [`../README.md`](../README.md) 与 [`../SPEC.md`](../SPEC.md)；按读者选择路径：[`adoption.md`](adoption.md)（AI coding Agent 优先接入 + 命令行手动接入 + 前后评分）、[`agent-prompts.md`](agent-prompts.md)（提示词库：模板 + `harness-prompt` 一条命令复制）、本文（逐步操作）、[`governance.md`](governance.md)（演化、反臃肿、多人协作）。
+> 前置约定与完整契约见 [`../README.md`](../README.md) 与 [`../SPEC.md`](../SPEC.md)；按读者选择路径：[`adoption.md`](adoption.md)（AI coding Agent 优先接入 + 命令行手动接入 + 前后评分）、本文（逐步操作）、[`governance.md`](governance.md)（演化、反臃肿、多人协作）、[`agent-prompts.md`](agent-prompts.md)（兜底提示词库，仅不支持 skills 的宿主用）。
 
 ## 0. 完成定义（先对齐，避免“看起来接入了”）
 
@@ -223,7 +223,7 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 
 ## 日常循环（v0.3.0-alpha.1 起）
 
-Agent 与人共用同一条链（不依赖提示词复制）：
+Agent 侧装一次入口 skill（`<kit>/scripts/harness-skill install --scope user`）后按意图直接触发；下面是与人共用的同一条链（命令行等价动作，不依赖提示词复制）：
 
 1. `make status`（或 `python3 tools/harness.py status`）——一屏状态 + 建议下一步；冷启动第一命令。
 2. `make start TOPIC=<topic> GOAL="<目标>" SCOPE="src/ ..."`——幂等建 active 计划；建完 `make check` 即绿（未提交段差异只告警）。有需求卡时用 `python3 tools/harness.py intake --file <卡>`（机检验收判据，模糊判据会被拒绝）。
@@ -232,7 +232,7 @@ Agent 与人共用同一条链（不依赖提示词复制）：
 5. 发布前 `python3 tools/harness.py release --check`（静态门禁 + fresh 证据；strict 档 `--strict`；证据 UNVERIFIED 不算通过）。
 6. 交接/中断 `python3 tools/harness.py handoff`（`--json` 可机读）。
 
-> 可选：router skill 显式安装 `<kit>/scripts/harness-skill --target . install`（装到 `.dsh/skills/` / `.claude/skills/`；A/B 未完成，默认不装）。
+> 入口 skill（默认）：用户级 `install --scope user`（写 `~/.agents/skills/harness/`，一次安装所有仓库会话可见；升级 kit 后 `--force` 重装）；需要团队 pin 版本时 `--scope project` 装到 `.dsh/skills/` / `.agents/skills/` / `.claude/skills/` 并提交。行为级 A/B 后置（v0.5.x），skill 只做入口路由。
 
 > 严格校验在 `check-plan-strict` / `verify-static` / CI；计划未提交段不再需要手抄，`verify`/`handoff` 会按 `git status` 重写。
 >
@@ -276,6 +276,19 @@ v0.4.0 是**行为变更**版本：更严的审计与默认脱敏会让旧仓出
 升级后必须再跑一次 `python3 <kit>/scripts/harness-selftest --target .`：证明门禁仍会红；
 selftest 矩阵异常（SKIP≠PASS）时先修门禁，不要发布。
 
+### v0.4.0 → v0.5.0 升级自检（入口变化，门禁无行为变更）
+
+v0.5.0 只改**入口与文档**：`tools/`、门禁、证据判定、`config` schema 均不变，旧仓的 `make check` / `make verify-static` 结果不变。要做的只有：
+
+| 变更 | 旧仓预期 | 修复动作 |
+| --- | --- | --- |
+| 默认入口改为入口 skill（一次用户级安装，跨仓生效） | 无强制影响；旧提示词流程仍可用（降级为兜底） | `python3 <kit>/scripts/harness-skill install --scope user`；`check --scope user` 应 in sync |
+| `harness-skill` 新增 `--scope user/project`、`uninstall`、`agents` 目标 | 项目级旧安装仍可 `check`（`.dsh/skills`、`.claude/skills`） | 需要统一时 `install --scope project --force` 后提交；`check` 报漂移再跟进 |
+| `harness-adopt` 多一行 skill 安装提示；`harness-prompt copy` 多一行 stderr 提示 | 无行为影响 | 无需处理 |
+| `docs/agent-prompts.md` 改为「兜底入口」定位 | 无行为影响 | 无需处理 |
+
+升级后 `make selftest` 预期不变（M1–M9）。行为级 A/B 未执行前，不要对外声称 skill 提升了 Agent 表现。
+
 ### profile 升级（仍未验证）
 
 - **升级 = 在已接入目录上再 init 更高档**：先 `--dry-run` 对比新增文件/冲突，再执行；已有文件默认 CONFLICT。
@@ -293,6 +306,7 @@ selftest 矩阵异常（SKIP≠PASS）时先修门禁，不要发布。
 | `make release-check` | 0（fresh 证据）/2（无证据或 STALE）/1（有 FAIL） | 仅 strict；要求证据 fresh 且 strict。**刚接入无证据时 exit 2 属预期** |
 | `make doctor` | 0（OK/WARN）/2（缺必需项） | strict：python3/git/测试命令可执行性检查 |
 | `make adapters-check` | 0（一致）/1（漂移） | strict：skills 单源同步后应一致 |
+| `python3 <kit>/scripts/harness-skill check --scope user` | 0（in sync）/1（漂移）/2（未安装） | 入口 skill 用户级安装；升级 kit 后 `install --scope user --force` 重装 |
 | `make scorecard` | 0 | 生成 `harness/reviews/<date>-scorecard.md` 草稿；自评/独立复评 TBD |
 | `make check` 的 scorecard 提醒 | 0（WARN 不算失败） | 过期/缺失只 WARN；`--strict` 才 exit 1（发布门禁可用） |
 | `make selftest` | 0（全拦截）/1（门禁空转）/2（环境或基线红） | 负向注入；SKIP ≠ PASS |
@@ -306,6 +320,7 @@ selftest 矩阵异常（SKIP≠PASS）时先修门禁，不要发布。
 - [ ] standard+：`make verify-static` exit 0
 - [ ] standard+：`make plan TOPIC=<topic>` 能建计划，计划模板的必填节齐全
 - [ ] standard+：真实测试跑通并把 evidence 写入 `harness/evidence/`，`verify_claim --all` 为 0
+- [ ] Agent 入口：`harness-skill install --scope user` 已装，`check --scope user` exit 0（或宿主不支持 skills，确认兜底提示词流程可用）
 - [ ] strict：`make release-check` 在 fresh 证据下 exit 0；`make adapters-check` exit 0
 - [ ] 计划/handoff 记录：实际卡点、未验证项、下一步（供下一位维护者恢复）
 

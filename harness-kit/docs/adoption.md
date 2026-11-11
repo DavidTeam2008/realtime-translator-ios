@@ -1,7 +1,7 @@
 # 接入指南 · AI coding Agent 优先（新项目 / 存量项目 / 命令行手动接入）
 
-> harness-kit 的主要使用者是 **AI coding Agent**：接入、日常任务、计划、分工、交接、收尾都以 Agent 为主路径。本文给出两种接入路径（Agent-first / 命令行手动）；提示词用 `<kit>/scripts/harness-prompt copy <场景>` 一条命令拿到（按所选场景拼前置、填 kit 与目标仓库路径；目标阶段不符会 WARN），完整模板见[提示词库](agent-prompts.md)。
-> 相关：[README](../README.md)（能力与价值）、[提示词库](agent-prompts.md)（接入/需求/计划/分工/交接/收尾）、[playbook](playbook.md)（命令行五步/七步细节）、[governance](governance.md)（演化、反臃肿、多人协作）、[SPEC](../SPEC.md)（内部契约）。
+> harness-kit 的主要使用者是 **AI coding Agent**：接入、日常任务、计划、分工、交接、收尾都以 Agent 为主路径。**默认入口是入口 skill**：装一次（`<kit>/scripts/harness-skill install --scope user`），之后任意仓库对 Agent 说「接入这个项目」或当前任务即可，不需要复制提示词；宿主不支持 skills 时再用 `<kit>/scripts/harness-prompt copy <场景>` 兜底（按场景拼前置、填路径；阶段不符会 WARN），完整模板见[提示词库](agent-prompts.md)。
+> 相关：[README](../README.md)（能力与价值）、[提示词库](agent-prompts.md)（兜底模板）、[playbook](playbook.md)（命令行五步/七步细节）、[governance](governance.md)（演化、反臃肿、多人协作）、[SPEC](../SPEC.md)（内部契约）。
 
 ## 1. 先看症状：你需不需要 harness-kit
 
@@ -20,7 +20,19 @@
 
 harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instructions / State / Verification / Scope / Session Lifecycle），Agent 接入、存量改造、版本升级用的是同一套五子系统资产；每步落到哪一层，见 [README「它是什么」](../README.md#它是什么harness-engineering-脚手架)。
 
-**怎么拿提示词**：一条命令即可（`<kit>` = kit 克隆路径）：
+**默认入口：装一次入口 skill（推荐，零粘贴）**。`<kit>` = kit 克隆路径；在目标仓库根目录执行：
+
+```bash
+cd /path/to/your-project
+<kit>/scripts/harness-skill install --scope user      # 装到 ~/.agents/skills；任意仓库的 Agent 会话可见
+# 然后直接对 Agent 说：「用 harness-kit 接入这个项目」
+```
+
+- 用户级安装只写 `~/.agents/skills/harness/`（DSH 在 rank 500 扫描；项目级同名 skill 优先），不写入仓库；`--scope project` 则装到仓库 `.dsh/skills/`、`.claude/skills/` 并随仓库提交（适合团队 pin 版本）。
+- 装完 `harness-skill check --scope user` 应报 in sync；升级 kit 后重装 `install --scope user --force`（`references/upgrade.md` 有步骤）。
+- skill 会先定位 kit（用户级 `install.json` → 仓内/父目录 `harness-kit/` → 问一次），再按「未接入走 adopt、已接入先 `status`」路由。
+
+**兜底：宿主不支持 skills 时用提示词**（一条命令拿到，粘贴给 Agent）：
 
 ```bash
 cd /path/to/your-project                             # 在目标仓库根目录执行（或加 --target）
@@ -33,7 +45,7 @@ cd /path/to/your-project                             # 在目标仓库根目录�
 
 ### 2.1 新项目（Agent-first）
 
-让 Agent 自己执行接入，但按顺序、可复查。直接复制：`<kit>/scripts/harness-prompt copy adopt-new`；完整模板见 [prompts §1](agent-prompts.md#1-接入新项目agent-first)。核心步骤：
+让 Agent 自己执行接入，但按顺序、可复查。装了入口 skill 时直接说「接入这个项目」；没装时用兜底模板 `<kit>/scripts/harness-prompt copy adopt-new`（完整模板见 [prompts §1](agent-prompts.md#1-接入新项目agent-first)）。核心步骤：
 
 ```text
 读 <kit>/README.md 与 <kit>/docs/adoption.md → python3 <kit>/scripts/harness-init --dry-run 给人确认 →
@@ -43,12 +55,12 @@ cd /path/to/your-project                             # 在目标仓库根目录�
 - 失败按提示修内容，不删检查；测试命令必须真实存在。
 - 接入后从每次任务都走：计划 → 实现 → `make verify-static` → 证据 → `verify-claim` → 交接。
 - **v0.3.0+ 统一入口**：接入后第一条命令 `python3 tools/harness.py status`（或 `make status`）；建计划 `harness.py start`（有需求卡用 `intake`），完成前 `harness.py verify` / 发布 `release --check`，交接 `harness.py handoff`（详见 playbook「日常循环」）。
-- **可选 router skill**：`<kit>/scripts/harness-skill --target . install` 装到 `.dsh/skills/` / `.claude/skills/`；A/B 未完成，默认不装，主入口仍是 CLI。
+- **入口 skill（默认）**：用户级 `harness-skill install --scope user` 装一次，所有仓库可见；需要团队 pin 版本时用 `--scope project` 装到仓库 `.dsh/skills/`、`.claude/skills/` 并提交。A/B 未执行前，skill 只做入口路由，所有事实与门禁仍以仓库文件为准。
 - test-count 类完成声明需要可重算的 **JUnit XML artifact**（`tools/evidence_from_junit.py`）；xcresult 等不可重算产物会判 UNVERIFIED。
 
 ### 2.2 存量项目（Agent-first，先只读）
 
-**强制顺序**：`harness-adopt` 只读盘点 → 人确认改造计划 → init → 按 playbook 七步法。直接复制：`<kit>/scripts/harness-prompt copy adopt-brownfield`；完整模板见 [prompts §2](agent-prompts.md#2-接入存量项目agent-first先只读)。
+**强制顺序**：`harness-adopt` 只读盘点 → 人确认改造计划 → init → 按 playbook 七步法。装了入口 skill 时直接说「接入这个项目」，skill 会按 `references/adopt.md` 执行；没装时用兜底模板 `<kit>/scripts/harness-prompt copy adopt-brownfield`（完整模板见 [prompts §2](agent-prompts.md#2-接入存量项目agent-first先只读)）。
 
 ```bash
 <kit>/scripts/harness-adopt --target . --report /tmp/adoption-report.md --json   # 只读，0 写入
@@ -128,9 +140,9 @@ python3 /path/to/harness-kit/scripts/harness-adopt --target . --archive-report /
 - 七步法每一步的退出信号/回滚见 [playbook「存量项目（brownfield）改造」](playbook.md#存量项目brownfield改造七步法)。
 - 接入前建议记录**基线评分**（见 §5），接入后再复评，才能回答"到底改善了没有"。盘点报告在只读阶段放目标仓之外是刻意的；接入完成后用 `--archive-report` 归档到`harness/reports/adoption-<YYYY-MM-DD>.md`，仓库内才有可追溯的接入前基线。
 
-## 4. 接入后：场景提示词模板
+## 4. 接入后：skill 路由（默认）与场景模板（兜底）
 
-接入完成后，日常由 Agent 按场景取模板（完整内容见 [提示词库](agent-prompts.md)）：`<kit>/scripts/harness-prompt copy <场景>` 会自动拼 0A 前置并填路径；下表是场景索引：
+接入完成后，装了 skill 的 Agent 直接按意图触发（`status` / `plan` / `verify` / `review` / `release` / `handoff` / `upgrade`），不需要取模板。宿主不支持 skills 时，用 `<kit>/scripts/harness-prompt copy <场景>` 取兜底模板（自动拼 0A 前置并填路径），下表是场景索引：
 
 **接入与接手**
 
@@ -223,7 +235,7 @@ python3 /path/to/harness-kit/scripts/harness-adopt --target . --archive-report /
 ## 6. 接入验收清单
 
 **Agent 接入（推荐）**
-- [ ] 提示词用 `harness-prompt copy <场景>` 能直接拿到：自动拼前置、路径已填、无残留 `{{...}}`
+- [ ] 入口 skill 已装一次（`harness-skill install --scope user`；`check --scope user` in sync），或宿主不支持 skills 时有可用的兜底提示词流程
 - [ ] Agent 冷启动只读仓库可回答"现在做到哪、下一步、哪些未验证"
 - [ ] Agent 的完成声明带 evidence id 或显式"未验证"
 - [ ] 计划 `scope.allow` 与实际改动一致
@@ -258,8 +270,8 @@ A：核心规则与门禁是仓库文件与命令，与模型无关；Agent 特�
 **Q：能防住 Agent 说谎吗？**
 A：不能提供密码学保证；它把"随口宣布完成"的成本显著抬高，并让低成本蒙混路径在门禁上可见。
 
-**Q：提示词怎么用最省事？**
-A：克隆 kit 后在目标仓库根目录跑 `<kit>/scripts/harness-prompt list` 看场景，`copy <场景>` 复制到剪贴板即可：命令按场景拼 0A/0B 前置（阶段不符会 WARN）、填好 kit 与目标仓库绝对路径，并提示还需补的占位符（如 `<SYMPTOM>`）；没有剪贴板工具时打印到 stdout。也可以 `show <场景>` 只打印，或直接在 [提示词库](agent-prompts.md) 里手工复制。
+**Q：怎么让 Agent 最快进入流程？**
+A：装一次入口 skill：`<kit>/scripts/harness-skill install --scope user`（写 `~/.agents/skills/harness/`），之后任意仓库的 Agent 会话直接说「接入这个项目」或当前任务即可，不需要每次取提示词。宿主不支持 skills 时才用兜底：在目标仓库根目录跑 `<kit>/scripts/harness-prompt list` 看场景，`copy <场景>` 复制到剪贴板（按场景拼 0A/0B 前置、填好路径、列出待补占位符；无剪贴板时打印到 stdout）。
 
 **Q：多人怎么用？**
 A：见 [governance 多人协作](governance.md#3-多人与多-agent-协作)：唯一 active 计划、`scope.allow`、PR + required checks、证据绑定 commit；分工提示词见 [prompts §16](agent-prompts.md#16-多人--多-agent-分工)。

@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.5.0 — 2026-11-11
+
+> 来源：真实接入反馈（barra 仓，Qoder CN + DeepSeek V4.1-flash，standard 档）：「先生成提示词再粘贴」
+> 太繁琐。主题：**入口从「复制提示词」改为「装一次 skill，说一句话」**。
+
+### 入口 skill 优先
+
+- `harness-skill` 新增 `--scope user`：一次安装到 `~/.agents/skills/harness/`（DSH 在 rank 500
+  扫描，所有仓库会话可见；项目级同名 skill 优先），另支持 `.dsh/skills`、`.claude/skills`；
+  `--scope project` 保持随仓库提交。新增 `uninstall`（默认拒绝删除有本地修改的目录）、
+  `agents` 目标、用户级元数据 `~/.agents/skills/.harness-kit-skill.json`（kitRoot/version/
+  hashes，不入库），`check` 支持 user scope（文件哈希 + kitVersion 漂移）。
+- `skills/harness/SKILL.md`：描述加入接入/升级/接手触发词；§0「定位 kit（install.json →
+  仓内/父目录 harness-kit → 问一次）+ 版本地板（min_version 0.5.0）」。
+- `references/adopt.md` 自足：不再依赖提示词，含只读盘点 → 确认 → dry-run → init →
+  七步法 → 归档/评分卡/selftest 收口；`references/upgrade.md` 增加升级后重装 skill。
+- `harness-adopt` 下一步提示、`harness-init` 收尾提示、`harness-prompt copy` 输出均引导
+  「先装 skill；提示词仅兜底」。
+- 文档：README / adoption / playbook（新增 v0.4.0 → v0.5.0 升级自检）/ SPEC / why（记录
+  「不做 DSH 插件」决策与复访条件）/ DSH 适配器说明；`docs/agent-prompts.md` 重新生成，
+  定位为兜底入口。
+
+### 测试与边界
+
+- 新增 5 个用例（user scope 安装/检查/卸载、dry-run 不写、claude-code 用户级、`.agents`
+  项目级、卸载保护），kit 270 → 275 tests。
+- 门禁 / `tools/` / `config` schema 无行为变更；旧仓与 v0.4.0 结果一致。
+- **行为级 A/B 后置（v0.5.x）**：本轮只把入口切到 skill（依据真实接入反馈 + skill 机制事实），
+  尚未执行 skill vs 提示词的行为级对比，不声称 skill 提升 Agent 表现。
+
 ## 0.4.0 — 2026-11-11
 
 > 来源：真实存量仓库（Python/MySQL 单体，standard 档）接入反馈 15 项（P0×6 / P1×6 / P2×3）+

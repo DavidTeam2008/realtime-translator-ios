@@ -1,12 +1,20 @@
-# AI coding Agent 提示词模板（接入 / 开发 / 评审 / 发布 / 交接 / 收尾）
+# AI coding Agent 提示词模板（兜底入口：接入 / 开发 / 评审 / 发布 / 交接 / 收尾）
 
-> harness-kit 的主要使用者是 **AI coding Agent**。本文是可直接使用的提示词库，覆盖接入、开发、评审、发布、协作与收尾；模板与具体 Agent 无关（DeepSeek Harness / Claude Code / Codex / Cursor / 自研），前提是它能读文件、跑 shell。
+> harness-kit 的**默认入口是入口 skill**：装一次（`<kit>/scripts/harness-skill install --scope user`），任意仓库的 Agent 会话都能通过 skill 路由到接入/计划/验证/发布流程，不需要复制提示词。
+>
+> 本文是**兜底**提示词库：只在宿主不支持 skills，或你临时想用命令行拿一段文本时使用。模板与具体 Agent 无关（DeepSeek Harness / Claude Code / Codex / Cursor / 自研），前提是它能读文件、跑 shell。
 >
 > **本文件由 `scripts/harness-prompt render` 从 `prompts/*.md` 生成，不要手改**；改模板请改 `prompts/` 后重新渲染。
 
-## 怎么用：一条命令拿提示词（推荐）
+## 怎么用：先装 skill（推荐），再用提示词兜底
 
-在**目标仓库根目录**执行（或加 `--target <目标仓库>`）；下文 `<kit>` 指 kit 克隆路径：
+**推荐（一次）**：在目标仓库根目录执行一次用户级安装，之后直接对 Agent 说「接入这个项目」：
+
+```bash
+<kit>/scripts/harness-skill install --scope user   # 装到 ~/.agents/skills；所有仓库可见
+```
+
+**兜底（宿主没有 skills 支持时）**：一条命令拿提示词，粘贴给 Agent；下文 `<kit>` 指 kit 克隆路径：
 
 ```bash
 cd /path/to/your-project

@@ -5,7 +5,8 @@
 
 ## 为什么是空适配器
 
-- 仓库内可固化的指令就是 `AGENTS.md` 谱系（根 + 嵌套）与 `.dsh/skills/*/SKILL.md`。
+- 仓库内可固化的指令就是 `AGENTS.md` 谱系（根 + 嵌套）与 skills（`.dsh/skills/*/SKILL.md`、`.agents/skills/*/SKILL.md`）。
+- DSH 的 skill 发现根：项目 `.dsh/skills`（rank 100）→ 项目 `.agents/skills`（200）→ 自定义目录（300）→ 用户 `~/.dsh/skills`（400）→ 用户 `~/.agents/skills`（500）。kit 的入口 skill 用 `harness-skill install --scope user` 装到 `~/.agents/skills/harness/`，一次安装、所有仓库会话可见；项目级同名 skill 优先。
 - 其他能力（模型、权限、工具、MCP、hooks）属于用户级 profile 配置，不在项目仓库内，kit 不生成。
 - 复制一份 DSH 专用配置会制造第二真源；保持仓库原生文件即可跨 agent 工具共用。
 
@@ -21,9 +22,10 @@
 
 ## 使用建议
 
-1. 先跑 `make verify-static` 确认静态链路可用，再让 agent 执行任务。
-2. 完成声明前加载 `verify-change`；交接前加载 `handoff`；高风险 L2 加载 `red-team`。
-3. 不要把 `.claude/` 等其它工具的生成物复制给 DSH；各适配器独立。
+1. 先装一次入口 skill：`<kit>/scripts/harness-skill install --scope user`（写 `~/.agents/skills/harness/`；`check --scope user` 应 in sync），再让 agent 执行任务。
+2. 先跑 `make verify-static` 确认静态链路可用，再让 agent 执行任务。
+3. 完成声明前加载 `verify-change`；交接前加载 `handoff`；高风险 L2 加载 `red-team`。
+4. 不要把 `.claude/` 等其它工具的生成物复制给 DSH；各适配器独立。
 
 ## 相关
 

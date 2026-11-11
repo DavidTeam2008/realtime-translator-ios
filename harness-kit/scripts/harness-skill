@@ -1,21 +1,35 @@
 #!/usr/bin/env python3
-"""harness-skill: install / check the `harness` router skill into a target project.
+"""harness-skill: install / check / uninstall the `harness` skill.
 
 Usage:
+    # Project scope (committed with the repo; default)
     python3 harness-kit/scripts/harness-skill --target ../myapp install \
-        [--agent dsh,claude-code] [--force] [--dry-run] [--json] [--root KIT_ROOT]
-    python3 harness-kit/scripts/harness-skill --target ../myapp check [--json]
-    python3 harness-kit/scripts/harness-skill --target ../myapp list [--json]
+        [--scope project] [--agent dsh,agents,claude-code] [--force] [--dry-run] [--json]
+    # User scope (install once, visible in every repository; what DSH reads at rank 500)
+    python3 harness-kit/scripts/harness-skill install --scope user [--agent agents]
 
-Agents:
-    dsh          -> <target>/.dsh/skills/harness/
-    claude-code  -> <target>/.claude/skills/harness/
+    python3 harness-kit/scripts/harness-skill --target ../myapp check [--scope project|user] [--json]
+    python3 harness-kit/scripts/harness-skill --target ../myapp list [--json]
+    python3 harness-kit/scripts/harness-skill --target ../myapp uninstall [--scope project|user]
+        [--agent ...] [--force]
+
+Scopes and agent paths:
+    project      dsh          -> <target>/.dsh/skills/harness
+                 agents       -> <target>/.agents/skills/harness
+                 claude-code  -> <target>/.claude/skills/harness
+    user         dsh          -> $DSH_HOME/skills/harness            (default ~/.dsh/skills/harness)
+                 agents       -> $DSH_AGENTS_HOME/skills/harness     (default ~/.agents/skills/harness)
+                 claude-code  -> ~/.claude/skills/harness
+
+Agent defaults: project -> dsh,claude-code; user -> agents (the shared root DSH scans at
+rank 500, so one install covers every repository and every session).
 
 The skill is a **router**: SKILL.md stays small; references/ holds per-stage playbooks
 (adopt / status / plan / build / verify / review / release / collaborate / upgrade).
-Install is explicit (v0.3.0: A/B not finished, so skills are opt-in). `install` records
-the installed version + file hashes in `.harness-manifest.json` under `skills.harness`
-(if the target has a manifest). `check` exits 1 on drift, 2 when not installed.
+User scope writes one metadata file (``.harness-kit-skill.json``) next to the installed
+roots with kitRoot/version/hashes (outside any repo, never committed); project scope
+records the same in <target>/.harness-manifest.json under ``skills.harness``.
+
 Standard library only; no network.
 """
 from __future__ import annotations
@@ -23,19 +37,24 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 DEFAULT_KIT_ROOT = Path(__file__).resolve().parent.parent
 SKILL_NAME = "harness"
 MANIFEST_NAME = ".harness-manifest.json"
-AGENT_PATHS = {
+USER_META_NAME = ".harness-kit-skill.json"
+AGENTS = ("dsh", "agents", "claude-code")
+SCOPES = ("project", "user")
+PROJECT_AGENT_PATHS = {
     "dsh": Path(".dsh") / "skills" / SKILL_NAME,
+    "agents": Path(".agents") / "skills" / SKILL_NAME,
     "claude-code": Path(".claude") / "skills" / SKILL_NAME,
 }
+DEFAULT_AGENTS = {"project": ["dsh", "claude-code"], "user": ["agents"]}
 
 
 class SkillError(Exception):
@@ -64,18 +83,55 @@ def source_files(kit_root: Path) -> dict[str, bytes]:
     return files
 
 
-def parse_agents(value: str | None) -> list[str]:
+def parse_scope(value: str) -> str:
+    if value not in SCOPES:
+        raise SkillError(f"未知 --scope：{value}（可用：{', '.join(SCOPES)}）")
+    return value
+
+
+def parse_agents(value: str | None, scope: str) -> list[str]:
     if not value:
-        return ["dsh", "claude-code"]
+        return list(DEFAULT_AGENTS[scope])
     agents = [item.strip() for item in value.split(",") if item.strip()]
-    unknown = [agent for agent in agents if agent not in AGENT_PATHS]
+    unknown = [agent for agent in agents if agent not in AGENTS]
     if unknown:
-        raise SkillError(f"未知 --agent：{', '.join(unknown)}（可用：{', '.join(AGENT_PATHS)}）")
+        raise SkillError(f"未知 --agent：{', '.join(unknown)}（可用：{', '.join(AGENTS)}）")
     return agents
 
 
-def installed_files(target: Path, agent: str) -> dict[str, bytes]:
-    directory = target / AGENT_PATHS[agent]
+def home_base(env_name: str, fallback: str) -> Path:
+    raw = os.environ.get(env_name)
+    return Path(raw).expanduser() if raw else Path.home() / fallback
+
+
+def agent_path(scope: str, agent: str, target: Path) -> Path:
+    if scope == "project":
+        return target / PROJECT_AGENT_PATHS[agent]
+    if agent == "dsh":
+        return home_base("DSH_HOME", ".dsh") / "skills" / SKILL_NAME
+    if agent == "agents":
+        return home_base("DSH_AGENTS_HOME", ".agents") / "skills" / SKILL_NAME
+    return Path.home() / ".claude" / "skills" / SKILL_NAME
+
+
+def user_meta_path() -> Path:
+    return home_base("DSH_AGENTS_HOME", ".agents") / "skills" / USER_META_NAME
+
+
+def display_path(scope: str, path: Path, target: Path) -> str:
+    if scope == "project":
+        try:
+            return path.relative_to(target).as_posix()
+        except ValueError:
+            return path.as_posix()
+    home = Path.home()
+    try:
+        return "~/" + path.relative_to(home).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def installed_files(directory: Path) -> dict[str, bytes]:
     if not directory.is_dir():
         return {}
     files: dict[str, bytes] = {}
@@ -85,20 +141,27 @@ def installed_files(target: Path, agent: str) -> dict[str, bytes]:
     return files
 
 
-def update_manifest(target: Path, version: str, agents: list[str], files: dict[str, bytes]) -> str | None:
+def read_json(path: Path) -> dict | None:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def update_project_manifest(target: Path, version: str, agents: list[str],
+                            files: dict[str, bytes]) -> str | None:
     path = target / MANIFEST_NAME
     if not path.is_file():
         return f"{MANIFEST_NAME} 不存在（legacy 目标）：未记录 skill 版本"
-    try:
-        manifest = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return f"{MANIFEST_NAME} 无法解析，未记录 skill：{exc}"
-    if not isinstance(manifest, dict):
-        return f"{MANIFEST_NAME} 不是 JSON object，未记录 skill"
+    manifest = read_json(path)
+    if manifest is None:
+        return f"{MANIFEST_NAME} 无法解析，未记录 skill"
     skills = manifest.get("skills")
     if not isinstance(skills, dict):
         skills = {}
     skills[SKILL_NAME] = {
+        "scope": "project",
         "kitVersion": version,
         "agents": sorted(agents),
         "installedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -109,68 +172,140 @@ def update_manifest(target: Path, version: str, agents: list[str], files: dict[s
     return None
 
 
+def clear_project_manifest(target: Path) -> None:
+    path = target / MANIFEST_NAME
+    manifest = read_json(path)
+    if manifest is None:
+        return
+    skills = manifest.get("skills")
+    if isinstance(skills, dict) and SKILL_NAME in skills:
+        del skills[SKILL_NAME]
+        if not skills:
+            del manifest["skills"]
+        path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def update_user_meta(kit_root: Path, version: str, entries: dict[str, dict]) -> str | None:
+    path = user_meta_path()
+    meta = read_json(path) or {}
+    recorded = meta.get("agents")
+    if not isinstance(recorded, dict):
+        recorded = {}
+    for agent, entry in entries.items():
+        recorded[agent] = entry
+    meta.update({
+        "kitVersion": version,
+        "kitRoot": kit_root.as_posix(),
+        "scope": "user",
+        "updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "agents": recorded,
+    })
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        return f"无法写用户级元数据 {path}：{exc}"
+    return None
+
+
 def cmd_install(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
     version = kit_version(kit_root)
-    agents = parse_agents(args.agent)
+    scope = parse_scope(args.scope)
+    agents = parse_agents(args.agent, scope)
     files = source_files(kit_root)
+    destinations = {agent: agent_path(scope, agent, target) for agent in agents}
+
     conflicts: list[str] = []
-    for agent in agents:
-        installed = installed_files(target, agent)
+    for agent, directory in destinations.items():
+        installed = installed_files(directory)
         for name, data in files.items():
             current = installed.get(name)
             if current is not None and current != data:
-                conflicts.append(f"{agent}:{name}")
+                conflicts.append(f"{display_path(scope, directory, target)}:{name}")
     if conflicts and not args.force:
         raise SkillError(
             "skill 已存在且内容不同（需要 --force 覆盖）：\n  - " + "\n  - ".join(conflicts)
         )
-    planned = [f"{AGENT_PATHS[agent].as_posix()}/{name}" for agent in agents for name in files]
+
+    planned = [display_path(scope, directory, target) + "/" + name
+               for directory in destinations.values() for name in files]
     if args.dry_run:
         for path in planned:
             print(f"RENDER {path}")
-        print(f"dry-run: {len(planned)} 个文件；未写入")
+        print(f"dry-run: {len(planned)} 个文件（scope={scope}）；未写入")
         return 0
-    for agent in agents:
-        directory = target / AGENT_PATHS[agent]
+
+    hash_map = {name: sha256_bytes(data) for name, data in sorted(files.items())}
+    installed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for agent, directory in destinations.items():
         for name, data in files.items():
             path = directory / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
-    notice = update_manifest(target, version, agents, files)
-    if notice:
-        print(f"[WARN] {notice}")
-    print(f"[OK] installed skill '{SKILL_NAME}' {version} -> {', '.join(AGENT_PATHS[agent].as_posix() for agent in agents)}"
-          f"（{len(files)} 个文件 × {len(agents)} 个 agent）")
-    print("下一步：仓库 Agent 会按 SKILL.md 路由；先跑 `python3 tools/harness.py status`。")
+
+    if scope == "project":
+        notice = update_project_manifest(target, version, agents, files)
+        if notice:
+            print(f"[WARN] {notice}")
+        where = ", ".join(display_path(scope, directory, target) for directory in destinations.values())
+        print(f"[OK] installed skill '{SKILL_NAME}' {version} -> {where}"
+              f"（{len(files)} 个文件 × {len(agents)} 个 agent）")
+        print("下一步：提交这些文件后，仓库 Agent 会按 SKILL.md 路由；未接入仓库先走 adopt。")
+    else:
+        notice = update_user_meta(kit_root, version, {
+            agent: {"path": directory.as_posix(), "installedAt": installed_at, "files": hash_map}
+            for agent, directory in destinations.items()
+        })
+        if notice:
+            print(f"[WARN] {notice}")
+        where = ", ".join(display_path(scope, directory, target) for directory in destinations.values())
+        print(f"[OK] installed skill '{SKILL_NAME}' {version} -> {where}（用户级，{len(files)} 个文件）")
+        print("下一步：新开一个 Agent 会话；任意仓库里说「接入这个项目」即可，不需要每仓安装。")
     return 0
 
 
 def cmd_check(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
     version = kit_version(kit_root)
+    scope = parse_scope(args.scope)
     files = source_files(kit_root)
-    try:
-        manifest = json.loads((target / MANIFEST_NAME).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        manifest = None
-    recorded = ((manifest or {}).get("skills") or {}).get(SKILL_NAME) if isinstance(manifest, dict) else None
-    installed_agents = [agent for agent in AGENT_PATHS if (target / AGENT_PATHS[agent] / "SKILL.md").is_file()]
-    result = {
+    agents = parse_agents(args.agent, scope) if args.agent else list(AGENTS)
+    result: dict = {
         "skill": SKILL_NAME,
+        "scope": scope,
         "kitVersion": version,
-        "recordedVersion": (recorded or {}).get("kitVersion"),
-        "installedAgents": installed_agents,
+        "installedAgents": [],
         "drift": [],
         "action": "check",
     }
+    directories = {agent: agent_path(scope, agent, target) for agent in agents}
+    recorded_version: object = None
+    recorded_agents: dict = {}
+    if scope == "project":
+        manifest = read_json(target / MANIFEST_NAME) or {}
+        skills = manifest.get("skills")
+        entry = skills.get(SKILL_NAME) if isinstance(skills, dict) else None
+        if isinstance(entry, dict):
+            recorded_version = entry.get("kitVersion")
+    else:
+        meta = read_json(user_meta_path()) or {}
+        recorded_version = meta.get("kitVersion")
+        agents_meta = meta.get("agents")
+        recorded_agents = agents_meta if isinstance(agents_meta, dict) else {}
+
+    installed_agents = [agent for agent, directory in directories.items()
+                        if (directory / "SKILL.md").is_file()]
+    result["installedAgents"] = installed_agents
     if not installed_agents:
         result["ok"] = False
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
-            print("skill 未安装（可用 install 安装；v0.3.0 默认不自动安装）")
+            print(f"skill 未安装（scope={scope}；可用 install 安装）")
         return 2
+
     for agent in installed_agents:
-        installed = installed_files(target, agent)
+        directory = directories[agent]
+        installed = installed_files(directory)
         for name, data in files.items():
             if name not in installed:
                 result["drift"].append(f"{agent}:{name} 缺失")
@@ -178,15 +313,39 @@ def cmd_check(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
                 result["drift"].append(f"{agent}:{name} 与 kit 源不一致")
         for name in sorted(set(installed) - set(files)):
             result["drift"].append(f"{agent}:{name} 不在 kit 源中")
-    if recorded and str(recorded.get("kitVersion")) != version:
-        result["drift"].append(f"manifest skills.kitVersion={recorded.get('kitVersion')} != kit {version}")
+
+    if scope == "project":
+        manifest_present = (target / MANIFEST_NAME).is_file()
+        if recorded_version is not None:
+            if str(recorded_version) != version:
+                result["drift"].append(
+                    f"manifest skills.kitVersion={recorded_version} != kit {version}")
+        elif installed_agents and manifest_present:
+            result["drift"].append("manifest 未记录 skills.harness（未用本工具安装）")
+    else:
+        if not user_meta_path().is_file():
+            result["drift"].append("用户级元数据缺失（非本工具安装或已损坏）")
+        else:
+            if str(recorded_version) != version:
+                result["drift"].append(
+                    f"元数据 kitVersion={recorded_version} != kit {version}")
+            for agent in installed_agents:
+                entry = recorded_agents.get(agent)
+                if not isinstance(entry, dict):
+                    result["drift"].append(f"{agent}: 元数据未记录安装信息")
+                    continue
+                for name, data in files.items():
+                    if entry.get("files", {}).get(name) != sha256_bytes(data):
+                        result["drift"].append(f"{agent}:{name} 元数据哈希与 kit 源不一致")
+
     result["ok"] = not result["drift"]
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     elif result["ok"]:
-        print(f"[OK] skill '{SKILL_NAME}' in sync（{version}；agents={', '.join(installed_agents)}）")
+        print(f"[OK] skill '{SKILL_NAME}' in sync（{version}；scope={scope}；"
+              f"agents={', '.join(installed_agents)}）")
     else:
-        print("[FAIL] skill 漂移：")
+        print(f"[FAIL] skill 漂移（scope={scope}）：")
         for item in result["drift"]:
             print(f"  - {item}")
     return 0 if result["ok"] else 1
@@ -194,29 +353,84 @@ def cmd_check(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
 
 def cmd_list(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
     version = kit_version(kit_root)
-    rows = [
-        {"agent": agent, "path": (target / AGENT_PATHS[agent]).as_posix(),
-         "installed": (target / AGENT_PATHS[agent] / "SKILL.md").is_file()}
-        for agent in AGENT_PATHS
-    ]
+    rows = []
+    for scope in SCOPES:
+        for agent in AGENTS:
+            directory = agent_path(scope, agent, target)
+            rows.append({
+                "scope": scope,
+                "agent": agent,
+                "path": display_path(scope, directory, target),
+                "installed": (directory / "SKILL.md").is_file(),
+            })
     if args.json:
-        print(json.dumps({"skill": SKILL_NAME, "kitVersion": version, "agents": rows}, ensure_ascii=False, indent=2))
+        print(json.dumps({"skill": SKILL_NAME, "kitVersion": version, "agents": rows},
+                         ensure_ascii=False, indent=2))
+        return 0
+    print(f"skill '{SKILL_NAME}' · kit {version}")
+    for row in rows:
+        print(f"  {row['scope']:<8} {row['agent']:<12} "
+              f"{'installed' if row['installed'] else '-':<10} {row['path']}")
+    return 0
+
+
+def cmd_uninstall(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
+    scope = parse_scope(args.scope)
+    version = kit_version(kit_root)
+    files = source_files(kit_root)
+    agents = parse_agents(args.agent, scope)
+    removed: list[str] = []
+    for agent in agents:
+        directory = agent_path(scope, agent, target)
+        if not directory.is_dir():
+            continue
+        installed = installed_files(directory)
+        extra = sorted(set(installed) - set(files))
+        changed = sorted(name for name in set(installed) & set(files)
+                         if installed[name] != files[name])
+        if (extra or changed) and not args.force:
+            raise SkillError(
+                f"{display_path(scope, directory, target)} 含本地修改或额外文件"
+                f"（{', '.join(extra + changed)}）；需要 --force 才能删除")
+        shutil.rmtree(directory)
+        removed.append(display_path(scope, directory, target))
+    if not removed:
+        raise SkillError(f"skill 未安装（scope={scope}），无需卸载")
+    if scope == "project":
+        clear_project_manifest(target)
     else:
-        print(f"skill '{SKILL_NAME}' · kit {version}")
-        for row in rows:
-            print(f"  {row['agent']:<12} {'installed' if row['installed'] else '-'}  {row['path']}")
+        meta_path = user_meta_path()
+        meta = read_json(meta_path) or {}
+        recorded = meta.get("agents")
+        if isinstance(recorded, dict):
+            for agent in agents:
+                recorded.pop(agent, None)
+            if recorded:
+                meta["agents"] = recorded
+                meta["updatedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
+                                     encoding="utf-8")
+            else:
+                meta_path.unlink(missing_ok=True)
+    print(f"[OK] uninstalled skill '{SKILL_NAME}' {version}（scope={scope}）："
+          f"{', '.join(removed)}")
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Install/check the harness router skill (explicit opt-in).")
-    parser.add_argument("--target", required=True, help="target project root")
-    parser.add_argument("action", choices=("install", "check", "list"))
-    parser.add_argument("--agent", help="comma list: dsh,claude-code (default: both)")
-    parser.add_argument("--force", action="store_true", help="overwrite existing files")
+    parser = argparse.ArgumentParser(
+        description="Install/check/uninstall the harness router skill.")
+    parser.add_argument("--target", default=".", help="target project root (default: cwd)")
+    parser.add_argument("action", choices=("install", "check", "list", "uninstall"))
+    parser.add_argument("--scope", default="project", choices=SCOPES,
+                        help="project (committed with the repo; default) or user (one install, all repos)")
+    parser.add_argument("--agent", help="comma list: dsh,agents,claude-code "
+                                        "(default: project=dsh,claude-code; user=agents)")
+    parser.add_argument("--force", action="store_true", help="overwrite/delete local edits")
     parser.add_argument("--dry-run", action="store_true", help="print the plan; write nothing")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
-    parser.add_argument("--root", default=str(DEFAULT_KIT_ROOT), help="kit root (default: script parent parent)")
+    parser.add_argument("--root", default=str(DEFAULT_KIT_ROOT),
+                        help="kit root (default: script parent parent)")
     return parser
 
 
@@ -232,6 +446,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_install(target, kit_root, args)
         if args.action == "check":
             return cmd_check(target, kit_root, args)
+        if args.action == "uninstall":
+            return cmd_uninstall(target, kit_root, args)
         return cmd_list(target, kit_root, args)
     except SkillError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

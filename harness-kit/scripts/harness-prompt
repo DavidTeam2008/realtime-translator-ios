@@ -627,6 +627,12 @@ def cmd_copy(args: argparse.Namespace) -> int:
         )
     if missing:
         print(format_missing(prompt["id"], missing), file=sys.stderr)
+    print(
+        "[提示] 支持 skills 的宿主（DSH / Claude Code 等）优先装一次入口 skill，之后直接说"
+        "「接入这个项目」或当前任务，不必每次粘贴："
+        "<kit>/scripts/harness-skill install --scope user",
+        file=sys.stderr,
+    )
     return 0
 
 
