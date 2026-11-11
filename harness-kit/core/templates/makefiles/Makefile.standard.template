@@ -2,7 +2,7 @@
 # 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
 # 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
 
-.PHONY: help status start verify handoff check check-plan-strict check-evidence check-host verify-static verify-claim plan
+.PHONY: help status start verify handoff release check check-plan-strict check-evidence check-host verify-static verify-claim plan release
 
 help: ## 显示可用目标
 	@echo "{{PROJECT_NAME}} · harness 目标"
@@ -40,6 +40,9 @@ verify-static: check check-plan-strict check-evidence check-host ## 本地静态
 
 verify-claim: ## 证据三值判定（PASS / FAIL / UNVERIFIED）
 	@python3 tools/verify_claim.py --all
+
+release: ## 发布前检查：严格计划 + fresh 证据（standard 分级）
+	@python3 tools/harness.py release --check
 
 plan: ## 新建计划：make plan TOPIC=<topic>
 	@test -n "$(TOPIC)" || { echo "用法：make plan TOPIC=<topic>"; exit 2; }

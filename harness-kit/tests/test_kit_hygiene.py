@@ -14,13 +14,13 @@ KIT = Path(__file__).resolve().parents[1]
 FORBIDDEN = re.compile(r"(?i)duiyi|对译|TranslationSession|SwiftData|DuiyiTests")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 # Top-level kit docs whose relative links must resolve inside the kit.
-KIT_DOCS = ("README.md", "SPEC.md", "docs/playbook.md", "docs/adoption.md", "docs/agent-prompts.md", "docs/governance.md")
+KIT_DOCS = ("README.md", "SPEC.md", "docs/playbook.md", "docs/adoption.md", "docs/agent-prompts.md", "docs/governance.md", "docs/why.md")
 ALLOWED_DUIYI_FILES = {"README.md"}  # origin-case section only
 
 
 class NoProjectSpecificRefsTests(unittest.TestCase):
     def scan_dirs(self) -> list[Path]:
-        roots = [KIT / "core", KIT / "adapters", KIT / "profiles", KIT / "scripts", KIT / "prompts"]
+        roots = [KIT / "core", KIT / "adapters", KIT / "profiles", KIT / "scripts", KIT / "prompts", KIT / "skills"]
         files: list[Path] = []
         for root in roots:
             if not root.exists():

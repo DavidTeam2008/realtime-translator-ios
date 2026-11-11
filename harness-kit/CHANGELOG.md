@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0 — 2026-11-11
+
+- **router skill（显式安装，默认不启用）**：新增 `skills/harness/`（`SKILL.md` + 9 个 references：
+  status/adopt/plan/build/verify/review/release/collaborate/upgrade）与 `scripts/harness-skill`
+  （install/check/list；写入 `.dsh/skills/harness/`、`.claude/skills/harness/`，并在 manifest 记录版本/哈希）。
+  A/B 未完成，因此 skill 是 opt-in，主入口仍是 `tools/harness.py`。
+- **需求卡 intake**：`tools/harness.py intake --file <卡>` 机检「目标 + 验收判据」（命令+期望，或可复核链接+复核者），
+  模糊判据直接拒绝；标准档新增 `harness/requirements/_template.md`。
+- **发布分级检查**：`tools/harness.py release [--check] [--strict]`（静态门禁 + `verify_claim --fresh`），
+  Makefile 新增 `release`；strict 现有 `release-check` 保留。
+- **Agent 能力探测**：`tools/doctor.py --agent` 只读输出 Agent/CLI/模型/skill 根/manifest 信息。
+- **文档定位重写**：新增 `docs/why.md`（定位、与 Claude Code 自管的关系、卖点成熟度、边界、不适用场景）；
+  README 开篇改为「Harness Engineering 项目管理工具」，SPEC §0 明确不做产品管理/不编排 Agent/不做权限系统。
+- 测试：新增 `test_harness_skill.py`（7 用例）、intake/release 4 用例、doctor `--agent` 1 用例；
+  kit 测试 163 → **175**。
+- 兼容：init/profile 新增 `harness/requirements/_template.md` 与 Makefile `release` target；
+  升级仓需回写 Makefile（playbook 升级路径）；skill 安装是显式动作，不自动注入。
+
 ## 0.3.0-alpha.1 — 2026-11-11
 
 - **目标侧统一入口 `tools/harness.py`（v0.3.0-alpha 第一步）**：`status`（一屏状态 + 建议下一步，`--json`）、

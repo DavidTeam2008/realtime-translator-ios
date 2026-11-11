@@ -68,6 +68,7 @@
     "check-plan-strict",
     "verify-static",
     "verify-claim",
+    "release",
     "release-check",
     "doctor",
     "adapters-sync",

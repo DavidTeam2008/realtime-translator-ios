@@ -336,6 +336,17 @@ class DoctorTests(ProjectCase):
         self.assertIn("→ 影响：", output)
         self.assertIn("如何补：", output)
 
+    def test_agent_probe_is_read_only(self) -> None:
+        self.git_init()
+        self.git_available_test_command()
+        result = self.run_script("doctor", "--agent")
+        output = self.combined(result)
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("Agent 能力探测", output)
+        self.assertIn("agent:", output)
+        self.assertIn("skill 根:", output)
+        self.assertIn("manifest:", output)
+
     def test_missing_test_program_warns(self) -> None:
         self.git_init()
         self.config["commands"]["test"] = "definitely-not-a-real-program-xyz --run"

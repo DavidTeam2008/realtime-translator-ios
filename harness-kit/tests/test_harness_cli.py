@@ -139,6 +139,76 @@ class PlanFlowTests(unittest.TestCase):
             self.assertIn("未实现", apply.stderr)
 
 
+class IntakeReleaseTests(unittest.TestCase):
+    def test_intake_creates_plan_and_make_check_green(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            host = init_host(Path(tmp), "intake-host")
+            card = host / "harness" / "requirements" / "export.md"
+            card.parent.mkdir(parents=True, exist_ok=True)
+            card.write_text(
+                "# 需求卡\n\n## 目标\n\n- 支持导出字幕\n\n"
+                "## 验收判据\n\n- `make test` exit 0\n",
+                encoding="utf-8",
+            )
+            proc = harness(host, "intake", "--file", "harness/requirements/export.md", "--scope", "src/")
+            self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+            plans = sorted((host / "harness" / "plans").glob("*-export.md"))
+            self.assertEqual(1, len(plans))
+            text = plans[0].read_text(encoding="utf-8")
+            self.assertIn("支持导出字幕", text)
+            self.assertIn("`make test` exit 0", text)
+            self.assertEqual(0, run(["make", "check"], cwd=host).returncode)
+
+    def test_intake_rejects_vague_acceptance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            host = init_host(Path(tmp), "intake-bad")
+            card = host / "requirement.md"
+            card.write_text("# 卡\n\n## 目标\n\n- 更好用\n\n## 验收判据\n\n- 体验好\n", encoding="utf-8")
+            before = sorted(path.name for path in (host / "harness" / "plans").glob("*.md"))
+            proc = harness(host, "intake", "--file", "requirement.md")
+            self.assertEqual(2, proc.returncode, proc.stdout + proc.stderr)
+            self.assertIn("验收判据不可执行", proc.stderr)
+            self.assertEqual(before, sorted(path.name for path in (host / "harness" / "plans").glob("*.md")))
+
+    def test_release_without_evidence_exit_two(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            host = init_host(Path(tmp), "release-empty")
+            proc = harness(host, "release", "--check")
+            self.assertEqual(2, proc.returncode, proc.stdout + proc.stderr)
+            self.assertIn("== release: FAIL ==", proc.stdout)
+
+    def test_release_passes_with_fresh_rerunnable_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            host = init_host(Path(tmp), "release-pass")
+            (host / "harness" / "runs").mkdir(parents=True, exist_ok=True)
+            (host / "harness" / "runs" / "junit.xml").write_text(
+                '<testsuite name="s" tests="1"><testcase classname="t" name="ok"/></testsuite>',
+                encoding="utf-8",
+            )
+            commit = git(host, "rev-parse", "--short=12", "HEAD").stdout.strip()
+            evidence = {
+                "schemaVersion": 1,
+                "id": "20260101T000000Z-tests-pass",
+                "claim": "tests-pass",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "git": {"commit": commit, "dirty": False},
+                "command": "make test",
+                "environment": {"project": "CLI Demo", "toolchain": "python", "os": "test"},
+                "result": {
+                    "status": "SUCCEEDED", "passed": 1, "failed": 0, "skipped": 0,
+                    "durationSec": 0.1, "artifacts": ["harness/runs/junit.xml"],
+                },
+                "verdict": "PASS",
+                "verifier": "kit-test",
+            }
+            (host / "harness" / "evidence" / "20260101T000000Z-tests-pass.json").write_text(
+                json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            proc = harness(host, "release", "--check")
+            self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+            self.assertIn("== release: PASS ==", proc.stdout)
+
+
 class MinimalProfileTests(unittest.TestCase):
     def test_status_works_and_start_fails_without_plans(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

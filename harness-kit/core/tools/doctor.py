@@ -2,7 +2,7 @@
 """环境自检（doctor）：python3 / git 仓库 / 配置中的测试命令 / 可选适配器。
 
 用法：
-    python3 tools/doctor.py [--root PATH]
+    python3 tools/doctor.py [--root PATH] [--agent]
 
 根目录默认「本脚本上级目录」（脚本位于目标项目 `tools/` 下）；`--root` 可覆盖。
 配置唯一来源：`<root>/harness/config.json`。配置缺失/字段缺失时 doctor **降级继续**
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shlex
 import shutil
 import subprocess
@@ -182,6 +183,41 @@ def program_from_command(command: object) -> str:
     return parts[0] if parts else ""
 
 
+def agent_probe(root: Path) -> list[str]:
+    """Read-only capability probe for the current AI coding Agent (env/CLI/skill roots)."""
+    rows: list[str] = []
+    env = os.environ
+    hints: list[str] = []
+    if env.get("CLAUDECODE") or env.get("CLAUDE_CODE_ENTRYPOINT"):
+        hints.append("claude-code（环境变量）")
+    if any(key.startswith("DSH_") for key in env):
+        hints.append("deepseek-harness（DSH_* 环境变量）")
+    if any(key.startswith("CODEX_") for key in env):
+        hints.append("codex（CODEX_* 环境变量）")
+    if any(key.startswith("CURSOR_") for key in env):
+        hints.append("cursor（CURSOR_* 环境变量）")
+    rows.append("agent: " + ("、".join(hints) if hints else "未识别（按 AGENTS.md 通用流程执行）"))
+    clis = [name for name in ("claude", "dsh", "codex", "cursor-agent") if shutil.which(name)]
+    rows.append("可用 CLI: " + ("、".join(f"{name}={shutil.which(name)}" for name in clis) if clis else "无"))
+    models = [f"{key}={env[key]}" for key in ("ANTHROPIC_MODEL", "CLAUDE_MODEL", "DEEPSEEK_MODEL", "DSH_MODEL") if env.get(key)]
+    rows.append("模型（env）: " + ("、".join(models) if models else "未从环境变量识别"))
+    roots = [".dsh/skills", ".claude/skills"]
+    present = [name for name in roots if (root / name).is_dir()]
+    harness_skills = [name for name in roots if (root / name / "harness" / "SKILL.md").is_file()]
+    rows.append("skill 根: " + ("、".join(present) if present else "无") +
+                (f"；harness skill 已安装：{'、'.join(harness_skills)}" if harness_skills else "；harness skill 未安装（可选）"))
+    manifest = root / ".harness-manifest.json"
+    if manifest.is_file():
+        try:
+            rows.append("manifest: " + json.loads(manifest.read_text(encoding="utf-8")).get("kitVersion", "?"))
+        except (OSError, json.JSONDecodeError):
+            rows.append("manifest: 无法解析")
+    else:
+        rows.append("manifest: 无（v0.2.13 之前接入）")
+    rows.append("提示: 本探测只读；不安装插件、不调用 Agent。")
+    return rows
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="环境自检（doctor）：python3 / git / 测试命令 / 适配器")
     parser.add_argument(
@@ -190,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
         default=Path(__file__).resolve().parent.parent,
         help="目标项目根（默认脚本上级目录）",
     )
+    parser.add_argument("--agent", action="store_true", help="额外输出 Agent 能力探测（只读；环境变量/CLI/skill 根）")
     args = parser.parse_args(argv)
     root = args.root.expanduser().resolve()
     report = Report()
@@ -267,6 +304,11 @@ def main(argv: list[str] | None = None) -> int:
     print("环境自检（doctor）")
     print(f"项目根：{root}")
     print(report.render())
+    if args.agent:
+        print()
+        print("Agent 能力探测（--agent，只读）")
+        for row in agent_probe(root):
+            print(f"  {row}")
     print()
     code = 2 if (not python_ok or not git_ok) else 0
     if code == 2:

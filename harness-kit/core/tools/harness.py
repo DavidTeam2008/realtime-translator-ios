@@ -7,6 +7,8 @@ Usage (inside an initialized target project):
                                     [--acceptance TEXT ...] [--level L1|L2]
     python3 tools/harness.py verify [--no-sync] [--claims-strict]
     python3 tools/harness.py handoff [--json]
+    python3 tools/harness.py intake --file <需求卡.md> [--topic T] [--scope P ...]
+    python3 tools/harness.py release [--check] [--strict]
     python3 tools/harness.py plan check
     python3 tools/harness.py upgrade [--apply]
 
@@ -228,6 +230,77 @@ def active_plan(plans: list[Plan]) -> Plan | None:
     return active[0] if active else None
 
 
+# ── 需求卡（intake）────────────────────────────────────────────────────────
+def markdown_sections(text: str) -> dict[str, str]:
+    """Split a markdown file into {heading: body} for `## ` headings."""
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in text.splitlines():
+        match = re.match(r"^##\s+(.+?)\s*$", line)
+        if match:
+            current = match.group(1)
+            sections.setdefault(current, [])
+            continue
+        if current is not None:
+            sections[current].append(line)
+    return {key: "\n".join(value).strip() for key, value in sections.items()}
+
+
+def section_any(sections: dict[str, str], *aliases: str) -> str:
+    for title, body in sections.items():
+        if any(alias in title for alias in aliases):
+            return body
+    return ""
+
+
+EXECUTABLE_HINTS = (
+    "make ", "make\t", "python3 ", "python ", "npm ", "pnpm ", "yarn ", "pytest",
+    "go test", "swift test", "gradlew", "xcodebuild", "harness.py", "bash ", "sh ",
+    "curl ", "node ", "cargo ", "dotnet ",
+)
+
+
+def validate_acceptance(item: str) -> str | None:
+    """Return None when acceptable, else a human-readable reason."""
+    text = item.strip()
+    if not text:
+        return "空判据"
+    if re.search(r"https?://", text) and ("复核" in text or "review" in text.lower()):
+        return None
+    lowered = text.lower()
+    if any(hint in lowered for hint in EXECUTABLE_HINTS):
+        return None
+    return "必须是“命令 + 期望结果”，或“可复核链接 + 复核者”"
+
+
+def parse_requirement_card(path: Path) -> tuple[str, list[str], list[str]]:
+    """Return (goal, acceptance, problems) from a requirement markdown file."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SystemExit(fail(f"需求卡无法读取：{path}：{exc}", 2))
+    sections = markdown_sections(text)
+    goal_body = section_any(sections, "目标", "需求")
+    goal = ""
+    for line in goal_body.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            goal = stripped.lstrip("-* ").strip()
+            break
+    if not goal:
+        raise SystemExit(fail("需求卡缺少非空「## 目标」", 2))
+    acceptance_body = section_any(sections, "验收判据", "验收")
+    acceptance = [
+        line.strip()[2:].strip()
+        for line in acceptance_body.splitlines()
+        if line.strip().startswith(("- ", "* ")) and line.strip()[2:].strip()
+    ]
+    if not acceptance:
+        raise SystemExit(fail("需求卡缺少「## 验收判据」列表（每条 = 命令 + 期望结果）", 2))
+    problems = [f"{item}：{reason}" for item in acceptance if (reason := validate_acceptance(item))]
+    return goal, acceptance, problems
+
+
 # ── 未提交改动同步 ───────────────────────────────────────────────────────
 def normalize_token(token: str) -> str | None:
     text = token.strip().strip("`").strip()
@@ -352,6 +425,10 @@ def build_status(root: Path, config: dict) -> dict:
     plans = load_plans(root, config)
     plan = active_plan(plans)
     evidence = evidence_summary(root, config)
+    skills: list[str] = []
+    for agent, rel in (("dsh", ".dsh/skills/harness/SKILL.md"), ("claude-code", ".claude/skills/harness/SKILL.md")):
+        if (root / rel).is_file():
+            skills.append(agent)
     actual = git_status_paths(root) or set()
     declared: set[str] = set()
     scoped_actual: list[str] = []
@@ -407,6 +484,7 @@ def build_status(root: Path, config: dict) -> dict:
                       and not [p for p in declared if not path_covered(set(scoped_actual), p)],
         },
         "evidence": evidence,
+        "skills": skills,
         "nextActions": actions,
     }
 
@@ -433,6 +511,7 @@ def cmd_status(root: Path, args: argparse.Namespace) -> int:
     print(f"未提交: {len(git_info['dirty'])} 个（scope 内 {len(git_info['scoped'])}；与计划声明{'一致' if git_info['inSync'] else '不一致'}）")
     counts = result["evidence"]["counts"]
     print(f"证据: {result['evidence']['total']} 条（PASS={counts['PASS']} / UNVERIFIED={counts['UNVERIFIED']} / FAIL={counts['FAIL']}）")
+    print(f"skill: {', '.join(result['skills']) if result['skills'] else '未安装（可选；kit 侧 harness-skill install）'}")
     if result["versionProblem"]:
         print(f"[WARN] {result['versionProblem']}")
     if result["nextActions"]:
@@ -496,36 +575,37 @@ def fill_plan_template(
     return "\n".join(front) + "\n" + body
 
 
-def cmd_start(root: Path, args: argparse.Namespace) -> int:
-    try:
-        config = load_config(root)
-    except SystemExit as exc:
-        return int(exc.code or 1)
+def create_plan(
+    root: Path,
+    config: dict,
+    *,
+    topic: str,
+    goal: str,
+    level: str,
+    scope: list[str],
+    acceptance: list[str],
+) -> tuple[Path, bool]:
     plans_dir = config_path(root, config, "plans")
     if not plans_dir.is_dir():
-        return fail("当前 profile 没有 plans 目录（minimal 不支持计划）；用 standard/strict 或手动创建", 2)
+        raise SystemExit(fail("当前 profile 没有 plans 目录（minimal 不支持计划）；用 standard/strict 或手动创建", 2))
     template_path = plans_dir / "_template.md"
     if not template_path.is_file():
-        return fail(f"缺少计划模板：{template_path}", 2)
-    slug = slugify(args.topic)
+        raise SystemExit(fail(f"缺少计划模板：{template_path}", 2))
+    slug = slugify(topic)
     if not slug:
-        return fail("--topic 需包含字母/数字/其它可见字符", 2)
+        raise SystemExit(fail("--topic 需包含字母/数字/其它可见字符", 2))
     plan_path = plans_dir / f"{date.today().isoformat()}-{slug}.md"
-    rel = plan_path.relative_to(root).as_posix()
     if plan_path.exists():
-        print(f"[SKIP] 计划已存在：{rel}（幂等；继续用现有计划）")
-        return 0
-    goal = args.goal or "待补：一句话目标（编辑本计划后开工）"
-    acceptance = args.acceptance or ["待补验收判据：命令 + 期望结果（编辑本计划后生效）"]
-    allow = [rel] + [str(item) for item in (args.scope or [])]
+        return plan_path, False
+    rel = plan_path.relative_to(root).as_posix()
     text = fill_plan_template(
         template_path.read_text(encoding="utf-8"),
-        topic=args.topic,
+        topic=topic,
         goal=goal,
         owner=git_user(root),
-        level=args.level,
+        level=level,
         plan_rel=rel,
-        allow=allow,
+        allow=[rel] + [str(item) for item in scope],
         acceptance=acceptance,
         verify_command=str(config.get("commands", {}).get("verify") or "make verify-static"),
     )
@@ -536,9 +616,57 @@ def cmd_start(root: Path, args: argparse.Namespace) -> int:
     )
     if check.returncode != 0:
         print(check.stdout or check.stderr, file=sys.stderr)
-        return fail("计划已创建但 check_plan 不通过；修正上面的 error 后重试", check.returncode)
-    info(f"已创建 {rel}（status=active；scope.allow={allow}）")
+        raise SystemExit(fail("计划已创建但 check_plan 不通过；修正上面的 error 后重试", check.returncode))
+    return plan_path, True
+
+
+def cmd_start(root: Path, args: argparse.Namespace) -> int:
+    try:
+        config = load_config(root)
+    except SystemExit as exc:
+        return int(exc.code or 1)
+    goal = args.goal or "待补：一句话目标（编辑本计划后开工）"
+    acceptance = args.acceptance or ["待补验收判据：命令 + 期望结果（编辑本计划后生效）"]
+    plan_path, created = create_plan(
+        root, config, topic=args.topic, goal=goal, level=args.level,
+        scope=list(args.scope or []), acceptance=acceptance,
+    )
+    rel = plan_path.relative_to(root).as_posix()
+    if not created:
+        print(f"[SKIP] 计划已存在：{rel}（幂等；继续用现有计划）")
+        return 0
+    print(f"[OK] 已创建 {rel}（status=active）")
     print("下一步：编辑「目标与非目标」「验收」补全判据，然后 `python3 tools/harness.py verify`。")
+    return 0
+
+
+def cmd_intake(root: Path, args: argparse.Namespace) -> int:
+    try:
+        config = load_config(root)
+    except SystemExit as exc:
+        return int(exc.code or 1)
+    card = Path(args.file).expanduser()
+    if not card.is_absolute():
+        card = root / card
+    goal, acceptance, problems = parse_requirement_card(card)
+    if problems:
+        print("需求卡验收判据不可执行：", file=sys.stderr)
+        for item in problems:
+            print(f"  - {item}", file=sys.stderr)
+        return 2
+    if args.dry_run:
+        print(f"目标：{goal}")
+        for item in acceptance:
+            print(f"验收：{item}")
+        print("dry-run：未创建计划")
+        return 0
+    topic = args.topic or card.stem
+    plan_path, _ = create_plan(
+        root, config, topic=topic, goal=goal, level=args.level,
+        scope=list(args.scope or []), acceptance=acceptance,
+    )
+    print(f"[OK] 需求卡 → {plan_path.relative_to(root).as_posix()}（验收判据 {len(acceptance)} 条已机检）")
+    print("下一步：核对 scope.allow 与验收，然后开工；完成前 `python3 tools/harness.py verify`。")
     return 0
 
 
@@ -642,6 +770,40 @@ def cmd_handoff(root: Path, args: argparse.Namespace) -> int:
     return 0
 
 
+# ── 子命令：release ──────────────────────────────────────────────────────
+def cmd_release(root: Path, args: argparse.Namespace) -> int:
+    try:
+        config = load_config(root)
+    except SystemExit as exc:
+        return int(exc.code or 1)
+    claims = root / "tools" / "verify_claim.py"
+    if not claims.is_file():
+        return fail("当前 profile 没有 verify_claim（minimal）；release 需要 standard/strict", 2)
+    plans = load_plans(root, config)
+    plan = active_plan(plans)
+    if plan is not None:
+        sync_uncommitted(plan, root)
+    gate = str(config.get("commands", {}).get("verify") or "")
+    if not gate:
+        return fail("config.commands.verify 未配置", 2)
+    gate_code = run_gate(root, gate)
+    cmd = [sys.executable, "tools/verify_claim.py", "--all", "--fresh"]
+    if args.strict:
+        cmd.append("--strict")
+    print("== claims (fresh%s) ==" % (" + strict" if args.strict else ""))
+    claim_proc = subprocess.run(cmd, cwd=str(root), capture_output=True, text=True)
+    print(claim_proc.stdout.rstrip())
+    claim_code = claim_proc.returncode
+    if gate_code != 0:
+        overall = gate_code
+    else:
+        overall = claim_code
+    print(f"== release: {'PASS' if overall == 0 else 'FAIL'} ==")
+    if overall != 0:
+        print("[HINT] 3 值语义：FAIL=1 / UNVERIFIED=2；UNVERIFIED 不是通过，需补可复核证据")
+    return overall
+
+
 # ── 子命令：plan / upgrade ───────────────────────────────────────────────
 def cmd_plan(root: Path, args: argparse.Namespace) -> int:
     if args.action != "check":
@@ -683,6 +845,17 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--no-sync", action="store_true")
     verify.add_argument("--claims-strict", action="store_true")
 
+    intake = sub.add_parser("intake", help="需求卡 → 计划（校验验收判据）")
+    intake.add_argument("--file", required=True)
+    intake.add_argument("--topic")
+    intake.add_argument("--scope", action="append", default=[])
+    intake.add_argument("--level", default="L1", choices=("L1", "L2"))
+    intake.add_argument("--dry-run", action="store_true")
+
+    release = sub.add_parser("release", help="发布前检查（fresh 证据 + 严格计划）")
+    release.add_argument("--check", action="store_true")
+    release.add_argument("--strict", action="store_true")
+
     handoff = sub.add_parser("handoff", help="交接摘要（会同步未提交段）")
     handoff.add_argument("--json", action="store_true")
 
@@ -701,6 +874,8 @@ def main(argv: list[str] | None = None) -> int:
     handlers = {
         "status": cmd_status,
         "start": cmd_start,
+        "intake": cmd_intake,
+        "release": cmd_release,
         "verify": cmd_verify,
         "handoff": cmd_handoff,
         "plan": cmd_plan,
