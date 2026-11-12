@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.1 — 2026-11-12
+
+> 修复 v0.5.0 的入口安装默认值：`--scope user` 只装 `~/.agents/skills`（DSH 读取），
+> Claude Code 不读该根，导致装完在 Claude Code 的 skill 列表里看不到 `harness`。
+
+- `harness-skill install --scope user` 默认 agent 改为 `agents,claude-code`：一次安装同时写
+  `~/.agents/skills/harness/`（DSH 用户级根，rank 500）与 `~/.claude/skills/harness/`
+  （Claude Code 用户级根），Claude Code 里可直接用 `/harness` 或按描述触发；
+  `--agent agents` 可只装共享根，`--agent claude-code` 可只装 Claude Code。
+- 文档（README / adoption / playbook / why / SPEC）同步说明两个安装目标与默认值；
+  用户级元数据仍只写 `~/.agents/skills/.harness-kit-skill.json`（记录两个 agent 的路径与哈希）。
+- 单测更新：用户级默认安装断言两个根都存在、卸载同时清理；kit 275 tests（含既有用例）。
+- 文档补充调用方式：支持斜杠的宿主（DSH / Qoder CN / Claude Code）优先用 `/harness` 显式加载，自然语言点名是兜底；skill 仍按 description 自动触发。
+
+行为级 A/B 仍后置（v0.5.x）；门禁 / `tools/` / config schema 无变更。
+
 ## 0.5.0 — 2026-11-11
 
 > 来源：真实接入反馈（barra 仓，Qoder CN + DeepSeek V4.1-flash，standard 档）：「先生成提示词再粘贴」

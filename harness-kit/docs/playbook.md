@@ -232,7 +232,7 @@ Agent 侧装一次入口 skill（`<kit>/scripts/harness-skill install --scope us
 5. 发布前 `python3 tools/harness.py release --check`（静态门禁 + fresh 证据；strict 档 `--strict`；证据 UNVERIFIED 不算通过）。
 6. 交接/中断 `python3 tools/harness.py handoff`（`--json` 可机读）。
 
-> 入口 skill（默认）：用户级 `install --scope user`（写 `~/.agents/skills/harness/`，一次安装所有仓库会话可见；升级 kit 后 `--force` 重装）；需要团队 pin 版本时 `--scope project` 装到 `.dsh/skills/` / `.agents/skills/` / `.claude/skills/` 并提交。行为级 A/B 后置（v0.5.x），skill 只做入口路由。
+> 入口 skill（默认）：用户级 `install --scope user`（写 `~/.agents/skills/harness/` 与 `~/.claude/skills/harness/`，一次安装所有仓库会话可见；升级 kit 后 `--force` 重装）；需要团队 pin 版本时 `--scope project` 装到 `.dsh/skills/` / `.agents/skills/` / `.claude/skills/` 并提交。支持斜杠的宿主优先输入 `/harness` 显式加载（DSH / Qoder CN / Claude Code 有「技能」补全），自然语言点名是兜底。行为级 A/B 后置（v0.5.x），skill 只做入口路由。
 
 > 严格校验在 `check-plan-strict` / `verify-static` / CI；计划未提交段不再需要手抄，`verify`/`handoff` 会按 `git status` 重写。
 >

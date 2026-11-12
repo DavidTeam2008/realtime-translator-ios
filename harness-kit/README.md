@@ -7,7 +7,7 @@
 > 当前范围：**单工作流接力与分工**；跨 Agent 交接演练与多 Agent 并行门禁在路线图（v0.4.x）；行为级 A/B 后置（v0.5.x），不在当前承诺内。
 
 - 仓库名 `harness-engineering-kit`（原名 `harness-kit`；目录、命令与 tag 前缀沿用短名）
-- 版本：`0.5.0`（见 [`VERSION`](VERSION)）
+- 版本：`0.5.1`（见 [`VERSION`](VERSION)）
 - **[AI coding Agent 接入指南（新项目 / 存量项目）](docs/adoption.md)** ← 先看这个
 - **入口 skill（默认，装一次全局可用）**：`<kit>/scripts/harness-skill install --scope user`，之后任意仓库对 Agent 说「接入这个项目」；不支持 skills 的宿主用 [提示词库（兜底）](docs/agent-prompts.md)
 - 命令行手动接入：[采用 playbook](docs/playbook.md)（新项目五步 / 存量七步）
@@ -74,13 +74,14 @@ Harness Engineering 的工作定义：**Agent = Model + Harness**。模型能力
 **第一步（一次）**：装入口 skill 到用户级，任意仓库的 Agent 会话可见（`<kit>` = kit 克隆路径）：
 
 ```bash
-<kit>/scripts/harness-skill install --scope user   # 写 ~/.agents/skills/harness/；所有仓库可见
+<kit>/scripts/harness-skill install --scope user   # 写 ~/.agents/skills/harness/（DSH）与 ~/.claude/skills/harness/（Claude Code）
 <kit>/scripts/harness-skill check --scope user     # 期望 in sync
 ```
 
 之后在目标仓库对 Agent 说一句「用 harness-kit 接入这个项目」即可；skill 会先定位 kit、只读盘点、dry-run 后等你确认，再 init。日常任务同理（「建计划」「完成前验证」「发布前检查」「交接」「升级 kit」）。
 
-- 用户级安装只写 `~/.agents/skills/harness/`（DSH 扫描 rank 500；项目级同名 skill 优先），**不写入仓库、不提交**；`--scope project` 可装到仓库 `.dsh/skills/`、`.claude/skills/` 随仓库提交（团队 pin 版本）。
+- 用户级安装写 `~/.agents/skills/harness/`（DSH rank 500）与 `~/.claude/skills/harness/`（Claude Code，v0.5.1 起；项目级同名 skill 优先），**不写入仓库、不提交**；`--scope project` 可装到仓库 `.dsh/skills/`、`.claude/skills/` 随仓库提交（团队 pin 版本）。
+- **支持斜杠调用的宿主优先用 `/harness`**（DSH / Qoder CN / Claude Code 输入框里会出现「技能」补全）：显式加载、触发确定、不依赖模型判断描述是否匹配；自然语言「用 harness-kit 接入这个项目」是兜底（模型按描述自行判断是否加载）。
 - 升级 kit 后重装：`install --scope user --force`；`check --scope user` 报漂移。
 - 宿主不支持 skills 时再用兜底提示词（一条命令拿到可直接粘贴的完整提示词）：
 
@@ -156,7 +157,7 @@ python3 <kit>/scripts/harness-selftest --target ../legacy-app
 | **存量项目盘点** | `scripts/harness-adopt`（kit 侧） | 只读盘点 + `--report` / `--json` / `--write-plan`；profile 推荐统一为 standard（strict 需显式理由）；Python 测试命令逐候选探测 `.venv/uv/poetry`；`--archive-report` 脱敏归档 |
 | **提示词兜底（不支持 skills 的宿主）** | `scripts/harness-prompt`（kit 侧） | `list` / `show` / `copy` / `render --check`：按所选场景拼前置（目标阶段不符给 WARN）、填 kit 与目标路径、剪贴板；文档由 `prompts/` 单源生成并受测试保护；输出会提示优先用 skill |
 | **统一入口 / 一屏状态** | `tools/harness.py`（init 复制到宿主） | `status`（Agent 冷启动第一命令，`--json`）/ `start`（幂等建计划，建完即绿）/ `verify`（自动同步未提交段 + `verify-static` + 计划严格校验 + 证据摘要；`--claims-strict` 可阻断）/ `handoff`（交接摘要）/ `plan check` / `upgrade`（指引 kit 侧只读升级） |
-| **入口 skill（默认）** | `skills/harness/` + `scripts/harness-skill`（kit 侧） | `install` / `check` / `list` / `uninstall`：单入口 SKILL.md + 9 个按阶段 references；`--scope user` 装到 `~/.agents/skills/harness/`（一次安装、所有仓库会话可见，v0.5.0），`--scope project` 装到 `.dsh/skills/`、`.agents/skills/`、`.claude/skills/`；用户级元数据 `~/.agents/skills/.harness-kit-skill.json`（不入库） |
+| **入口 skill（默认）** | `skills/harness/` + `scripts/harness-skill`（kit 侧） | `install` / `check` / `list` / `uninstall`：单入口 SKILL.md + 9 个按阶段 references；`--scope user` 一次装到 `~/.agents/skills/harness/`（DSH）与 `~/.claude/skills/harness/`（Claude Code；v0.5.1 起默认两个 agent），`--scope project` 装到 `.dsh/skills/`、`.agents/skills/`、`.claude/skills/`；用户级元数据 `~/.agents/skills/.harness-kit-skill.json`（不入库） |
 | **需求卡 intake** | `tools/harness.py intake` | 机检 `## 目标` + `## 验收判据`（命令+期望，或可复核链接+复核者），模糊判据拒绝并给原因 |
 | **发布分级检查** | `tools/harness.py release [--check] [--strict]` | 静态门禁 + `verify_claim --fresh`；standard 也有发布门（strict 的 `release-check` 保留） |
 | **评分卡（standard+）** | `tools/scorecard.py` + `make scorecard` | 生成 `harness/reviews/<date>-scorecard.md` 草稿（门禁快照/证据 ID/计数，不自动打分）；`--check-stale` 对过期/缺失 WARN，`--strict` 阻断；自评≠认证，独立复评列 TBD 不算完成 |
@@ -327,7 +328,7 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 - **v0.4 明确「能证明 / 不能证明」**：能证明——证据文件与 artifact 已入库、commit 祖先/clean tree、JUnit counts 可重算、必需 claim 有当前证据、归档失败证据被合法接管、submitted scope 与归档状态可见；不能证明——测试由谁/在哪跑、environment 自报是否真实、waiver 是否经独立审批、ledger 级"证据从未消失"（v0.4 未做 tracked ledger）、绝对防伪造。
 - **升级会变红/变绿**：v0.4 的 scope/证据/归档/strict 规则会让旧仓出现新的红或 WARN；升级前按 [playbook「v0.3.0 → v0.4.0 升级自检」](docs/playbook.md) 逐项核对，不要直接 `--force` 覆盖。
 - **行为级 A/B 后置**：v0.5.0 把默认入口切到入口 skill（依据是真实接入反馈：提示词「生成→粘贴」繁琐，而 skill 可一次安装、跨仓生效）；但 skill vs 提示词的**行为级 A/B 尚未执行**（v0.5.x），在此之前不声称 skill 能提升 Agent 表现。
-- **入口 skill 的验证面**：`install` / `check` / `uninstall`、用户级/项目级 scope、漂移检测有单测；用户级安装是机器级副作用（写 `~/.agents/skills/`，可 `uninstall` 清理）；skill 是否被具体模型选中、跨 Agent 交接、多 Agent 并发仍未实测；skill 与仓库 kit 版本漂移由 `check` 报，不会自动修复。
+- **入口 skill 的验证面**：`install` / `check` / `uninstall`、用户级/项目级 scope、漂移检测有单测；用户级安装是机器级副作用（写 `~/.agents/skills/` 与 `~/.claude/skills/`，可 `uninstall` 清理）；skill 是否被具体模型选中、跨 Agent 交接、多 Agent 并发仍未实测；skill 与仓库 kit 版本漂移由 `check` 报，不会自动修复。
 - **多人协作未验证**：唯一 active 计划、scope、证据绑定、CI required checks 能提供机制层支持；人类多人并行采用、人类陌生人首访仍未验证。
 - **版本升级已验证，profile 升级未验证**：v0.2.2→v0.2.3 已在真实 Android/Gradle 仓验证；minimal→standard→strict 的 profile 升级路径仍未在真实项目验证。
 - **语言/测试框架需要你提供**：`{{TEST_COMMAND}}` 与 `commands.test` 必须填真实命令；kit 不代跑、不解析测试输出（只提供 JUnit XML → evidence 转换）。
@@ -342,4 +343,4 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.5.0`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.5.1`；向后兼容策略见 [SPEC §10](SPEC.md)。

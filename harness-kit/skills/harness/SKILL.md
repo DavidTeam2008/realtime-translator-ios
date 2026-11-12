@@ -17,6 +17,8 @@ metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.5.0}
 3. **已接入**（仓库有 `tools/harness.py`）：运行 `python3 tools/harness.py status --json`，按输出路由。
 4. **未接入**（没有 `tools/harness.py`）：走 `references/adopt.md`；不要伪造 `make` / 门禁输出。
 
+> 宿主支持斜杠调用时（DSH / Qoder CN / Claude Code 的输入框有「技能」补全），用 `/harness` 显式加载本 skill；也按 description 自动触发。
+>
 > 本 skill 是默认入口。只有不支持 skills 的宿主才用提示词兜底：
 > `<kit>/scripts/harness-prompt copy <场景>`（或 `docs/agent-prompts.md`）。两者冲突时以本 skill + kit 文档为准。
 

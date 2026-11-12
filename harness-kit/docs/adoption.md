@@ -24,12 +24,13 @@ harness-kit 的脚手架能力覆盖 Harness Engineering 五子系统（Instruct
 
 ```bash
 cd /path/to/your-project
-<kit>/scripts/harness-skill install --scope user      # 装到 ~/.agents/skills；任意仓库的 Agent 会话可见
+<kit>/scripts/harness-skill install --scope user      # 装到 ~/.agents/skills（DSH）与 ~/.claude/skills（Claude Code）
 # 然后直接对 Agent 说：「用 harness-kit 接入这个项目」
 ```
 
-- 用户级安装只写 `~/.agents/skills/harness/`（DSH 在 rank 500 扫描；项目级同名 skill 优先），不写入仓库；`--scope project` 则装到仓库 `.dsh/skills/`、`.claude/skills/` 并随仓库提交（适合团队 pin 版本）。
+- 用户级安装写 `~/.agents/skills/harness/`（DSH rank 500）与 `~/.claude/skills/harness/`（Claude Code，v0.5.1 起默认两个 agent；项目级同名 skill 优先），不写入仓库；`--scope project` 则装到仓库 `.dsh/skills/`、`.claude/skills/` 并随仓库提交（适合团队 pin 版本）。
 - 装完 `harness-skill check --scope user` 应报 in sync；升级 kit 后重装 `install --scope user --force`（`references/upgrade.md` 有步骤）。
+- 宿主支持斜杠调用时（DSH / Qoder CN / Claude Code 输入框有「技能」补全）优先输入 `/harness`：显式加载、确定性强；自然语言点名（「用 harness skill 接入这个项目」）是兜底。
 - skill 会先定位 kit（用户级 `install.json` → 仓内/父目录 `harness-kit/` → 问一次），再按「未接入走 adopt、已接入先 `status`」路由。
 
 **兜底：宿主不支持 skills 时用提示词**（一条命令拿到，粘贴给 Agent）：
@@ -271,7 +272,7 @@ A：核心规则与门禁是仓库文件与命令，与模型无关；Agent 特�
 A：不能提供密码学保证；它把"随口宣布完成"的成本显著抬高，并让低成本蒙混路径在门禁上可见。
 
 **Q：怎么让 Agent 最快进入流程？**
-A：装一次入口 skill：`<kit>/scripts/harness-skill install --scope user`（写 `~/.agents/skills/harness/`），之后任意仓库的 Agent 会话直接说「接入这个项目」或当前任务即可，不需要每次取提示词。宿主不支持 skills 时才用兜底：在目标仓库根目录跑 `<kit>/scripts/harness-prompt list` 看场景，`copy <场景>` 复制到剪贴板（按场景拼 0A/0B 前置、填好路径、列出待补占位符；无剪贴板时打印到 stdout）。
+A：装一次入口 skill：`<kit>/scripts/harness-skill install --scope user`（写 `~/.agents/skills/harness/` 与 `~/.claude/skills/harness/`），之后任意仓库的 Agent 会话直接说「接入这个项目」或当前任务即可，不需要每次取提示词。宿主不支持 skills 时才用兜底：在目标仓库根目录跑 `<kit>/scripts/harness-prompt list` 看场景，`copy <场景>` 复制到剪贴板（按场景拼 0A/0B 前置、填好路径、列出待补占位符；无剪贴板时打印到 stdout）。
 
 **Q：多人怎么用？**
 A：见 [governance 多人协作](governance.md#3-多人与多-agent-协作)：唯一 active 计划、`scope.allow`、PR + required checks、证据绑定 commit；分工提示词见 [prompts §16](agent-prompts.md#16-多人--多-agent-分工)。

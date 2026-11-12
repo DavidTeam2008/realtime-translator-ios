@@ -174,10 +174,13 @@ class SkillScopeTests(unittest.TestCase):
         self.assertEqual(0, installed.returncode, installed.stdout + installed.stderr)
         self.assertTrue((self.user_skill_dir() / "SKILL.md").is_file())
         self.assertTrue((self.user_skill_dir() / "references" / "adopt.md").is_file())
+        # v0.5.1: one user install covers both the shared agents root (DSH) and Claude Code.
+        self.assertTrue((self.home / ".claude" / "skills" / "harness" / "SKILL.md").is_file())
         meta = json.loads((self.home / ".agents" / "skills" / ".harness-kit-skill.json")
                           .read_text(encoding="utf-8"))
         self.assertEqual(VERSION, meta["kitVersion"])
         self.assertIn("agents", meta["agents"])
+        self.assertIn("claude-code", meta["agents"])
         self.assertEqual(KIT.resolve().as_posix(), meta["kitRoot"])
         check = self.skill("check", "--scope", "user")
         self.assertEqual(0, check.returncode, check.stdout + check.stderr)
@@ -198,6 +201,7 @@ class SkillScopeTests(unittest.TestCase):
         removed = self.skill("uninstall", "--scope", "user")
         self.assertEqual(0, removed.returncode, removed.stdout + removed.stderr)
         self.assertFalse(self.user_skill_dir().exists())
+        self.assertFalse((self.home / ".claude" / "skills" / "harness").exists())
         self.assertFalse((self.home / ".agents" / "skills" / ".harness-kit-skill.json").exists())
         self.assertEqual(2, self.skill("check", "--scope", "user").returncode)
 

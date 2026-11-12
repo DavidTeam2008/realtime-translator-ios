@@ -74,7 +74,7 @@ Claude Code（或任何单个 Agent）是**执行面**，不是**跨厂商项目
 ## 7. 当前版本 vs 路线图
 
 - **已交付**（v0.4.0）：五子系统模板/门禁、证据可复核（含伪造回归）、manifest 升级基线、只读升级检查、统一入口 `tools/harness.py`、router skill（显式安装，默认不启用）、真实存量仓反馈收口（submitted scope/归档回读/证据入库/JUnit 脱敏/claim 环境/scorecard/selftest 目标）。
-- **已交付**（v0.5.0）：入口 skill 优先（`--scope user` 一次安装、任意仓库会话可见；`--scope project` 供团队 pin 版本；`uninstall`/漂移检查）、提示词降级为兜底、skill 自足 adopt 流程；门禁/`tools/`/config 无行为变更。
+- **已交付**（v0.5.0 / v0.5.1）：入口 skill 优先（`--scope user` 一次安装 `~/.agents/skills` + `~/.claude/skills`、任意仓库会话可见；`--scope project` 供团队 pin 版本；`uninstall`/漂移检查）、提示词降级为兜底、skill 自足 adopt 流程；门禁/`tools/`/config 无行为变更。
 - **路线图**：v0.5.x 行为级 A/B（skill vs 提示词，衡量人工操作数与协议遵守）；v0.4.x 跨 Agent 真实交接演练 + 多 Agent 并发门禁（顺延）。DSH 插件明确不做（见 §5）。
 - **不承诺**：接入后模型表现提升 X%；多 Agent 并发已受门禁保护；绝对防伪造。
 - **不承诺**：接入后模型表现提升 X%；多 Agent 并发已受门禁保护；绝对防伪造。
