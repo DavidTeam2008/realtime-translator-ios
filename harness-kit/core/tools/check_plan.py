@@ -541,12 +541,13 @@ def git_commit_files(root: Path, rev: str) -> list[str] | None:
     parents = out.split()[1:]
     if len(parents) > 1:
         # 只与第一父比较（-m 会展开第二父 diff，不能用于 scope 审计）。
-        code, out, _ = git(root, ["diff", "--name-only", "-r", parents[0], sha])
+        code, out, _ = git(root, ["diff", "-z", "--name-only", "-r", parents[0], sha])
     else:
-        code, out, _ = git(root, ["diff-tree", "--no-commit-id", "--name-only", "-r", "--root", sha])
+        code, out, _ = git(root, ["diff-tree", "-z", "--no-commit-id", "--name-only", "-r", "--root", sha])
     if code != 0:
         return None
-    paths = {line.strip() for line in out.splitlines() if line.strip()}
+    # -z 避免 Git 将非 ASCII 路径转义为 "\344\..." 形式，保证与 scope.allow 直接比较。
+    paths = {item.strip() for item in out.split("\0") if item.strip()}
     return sorted(paths)
 
 

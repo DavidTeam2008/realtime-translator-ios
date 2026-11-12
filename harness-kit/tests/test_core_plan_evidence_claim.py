@@ -840,7 +840,19 @@ class KitCoreTest(unittest.TestCase):
         proc = self.check_plan("check")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
-
+    def test_submitted_scope_non_ascii_path_inside_allow(self) -> None:
+        self.commit_all("fixtures")
+        # 固定 quotePath=true，确保用例覆盖 Git 对非 ASCII 路径的转义行为。
+        self.assertEqual(git(self.root, "config", "core.quotePath", "true").returncode, 0)
+        submitted = self.commit_change("harness/文档/说明.md", "内容\n", "non-ascii in scope")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(
+            plan_front_allow(("harness/",), submitted=submitted),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan")
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
     def test_submitted_scope_self_relax_after_commit_fails(self) -> None:
         self.commit_all("fixtures")
