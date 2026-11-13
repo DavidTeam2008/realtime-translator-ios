@@ -38,7 +38,8 @@ check 校验（FAIL 会计入退出码 1，WARN 不阻断）：
     不阻断升级，也不能静默消失）；归档计划不参与唯一 active 判定。
   - `new`：从 <plans>/_template.md 生成 <YYYY-MM-DD>-<topic>.md，并尽力替换
     常见占位符（<date>/<topic>/<主题>/{{DATE}}/{{TOPIC}}、status 占位）。
-  - `--strict`：归档计划问题由 WARN 升 FAIL；submitted 审计使用提交时点的计划 scope，
+  - `--strict`：归档计划的 error 级问题由 WARN 升 FAIL（warn 仍为 warn、不阻断，
+    输出头行也随之是 `[WARN]`）；submitted 审计使用提交时点的计划 scope，
     计划与提交同批修改 / 计划晚于提交 → FAIL（pre-push / release 用）。
   - `brief`：打印 active 计划摘要；无 active 计划 → exit 1。
 
@@ -1127,7 +1128,9 @@ def run_check(root: Path, config: dict, *, lenient_uncommitted: bool = False, st
             if not errors and not warnings:
                 continue
             if strict:
-                print(f"[FAIL] {plan_rel(root, plan.path)}  status={plan.status}（归档）")
+                # 头行必须与判定一致：只有 error 才标 FAIL；仅 warn 时标 WARN（不阻断）。
+                tag = "FAIL" if errors else "WARN"
+                print(f"[{tag}] {plan_rel(root, plan.path)}  status={plan.status}（归档）")
                 for item in errors:
                     print(f"       [FAIL] [archived] {item}")
                 for item in warnings:

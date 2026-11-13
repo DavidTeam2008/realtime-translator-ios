@@ -18,11 +18,13 @@
     "root": "{{ROOT_AGENTS}}",
     "nested": ["{{DOCS_DIR}}/AGENTS.md", "{{HARNESS_DIR}}/AGENTS.md"],
     "nestedMaxBytes": 8192,
+    "nestedMaxTokens": 1000,
     "budgets": {
       "{{ROOT_AGENTS}}": 1200,
       "{{REFERENCES_DIR}}/contracts.md": 700,
       "{{REFERENCES_DIR}}/verification.md": 700,
-      "{{REFERENCES_DIR}}/workflow.md": 700
+      "{{REFERENCES_DIR}}/workflow.md": 700,
+      "{{DOCS_DIR}}/README.md": 1000{{HARNESS_BUDGET}}
     },
     "sensitivePatterns": ["/Users/", "sk-"]
   },

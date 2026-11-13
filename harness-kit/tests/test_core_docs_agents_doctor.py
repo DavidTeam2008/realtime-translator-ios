@@ -244,6 +244,10 @@ class CheckDocsTests(ProjectCase):
         self.write_config()
         self.assert_failed(self.run_script("docs"), "token 超预算", "AGENTS.md")
 
+    def test_token_budget_reports_usage_per_file(self) -> None:
+        # 逐文件输出 used/budget/remain，便于判断离顶格还有多少空间
+        self.assert_ok(self.run_script("docs"), "token 预算：AGENTS.md ≈", "/400（余 ")
+
     def test_missing_config_is_readable_error(self) -> None:
         (self.root / "harness" / "config.json").unlink()
         self.assert_failed(self.run_script("docs"), "配置不可用", "缺少配置文件")
@@ -271,6 +275,29 @@ class CheckAgentsTests(ProjectCase):
         self.config["instructions"]["budgets"]["AGENTS.md"] = 1
         self.write_config()
         self.assert_failed(self.run_script("agents"), "token 超预算", "AGENTS.md")
+
+    def test_token_budget_reports_usage_per_file(self) -> None:
+        self.assert_ok(self.run_script("agents"), "token 预算：AGENTS.md ≈", "/400（余 ")
+
+    def test_nested_token_budget_absent_is_backward_compatible(self) -> None:
+        # BASE_CONFIG 没有 nestedMaxTokens：只按 nestedMaxBytes 检查
+        self.assert_ok(self.run_script("agents"), "nestedMaxBytes=4096")
+        self.assertNotIn("nestedMaxTokens", self.combined(self.run_script("agents")))
+
+    def test_nested_token_budget_exceeded_fails(self) -> None:
+        self.config["instructions"]["nestedMaxTokens"] = 1
+        self.write_config()
+        self.assert_failed(self.run_script("agents"), "嵌套指令 token 超预算", "docs/AGENTS.md")
+
+    def test_nested_token_budget_reports_usage(self) -> None:
+        self.config["instructions"]["nestedMaxTokens"] = 5000
+        self.write_config()
+        self.assert_ok(
+            self.run_script("agents"),
+            "nestedMaxBytes=4096, nestedMaxTokens=5000",
+            "嵌套指令 token：docs/AGENTS.md ≈",
+            "/5000（余 ",
+        )
 
     def test_sensitive_absolute_path_fails(self) -> None:
         self.write("AGENTS.md", AGENTS_MD + "\n- 本机路径：/Users/example/project\n")

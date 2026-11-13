@@ -550,6 +550,18 @@ class KitCoreTest(unittest.TestCase):
         proc = self.evidence("validate")
         self.assertIn("dirty", proc.stdout.lower())
 
+    def test_evidence_validate_warns_oversized_evidence(self) -> None:
+        # 证据应是 1–3KB 摘要；超过 3KB 只 WARN、不阻断（exit 0）。
+        self.write_config([dict(STATIC_CLAIM)])
+        doc = evidence_doc("20260101T000000Z-docs-pass", "docs-pass", "PASS", commit=self.base)
+        doc["notes"] = "x" * 4096
+        self.write_evidence(doc)
+        proc = self.evidence("validate")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("[WARN]", proc.stdout)
+        self.assertIn("3 KB", proc.stdout)
+        self.assertIn("1 warn", proc.stdout)
+
     def test_evidence_ls_lists_and_filters(self) -> None:
         self.write_config([dict(STATIC_CLAIM), {"name": "arch-pass", "type": "static", "command": "true"}])
         self.write_evidence(evidence_doc("20260101T000000Z-docs-pass", "docs-pass", "PASS", commit=self.base))
@@ -899,6 +911,26 @@ class KitCoreTest(unittest.TestCase):
         strict = self.check_plan("check", "--strict")
         self.assertEqual(strict.returncode, 1, strict.stdout + strict.stderr)
         self.assertIn("src/app.py", strict.stdout)
+
+    def test_strict_archive_warn_only_prints_warn_header(self) -> None:
+        # 仅有 submitted 早于计划文件的 WARN 时，strict 头行必须是 [WARN]（不得误标 FAIL），
+        # 汇总仍是 PASS / exit 0（warn 不阻断）。
+        self.commit_all("fixtures")
+        submitted = self.commit_change("src/app.py", "x = 1\n", "before plan")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        archive = self.root / "harness" / "plans" / "_archive"
+        archive.mkdir(parents=True, exist_ok=True)
+        plan = plan_front_allow(("src/",), status="archived", submitted=submitted)
+        (archive / "2026-01-01-old.md").write_text(
+            f"---\n{plan}\n---\n\n{plan_body(rows, uncommitted=False)}", encoding="utf-8"
+        )
+        self.commit_all("archive")
+        strict = self.check_plan("check", "--strict")
+        self.assertEqual(strict.returncode, 0, strict.stdout + strict.stderr)
+        self.assertIn("早于计划文件", strict.stdout)
+        self.assertIn("（归档）", strict.stdout)
+        self.assertIn("[WARN]", strict.stdout)
+        self.assertNotIn("[FAIL]", strict.stdout)
 
     def test_archived_active_status_fails_even_daily(self) -> None:
         archive = self.root / "harness" / "plans" / "_archive"

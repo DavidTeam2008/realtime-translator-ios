@@ -1,0 +1,6 @@
+# harness-kit · export-ignore（发布源码包时排除 harness 过程文件；git archive / GitHub Source zip 生效）
+# 只影响归档产物，不影响仓库内容；按项目需要增删本块，升级时保留标记。
+/harness/ export-ignore
+/tools/ export-ignore
+/HARNESS.md export-ignore
+/.harness-manifest.json export-ignore

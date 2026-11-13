@@ -174,7 +174,11 @@ def substitutions(
     test_command: str,
     kit_ver: str,
     branch: str,
+    *,
+    include_harness_budget: bool = True,
 ) -> dict[str, str]:
+    # HARNESS.md 只在 standard/strict 生成；minimal 不渲染该预算项，避免登记不存在文件。
+    harness_budget = ',\n      "HARNESS.md": 1500' if include_harness_budget else ""
     return {
         "PROJECT_NAME": project_name,
         "PROJECT_LANGUAGE": language,
@@ -188,6 +192,7 @@ def substitutions(
         "HARNESS_DIR": "harness",
         "ROOT_AGENTS": "AGENTS.md",
         "DEFAULT_BRANCH": branch,
+        "HARNESS_BUDGET": harness_budget,
     }
 
 
@@ -260,6 +265,7 @@ def collect_actions(
             render_it=bool(item.get("render")),
             on_conflict=str(item.get("onConflict") or "fail"),
             executable=bool(item.get("executable")),
+            append=bool(item.get("append")),
         )
 
     if not actions:
@@ -518,7 +524,15 @@ def main(argv: list[str] | None = None) -> int:
                 f"NOTE: test command was inferred for language={language!r}: "
                 f"{test_command!r} ({command_note}); edit harness/config.json if wrong"
             )
-        subs = substitutions(project_name, language, test_command, version, detect_branch(target))
+        has_harness = any(str(item.get("dst")) == "HARNESS.md" for item in profile.get("files", []))
+        subs = substitutions(
+            project_name,
+            language,
+            test_command,
+            version,
+            detect_branch(target),
+            include_harness_budget=has_harness,
+        )
         actions = collect_actions(kit_root, target, profile, adapter_files, force=args.force)
 
         print(f"harness-kit {version} · profile={args.profile} · target={target}")

@@ -100,6 +100,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "nestedMaxTokens": {
+          "type": "integer",
+          "minimum": 256
         }
       }
     },

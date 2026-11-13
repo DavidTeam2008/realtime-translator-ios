@@ -33,7 +33,7 @@ harness 的目标是让完成声明**可复跑、可否定、可交接**，而�
 
 ## 4. 证据政策
 
-- 证据是**摘要**（1–3KB JSON）：命令、环境、计数、commit、verdict；原始日志不入库。
+- 证据是**摘要**（1–3KB JSON）：命令、环境、计数、commit、verdict；原始日志不入库；单个证据 > 3KB 时 `make check-evidence` 输出 WARN（不阻断）。
 - **证据 JSON 与 `artifacts/` 里的脱敏 JUnit 都必须 `git add` 入库**；未跟踪证据/artifact 的 PASS 会被判 UNVERIFIED。
 - **必需 claim 完整性**：`config.claims` 每项 `required` 默认 true；某个 claim 没有当前证据 → UNVERIFIED（不能只交一条）。
 - **归档**：`{{HARNESS_DIR}}/evidence/_archive/` 的证据只输出 `SUPERSEDED`、不参与判定；归档 FAIL/UNVERIFIED 必须由当前 PASS 证据的 `supersedes` 声明接管，否则聚合 UNVERIFIED。
@@ -66,4 +66,4 @@ make doctor           # 环境自检（strict profile）
 
 - 静态门禁不证明行为正确；动态层依赖项目自己的测试命令与运行环境。
 - 证据可伪造；三值判定提高说谎成本，不提供密码学保证。
-- AGENTS 有 token 预算，规则增长应优先放嵌套 `AGENTS.md` 或动作卡，而不是继续堆根文件。
+- 指令文件（根 `AGENTS.md`、references、`HARNESS.md`、`docs/README.md`）与嵌套 `AGENTS.md` 都有 token 预算，规则增长应优先删/合并旧规则或下沉，而不是继续堆根文件。

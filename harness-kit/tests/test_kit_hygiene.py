@@ -56,6 +56,22 @@ class NoProjectSpecificRefsTests(unittest.TestCase):
                 self.assertIn("src", item)
                 self.assertIn("dst", item)
 
+    def test_token_budget_constants_match_docs(self) -> None:
+        # 防漂移：模板预算常量必须与 README/governance 的说明一致（v0.5.2 修过一次漂移）。
+        template = (KIT / "core" / "templates" / "harness" / "config.json.template").read_text(encoding="utf-8")
+        self.assertIn('"{{ROOT_AGENTS}}": 1200', template)
+        self.assertIn('"{{REFERENCES_DIR}}/contracts.md": 700', template)
+        self.assertIn('"{{DOCS_DIR}}/README.md": 1000', template)
+        self.assertIn('"nestedMaxTokens": 1000', template)
+        self.assertIn("{{HARNESS_BUDGET}}", template)
+        init = (KIT / "scripts" / "harness-init").read_text(encoding="utf-8")
+        self.assertIn('"HARNESS.md": 1500', init)
+        readme = (KIT / "README.md").read_text(encoding="utf-8")
+        governance = (KIT / "docs" / "governance.md").read_text(encoding="utf-8")
+        for name, doc in (("README.md", readme), ("docs/governance.md", governance)):
+            for fragment in ("≈1200", "≈700", "≈1500", "≈1000"):
+                self.assertIn(fragment, doc, f"{name} 的预算说明与模板默认值漂移：缺 {fragment}")
+
     def test_profile_files_exist(self) -> None:
         missing = []
         for profile in sorted((KIT / "profiles").glob("*.json")):
@@ -66,7 +82,12 @@ class NoProjectSpecificRefsTests(unittest.TestCase):
             for src in sources:
                 if not (KIT / src).is_file():
                     missing.append(f"{profile.name}: {src}")
-        self.assertEqual([], missing, "profile references missing kit files")
+        adapters = json.loads((KIT / "adapters" / "manifest.json").read_text(encoding="utf-8"))
+        for name, items in adapters.items():
+            for item in items:
+                if not (KIT / item["src"]).is_file():
+                    missing.append(f"adapters/{name}: {item['src']}")
+        self.assertEqual([], missing, "profile/adapters reference missing kit files")
 
     def test_kit_docs_relative_links(self) -> None:
         missing = []

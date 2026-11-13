@@ -5,6 +5,9 @@
   "ci": [
     { "src": "adapters/ci/verify.yml.template", "dst": ".github/workflows/verify.yml", "render": true, "onConflict": "fail" }
   ],
+  "gitattributes": [
+    { "src": "adapters/gitattributes/export-ignore.append", "dst": ".gitattributes", "append": true, "onConflict": "append" }
+  ],
   "dsh": [],
   "claude-code": [
     { "src": "adapters/claude-code/CLAUDE.md.template", "dst": "CLAUDE.md", "render": true, "onConflict": "skip" },

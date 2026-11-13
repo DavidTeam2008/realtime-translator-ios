@@ -1,7 +1,7 @@
 # 采用 playbook：五步改造法（Harness Engineering 五子系统落地）
 
 > 给宿主项目做一次 Harness Engineering 改造的操作手册：按 Instructions / State / Verification / Scope / Session Lifecycle 五子系统落地。每步给出**命令**、**可检查的输出/退出信号**与**回滚点**。
-> 前置约定与完整契约见 [`../README.md`](../README.md) 与 [`../SPEC.md`](../SPEC.md)；按读者选择路径：[`adoption.md`](adoption.md)（AI coding Agent 优先接入 + 命令行手动接入 + 前后评分）、本文（逐步操作）、[`governance.md`](governance.md)（演化、反臃肿、多人协作）、[`agent-prompts.md`](agent-prompts.md)（兜底提示词库，仅不支持 skills 的宿主用）。
+> 前置约定与完整契约见 [`../README.md`](../README.md) 与 [`../SPEC.md`](../SPEC.md)；按读者选择路径：[`adoption.md`](adoption.md)（skill 优先接入与日常使用 + 命令行手动接入 + 前后评分）、本文（逐步操作）、[`governance.md`](governance.md)（演化、反臃肿、多人协作）、[`agent-prompts.md`](agent-prompts.md)（兜底提示词库，仅不支持 skills 的宿主用）。
 
 ## 0. 完成定义（先对齐，避免“看起来接入了”）
 
@@ -76,6 +76,9 @@ python3 tools/check_docs.py          # 文档：链接/围栏/索引/白名单
 git config core.hooksPath .githooks
 
 # 2) CI：认领生成的 .github/workflows/verify.yml（静态门禁；昂贵测试按项目另行分层）
+
+# 2b) 发布源码包/镜像时排除 harness 过程文件（可选）：init 加 --adapters gitattributes
+#     生成 .gitattributes 的 export-ignore 块；npm/Docker/Xcode 做法见 adoption §3.5
 
 # 3a) 先提交 scaffold（证据写入要求 clean tree）
 git add -A && git commit -m "harness scaffold"

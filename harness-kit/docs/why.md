@@ -1,7 +1,7 @@
 # 为什么是「项目管理工具」，而不是又一个脚手架
 
 > 本文回答三个问题：它到底是什么、为什么不用单个 Agent（如 Claude Code）自己管、它凭什么值得存在。
-> 事实源：`README.md`（能力）、`SPEC.md`（内部契约）、`docs/adoption.md`（接入）、`docs/playbook.md`（操作）。
+> 事实源：`README.md`（能力）、`SPEC.md`（内部契约）、`docs/adoption.md`（skill 优先接入与日常使用）、`docs/playbook.md`（操作）。
 
 ## 1. 定位
 

@@ -14,7 +14,8 @@
     c) docs 索引：`<docs>/README.md` 存在且 `<docs>/*.md`（除 README）均登记；
     d) 公开文档收敛：根目录 `*.md` 仅允许 `config.docs.rootMarkdownAllowed`；
        `config.docs.publicWhitelist` 是允许集合（缺失条目容忍）；实际 docs/*.md 必须都在集合内且数量 ≤ `publicBudget`；
-    e) `config.instructions.budgets` 中文件 token 数 ≤ 预算。
+    e) `config.instructions.budgets` 中文件 token 数 ≤ 预算，逐文件输出
+       used/budget/remain（失败时输出超出量）。
 
 仅标准库；不联网、不写文件。输出以 `[OK]` / `[FAIL]` 开头，失败 exit 1。
 """
@@ -262,10 +263,11 @@ def check_public_docs(root: Path, docs_cfg: dict, docs_rel: str = "docs") -> tup
     return problems, "公开文档：" + "，".join(notes)
 
 
-def check_budgets(root: Path, budgets: dict) -> tuple[list[str], str]:
+def check_budgets(root: Path, budgets: dict) -> tuple[list[str], list[str]]:
     if not budgets:
-        return [], "token 预算：config.instructions.budgets 未配置（跳过）"
+        return [], ["token 预算：config.instructions.budgets 未配置（跳过）"]
     problems: list[str] = []
+    messages: list[str] = []
     for rel, budget in sorted(budgets.items()):
         path = root / rel
         if not path.is_file():
@@ -273,8 +275,10 @@ def check_budgets(root: Path, budgets: dict) -> tuple[list[str], str]:
             continue
         tokens = estimate_tokens(read_text(path))
         if tokens > budget:
-            problems.append(f"token 超预算：{rel} ≈{tokens} > {budget}")
-    return problems, f"token 预算：{len(budgets)} 个文件均在预算内"
+            problems.append(f"token 超预算：{rel} ≈{tokens} > {budget}（超 {tokens - budget}）")
+        else:
+            messages.append(f"token 预算：{rel} ≈{tokens}/{budget}（余 {budget - tokens}）")
+    return problems, messages
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -314,8 +318,11 @@ def main(argv: list[str] | None = None) -> int:
     for check in checks:
         found, message = check()
         problems.extend(found)
-        if not found and message:
-            print(f"[OK] {message}")
+        if not found:
+            lines = [message] if isinstance(message, str) else message
+            for line in lines:
+                if line:
+                    print(f"[OK] {line}")
 
     if problems:
         for problem in problems:

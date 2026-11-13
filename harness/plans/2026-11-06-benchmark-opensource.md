@@ -3,7 +3,7 @@ id: 2026-11-06-benchmark-opensource
 status: active
 level: L2
 owner: david
-updated: 2026-11-11
+updated: 2026-11-13
 scope:
   allow:              # 本轮只做「公开面 + 文档 + 过程档案」收敛；不动业务代码
     - README.md
@@ -491,6 +491,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.16：kit `v0.2.9` 发版完成：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入）；新增 agent-prompts.md（8 类场景模板 + 场景对照表）；kit **122 tests**；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync；iOS CI run `42846540918` success
 - [x] Phase 5.17：kit `v0.2.10` 发版完成：README 接入路径上移 + 命令内联 + 导航拆分；agent-prompts 19 类场景模板（发布前/对抗性评审等）；整体审查修复（SPEC/schema/锚点/路径/版本一致性）；kit **122 tests**；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync；iOS CI run `42854316813` success
 - [x] Phase 5.18：kit `v0.2.11` 发版完成：`prompts/` 单源 + `harness-prompt` CLI（list/show/copy/render；按场景拼前置、路径填充、阶段 WARN、剪贴板回退）；agent-prompts 改为生成物；接入模板修复（kit 路径/0A-0B/尖括号）；独立审计两轮后复验通过；kit **140 tests**；镜像 `main` `52e1ad7` + tag `v0.2.11`（CI run `42863127498` success）、`kit-drift` in sync；iOS CI run `42862894694` success
+- [x] Phase 5.26（本地完成，待提交/发版，2026-11-13）：kit `v0.5.2`——审计 v0.5.1 行为时发现三类问题并修复：①`check_plan check --strict` 归档计划只有 WARN 时误打 `[FAIL]` 头（汇总/退出码仍 PASS），改为 `[WARN]` 头，docstring/SPEC 同步为「error 级问题升 FAIL（warn 不阻断）」；②token 约束缺口：`check_docs`/`check_agents` 逐文件输出 used/budget/remain（超预算输出超出量），模板 `budgets` 纳入 `docs/README.md`(≈1000) 与 `HARNESS.md`(standard/strict，≈1500)，新增可选 `instructions.nestedMaxTokens`(默认 1000，`nestedMaxBytes` 保留)，`evidence.py validate` 对 >3KB 证据 WARN（不阻断，汇总显示 warn 数）；③修正 README/governance 与模板预算常量漂移（旧写「模板默认 1650/950–1000」，实际 1200/700；1650/975 标注为来源案例数值），加回归测试防再漂移；④文档重排为 skill 优先：`docs/adoption.md` 重写为「装 skill → 接入 → 按场景使用 → 硬约束 → 手动/兜底」，新增场景路由表与任务循环，README 入口顺序改为先装 skill。 ⑤打包排除（方案 A 落地）：新增 opt-in 适配器 `gitattributes`（`--adapters gitattributes` 向 `.gitattributes` 追加 `export-ignore` 块，覆盖 `/harness/`、`/tools/`、`/HARNESS.md`、`/.harness-manifest.json`），`harness-init` 适配器支持 append 语义（manifest 记录 appends、重复 init 幂等），`git archive`/GitHub Source zip 实测排除；adoption 增加 git/npm/Docker/Python/Xcode 打包排除食谱（不改目录布局、已接入仓零迁移）。验收：kit **285 tests PASS**；三档 init 的 config/`make check` 通过且输出逐文件余量；`make verify-static` PASS；新增回归用例（strict 归档 WARN 头、逐文件用量、嵌套 token 正/负/输出、3KB WARN、预算文档一致性、profile 渲染断言）。
 - [x] Phase 5.25（**已发版**，2026-11-12）：kit `v0.5.1` 入口安装默认覆盖 Claude Code——用户反馈 Claude Code skill 列表无 `harness`：v0.5.0 的 `--scope user` 默认只装 `~/.agents/skills`（DSH 读），而 Claude Code 只读 `~/.claude/skills`；改为用户级默认 agent `agents,claude-code`（一次安装写两个根，`--agent` 可单独指定）；单测断言两根存在/卸载同时清理；文档补充 slash 调用方式（DSH/Qoder CN/Claude Code 输入框有「技能」补全，`/harness` 显式加载确定性更强，自然语言点名是兜底）。验收：kit **275 tests PASS**；`make verify-static` PASS；本机 `install --scope user --force` 后 `check --scope user` in sync（agents, claude-code）。**已发版**：源提交 `aa35b33` + `98d4811`；iOS CI run `43160375148` success；镜像 main `a4b0065`；annotated tag `v0.5.1`（tag object `aad588d` → `a4b0065`）；镜像 CI run `43160494234` success；tag clone VERSION `0.5.1` / 275 tests OK / `render --check` OK；`make kit-drift` in sync。
 - [x] Phase 5.24（**已发版**，2026-11-12）：kit `v0.5.0` 入口 skill 优先（替代「生成提示词→粘贴」）——用户实测 barra 接入反馈：命令行生成提示词再粘贴太繁琐，要求按 skill 方式；DSH 事实核对（app.asar 文档）：skill 根为项目 `.dsh/skills`(100) / `.agents/skills`(200) / 自定义(300) / 用户 `~/.dsh/skills`(400) / `~/.agents/skills`(500)，本机 `~/.agents/skills` 已有 29 个 skill。落地：`harness-skill` 增 `--scope user|project` + `uninstall` + `agents` 目标 + 用户级元数据`~/.agents/skills/.harness-kit-skill.json`（kitRoot/version/hashes，不入库），`check` 支持 user scope 漂移；SKILL.md 增接入/升级/接手触发词、kit 定位（install.json → 仓内/父目录 harness-kit → 问一次）、min_version 0.5.0；`references/adopt.md` 自足（去掉提示词依赖）；`references/upgrade.md` 升级后重装 skill；adopt/init/prompt 引导 skill 优先；README/adoption/playbook（新增 v0.4.0→v0.5.0 升级自检）/SPEC/why（记录「DSH 插件不做」决策与复访条件）/DSH 适配器文档同步；`docs/agent-prompts.md` 重新生成并定位为兜底。用户决策：A/B 后置（v0.5.x），本轮不跑 skill vs 提示词行为级对比，不声称表现提升。验收：kit **275 tests PASS**（新增 5 个 user-scope/卸载/agents 用例）；`make verify-static` PASS；用户级安装实测（`~/.agents/skills/harness` in sync）；`make check-plan` / 计划记录。**已发版**：源提交 `38dbd69` + `3fdfa7f` + `1bb72e8` + `4f0e547`；iOS CI run `43054971279`（`3fdfa7f`）、`43055990364`（`4f0e547`）success；镜像 main `1bdf2ac`；annotated tag `v0.5.0`（tag object `9f28d0c` → `1bdf2ac`）；镜像 CI run `43056158044` success；tag clone VERSION `0.5.0` / 275 tests OK / `render --check` OK / `harness-skill list` OK；`make kit-drift` in sync。**过程问题**：镜像 CI 首跑（run `43055148155`）失败——新增用例断言 meta.kitRoot 以 `harness-kit` 结尾，而镜像/CI 克隆目录名是 `harness-engineering-kit` → 改为断言 `KIT` 绝对路径，重发布镜像 main 并重打 tag 后转绿。 **v0.5.1 修复**：用户反馈 Claude Code 的 skill 列表里没有 `harness`——v0.5.0 的 `--scope user` 默认只装 `~/.agents/skills`（DSH 读），Claude Code 只读 `~/.claude/skills`；用户级默认 agent 改为 `agents,claude-code`（一次安装同时写两个根），文档同步；见 Phase 5.25（已发版）。
 - [x] Phase 5.23（**已发版**，2026-11-11）：kit `v0.4.0` 存量接入反馈收口（barra 报告 15 项 + 红队 P0×5/P1×11 审查回应）——barra standard 档接入报告 P0/P1/P2 共 15 项（submitted scope 审计、done 零未验证+归档回读、证据 tracked/递归/SUPERSEDED、JUnit 默认脱敏、layers 覆盖率、claim 环境模型、profile 口径统一、scorecard、Makefile selftest/upgrade-check、盘点归档、测试命令探测、selftest M6、hygiene 覆盖报告、prompt 阶段检测）；方案冻结于 `harness/reviews/2026-11-11-adoption-feedback-v04/plan.md`；落地：submitted 按提交时点 scope + 例外表、归档计划审计/回读、done 零未验证+waiver、证据与 artifact 入库/递归/SUPERSEDED/必需 claim、JUnit 默认脱敏复制、claim environment/floorByEnvironment/skipped 容差、layers tracked+untracked、profile/测试命令口径统一、adopt 盘点归档、scorecard+Makefile selftest/upgrade-check、prompt 阶段检测、selftest M6 归档 fixture。验收：kit **270 tests PASS**；`make verify-static` PASS（91 iOS 脚本单测 + 270 kit tests + docs/架构/计数/harness/计划/证据/adapters）；standard init 端到端 smoke（make check/scorecard/upgrade-check/selftest/verify-static PASS）；barra 只读复验（layers 171 tracked、verify_claim 归档 UNVERIFIED 可见、check-plan strict 拦截 submitted 越界、status/handoff 归档回读；/tmp 迁移后 strict PASS）。**已发版**：iOS CI run `43034291881` success；镜像 main `9dbb117` + annotated tag `v0.4.0`（tag object `8439f3f` → `9dbb117`）；镜像 CI run `43034581712` success；tag clone VERSION `0.4.0` / 270 tests OK / `render --check` OK；`make kit-drift` in sync
@@ -686,7 +687,30 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.5.1 已发版：源 98d4811、镜像 a4b0065、tag v0.5.1）。
+Phase 5.26 的本地改动（22 个文件，待用户确认后提交）：
+
+- `harness/plans/2026-11-06-benchmark-opensource.md`
+- `harness-kit/CHANGELOG.md`
+- `harness-kit/adapters/manifest.json`
+- `harness-kit/adapters/gitattributes/export-ignore.append`
+- `harness-kit/README.md`
+- `harness-kit/SPEC.md`
+- `harness-kit/docs/adoption.md`
+- `harness-kit/docs/playbook.md`
+- `harness-kit/docs/why.md`
+- `harness-kit/core/config.schema.json`
+- `harness-kit/core/templates/HARNESS.md.template`
+- `harness-kit/core/templates/harness/config.json.template`
+- `harness-kit/core/tools/check_agents.py`
+- `harness-kit/core/tools/check_docs.py`
+- `harness-kit/core/tools/check_plan.py`
+- `harness-kit/core/tools/evidence.py`
+- `harness-kit/docs/governance.md`
+- `harness-kit/scripts/harness-init`
+- `harness-kit/tests/test_core_docs_agents_doctor.py`
+- `harness-kit/tests/test_core_plan_evidence_claim.py`
+- `harness-kit/tests/test_kit_hygiene.py`
+- `harness-kit/tests/test_kit_profiles.py`
 
 ## 下一步
 
@@ -712,6 +736,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 20. kit `v0.5.0`（入口 skill 优先）**已发版**（iOS CI run `43054971279` / `43055990364` success；镜像 main `1bdf2ac` + tag `v0.5.0`；镜像 CI run `43056158044` success；tag clone 275 tests OK；`kit-drift` in sync）：`--scope user` 一次安装（`~/.agents/skills`）替代提示词粘贴；A/B 后置（v0.5.x）；DSH 插件不做。
 21. 待用户决定：barra 等已接入仓的 v0.4→v0.5 迁移按 playbook「v0.4.0 → v0.5.0 升级自检」处理（用户 2026-11-11 选择先不动）。
 22. kit `v0.5.1`（入口安装默认覆盖 Claude Code + slash 调用说明）**已发版**（iOS CI run `43160375148` success；镜像 main `a4b0065` + tag `v0.5.1`；镜像 CI run `43160494234` success；tag clone 275 tests OK；`kit-drift` in sync）。
+23. kit `v0.5.2` 改动已在工作区（284 tests PASS；`check_plan --strict` 输出修复 + token 预算补强 + 文档漂移修正），待用户确认后提交；发版沿用既有序列（提交 → clean marker → push → iOS CI → kit-publish → annotated tag → 镜像 CI → tag clone 验证 → 记录 → clean marker → push → final CI）。
 
 ## 待确认
 

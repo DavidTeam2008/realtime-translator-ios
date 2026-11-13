@@ -20,7 +20,8 @@
     业务字段；不支持空文档静默补全。
   - `validate` 只扫描文件名符合证据 id 的文件；`TEMPLATE.json` / `schema.json` /
     README 等非证据文件会被跳过并计数。额外语义：verdict=PASS 时 git.dirty 必须为
-    false。
+    false；单个证据文件 > 3KB 输出 `[WARN]`（证据应是摘要，大内容放 artifact/文档；
+    WARN 不阻断，汇总显示 warn 数）。
 
 退出码：0 = 成功/全部有效；1 = 校验失败 / 拒绝写入 / 配置不可用；2 = 用法错误。
 """
@@ -35,6 +36,7 @@ from pathlib import Path
 
 CONFIG_REL = Path("harness") / "config.json"
 EVIDENCE_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[a-z0-9-]+$")
+EVIDENCE_WARN_BYTES = 3 * 1024  # 证据是摘要（1–3KB）；超过只 WARN、不阻断
 CREATED_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
 VERDICTS = ("PASS", "FAIL", "UNVERIFIED")
@@ -361,6 +363,7 @@ def cmd_validate(root: Path, config: dict) -> int:
     if skipped:
         info("跳过：" + ", ".join(skipped[:5]) + ("…" if len(skipped) > 5 else ""))
     errors = 0
+    warnings = 0
     for path in evidence_files:
         try:
             doc = load_json_file(path)
@@ -380,8 +383,15 @@ def cmd_validate(root: Path, config: dict) -> int:
             errors += 1
         else:
             print(f"[OK]   {path.name}  verdict={doc.get('verdict')}  claim={doc.get('claim')}")
+        size = path.stat().st_size
+        if size > EVIDENCE_WARN_BYTES:
+            print(
+                f"[WARN] {path.name} 大小 {size} B > 3 KB：证据应是摘要"
+                "（命令/环境/计数/commit），大内容放 artifact 或文档；WARN 不阻断"
+            )
+            warnings += 1
     verdict = "PASS" if errors == 0 else "FAIL"
-    print(f"结论：{verdict}（{len(evidence_files)} 个证据，{errors} error / 0 warn）")
+    print(f"结论：{verdict}（{len(evidence_files)} 个证据，{errors} error / {warnings} warn）")
     return 0 if errors == 0 else 1
 
 

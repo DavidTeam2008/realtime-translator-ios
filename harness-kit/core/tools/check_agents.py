@@ -9,7 +9,8 @@
 
 检查项：
     a) `config.instructions.root` 存在；`nested` 列表中的文件存在且字节数 ≤ nestedMaxBytes；
-    b) `config.instructions.budgets` 中文件 token 数 ≤ 预算；
+       配置了可选的 `nestedMaxTokens` 时，嵌套文件同时按 token 估算 ≤ 该上限；
+    b) `config.instructions.budgets` 中文件 token 数 ≤ 预算，逐文件输出 used/budget/remain；
     c) 敏感串：`config.instructions.sensitivePatterns` + 内置 `/Users/`、设备标识形、
        `sk-` 密钥形，扫描根/嵌套指令文件；
     d) `§N` / `第 N 节` 引用能解析到目标文件且对应编号标题存在：
@@ -97,6 +98,11 @@ def get_instructions(config: dict) -> dict:
     nested_max = instructions.get("nestedMaxBytes")
     if not isinstance(nested_max, int) or nested_max <= 0:
         raise ConfigError("config.instructions.nestedMaxBytes 缺失或不是正整数")
+    nested_max_tokens = instructions.get("nestedMaxTokens")
+    if nested_max_tokens is not None and (
+        not isinstance(nested_max_tokens, int) or isinstance(nested_max_tokens, bool) or nested_max_tokens <= 0
+    ):
+        raise ConfigError("config.instructions.nestedMaxTokens 必须是正整数（可选字段）")
     budgets = instructions.get("budgets", {})
     if budgets is None:
         budgets = {}
@@ -116,6 +122,7 @@ def get_instructions(config: dict) -> dict:
         "root": root_rel,
         "nested": nested_paths,
         "nestedMaxBytes": nested_max,
+        "nestedMaxTokens": nested_max_tokens,
         "budgets": budgets,
         "sensitivePatterns": patterns,
     }
@@ -141,6 +148,8 @@ def check_instruction_files(root: Path, instructions: dict) -> tuple[list[Path],
         problems.append(f"根指令文件不存在：{instructions['root']}")
     else:
         files.append(root_file)
+    messages: list[str] = []
+    token_limit = instructions.get("nestedMaxTokens")
     for rel in instructions["nested"]:
         path = root / rel
         if not path.is_file():
@@ -151,7 +160,21 @@ def check_instruction_files(root: Path, instructions: dict) -> tuple[list[Path],
         limit = instructions["nestedMaxBytes"]
         if size > limit:
             problems.append(f"嵌套指令文件超长：{rel} {size} > {limit} bytes")
-    messages = [f"指令文件：{len(files)} 个存在（nestedMaxBytes={instructions['nestedMaxBytes']}）"]
+        if token_limit is not None:
+            tokens = estimate_tokens(read_text(path))
+            if tokens > token_limit:
+                problems.append(
+                    f"嵌套指令 token 超预算：{rel} ≈{tokens} > {token_limit}"
+                    f"（超 {tokens - token_limit}）"
+                )
+            else:
+                messages.append(
+                    f"嵌套指令 token：{rel} ≈{tokens}/{token_limit}（余 {token_limit - tokens}）"
+                )
+    limits = f"nestedMaxBytes={instructions['nestedMaxBytes']}"
+    if token_limit is not None:
+        limits += f", nestedMaxTokens={token_limit}"
+    messages.insert(0, f"指令文件：{len(files)} 个存在（{limits}）")
     return files, problems, messages
 
 
@@ -159,6 +182,7 @@ def token_check(root: Path, budgets: dict) -> tuple[list[str], list[str]]:
     if not budgets:
         return [], ["token 预算：config.instructions.budgets 未配置（跳过）"]
     problems: list[str] = []
+    messages: list[str] = []
     for rel, budget in sorted(budgets.items()):
         path = root / rel
         if not path.is_file():
@@ -166,8 +190,10 @@ def token_check(root: Path, budgets: dict) -> tuple[list[str], list[str]]:
             continue
         tokens = estimate_tokens(read_text(path))
         if tokens > budget:
-            problems.append(f"token 超预算：{rel} ≈{tokens} > {budget}")
-    return problems, [f"token 预算：{len(budgets)} 个文件均在预算内"]
+            problems.append(f"token 超预算：{rel} ≈{tokens} > {budget}（超 {tokens - budget}）")
+        else:
+            messages.append(f"token 预算：{rel} ≈{tokens}/{budget}（余 {budget - tokens}）")
+    return problems, messages
 
 
 def sensitive_hits(text: str, configured: list[str]) -> list[tuple[int, str]]:

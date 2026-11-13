@@ -6,11 +6,13 @@ Runs real subprocesses (harness-init + make) against temp directories.
 """
 from __future__ import annotations
 
+import io
 import json
 import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -76,6 +78,21 @@ class HarnessInitProfileTests(unittest.TestCase):
                 self.assertIn("post-init check: PASS", proc.stdout)
                 self.assertTrue((target / "AGENTS.md").is_file())
                 self.assertTrue((target / "harness" / "config.json").is_file())
+                config = json.loads((target / "harness" / "config.json").read_text(encoding="utf-8"))
+                instructions = config["instructions"]
+                self.assertEqual(1000, instructions["nestedMaxTokens"])
+                self.assertEqual(1000, instructions["budgets"]["docs/README.md"])
+                self.assertEqual(
+                    profile in ("standard", "strict"),
+                    "HARNESS.md" in instructions["budgets"],
+                    f"{profile} 的 HARNESS.md 预算渲染不符合预期",
+                )
+                checked = run(["make", "check"], cwd=target)
+                self.assertEqual(
+                    checked.returncode, 0, f"{profile} make check failed:\n{checked.stdout}\n{checked.stderr}"
+                )
+                self.assertIn("（余 ", checked.stdout)
+                self.assertIn("nestedMaxTokens=1000", checked.stdout)
                 if profile in ("standard", "strict"):
                     self.assertTrue((target / "harness" / "plans" / "_template.md").is_file())
                     self.assertTrue((target / "tools" / "verify_claim.py").is_file())
@@ -345,6 +362,40 @@ class HarnessInitProfileTests(unittest.TestCase):
         self.assertTrue(backups, "AGENTS.md backup missing")
         self.assertEqual(backups[0].read_text(encoding="utf-8"), "# locally edited\n")
         self.assertNotEqual(agents.read_text(encoding="utf-8"), "# locally edited\n")
+
+    def test_gitattributes_export_ignore_adapter(self) -> None:
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        target = init_target(self.tmp / "gitattributes")
+        args = (
+            "--profile", "standard", "--name", "Test Project", "--test-command", "echo ok",
+            "--adapters", "gitattributes",
+        )
+        proc = self.invoke(*args, target=target)
+        self.assertEqual(proc.returncode, 0, f"init failed:\n{proc.stdout}\n{proc.stderr}")
+        attrs = target / ".gitattributes"
+        self.assertTrue(attrs.is_file(), "gitattributes adapter did not create .gitattributes")
+        text = attrs.read_text(encoding="utf-8")
+        for marker in ("/harness/ export-ignore", "/tools/ export-ignore", "HARNESS.md", "harness-kit"):
+            self.assertIn(marker, text)
+        manifest = json.loads((target / ".harness-manifest.json").read_text(encoding="utf-8"))
+        self.assertIn(".gitattributes", [item["path"] for item in manifest.get("appends") or []])
+        # append 幂等：重复 init（--force）不得重复写入块
+        again = self.invoke(*args, "--force", target=target)
+        self.assertEqual(again.returncode, 0, f"re-init failed:\n{again.stdout}\n{again.stderr}")
+        self.assertEqual(1, attrs.read_text(encoding="utf-8").count("/harness/ export-ignore"))
+        # git archive 实际排除（GitHub Source zip 遵循同一机制）
+        self.assertEqual(0, run(["git", "add", "-A"], cwd=target).returncode)
+        commit = run(["git", "commit", "-m", "adopt with export-ignore"], cwd=target)
+        self.assertEqual(commit.returncode, 0, commit.stdout + commit.stderr)
+        archive = subprocess.run(["git", "archive", "HEAD"], cwd=str(target), capture_output=True)
+        self.assertEqual(archive.returncode, 0, archive.stderr.decode("utf-8", "replace"))
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+            names = set(tar.getnames())
+        self.assertEqual(set(), {name for name in names if name.startswith(("harness/", "tools/"))})
+        self.assertNotIn("HARNESS.md", names)
+        self.assertIn("AGENTS.md", names)
+        self.assertIn(".gitattributes", names)
 
     def test_existing_makefile_gets_fragment(self) -> None:
         if not INIT.is_file():

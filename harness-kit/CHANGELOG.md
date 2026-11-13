@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased — 2026-11-13
+
+> 来源：kit v0.5.1 行为核对 + token 约束复盘（接入仓 fcnsystem 实测输出与源码对照）。
+> 主题：**门禁输出可信 + 预算覆盖完整**。
+
+### 修复
+
+- `check_plan.py check --strict`：归档计划只有 WARN 时不再打印 `[FAIL]` 头（改为
+  `[WARN] ...（归档）`），与汇总行/退出码一致；docstring 与 SPEC 同步为
+  “error 级问题升 FAIL（warn 仍不阻断）”。
+
+### 补强
+
+- `check_docs.py` / `check_agents.py`：token 预算逐文件输出
+  `used/budget/remain`，超预算时输出超出量；不再只有一句“均在预算内”。
+- 模板 `budgets` 纳入 `docs/README.md`（≈1000）与 `HARNESS.md`（standard/strict，≈1500）；
+  新增可选 `instructions.nestedMaxTokens`（默认 1000），把嵌套 `AGENTS.md` 从纯字节上限
+  统一到 token 口径（`nestedMaxBytes` 保留）。
+- `evidence.py validate`：单个证据文件 > 3KB 输出 WARN（不阻断），汇总显示 warn 数。
+- 打包排除：新增 opt-in 适配器 `gitattributes`（`--adapters gitattributes`）——向 `.gitattributes`
+  追加 `export-ignore` 块（`/harness/`、`/tools/`、`/HARNESS.md`、`/.harness-manifest.json`），
+  `git archive` 与 GitHub Source zip 自动排除；`harness-init` 适配器支持 append 语义
+  （manifest 记录 appends），重复 init 幂等；adoption 增加 git / npm / Docker / Python / Xcode
+  的发布排除食谱。不改目录布局，已接入仓零迁移。
+
+### 文档
+
+- 修正 README / governance 与模板预算常量的漂移（旧写“模板默认 1650 / 950–1000”，
+  实际模板为 1200 / 700；1650/975 是来源案例按项目调高后的数值），并加回归测试。
+- 文档重排为 **skill 优先**：`docs/adoption.md` 改为「装 skill → 接入 → 按场景使用
+  → 硬约束 → 手动/兜底」，新增场景路由表（接手/计划/实现/验证/评审/发布/交接/升级）
+  与任务循环；README 入口顺序改为先装 skill，“接入指南”改名“接入与日常使用”；
+  playbook/governance/why/SPEC 的表述同步。
+
 ## 0.5.1 — 2026-11-12
 
 > 修复 v0.5.0 的入口安装默认值：`--scope user` 只装 `~/.agents/skills`（DSH 读取），
