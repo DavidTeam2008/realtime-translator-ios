@@ -16,7 +16,7 @@
     { "src": "core/tools/check_docs.py", "dst": "tools/check_docs.py", "render": false, "onConflict": "fail" },
     { "src": "core/tools/check_agents.py", "dst": "tools/check_agents.py", "render": false, "onConflict": "fail" },
     { "src": "core/tools/harness.py", "dst": "tools/harness.py", "render": false, "onConflict": "fail" },
-    { "src": "core/templates/gitignore.append", "dst": ".gitignore", "render": false, "append": true, "onConflict": "append" }
+    { "src": "core/templates/gitignore.append", "dst": ".gitignore", "render": true, "append": true, "onConflict": "append" }
   ],
   "makefile": "core/templates/makefiles/Makefile.minimal.template",
   "makeTargets": ["status", "verify", "check", "verify-static"],

@@ -492,9 +492,37 @@ def evidence_summary(root: Path, config: dict) -> dict:
 
 
 # ── 子命令：status ───────────────────────────────────────────────────────
+def detect_default_branch(root: Path) -> str | None:
+    """origin/HEAD → init.defaultBranch → current branch（K05 / K14 漂移检查用）。"""
+    code, out, _ = git(root, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
+    if code == 0 and out.strip():
+        value = out.strip()
+        return value.split("/", 1)[1] if value.startswith("origin/") else value
+    code, out, _ = git(root, ["config", "--get", "init.defaultBranch"])
+    if code == 0 and out.strip():
+        return out.strip()
+    code, out, _ = git(root, ["rev-parse", "--abbrev-ref", "HEAD"])
+    if code == 0 and out.strip() and out.strip() != "HEAD":
+        return out.strip()
+    return None
+
+
+def hooks_state(root: Path) -> dict:
+    hook = root / ".githooks" / "pre-push"
+    code, out, _ = git(root, ["config", "--get", "core.hooksPath"])
+    return {
+        "hookFile": hook.is_file(),
+        "hooksPath": out.strip() if code == 0 and out.strip() else None,
+        "installed": hook.is_file() and code == 0 and out.strip() == ".githooks",
+    }
+
+
 def build_status(root: Path, config: dict) -> dict:
     manifest = read_manifest(root)
     manifest_version = manifest.get("kitVersion") if manifest else None
+    manifest_branch = ((manifest or {}).get("options") or {}).get("branch")
+    default_branch = detect_default_branch(root)
+    hooks = hooks_state(root)
     plans = load_plans(root, config)
     plan = active_plan(plans)
     archived = load_archived_plans(root, config)
@@ -516,6 +544,19 @@ def build_status(root: Path, config: dict) -> dict:
     if manifest_version is not None and str(manifest_version) != str(config.get("kitVersion")):
         version_problem = f"manifest.kitVersion={manifest_version} != config.kitVersion={config.get('kitVersion')}"
         actions.append("版本不一致：检查 `.harness-manifest.json` 与 `harness/config.json`，或运行 kit 侧 upgrade --check")
+
+    branch_problem = None
+    if manifest_branch and default_branch and str(manifest_branch) != str(default_branch):
+        branch_problem = (
+            f"manifest.options.branch={manifest_branch} != 仓库默认分支 {default_branch}"
+            "（CI / manifest 漂移；常见于在 feature 分支接入）"
+        )
+        actions.append(
+            f"CI/manifest 分支漂移：重跑 init `--default-branch {default_branch}`，"
+            "或手工同步 `.github/workflows/verify.yml` 与 `.harness-manifest.json`（旧版可在 feature 分支接入）"
+        )
+    if hooks["hookFile"] and not hooks["installed"]:
+        actions.append("pre-push 已生成但未生效：运行 `git config core.hooksPath .githooks`（或 init 加 --install-hooks）")
 
     if manifest is None:
         actions.append("没有 `.harness-manifest.json`（v0.2.13 之前接入）：升级/漂移检查走 playbook 手工路径")
@@ -546,6 +587,10 @@ def build_status(root: Path, config: dict) -> dict:
         "manifestKitVersion": manifest_version,
         "profile": (manifest or {}).get("profile"),
         "versionProblem": version_problem,
+        "branchProblem": branch_problem,
+        "manifestBranch": manifest_branch,
+        "defaultBranch": default_branch,
+        "hooks": hooks,
         "plan": None if plan is None else plan_summary(plan, root),
         "lastPlan": None if last_plan is None else plan_summary(last_plan, root),
         "plans": len(plans),
@@ -614,6 +659,12 @@ def cmd_status(root: Path, args: argparse.Namespace) -> int:
     print(f"skill: {', '.join(result['skills']) if result['skills'] else '未安装（可选；kit 侧 harness-skill install）'}")
     if result["versionProblem"]:
         print(f"[WARN] {result['versionProblem']}")
+    if result.get("branchProblem"):
+        print(f"[WARN] {result['branchProblem']}")
+    hooks = result.get("hooks") or {}
+    if hooks.get("hookFile"):
+        state = "已生效" if hooks.get("installed") else "未生效"
+        print(f"hooks: .githooks/pre-push（{state}；core.hooksPath={hooks.get('hooksPath') or '未设置'}）")
     if result["nextActions"]:
         print("建议下一步:")
         for index, action in enumerate(result["nextActions"], 1):

@@ -14,7 +14,7 @@ harness 的目标是让完成声明**可复跑、可否定、可交接**，而�
 | --- | --- | --- |
 | Instructions | 该做什么、去哪读 | [`{{ROOT_AGENTS}}`]({{ROOT_AGENTS}}) + 嵌套 `AGENTS.md` + [`{{REFERENCES_DIR}}/`]({{REFERENCES_DIR}}/) |
 | State | 做到哪、上次结论 | `{{HARNESS_DIR}}/plans/`（唯一 active 计划）+ `{{HARNESS_DIR}}/evidence/` |
-| Verification | 怎么证明做完了 | `make check` / `make verify-static` / `make verify-claim` |
+| Verification | 怎么证明做完了 | `make check` / `make verify-static`（静态）/ `make verify-claim`（三值）/ `make verify-all`（两者） |
 | Scope | 允许改什么 | 计划 front matter 的 `scope.allow/deny` + L0/L1/L2 分级 |
 | Session Lifecycle | 怎么接手、怎么收尾 | `{{HARNESS_DIR}}/README.md` 的接手/收尾步骤 + 计划状态机 |
 
@@ -24,7 +24,7 @@ harness 的目标是让完成声明**可复跑、可否定、可交接**，而�
 | --- | --- | --- |
 | 根/嵌套 `AGENTS.md`、`{{REFERENCES_DIR}}/` | 前馈指令 | 直接阅读；`make check` 校验预算与引用 |
 | `{{DOCS_DIR}}/` 文档索引与事实 | 前馈指令 | `{{DOCS_DIR}}/README.md` 唯一索引 |
-| `make check` / `make verify-static` | 静态传感器 | 文档链接/围栏/索引/预算/指令/计划/证据 |
+| `make check` / `make verify-static` | 静态传感器 | 文档链接/围栏/索引/预算/指令/计划/证据 schema（**不含证据三值判定**） |
 | `{{HARNESS_DIR}}/evidence/*.json` + `make verify-claim` | 证据传感器 | 三值判定（PASS/FAIL/UNVERIFIED） |
 | 计划 front matter + `make plan` | 状态传感器 | 唯一 active、验收、范围、未提交改动 |
 | `make check` 的 scorecard 过期提醒 + `make scorecard` | 复核传感器 | 评分卡草稿（自评/独立复评 TBD）；过期只 WARN |
@@ -35,6 +35,7 @@ harness 的目标是让完成声明**可复跑、可否定、可交接**，而�
 
 - 证据是**摘要**（1–3KB JSON）：命令、环境、计数、commit、verdict；原始日志不入库；单个证据 > 3KB 时 `make check-evidence` 输出 WARN（不阻断）。
 - **证据 JSON 与 `artifacts/` 里的脱敏 JUnit 都必须 `git add` 入库**；未跟踪证据/artifact 的 PASS 会被判 UNVERIFIED。
+- **首次写证据不会死锁**：`evidence.py write` 要求工作树 clean，但证据目录下的待提交产物（JUnit artifact / 待写 JSON）默认豁免并 WARN；其他目录用 `--allow-untracked-under`。
 - **必需 claim 完整性**：`config.claims` 每项 `required` 默认 true；某个 claim 没有当前证据 → UNVERIFIED（不能只交一条）。
 - **归档**：`{{HARNESS_DIR}}/evidence/_archive/` 的证据只输出 `SUPERSEDED`、不参与判定；归档 FAIL/UNVERIFIED 必须由当前 PASS 证据的 `supersedes` 声明接管，否则聚合 UNVERIFIED。
 - 无证据的“已验证”按未验证处理；换机器无法复核的产物（截图/构建目录）标 UNVERIFIED。
@@ -51,8 +52,9 @@ harness 的目标是让完成声明**可复跑、可否定、可交接**，而�
 
 ```bash
 make check            # 静态门禁
-make verify-static    # 静态 + 证据校验
+make verify-static    # 静态门禁 + 证据 schema（不含三值判定）
 make verify-claim     # 证据三值判定
+make verify-all       # 完整本地验证 = verify-static + verify-claim（完成声明前推荐）
 make plan TOPIC=x     # 新建计划
 make selftest         # 负向注入自检（证明门禁会红）
 make scorecard        # 生成评分卡草稿

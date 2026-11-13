@@ -1,58 +1,43 @@
 # AGENTS.md · {{PROJECT_NAME}}
 
-> 冷启动入口：只做定位与硬约束；事实以代码、测试与证据为准；细节按目录读嵌套 `AGENTS.md`。
-> 适用对象：AI 编码 Agent 与需要快速接手的人类；最后更新：{{YEAR}}。
+> 冷启动入口：只定位与硬约束；事实以代码、测试与证据为准；细节读嵌套 `AGENTS.md` 与 `{{REFERENCES_DIR}}/`。最后更新：{{YEAR}}。
 
 ## 1. 项目一句话
 
-{{PROJECT_NAME}}（{{PROJECT_LANGUAGE}}）。架构、数据与运行方式不在本文件重复，以仓库代码与文档为准。
+{{PROJECT_NAME}}（{{PROJECT_LANGUAGE}}）。架构、数据与运行方式以仓库代码和文档为准。
 
 ## 2. 命令入口
 
 | 用途 | 命令 |
 | --- | --- |
-| 一屏状态（冷启动第一命令） | `python3 tools/harness.py status`（或 `make status`） |
-| 开工建计划 | `python3 tools/harness.py start --topic <topic> --goal "<目标>"`（或 `make start TOPIC=...`） |
+| 一屏状态（冷启动第一条） | `python3 tools/harness.py status` |
 | 静态门禁 | `{{CHECK_COMMAND}}` |
-| 验证 + 计划严格校验 | `{{VERIFY_COMMAND}}`；或 `python3 tools/harness.py verify`（自动同步未提交段） |
-| 交接摘要 | `python3 tools/harness.py handoff`（或 `make handoff`） |
+| 验证 + 计划严格校验 | `{{VERIFY_COMMAND}}` |
 | 项目测试 | `{{TEST_COMMAND}}` |
-| 负向注入自检（证明门禁会红） | `make selftest` |
-| 评分卡草稿（自评 / 独立复评 TBD） | `make scorecard` |
-| kit 升级检查（只读；需 KIT_ROOT） | `make upgrade-check KIT_ROOT=<kit 克隆路径>` |
-
-命令细节与验证矩阵见 [`{{REFERENCES_DIR}}/verification.md`]({{REFERENCES_DIR}}/verification.md)。
+| 交接 / 负向自检 / 评分卡 | `python3 tools/harness.py handoff` / `make selftest` / `make scorecard` |
 
 ## 3. 阅读路由（按任务读段落，不整篇读）
 
-> 冷启动先跑 `python3 tools/harness.py status`；按它给出的「建议下一步」执行，不要凭记忆猜状态。
-
-- 接手 / 跨会话：active 计划（`{{HARNESS_DIR}}/plans/`）→ [`{{HARNESS_DIR}}/README.md`]({{HARNESS_DIR}}/README.md)。
-- 规则与边界：[`{{REFERENCES_DIR}}/contracts.md`]({{REFERENCES_DIR}}/contracts.md)。
-- 验证与命令：[`{{REFERENCES_DIR}}/verification.md`]({{REFERENCES_DIR}}/verification.md)。
-- 分级 / 计划 / 红队：[`{{REFERENCES_DIR}}/workflow.md`]({{REFERENCES_DIR}}/workflow.md)。
-- 文档索引：[`{{DOCS_DIR}}/README.md`]({{DOCS_DIR}}/README.md)；文档规则：[`{{DOCS_DIR}}/AGENTS.md`]({{DOCS_DIR}}/AGENTS.md)。
+- 接手 / 跨会话：`{{HARNESS_DIR}}/plans/` → [`{{HARNESS_DIR}}/README.md`]({{HARNESS_DIR}}/README.md)。
+- 规则与边界：[`{{REFERENCES_DIR}}/contracts.md`]({{REFERENCES_DIR}}/contracts.md)；验证与命令：[`{{REFERENCES_DIR}}/verification.md`]({{REFERENCES_DIR}}/verification.md)。
+- 分级 / 计划 / 红队：[`{{REFERENCES_DIR}}/workflow.md`]({{REFERENCES_DIR}}/workflow.md)；文档索引：[`{{DOCS_DIR}}/README.md`]({{DOCS_DIR}}/README.md)。
 - 状态与证据目录规则：[`{{HARNESS_DIR}}/AGENTS.md`]({{HARNESS_DIR}}/AGENTS.md)。
 
-## 4. 铁律（可执行；拿不准先问，不静默取舍）
+## 4. 铁律
 
-1. **先看后写**：改文件前先读目标文件与相关计划/证据；不清理、不覆盖未声明的未提交改动。
-2. **边界清晰**：跨层依赖只经公开接口/协议；不把实现细节写进文档、测试替身或脚本。
-3. **计划先行**：L2 与跨会话任务先写 `{{HARNESS_DIR}}/plans/` 计划，声明 `scope`；越界先停并更新计划。
-4. **测试只增不减**：不删除、不放宽既有断言；无法验证时必须写“未验证”与实际原因。
-5. **证据说话**：完成声明附命令、退出码与环境；启用证据目录时另附证据 ID，无证据一律按未验证处理。证据 JSON 与 artifact 必须 git 入库；归档/旧证据只在 `SUPERSEDED` 中列出，不作为当前通过依据。
-6. **门禁必须绿**：`{{CHECK_COMMAND}}` PASS 才能宣称完成；环境不可用时标注“未验证”，不得写成通过。
-7. **单一配置源**：路径、命令、预算只在 `{{HARNESS_DIR}}/config.json` 维护；脚本不得硬编码第二份。
+1. **先看后写**：改文件前先读目标文件与相关计划/证据；不覆盖未声明的未提交改动。
+2. **计划先行**：L2 与跨会话任务先写 `{{HARNESS_DIR}}/plans/` 计划并声明 `scope`；越界先停。
+3. **测试只增不减**：不删除、不放宽既有断言；无法验证时写“未验证”。
+4. **证据说话**：完成声明附命令、退出码、环境与证据 ID；无证据按未验证处理。
+5. **门禁必须绿**：`{{CHECK_COMMAND}}` PASS 才能宣称完成；环境不可用标“未验证”，不写通过。
 
 ## 5. 分级与完成协议
 
-- **L0**：文档、注释、单文件小改——直接做，跑最小检查。
-- **L1**：单模块行为修复或补充测试——先写 5–10 行短方案，做完立即验证。
-- **L2**：跨模块、规则/工具/CI、发布相关——先给完整方案并取得确认；对抗复核范围见 [`{{REFERENCES_DIR}}/workflow.md`]({{REFERENCES_DIR}}/workflow.md)。
-- **完成 = 验收判据满足 + 证据已记录 + `{{VERIFY_COMMAND}}` PASS + 计划已更新**；未运行项单列。
-- 同一失败修复 2 次仍不过，或同一子任务 3 轮无进展：停止并按 [`{{REFERENCES_DIR}}/workflow.md`]({{REFERENCES_DIR}}/workflow.md) 上报。
+- L0 文档/注释/单文件小改：直接做，跑最小检查；L1 单模块修复或补测：先写 5–10 行方案，做完立即验证。
+- L2 跨模块、规则/工具/CI、发布：先给完整方案并取得确认；对抗复核见 [`{{REFERENCES_DIR}}/workflow.md`]({{REFERENCES_DIR}}/workflow.md)。
+- 完成 = 验收判据满足 + 证据已记录 + `{{VERIFY_COMMAND}}` PASS + 计划已更新；未运行项单列。
+- 同一失败修复 2 次仍不过，或同一子任务 3 轮无进展：停止并上报。
 
 ## 6. 维护
 
-- 本文件只写定位与约束，不复制细则；新增规则优先放 `{{REFERENCES_DIR}}/` 或嵌套 `AGENTS.md`。
-- 结构或命令变化时同步更新本文件与 `{{HARNESS_DIR}}/config.json`。
+本文件只写定位与约束，不复制细则；结构或命令变化时同步更新本文件与 `{{HARNESS_DIR}}/config.json`。

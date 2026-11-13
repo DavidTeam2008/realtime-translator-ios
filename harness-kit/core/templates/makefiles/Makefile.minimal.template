@@ -2,6 +2,9 @@
 # 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
 # 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
 
+# 门禁工具是 Python 标准库脚本：禁止写 __pycache__（K13 / 运行卫生）
+export PYTHONDONTWRITEBYTECODE := 1
+
 .PHONY: help status verify check verify-static
 
 help: ## 显示可用目标

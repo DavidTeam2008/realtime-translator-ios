@@ -31,6 +31,7 @@ Exit codes: 0 ok; 1 usage/validation/render/write error.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -53,6 +54,9 @@ MAX_TEXT_SCAN_FILES = 500
 MAX_TEXT_SCAN_BYTES = 512 * 1024
 SAMPLE_LIMIT = 10
 WALK_FILE_LIMIT = 5000
+# kit 模板默认预算（core/templates/harness/config.json.template）；用于存量 AGENTS 迁移建议。
+DEFAULT_AGENTS_BUDGET = 1200
+DEFAULT_AGENTS_ARCHIVE = "docs/legacy-agents.md"
 
 BUILD_DIRS = (
     "build", "dist", "target", "node_modules", ".build", "DerivedData",
@@ -81,10 +85,15 @@ STALE_MARKERS = (
     "已废弃", "过期", "待清理", "写于实现之前", "已被推翻", "待真机验证", "尚未编译",
     "deprecated", "outdated", "stale", "TODO: remove",
 )
-GITIGNORE_EXPECTED = (
-    ".DS_Store", "__pycache__/", "*.pyc", "node_modules/", ".build/", "build/",
-    "dist/", "DerivedData/", "*.xcresult", ".env", "coverage/", ".venv/",
-)
+GITIGNORE_BASE = (".DS_Store", ".env")
+GITIGNORE_BY_LANGUAGE = {
+    "python": ("__pycache__/", "*.pyc", ".venv/", ".pytest_cache/"),
+    "node": ("node_modules/",),
+    "swift": (".build/", ".swiftpm/", "DerivedData/", "*.xcresult"),
+    "android": (".gradle/", "build/", "local.properties"),
+    "go": (),
+    "other": ("build/", "dist/", "coverage/"),
+}
 GATE_FILES = (
     "AGENTS.md", "HARNESS.md", "CONTRIBUTING.md", "Makefile", "Makefile.harness",
     "harness/config.json", "docs/README.md",
@@ -334,8 +343,73 @@ def pytest_evidence(target: Path) -> str | None:
     return None
 
 
+def detect_default_branch(target: Path) -> str | None:
+    """Repository default branch (origin/HEAD -> init.defaultBranch -> current)."""
+    code, out, _ = run_git(target, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
+    if code == 0 and out.strip():
+        value = out.strip()
+        return value.split("/", 1)[1] if value.startswith("origin/") else value
+    code, out, _ = run_git(target, ["config", "--get", "init.defaultBranch"])
+    if code == 0 and out.strip():
+        return out.strip()
+    code, out, _ = run_git(target, ["rev-parse", "--abbrev-ref", "HEAD"])
+    if code == 0 and out.strip() and out.strip() != "HEAD":
+        return out.strip()
+    return None
+
+
+def load_token_estimator(kit_root: Path):
+    """Load the kit's single-source token estimator (no duplicated heuristic)."""
+    path = kit_root / "core" / "tools" / "token_estimate.py"
+    if not path.is_file():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("harness_kit_token_estimate", path)
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except Exception:  # pragma: no cover - 防御（kit 快照损坏不应让 adopt 崩溃）
+        return None
+    estimate = getattr(module, "estimate_tokens", None)
+    return estimate if callable(estimate) else None
+
+
+def agents_assessment(target: Path, kit_root: Path) -> dict:
+    """Inventory the existing root AGENTS.md against the kit template budget (K03)."""
+    path = target / "AGENTS.md"
+    exists = path.is_file()
+    tokens = None
+    if exists:
+        estimator = load_token_estimator(kit_root)
+        text = read_text(path, limit=MAX_MARKDOWN_BYTES)
+        if estimator is not None:
+            tokens = estimator(text)
+    budget = DEFAULT_AGENTS_BUDGET
+    over = bool(tokens is not None and tokens > budget)
+    if not exists:
+        mode = "replace"
+    elif over:
+        mode = "move"
+    else:
+        mode = "keep"
+    return {
+        "exists": exists,
+        "tokens": tokens,
+        "budget": budget,
+        "overBudget": over,
+        "overBy": (tokens - budget) if over else 0,
+        "recommendedMode": mode,
+        "archivePath": DEFAULT_AGENTS_ARCHIVE,
+    }
+
+
 def probe_candidate(target: Path, command: str) -> tuple[bool, str]:
-    """实际验证候选：跑一次只读 `--version`（10s 超时），失败继续下一候选。"""
+    """可执行探测：只跑一次只读 `--version`（10s 超时），**不执行项目测试**。
+
+    K04：这只证明「程序存在且能启动」，不证明测试命令可用；adopt 是只读盘点，
+    不跑全量测试、不写目标仓库。
+    """
     try:
         parts = shlex.split(command)
     except ValueError:
@@ -370,13 +444,14 @@ def probe_candidate(target: Path, command: str) -> tuple[bool, str]:
         return False, f"探测超时（10s）：{' '.join(probe)}"
     except OSError as exc:
         return False, f"探测失败：{exc}"
+    probe_display = " ".join(shlex.quote(part) for part in probe)
     if result.returncode == 0:
         first_line = (result.stdout or result.stderr).strip().splitlines()
         detail = first_line[0][:80] if first_line else "exit 0"
-        return True, f"探测通过：{detail}"
+        return True, f"仅探测 `{probe_display}` 通过：{detail}（未执行完整命令）"
     stderr = (result.stderr or result.stdout).strip().splitlines()
     detail = stderr[0][:120] if stderr else f"exit {result.returncode}"
-    return False, f"探测失败（exit {result.returncode}）：{detail}"
+    return False, f"仅探测 `{probe_display}` 失败（exit {result.returncode}）：{detail}"
 
 
 def python_test_candidates(target: Path) -> list[dict]:
@@ -443,14 +518,31 @@ def suggest_simple_command(target: Path, primary: str) -> tuple[str, str]:
     """非 Python 语言的建议命令（沿用原有启发式）。"""
     if primary == "node":
         package = target / "package.json"
+        data: dict = {}
         if package.is_file():
             try:
                 data = json.loads(read_text(package))
             except json.JSONDecodeError:
                 data = {}
-            scripts = data.get("scripts") if isinstance(data, dict) else None
-            if isinstance(scripts, dict) and str(scripts.get("test") or "").strip():
-                return "npm test", "from package.json scripts.test"
+        scripts = data.get("scripts") if isinstance(data, dict) else None
+        if isinstance(scripts, dict) and str(scripts.get("test") or "").strip():
+            return "npm test", "from package.json scripts.test"
+        dev_deps = data.get("devDependencies") if isinstance(data, dict) else None
+        dev_deps = dev_deps if isinstance(dev_deps, dict) else {}
+        if "tsx" in dev_deps:
+            return (
+                'pnpm exec tsx --test "src/**/*.test.ts"',
+                "devDependencies.tsx：TS 项目优先 tsx --test；Node 24 的 node --test 不能解析"
+                "无扩展名相对导入（会报 ERR_MODULE_NOT_FOUND，K04 复现条件），请按实际测试目录调整 glob",
+            )
+        if "vitest" in dev_deps:
+            return "npx vitest run", "devDependencies.vitest"
+        if (target / "tsconfig.json").is_file():
+            return (
+                "node --test",
+                "无 scripts.test；检测到 tsconfig.json：先用 node --test 试跑，"
+                "若报 ERR_MODULE_NOT_FOUND（无扩展名 TS 导入）改用 tsx --test",
+            )
         return "node --test", "no scripts.test/servable package.json; using node --test (Node 18+)"
     if primary == "swift":
         if (target / "Package.swift").is_file():
@@ -627,11 +719,16 @@ def scan_large_files(target: Path, tracked: list[str]) -> list[dict]:
     return sorted(large, key=lambda item: item["bytes"], reverse=True)
 
 
-def missing_gitignore_entries(target: Path) -> list[str]:
+def gitignore_expected(primary_language: str) -> list[str]:
+    return list(GITIGNORE_BASE) + list(GITIGNORE_BY_LANGUAGE.get(primary_language, ()))
+
+
+def missing_gitignore_entries(target: Path, primary_language: str) -> list[str]:
+    expected = gitignore_expected(primary_language)
     text = read_text(target / ".gitignore", limit=256 * 1024)
     if not text.strip():
-        return list(GITIGNORE_EXPECTED)
-    return [entry for entry in GITIGNORE_EXPECTED if entry not in text]
+        return expected
+    return [entry for entry in expected if entry not in text]
 
 
 # ── inventory ────────────────────────────────────────────────────────────
@@ -642,6 +739,8 @@ def collect_inventory(
     repo = inspect_repo(target)
     tracked = list(repo["tracked"]) or walk_project(target)
     tracked_set = set(tracked)
+    default_branch = detect_default_branch(target) if repo["isRepo"] else None
+    branch_drift = bool(repo["branch"] and default_branch and repo["branch"] != default_branch)
 
     languages, build_files = detect_languages(target)
     primary = primary_language(languages)
@@ -650,7 +749,6 @@ def collect_inventory(
         probed, probe_note = probe_candidate(target, test_command_override)
         test_command = test_command_override
         test_command_suggested = selection["suggested"]
-        test_command_verified = test_command_override if probed else None
         test_command_probe = (
             f"{test_command_override} → {'通过' if probed else '失败'}（{probe_note}）"
         )
@@ -659,7 +757,6 @@ def collect_inventory(
     else:
         test_command = selection["command"]
         test_command_suggested = selection["suggested"]
-        test_command_verified = selection["verified"]
         test_command_probe = selection["probe"]
         test_command_source = selection["source"]
         test_command_executable = bool(selection["verified"])
@@ -682,8 +779,11 @@ def collect_inventory(
 
     markdown_files = [rel for rel in tracked if rel.lower().endswith(".md")]
     docs_files = [rel for rel in markdown_files if rel.startswith("docs/")]
-    docs_index = "docs/README.md" if "docs/README.md" in tracked_set else None
-    index_text = read_text(target / "docs" / "README.md", limit=MAX_MARKDOWN_BYTES) if docs_index else ""
+    # K06：磁盘存在即算「有索引」（init 刚生成、尚未 git add 时不能误报缺失）。
+    docs_index_path = target / "docs" / "README.md"
+    docs_index = "docs/README.md" if docs_index_path.is_file() else None
+    docs_index_tracked = "docs/README.md" in tracked_set
+    index_text = read_text(docs_index_path, limit=MAX_MARKDOWN_BYTES) if docs_index else ""
     unregistered: list[str] = []
     for rel in docs_files:
         if rel == docs_index:
@@ -698,7 +798,8 @@ def collect_inventory(
     build_artifacts = sorted(rel for rel in tracked if is_build_artifact(rel))
     local_path_hits = scan_local_paths(target, tracked)
     large_files = scan_large_files(target, tracked)
-    gitignore_missing = missing_gitignore_entries(target)
+    gitignore_missing = missing_gitignore_entries(target, primary)
+    agents = agents_assessment(target, kit_root)
 
     risks: list[dict] = []
 
@@ -729,11 +830,32 @@ def collect_inventory(
         add_risk("dirty-worktree", "中", f"工作树有 {worktree_dirty} 处未提交改动（改造前建议先清理）")
     if (target / "harness").is_dir():
         add_risk("existing-harness", "低", "已存在 harness/ 目录（init 会逐文件做冲突检查）")
+    if agents["overBudget"]:
+        add_risk(
+            "agents-over-budget",
+            "高",
+            f"根 AGENTS.md ≈{agents['tokens']} tokens > 模板预算 {agents['budget']}（超 {agents['overBy']}）："
+            f"接入时用 --agents-mode move（先 git mv 到 {agents['archivePath']} 再重写根入口）",
+        )
+    if branch_drift:
+        add_risk(
+            "branch-drift",
+            "中",
+            f"当前在 {repo['branch']}，仓库默认分支是 {default_branch}："
+            "init 默认写当前分支会让 CI 锁死在 feature 分支，用 --default-branch 显式覆盖",
+        )
 
     stale_markers = scan_stale_markers(target, markdown_files)
     odd_fences = scan_fences(target, markdown_files)
     root_markdown = [rel for rel in markdown_files if "/" not in rel]
 
+    init_flags = ""
+    if branch_drift and default_branch:
+        init_flags += f" --default-branch {default_branch}"
+    if agents["overBudget"]:
+        init_flags += f" --agents-mode move --agents-archive-path {agents['archivePath']}"
+    if not (target / ".githooks" / "pre-push").is_file():
+        init_flags += " --install-hooks"
     next_steps = [
         "审阅本报告（默认只读：未改动目标项目）",
         "装一次入口 skill（用户级，所有仓库可见）："
@@ -741,10 +863,13 @@ def collect_inventory(
         "之后在任意仓库对 Agent 说「接入这个项目」即可，不需要再生成提示词",
         f"运行 harness-init 接入（默认 --profile {profile_info['recommended']}；"
         f"strict 仅显式选择并写理由）："
-        f"`python3 harness-kit/scripts/harness-init --profile {profile_info['recommended']} --target <target>`",
+        f"`python3 harness-kit/scripts/harness-init --profile {profile_info['recommended']}"
+        f" --target <target>{init_flags}`",
         "先处理高风险项（被跟踪构建产物 / 绝对符号链接 / 本机路径）再提交",
         "用 `--write-plan` 生成改造计划草稿，补目标、验收与 scope.allow",
         "接入后运行 `make check` / `make verify-static` 复核，并 `make scorecard` / `make selftest` 建立基线",
+        "测试命令只在「可执行探测」层面验证过（--version）：请在宿主实跑一次 "
+        f"`{test_command}`，再用 JUnit 证据固定计数（adopt 不执行测试）",
         "接入完成后归档盘点报告："
         "`python3 harness-kit/scripts/harness-adopt --target . --archive-report <本报告路径>`",
     ]
@@ -759,11 +884,14 @@ def collect_inventory(
             "git": {
                 "isRepo": repo["isRepo"],
                 "branch": repo["branch"],
+                "defaultBranch": default_branch,
+                "branchDrift": branch_drift,
                 "tracked": len(repo["tracked"]),
                 "commits": repo["commits"],
                 "dirty": worktree_dirty,
                 "statusSample": sample(list(repo["dirtyEntries"])),
             },
+            "agents": agents,
             "languages": languages,
             "primaryLanguage": primary,
             "buildFiles": build_files,
@@ -776,6 +904,7 @@ def collect_inventory(
         "docs": {
             "count": len(docs_files),
             "hasIndex": bool(docs_index),
+            "hasIndexTracked": docs_index_tracked,
             "unregistered": unregistered,
             "rootMarkdown": root_markdown,
             "brokenLinks": broken_links,
@@ -798,10 +927,12 @@ def collect_inventory(
             "score": profile_info["score"],
             "testCommand": test_command,
             "testCommandSuggested": test_command_suggested,
-            "testCommandVerified": test_command_verified,
             "testCommandSource": test_command_source,
             "testCommandExecutable": test_command_executable,
             "testCommandProbe": test_command_probe,
+            # K04：探测只证明程序可执行；adopt 不跑项目测试，没有「已验证命令」这层保证。
+            "testCommandProbeOnly": True,
+            "testCommandSmoke": "not-run",
             "risks": risks,
         },
         "nextSteps": next_steps,
@@ -834,7 +965,9 @@ def render_markdown(data: dict) -> str:
         "| 项 | 值 |",
         "| --- | --- |",
         f"| git 仓库 | {'是' if git_info['isRepo'] else '否'} |",
-        f"| 分支 | {git_info['branch'] or '（非 git 或无提交）'} |",
+        f"| 当前分支 | {git_info['branch'] or '（非 git 或无提交）'} |",
+        f"| 默认分支 | {git_info['defaultBranch'] or '（未探测到）'}"
+        + ("（当前分支与默认分支不一致）" if git_info['branchDrift'] else "") + " |",
         f"| 跟踪文件 | {git_info['tracked']} |",
         f"| 提交数 | {git_info['commits']} |",
         f"| 未提交改动 | {git_info['dirty']} |",
@@ -891,17 +1024,32 @@ def render_markdown(data: dict) -> str:
         ),
         f"- 判断理由：{recommendation['why']}",
         f"- 建议：`{recommendation['testCommandSuggested']}`",
-        f"- 探测结果（候选命令跑一次 `--version`，不跑全量测试）："
+        f"- 可执行探测（只跑 `--version` / `--help`，不执行项目测试）："
         f"{recommendation['testCommandProbe'] or '（非 Python 语言，未做候选探测）'}",
-        "- 已验证命令："
-        + (
-            f"`{recommendation['testCommandVerified']}`"
-            if recommendation["testCommandVerified"]
-            else "（无；先在宿主跑通，或用 `--test-command` 覆盖并在接入后复验）"
-        ),
+        "- 测试可用性：**未验证（smoke=not-run）**；adopt 是只读盘点，不跑宿主测试。"
+        f"请先在宿主实跑 `{recommendation['testCommand']}`，接入后以 JUnit 证据固定计数。",
         f"- 使用命令：`{recommendation['testCommand']}`（{recommendation['testCommandSource']}）",
         f"- 风险清单（{len(recommendation['risks'])}）：",
         *_indent([f"- [{item['severity']}] {item['detail']}" for item in recommendation["risks"]] or ["- （无）"]),
+        "",
+        "## AGENTS 迁移建议",
+        "",
+        f"- 现有根 AGENTS.md：{'有' if overview['agents']['exists'] else '无'}"
+        + (
+            f"（≈{overview['agents']['tokens']} tokens；模板预算 {overview['agents']['budget']}"
+            f"，{'超预算 ' + str(overview['agents']['overBy']) + ' tokens' if overview['agents']['overBudget'] else '在预算内'}）"
+            if overview["agents"]["exists"]
+            else ""
+        ),
+        f"- 推荐模式：`--agents-mode {overview['agents']['recommendedMode']}`",
+        "  - `replace`：目标没有 AGENTS.md 时直接生成模板；",
+        "  - `keep`：保留现有 AGENTS.md（预算门禁可能红，适合先接入、后迁移）；",
+        "  - `move`：`git mv AGENTS.md "
+        f"{overview['agents']['archivePath']}` 保留历史，再生成模板并自动登记 docs 索引/白名单。",
+        f"- 迁移命令示例：`harness-init ... --agents-mode "
+        f"{overview['agents']['recommendedMode']}"
+        + (f" --agents-archive-path {overview['agents']['archivePath']}" if overview["agents"]["recommendedMode"] == "move" else "")
+        + "`",
         "",
         "## 下一步",
         "",
@@ -930,6 +1078,14 @@ def _findings_markdown(data: dict, *, redact: bool = True) -> str:
         f"- 本机路径样本 {len(hygiene['localPathHits'])} 处；"
         f">{LARGE_FILE_BYTES // (1024 * 1024)}MiB 文件 {len(hygiene['largeTrackedFiles'])} 个",
         f"- .gitignore 缺失项：{', '.join(hygiene['gitignoreMissing']) or '（无）'}",
+        f"- 根 AGENTS.md：{'有' if data['overview']['agents']['exists'] else '无'}"
+        + (
+            f"，≈{data['overview']['agents']['tokens']} tokens（预算 {data['overview']['agents']['budget']}）"
+            if data["overview"]["agents"]["tokens"] is not None
+            else ""
+        ),
+        f"- 默认分支：{git_info['defaultBranch'] or '未知'}"
+        + ("（当前分支不一致）" if git_info["branchDrift"] else ""),
     ]
     text = "\n".join(lines)
     return mask_local_paths(text) if redact else text
@@ -971,9 +1127,14 @@ def placeholder_values(data: dict, report_ref: str) -> dict[str, str]:
         "PRIMARY_LANGUAGE": overview["primaryLanguage"],
         "LANGUAGES": ", ".join(overview["languages"]) or "unknown",
         "TEST_COMMAND": recommendation["testCommand"],
-        "TEST_COMMAND_VERIFIED": recommendation["testCommandVerified"] or "（未验证）",
+        "TEST_COMMAND_PROBE": recommendation["testCommandProbe"] or "（未探测）",
+        "TEST_COMMAND_SMOKE": recommendation["testCommandSmoke"],
         "TEST_COMMAND_SOURCE": recommendation["testCommandSource"],
         "TEST_COMMAND_EXECUTABLE": "true" if recommendation["testCommandExecutable"] else "false",
+        "AGENTS_MODE": overview["agents"]["recommendedMode"],
+        "AGENTS_TOKENS": str(overview["agents"]["tokens"]) if overview["agents"]["tokens"] is not None else "unknown",
+        "AGENTS_BUDGET": str(overview["agents"]["budget"]),
+        "GIT_DEFAULT_BRANCH": str(git_info["defaultBranch"] or "n/a"),
         "PROFILE": recommendation["recommended"],
         "PROFILE_ALTERNATIVE": recommendation["alternative"] or "none",
         "PROFILE_WHY": recommendation["why"],

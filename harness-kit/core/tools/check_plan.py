@@ -529,9 +529,12 @@ def commit_bound(root: Path, commit: str, tokens: list[str]) -> bool:
 
 
 def git_commit_files(root: Path, rev: str) -> list[str] | None:
-    """返回某个 commit 的改动文件（相对仓库根）；merge 只与第一父比较。
+    """返回某个 commit 的「有效改动路径」（相对仓库根）；merge 只与第一父比较。
 
-    无法读取时返回 None（调用方降级为 WARN，不伪造通过）。
+    - `-z`：避免 Git 把非 ASCII 路径转义成八进制形式（K17）。
+    - `-M` + `--name-status`：识别 rename 对，返回目标路径而不是「源删除 + 目标新增」；
+      跨目录 `git mv` 时源路径不再被误判为越界（K16）。
+    - 无法读取时返回 None（调用方降级为 WARN，不伪造通过）。
     """
     sha = git_sha(root, rev)
     if sha is None:
@@ -542,14 +545,32 @@ def git_commit_files(root: Path, rev: str) -> list[str] | None:
     parents = out.split()[1:]
     if len(parents) > 1:
         # 只与第一父比较（-m 会展开第二父 diff，不能用于 scope 审计）。
-        code, out, _ = git(root, ["diff", "-z", "--name-only", "-r", parents[0], sha])
+        cmd = ["diff", "-z", "--name-status", "-M", "-r", parents[0], sha]
     else:
-        code, out, _ = git(root, ["diff-tree", "-z", "--no-commit-id", "--name-only", "-r", "--root", sha])
+        cmd = ["diff-tree", "-z", "--no-commit-id", "--name-status", "-M", "-r", "--root", sha]
+    code, out, _ = git(root, cmd)
     if code != 0:
         return None
-    # -z 避免 Git 将非 ASCII 路径转义为 "\344\..." 形式，保证与 scope.allow 直接比较。
-    paths = {item.strip() for item in out.split("\0") if item.strip()}
-    return sorted(paths)
+    fields = out.split("\0")
+    paths: list[str] = []
+    index = 0
+    while index < len(fields):
+        status = fields[index].strip()
+        index += 1
+        if not status:
+            continue
+        if status[0] in ("R", "C"):
+            # rename/copy：两个路径；只审目标路径（-M 下源删除是移动的一部分）。
+            if index + 1 <= len(fields):
+                index += 1  # old path
+                if index < len(fields) and fields[index].strip():
+                    paths.append(fields[index].strip())
+                    index += 1
+        else:
+            if index < len(fields) and fields[index].strip():
+                paths.append(fields[index].strip())
+                index += 1
+    return sorted(set(paths))
 
 
 PROCESS_PATH_KEYS = ("evidence", "plans", "reviews")
@@ -783,9 +804,13 @@ def declared_paths(content: str) -> set[str]:
             if token:
                 found.add(token)
         if stripped.startswith(("- ", "* ")):
-            token = normalize_path_token(re.split(r"\s+/\s+", stripped[2:], maxsplit=1)[0].strip().rstrip("：:"))
-            if token:
-                found.add(token)
+            body = stripped[2:].strip()
+            # K07：`- path/：中文说明` 只取冒号前的路径；`a/ / b/` 拆成并列路径。
+            head = re.split(r"[：:]", body, maxsplit=1)[0].strip()
+            for candidate in re.split(r"\s+/\s+", head):
+                token = normalize_path_token(candidate.strip().rstrip("。，,；;"))
+                if token:
+                    found.add(token)
     return found
 
 

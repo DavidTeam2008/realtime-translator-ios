@@ -435,6 +435,101 @@ class KitCoreTest(unittest.TestCase):
         proc = self.check_plan("check")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
+    def test_uncommitted_declared_path_with_chinese_colon(self) -> None:
+        """K07：`- harness/：说明` 只解析冒号前的路径，不能把整句当路径误报。"""
+        rows = "| `make check` | 基线盘点 | 本机 | —（基线盘点） |"
+        body = plan_body(rows).replace(
+            "- 无未提交改动（测试仓库）", "- harness/：本轮门禁修复的说明文字"
+        )
+        self.write_plan(body)
+        self.commit_all()
+        (self.root / "harness" / "notes.md").write_text("note\n", encoding="utf-8")
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn("harness/：", proc.stdout)
+
+    def test_submitted_scope_rename_into_allow_passes(self) -> None:
+        """K16：跨目录 git mv 只审目标路径，源删除不判越界。"""
+        self.commit_all("fixtures")
+        (self.root / "legacy").mkdir()
+        (self.root / "legacy" / "notes.md").write_text("content\n", encoding="utf-8")
+        self.commit_all("legacy file")
+        assert git(self.root, "mv", "legacy/notes.md", "harness/notes.md").returncode == 0
+        submitted = self.commit_all("rename into allow")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(
+            plan_front_allow(("harness/",), submitted=submitted),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan")
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn("legacy/notes.md", proc.stdout)
+
+    def test_submitted_scope_delete_outside_allow_still_fails(self) -> None:
+        """K16 反向保护：普通删除仍要审路径，不能借 rename 识别放行。"""
+        self.commit_all("fixtures")
+        submitted = self.commit_change("src/app.py", "x = 1\n", "out of scope add")
+        assert git(self.root, "rm", "src/app.py").returncode == 0
+        submitted = self.commit_all("out of scope delete")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(
+            plan_front_allow(("harness/",), submitted=submitted),
+            plan_body(rows), "2026-01-01-demo",
+        )
+        self.commit_all("plan")
+        self.assert_fail(self.check_plan("check"), "src/app.py")
+
+    def test_evidence_write_exempts_evidence_dir_and_supports_allow_untracked(self) -> None:
+        """K02：证据目录下的未跟踪产物默认豁免；其他目录需 --allow-untracked-under。"""
+        self.write_config([dict(STATIC_CLAIM)])
+        self.commit_all()
+        payload = {
+            "schemaVersion": 1,
+            "claim": "docs-pass",
+            "command": "true",
+            "environment": {"xcode": None, "simulator": None, "device": None},
+            "result": {"status": "SUCCEEDED", "passed": 1, "failed": 0, "skipped": 0, "durationSec": 0.1},
+            "verdict": "PASS",
+        }
+        artifact = self.root / "harness" / "evidence" / "artifacts" / "junit.xml"
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        artifact.write_text("<testsuite tests=\"1\"/>\n", encoding="utf-8")
+        proc = self.evidence("write", "--claim", "docs-pass", "--from-json", "-", stdin=json.dumps(payload))
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("豁免", proc.stdout)
+        # 其他目录的未提交改动仍然拒绝，并给出可执行解法
+        (self.root / "dirty.txt").write_text("x\n", encoding="utf-8")
+        proc = self.evidence("write", "--claim", "docs-pass", "--from-json", "-", stdin=json.dumps(payload))
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("--allow-untracked-under", proc.stdout)
+        self.assertIn("git add", proc.stdout)
+        # 显式豁免后可写入（同一秒冲突 → 去掉刚写入的证据文件再试）
+        for path in (self.root / "harness" / "evidence").glob("*-docs-pass.json"):
+            path.unlink()
+        proc = self.evidence(
+            "write", "--claim", "docs-pass", "--from-json", "-",
+            "--allow-untracked-under", "dirty.txt", stdin=json.dumps(payload),
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_freshness_detects_non_ascii_path_change(self) -> None:
+        """K17 跟进：verify_claim 的 changed_paths 必须不转义非 ASCII 路径。"""
+        self.write_config([dict(TEST_COUNT_CLAIM)], freshness={"tests-pass": ["**/*.py"]})
+        self.write_baseline(floor=120, expected_skipped=1)
+        doc = evidence_doc(
+            "20260101T000000Z-tests-pass", "tests-pass", "PASS", commit=self.base,
+            result={"passed": 120, "skipped": 1},
+        )
+        self.write_evidence(doc)
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "中文.py").write_text("x = 1\n", encoding="utf-8")
+        self.commit_all("evidence")
+        (self.root / "docs" / "中文.py").write_text("x = 2\n", encoding="utf-8")
+        proc = self.verify_claim("--all", "--fresh")
+        self.assertIn("STALE", proc.stdout, proc.stdout + proc.stderr)
+        self.assertIn("中文.py", proc.stdout)
+
     def test_check_plan_undeclared_extensionless_root_file_fails(self) -> None:
         rows = "| `make check` | 基线盘点 | 本机 | —（基线盘点） |"
         front = plan_front("active", extra_scope=("Makefile",))

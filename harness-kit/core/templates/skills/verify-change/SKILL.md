@@ -19,7 +19,7 @@ description: 完成声明前的验证闸门：按变更类型选命令、记录�
    - 全部通过 → PASS
    - 有失败 → FAIL（先定位，不扩大改动）
    - 未运行或环境不可用 → UNVERIFIED（写原因 + 手动步骤）
-4. 启用证据目录时，用 `python3 tools/evidence.py write --claim <name>` 写入，再 `make verify-claim`；计划「验证证据」表引用证据 ID。
+4. 启用证据目录时，先用 `tools/evidence_from_junit.py` 生成 payload，再 `python3 tools/evidence.py write --from-json <payload.json>` 写入，最后 `make verify-claim`（或 `make verify-all`）；计划「验证证据」表引用证据 ID。
 5. 输出结论：PASS / FAIL / UNVERIFIED 三选一 + 证据行；禁止把 UNVERIFIED 写成“通过”。
 
 ## 禁止

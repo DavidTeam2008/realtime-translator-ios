@@ -77,6 +77,30 @@ Agent 会：
 - 七步法每一步的退出信号/回滚见 [playbook「存量项目（brownfield）改造」](playbook.md#存量项目brownfield改造七步法)。
 - 接入前建议记录**基线评分**（见 §7），接入后复评，才能回答"到底改善了没有"。盘点报告在只读阶段放目标仓之外是刻意的；接入完成后用 `--archive-report` 归档到 `harness/reports/adoption-<YYYY-MM-DD>.md`。
 
+#### 2.2.1 存量接入已知坑（v0.5.2 起默认已修，旧版照此绕过）
+
+| 现象 | 处理 |
+| --- | --- |
+| 传入含双引号/反斜杠的 `--test-command`，生成非法 `config.json`，所有工具 `json.load` 崩溃 | 已修：JSON 上下文按 `json.dumps` 转义 + init 写盘前回读校验，非法直接 `ERROR`（K01） |
+| 首次写证据必死锁：JUnit artifact 落进 `harness/evidence/` → 工作树 dirty → `evidence.py write` 拒绝 | 已修：证据目录下的待提交产物默认豁免并 WARN；其他目录 `--allow-untracked-under <path>`；错误信息给出 `git add` 解法（K02） |
+| 原 `AGENTS.md` 远大于模板预算（实测 6864 / 1200 tokens） | 模板已瘦身到约 730 tokens（留约 470 给项目）；用 `--agents-mode move` 自动 `git mv` 到 `docs/legacy-agents.md` 并登记索引/白名单；`keep` 先接入后迁移；`replace` 需 `--force`（K03） |
+| 在 feature 分支接入，CI 只在该分支触发；合并后 CI 失联 | 已修：默认分支探测 `origin/HEAD`；`--default-branch main` 显式覆盖；CI 的 `pull_request` 不限制分支；`harness.py status` 检测 manifest 分支漂移（K05/K14） |
+| adopt 报告写「已验证命令」，实际测试命令跑不通（Node 24 `node --test` 不能解析无扩展名 TS 相对导入） | 已修：报告只称「可执行探测（只跑 `--version`，不执行测试）」并标注 `smoke=not-run`；测试命令先宿主实跑，或用 `--test-command` 覆盖（K04） |
+| `.githooks/pre-push` 已生成但不生效（`core.hooksPath` 未设置），门禁静默跳过 | init `--install-hooks` 直接设置；否则 summary 明确 WARN；`harness.py status` 检查 `core.hooksPath`（K10） |
+| `.gitignore` 被追加无关语言条目、`node_modules/` 重复 | 已修：按 `--language` 只追加相关条目，并对已有行去重（K11） |
+| `verify-static` 绿了但证据三值判定没跑（假绿） | 已修：`verify-static` 末尾显式提示未跑证据判定；完成声明前跑 `make verify-claim`，或直接用 `make verify-all`（= 两者，standard/strict）（K08） |
+
+**推荐测试命令矩阵**（adopt 只做可执行探测，不跑测试；最终以宿主实跑为准）：
+
+| 项目形态 | 建议命令 | 备注 |
+| --- | --- | --- |
+| Node + `scripts.test` | `npm test` / `pnpm test` | 优先项目脚本 |
+| TypeScript + tsx | `pnpm exec tsx --test "src/**/*.test.ts"` | Node 24 的 `node --test` 对无扩展名 TS 相对导入会 `ERR_MODULE_NOT_FOUND` |
+| Vitest | `npx vitest run` | |
+| pytest | `.venv/bin/python -m pytest -q` | adopt 会探测 `.venv`/`uv`/`poetry` 候选 |
+| unittest | `python3 -m unittest discover -s tests -q` | |
+| SwiftPM / Xcode | `swift test` / `xcodebuild test -scheme … -destination …` | Xcode 需显式 scheme/destination，kit 不推断 |
+
 ### 2.3 接入验收清单
 
 **Agent 接入（推荐）**
@@ -90,7 +114,7 @@ Agent 会：
 **完整接入（1 天，真实仓库）**
 
 - [ ] 文档蒸馏完成（当前/历史分层、索引 100%、链接可用）
-- [ ] 一条真实测试证据 PASS，`make verify-claim` exit 0
+- [ ] 一条真实测试证据 PASS，`make verify-claim` exit 0（或 `make verify-all` exit 0）
 - [ ] CI（或 pre-push）跑 `make verify-static`
 - [ ] `make selftest` exit 0（门禁证明会红）
 - [ ] `make scorecard` 生成评分卡草稿；过期由 `make check` WARN；自评 / 独立复评分列
@@ -109,7 +133,7 @@ Agent 会：
 | 接入新项目 / 改造存量 | 「用 harness-kit 接入这个项目」 | `references/adopt.md` | §5 的 `harness-adopt` / `harness-init` |
 | 提需求 / 建计划 | 「给这个需求建计划」 | `references/plan.md`（`start` / `intake`） | `python3 tools/harness.py start`（或 `make start TOPIC=…`） |
 | 实现 / 修 bug / 重构 / 依赖升级 | 「按计划实现…」 | `references/build.md` | 计划 scope 内改代码 + 对应测试 |
-| 完成前验证 / 写证据 / 三值判定 | 「验证这个改动并写证据」 | `references/verify.md`（`verify`） | `make verify-static` → 写证据 → `make verify-claim` |
+| 完成前验证 / 写证据 / 三值判定 | 「验证这个改动并写证据」 | `references/verify.md`（`verify`） | `make verify-static` → 写证据 → `make verify-claim`（standard/strict 可 `make verify-all`） |
 | Code Review / PR 前自检 / 对抗评审 | 「做一次对抗评审」 | `references/review.md`（strict 含 red-team） | 按评审清单 + `make check` / `make verify-static` |
 | 发布 / 安全检查 / 性能 | 「做发布前检查」 | `references/release.md`（`release --check`） | `python3 tools/harness.py release --check` |
 | 交接 / 换 Agent / 多 Agent 分工 | 「交接给下一个 Agent」 | `references/collaborate.md`（`handoff`） | `python3 tools/harness.py handoff` |
@@ -238,7 +262,10 @@ python3 /path/to/harness-kit/scripts/harness-adopt --target ../legacy-app --json
 # ② 定 profile / 基线 / 真实测试命令（存量默认 standard；strict 需显式选择并写理由）
 # ③ scaffold：先 --dry-run 再 init（已有文件默认 CONFLICT；--force 会备份后覆盖）
 python3 /path/to/harness-kit/scripts/harness-init --profile standard --target ../legacy-app \
-  --language android --test-command "./gradlew testDebugUnitTest"
+  --language android --test-command "./gradlew testDebugUnitTest" \
+  --default-branch main          # feature 分支上接入时必填（默认探测 origin/HEAD）
+  --agents-mode move             # 存量 AGENTS.md 超预算时：git mv 到 docs/legacy-agents.md 再生成
+  --install-hooks                # 让 .githooks/pre-push 立即生效
 
 # ④ 文档蒸馏 → ⑤ 清洁 → ⑥ config hygiene/layers + CI/hooks + JUnit 证据
 # ⑦ 负向注入验收：
@@ -348,7 +375,23 @@ cd /path/to/your-project                             # 在目标仓库根目录�
 
 补充口径：同一仓库的"对外标杆成熟度"由独立审计给出 **17/35 → 25.5/35（3.6/5）**；当前自评/独立复评均约 4.0。分数与局限见该仓的评分卡与复评记录（仓库内 `docs/harness-scorecard.md`）。
 
-### 7.4 怎么复现这套评分
+### 7.4 案例 C：存量 Node/TypeScript 仓（fcnsystem，v0.5.1 接入）
+
+Next.js 16 + React 19 + TypeScript + pnpm + MySQL 的存量仓库，standard 档接入；**接入方独立写了 17 条反馈**（K01–K17），其中 5 条阻断/高风险。
+
+| 项 | 接入结果 |
+| --- | --- |
+| 落地 | 41 个文件（`tools/` 门禁、`harness/config.json`、计划/证据/评分卡、CI/pre-push、`Makefile`、`references/`、`HARNESS.md`、根 `AGENTS.md`） |
+| 门禁 | `make check` / `verify-static` / `verify-claim` PASS；`selftest` 8 PASS / 1 SKIP（hygiene 未配置）；4 个测试用例、2 条证据 PASS（JUnit 重算） |
+| 指令层 | 原 `AGENTS.md` 6864 tokens（预算 1200）→ `git mv` 到 `docs/fcn-domain-notes.md`，新根入口 1179 tokens |
+| 边界 | 业务代码零改动（`src/`、`package.json` 未改）；project 自有文档保留在项目内 |
+| 未验证 | 远端是 Gitee，GitHub Actions 未触发；scorecard 仅自评；hygiene/layers 未配置 |
+
+反哺 kit 的修复（v0.5.2 未发布）：K01 JSON 安全渲染 + 回读校验、K02 证据目录豁免、K03 `AGENTS.md` 模板瘦身（1172→约 730 tokens）+ `--agents-mode`、K04 adopt 探测语义（`smoke=not-run`）、K05 默认分支探测 + `--default-branch` + CI PR 触发、K08 `verify-all`/提示、K10 `--install-hooks`、K11 语言相关 `.gitignore`、K16 rename 审计、K17 非 ASCII 路径（已并入）；K06/K07/K09/K12/K13/K15 同步修正或登记。完整问题映射与复盘见 [案例：fcnsystem 存量接入](cases/fcnsystem-adoption.md)。
+
+> 口径声明：这是接入方视角的单次样本（1 个项目、1 个技术栈）；分数与结论外推需谨慎。该仓的接入反馈报告在其仓库 `harness/reports/harness-kit-adoption-feedback.md`。
+
+### 7.5 怎么复现这套评分
 
 ```text
 接入前：harness-adopt --report（只读盘点）→ 人工按评分卡打分 → 存入改造计划作为基线

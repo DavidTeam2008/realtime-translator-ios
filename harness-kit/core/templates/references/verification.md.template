@@ -7,8 +7,8 @@
 
 | 层 | 内容 | 入口 | 期望 |
 | --- | --- | --- | --- |
-| 静态 | 文档 / 指令 / 链接 / 预算 / 计划 | `{{CHECK_COMMAND}}` | 退出 0；改动后必跑 |
-| 验证 | 静态 + 证据校验（三值） | `{{VERIFY_COMMAND}}` | 退出 0；完成前必跑 |
+| 静态 | 文档 / 指令 / 链接 / 预算 / 计划 / 证据 schema | `{{CHECK_COMMAND}}` / `{{VERIFY_COMMAND}}` | 退出 0；改动后必跑 |
+| 证据 | 三值判定（PASS / FAIL / UNVERIFIED） | `make verify-claim`（standard+；或 `make verify-all`） | 退出 0；完成声明前必跑 |
 | 测试 | 项目自带测试命令 | `{{TEST_COMMAND}}` | 退出 0；按变更风险选择范围 |
 
 ## 2. 变更类型 → 最低验证
@@ -24,6 +24,7 @@
 ## 3. 证据与判定
 
 - 判定只有三值：**PASS / FAIL / UNVERIFIED**；没有证据的“已验证”一律按 UNVERIFIED 处理。
+- `{{VERIFY_COMMAND}}` **不含**证据三值判定（fresh init 也能绿）；完成声明前必须跑 `make verify-claim`（standard/strict 有 `make verify-all` = 两者）。
 - 证据记录命令、退出码、环境、时间与提交号；原始大产物不入库，只存摘要与引用。
 - 跳过用例必须有白名单与原因；skip 数量变化要显式记录。
 - 环境不可用（缺工具 / 缺权限 / 无设备）时写“未验证 + 手动步骤”，不得写成通过。

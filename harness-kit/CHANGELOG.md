@@ -2,14 +2,41 @@
 
 ## Unreleased — 2026-11-13
 
-> 来源：kit v0.5.1 行为核对 + token 约束复盘（接入仓 fcnsystem 实测输出与源码对照）。
-> 主题：**门禁输出可信 + 预算覆盖完整**。
+> 来源：kit v0.5.1 行为核对 + token 约束复盘 + **fcnsystem 存量接入反馈（K01–K17）**。
+> 主题：**门禁输出可信 + 预算覆盖完整 + 存量接入不再踩坑**。
 
 ### 修复
 
 - `check_plan.py check --strict`：归档计划只有 WARN 时不再打印 `[FAIL]` 头（改为
   `[WARN] ...（归档）`），与汇总行/退出码一致；docstring 与 SPEC 同步为
   “error 级问题升 FAIL（warn 仍不阻断）”。
+
+### 存量接入反馈（K01–K17）
+
+- **K01 JSON 安全渲染**：`harness-init` 渲染 `.json` 目标时按 `json.dumps` 转义占位符值，
+  写盘前 `json.loads` 回读校验；含引号/反斜杠/unicode 的 `--test-command` 不再生成非法配置。
+- **K02 首次证据死锁**：`evidence.py write` 对 `paths.evidence` 下的未跟踪/已修改文件默认豁免
+  （WARN），其他目录可用 `--allow-untracked-under PATH`；错误信息直接给 `git add` 解法。
+- **K03 AGENTS 预算**：根 `AGENTS.md` 模板从约 1172 tokens 瘦身到约 730（预算 1200，留约 470 给项目）；
+  `harness-init --agents-mode replace|keep|move`（move 保留 git 历史并登记 config 白名单 + docs 索引）；
+  `harness-adopt` 输出 AGENTS tokens/预算诊断与推荐迁移命令。
+- **K04 adopt 探测语义**：报告不再写「已验证命令」，改称「可执行探测（只跑 `--version`，不执行测试）」
+  并输出 `smoke=not-run`；Node/TS 项目优先建议 `tsx --test` / 项目 `scripts.test`，
+  提示 Node 24 `node --test` 的 `ERR_MODULE_NOT_FOUND` 限制；`--test-command` 覆盖同样只算探测。
+- **K05/K14 默认分支**：`harness-init` 默认分支按 `origin/HEAD` → `init.defaultBranch` → 当前分支 → `main`
+  探测，支持 `--default-branch`；CI 模板 `pull_request` 不限分支并加 `workflow_dispatch`；
+  manifest 记录 `branch/branchSource`；`harness.py status` 检测 manifest 分支漂移并 WARN。
+- **K06/K07/K09/K10/K11/K15/K16/K17**：docs 索引按磁盘存在判定并区分是否跟踪；计划
+  `- dir/：说明` 路径解析；evidence README/skill 示例统一 `--from-json`；`--install-hooks` 真正设置
+  `core.hooksPath`（未安装时 summary/status WARN）；`.gitignore` 按语言生成并对已有行去重；
+  scorecard 模板明确「本页只写口径、草稿在 reviews/」；scope 审计用 `--name-status -M` 识别 rename
+  （普通删除仍拦截）；`verify_claim` 的 freshness 路径改用 `-z`（非 ASCII 路径不再转义）。
+- **K08 假绿入口**：`verify-static` 末尾显式提示「不含证据三值判定」；新增 `verify-all`
+  （= `verify-static` + `verify-claim`）作为完成声明/PR 前入口（fresh init 不会因此变红）。
+- **K12/K13 打磨**：selftest 已有 `--json`/`notApplicable` 汇总（复核确认）；Makefile 模板
+  `export PYTHONDONTWRITEBYTECODE := 1`，门禁运行不再产生 `__pycache__`。
+- **案例沉淀**：新增 `docs/cases/fcnsystem-adoption.md`（接入过程、17 条问题 → 修复映射、
+  可复用结论与复现命令），README/adoption/playbook/governance/SPEC/skill reference 同步。
 
 ### 补强
 
@@ -33,6 +60,9 @@
   → 硬约束 → 手动/兜底」，新增场景路由表（接手/计划/实现/验证/评审/发布/交接/升级）
   与任务循环；README 入口顺序改为先装 skill，“接入指南”改名“接入与日常使用”；
   playbook/governance/why/SPEC 的表述同步。
+- 新增存量接入专章：adoption §2.2.1「已知坑（K01–K17 的绕过与已修）） + 推荐测试命令矩阵；
+  playbook 七步法补 `--default-branch`/`--agents-mode`/`--install-hooks` 与 4 条存量常见坑；
+  案例文档 `docs/cases/fcnsystem-adoption.md`。
 
 ## 0.5.1 — 2026-11-12
 

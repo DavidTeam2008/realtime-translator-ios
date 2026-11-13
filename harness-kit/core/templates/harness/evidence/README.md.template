@@ -64,8 +64,11 @@
 
 ## 5. 生成与校验
 
-- 用工具写入（自动填 id / 时间 / git 信息）：`python3 tools/evidence.py write --claim tests-pass`；要求工作树干净。
-- 测试证据先用 `python3 tools/evidence_from_junit.py --xml <glob> --command "<测试命令>" --output <tmp.json>` 生成 payload，再 `evidence.py write --from-json <tmp.json>`。
+- 用工具写入（自动填 id / 时间 / git 信息），**必须提供 `--from-json`**：
+  `python3 tools/evidence.py write --from-json /tmp/evidence.json`（claim 取自 JSON，
+  或另加 `--claim NAME`）。
+- 测试证据先跑出 JUnit，再生成 payload：
+  `python3 tools/evidence_from_junit.py --xml <glob> --command "<测试命令>" --output /tmp/evidence.json`。
   - 默认**脱敏复制**：删除 `system-out/system-err`、`hostname`、含本机路径的 `properties`，把仓库/Home 绝对路径相对化，并清理 `failure/error` 的 `message/type`、testcase 的 `classname/file` 属性与元素文本；产物写入 `<evidence>/artifacts/`（`--artifacts-dir` 可改，必须在仓库内且非符号链接），临时文件原子替换落盘。脱敏后会重新计数，若与原始 JUnit 计数不一致直接拒绝（防 sanitize 改坏测试树）。
   - 输入或产物 >5MiB 直接拒绝；输入 JUnit 不能是符号链接。
   - `--keep-raw` 保留旧行为（不脱敏不复制）；仓库外输入必须同时 `--allow-outside-root`，否则报错并提示默认模式。即使允许，也会 WARN：artifact 是绝对路径，`verify_claim` 会判 UNVERIFIED（并在 `notes` 里写明）。
@@ -73,6 +76,11 @@
 - xcresult 请先转 JUnit XML；不计数的原始产物不要入库。
 - 全量校验：`make check-evidence`（或 `python3 tools/evidence.py validate`）。
 - 三值判定：`make verify-claim`（或 `python3 tools/verify_claim.py --all`）；无当前证据 = UNVERIFIED，环境不可复核 = UNVERIFIED。
+- **写入前工作树必须 clean，但证据目录例外**：`write` 会自动豁免
+  `<paths.evidence>/` 下的未跟踪/已修改文件（JUnit artifact 与待写 JSON 本身就是待提交产物），
+  只输出 WARN 提示；其他目录的改动仍需先提交/清理。显式豁免其他目录用
+  `--allow-untracked-under <path>`（可重复）。豁免只是放宽“写入时点”，证据入库后仍要
+  提交并保证 `git.dirty=false`。
 
 ## 6. 入库策略
 

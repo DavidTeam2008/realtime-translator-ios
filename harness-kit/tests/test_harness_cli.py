@@ -74,6 +74,39 @@ class StatusTests(unittest.TestCase):
             self.assertIsNone(data["plan"])
             self.assertTrue(data["nextActions"])
 
+    def test_status_warns_uninstalled_hooks(self) -> None:
+        """K10：pre-push 文件存在但 core.hooksPath 未设置时必须提示（否则静默失效）。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            host = init_host(Path(tmp), "hooks-host")
+            proc = harness(host, "status")
+            self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+            self.assertIn("pre-push 已生成但未生效", proc.stdout)
+            data = json.loads(harness(host, "status", "--json").stdout)
+            self.assertTrue(data["hooks"]["hookFile"])
+            self.assertFalse(data["hooks"]["installed"])
+            # --install-hooks 后不再告警
+            assert git(host, "config", "core.hooksPath", ".githooks").returncode == 0
+            proc = harness(host, "status")
+            self.assertNotIn("pre-push 已生成但未生效", proc.stdout)
+            self.assertIn("已生效", proc.stdout)
+
+    def test_status_warns_manifest_branch_drift(self) -> None:
+        """K14：manifest 记录的分支与仓库默认分支不一致时提示漂移。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            host = init_host(Path(tmp), "branch-host")
+            manifest_path = host / ".harness-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["options"]["branch"] = "feature/stale"
+            manifest_path.write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            proc = harness(host, "status")
+            self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+            data = json.loads(harness(host, "status", "--json").stdout)
+            self.assertEqual("feature/stale", data["manifestBranch"])
+            self.assertIsNotNone(data["branchProblem"])
+            self.assertIn("分支漂移", proc.stdout)
+
     def test_status_is_read_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             host = init_host(Path(tmp), "readonly-host")

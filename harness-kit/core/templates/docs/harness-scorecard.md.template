@@ -1,7 +1,9 @@
 # harness 评分卡 · {{PROJECT_NAME}}
 
-> 由 `make scorecard`（`tools/scorecard.py --generate`）生成/刷新草稿；生成器只填事实、不自动打分。
-> **自评不是认证**；「独立复评」列为 TBD 时本卡不算完成证据。最后更新：{{YEAR}}。
+> **本页是评分口径与固定入口说明，不自动更新**；`make scorecard`（`tools/scorecard.py --generate`）
+> 实际生成/刷新的是 `{{HARNESS_DIR}}/reviews/<YYYY-MM-DD>-scorecard.md` 草稿（生成器只填事实、不自动打分）。
+> 每次生成后在新草稿里填「自评」，草稿结论再汇总到 `{{HARNESS_DIR}}/reviews/` 报告；本页只保留口径。
+> **自评不是认证**；「独立复评」列为 TBD 时该次评分不算完成证据。最后更新：{{YEAR}}。
 > 运行手册见 [`../HARNESS.md`](../HARNESS.md)，审查流程与红队协议见 [`../{{REFERENCES_DIR}}/workflow.md`](../{{REFERENCES_DIR}}/workflow.md)。
 
 ## 1. 快照元数据（由生成器填写）

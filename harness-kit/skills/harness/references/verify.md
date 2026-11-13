@@ -1,7 +1,7 @@
 # 验证 / 证据 / 三值判定
 
 ## 一键
-`python3 tools/harness.py verify`：自动同步计划「未提交改动」→ 跑 `make verify-static`（含 `check_plan --strict`）→ `verify_claim --all` 三值摘要。
+`python3 tools/harness.py verify`：自动同步计划「未提交改动」→ 跑 `make verify-static`（含 `check_plan --strict`，**不含**证据三值判定）→ `verify_claim --all` 三值摘要。standard/strict 也可直接 `make verify-all`（= `verify-static` + `verify-claim`）。
 `--claims-strict` 让证据非全 PASS 也阻断；发布前用 `release --check`（fresh/strict）。
 
 ## 按变更类型选最小充分验证（细节见 `references/verification.md`）

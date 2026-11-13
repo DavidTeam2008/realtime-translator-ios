@@ -122,6 +122,7 @@
     "check",
     "verify-static",
     "verify-claim",
+    "verify-all",
     "release",
     "plan",
     "selftest",

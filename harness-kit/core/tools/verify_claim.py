@@ -221,9 +221,10 @@ def changed_paths(root: Path, commit: str) -> list[str] | None:
     if git_sha(root, commit) is None:
         return None
     changed: set[str] = set()
-    code, out, _ = git(root, ["diff", "--name-only", commit])
+    # -z：非 ASCII 路径保持原样，不做 Git 转义（与 check_plan 的 K17 修复一致）。
+    code, out, _ = git(root, ["diff", "-z", "--name-only", commit])
     if code == 0:
-        changed.update(line.strip() for line in out.splitlines() if line.strip())
+        changed.update(item.strip() for item in out.split("\0") if item.strip())
     code, out, _ = git(root, ["status", "--porcelain", "-z", "--untracked-files=all"])
     if code == 0:
         records = out.split("\0")

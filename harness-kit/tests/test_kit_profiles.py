@@ -206,17 +206,147 @@ class HarnessInitProfileTests(unittest.TestCase):
         self.assertIn("language=android", proc.stdout)
         self.assertIn("test=./gradlew testDebugUnitTest", proc.stdout)
 
-    def test_gitignore_covers_common_build_artifacts(self) -> None:
+    def test_gitignore_is_language_specific_and_deduped(self) -> None:
+        """K11：只追加与语言相关的条目，且不重复项目已有的行。"""
         if not INIT.is_file():
             self.skipTest("harness-init is not present")
-        target = init_target(self.tmp / "ignore")
+        cases = {
+            "node": (("node_modules/", "__pycache__/"), (".swiftpm/", ".pytest_cache/")),
+            "python": (("__pycache__/", ".pytest_cache/", ".venv/"), ("node_modules/", ".build/")),
+            "swift": ((".build/", ".swiftpm/", "__pycache__/"), ("node_modules/", ".pytest_cache/")),
+        }
+        for language, (expected, absent) in cases.items():
+            with self.subTest(language=language):
+                target = init_target(self.tmp / f"ignore-{language}")
+                if language == "node":  # 已有行必须去重，不能重复追加
+                    (target / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+                proc = self.invoke(
+                    "--profile", "minimal", "--name", "Ignore", "--language", language,
+                    "--test-command", "echo ok", target=target,
+                )
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                gitignore = (target / ".gitignore").read_text(encoding="utf-8")
+                for entry in expected:
+                    self.assertIn(entry, gitignore)
+                for entry in absent:
+                    self.assertNotIn(entry, gitignore)
+                if language == "node":
+                    self.assertEqual(1, gitignore.count("node_modules/"), gitignore)
+
+    def test_json_is_escaped_and_validated(self) -> None:
+        """K01：含双引号/反斜杠的测试命令必须渲染成合法 JSON（并在 init 阶段校验）。"""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        command = 'pnpm exec tsx --test "src/**/*.test.ts" --import \'./setup.ts\''
+        target = init_target(self.tmp / "json-escape")
         proc = self.invoke(
-            "--profile", "minimal", "--name", "Ignore", "--test-command", "echo ok", target=target
+            "--profile", "minimal", "--name", "Quote", "--language", "node",
+            "--test-command", command, "--no-check", target=target,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        gitignore = (target / ".gitignore").read_text(encoding="utf-8")
-        for entry in ("node_modules/", ".build/", ".swiftpm/", "__pycache__/"):
-            self.assertIn(entry, gitignore)
+        config_path = target / "harness" / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        self.assertEqual(command, config["commands"]["test"])
+        self.assertIn('\\"src/**/*.test.ts\\"', config_path.read_text(encoding="utf-8"))
+
+    def test_default_branch_and_hooks_flags(self) -> None:
+        """K05/K10：--default-branch 写进 CI/manifest；--install-hooks 真正设置 core.hooksPath。"""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        target = init_target(self.tmp / "branch-hooks")
+        proc = self.invoke(
+            "--profile", "standard", "--name", "Branch", "--default-branch", "develop",
+            "--install-hooks", "--no-check", target=target,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        workflow = (target / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")
+        self.assertIn("- develop", workflow)
+        self.assertIn("pull_request:", workflow)
+        manifest = json.loads((target / ".harness-manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual("develop", manifest["options"]["branch"])
+        self.assertEqual("--default-branch", manifest["options"]["branchSource"])
+        hooks = run(["git", "config", "--get", "core.hooksPath"], cwd=target)
+        self.assertEqual(".githooks", hooks.stdout.strip())
+
+    def test_agents_mode_move_preserves_history_and_registers_docs(self) -> None:
+        """K03：存量 AGENTS.md 用 --agents-mode move 迁移，保留 git 历史并登记索引。"""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        target = init_target(self.tmp / "agents-move")
+        legacy = "# Legacy rules\n\n- 存量规则一\n"
+        (target / "AGENTS.md").write_text(legacy, encoding="utf-8")
+        run(["git", "add", "-A"], cwd=target)
+        run(["git", "commit", "-q", "-m", "legacy agents"], cwd=target)
+        proc = self.invoke(
+            "--profile", "minimal", "--name", "Legacy", "--agents-mode", "move", "--no-check",
+            target=target,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        moved = target / "docs" / "legacy-agents.md"
+        self.assertTrue(moved.is_file())
+        self.assertEqual(legacy, moved.read_text(encoding="utf-8"))
+        self.assertIn("# AGENTS.md · Legacy", (target / "AGENTS.md").read_text(encoding="utf-8"))
+        config = json.loads((target / "harness" / "config.json").read_text(encoding="utf-8"))
+        self.assertIn("docs/legacy-agents.md", config["docs"]["publicWhitelist"])
+        index = (target / "docs" / "README.md").read_text(encoding="utf-8")
+        self.assertIn("legacy-agents.md", index)
+        status = run(["git", "status", "--porcelain"], cwd=target).stdout
+        self.assertIn("R  AGENTS.md -> docs/legacy-agents.md", status)
+
+    def test_agents_mode_keep_leaves_existing_agents_untouched(self) -> None:
+        """K03：keep 模式不覆盖现有 AGENTS.md，并在 manifest.skipped 记录。"""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        target = init_target(self.tmp / "agents-keep")
+        keep = "# Keep me\n"
+        (target / "AGENTS.md").write_text(keep, encoding="utf-8")
+        run(["git", "add", "-A"], cwd=target)
+        run(["git", "commit", "-q", "-m", "agents"], cwd=target)
+        proc = self.invoke(
+            "--profile", "minimal", "--name", "Keep", "--agents-mode", "keep", "--no-check",
+            target=target,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("KEEP    AGENTS.md", proc.stdout)
+        self.assertEqual(keep, (target / "AGENTS.md").read_text(encoding="utf-8"))
+        manifest = json.loads((target / ".harness-manifest.json").read_text(encoding="utf-8"))
+        self.assertIn("AGENTS.md", manifest["skipped"])
+
+    def test_agents_mode_move_conflict_aborts_before_moving(self) -> None:
+        """半改造防护：其他文件冲突时必须在移动 AGENTS.md 之前失败。"""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        target = init_target(self.tmp / "agents-conflict")
+        (target / "AGENTS.md").write_text("# Legacy\n", encoding="utf-8")
+        (target / "docs").mkdir()
+        (target / "docs" / "README.md").write_text("# Host docs index\n", encoding="utf-8")
+        run(["git", "add", "-A"], cwd=target)
+        run(["git", "commit", "-q", "-m", "legacy"], cwd=target)
+        proc = self.invoke(
+            "--profile", "minimal", "--name", "Conflict", "--agents-mode", "move", "--no-check",
+            target=target,
+        )
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertIn("CONFLICT docs/README.md", proc.stdout)
+        self.assertTrue((target / "AGENTS.md").is_file())
+        self.assertFalse((target / "docs" / "legacy-agents.md").exists())
+
+    def test_verify_static_prints_claim_hint_and_verify_all_exists(self) -> None:
+        """K08：verify-static 必须显式说明未跑证据判定；verify-all = static + claim。"""
+        if not INIT.is_file():
+            self.skipTest("harness-init is not present")
+        target = init_target(self.tmp / "claim-hint")
+        proc = self.invoke(
+            "--profile", "standard", "--name", "Claim", "--test-command", "echo ok", "--no-check",
+            target=target,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        static = run(["make", "verify-static"], cwd=target)
+        self.assertEqual(static.returncode, 0, static.stdout + static.stderr)
+        self.assertIn("verify-static 不含证据三值判定", static.stdout)
+        self.assertIn("make verify-all", static.stdout)
+        all_claims = run(["make", "verify-all"], cwd=target)
+        self.assertNotEqual(all_claims.returncode, 0, "fresh init 没有证据，verify-all 必须红")
 
     def test_standard_evidence_lifecycle(self) -> None:
         """standard/strict 的「测试 → 证据 → 三值判定」链路必须端到端可用。"""

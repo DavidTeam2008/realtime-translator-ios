@@ -5,7 +5,15 @@ Usage:
     python3 harness-kit/scripts/harness-init --profile standard --target ../myapp \
         [--name MyApp] [--language auto|python|swift|node|go|android|other] \
         [--test-command "make test"] [--adapters dsh,claude-code,ci,githooks] \
+        [--default-branch main] [--agents-mode replace|keep|move] \
+        [--agents-archive-path docs/legacy-agents.md] [--install-hooks] \
         [--dry-run] [--force] [--no-check] [--backup-dir PATH] [--root KIT_ROOT]
+
+JSON safety: every rendered `.json` file is escaped per JSON string context and parsed
+back with json.loads before writing; a broken config aborts init (K01).
+Brownfield: `--agents-mode keep` keeps an existing AGENTS.md untouched (budget gate will
+fail until you migrate); `--agents-mode move` git-mv's it to --agents-archive-path and
+registers it in config.docs.publicWhitelist + docs/README.md (K03).
 
 Contract: see harness-kit/SPEC.md §7/§8. Standard library only; no network.
 Exit codes: 0 ok; 1 usage/config/conflict; otherwise the exit code of the first
@@ -28,6 +36,18 @@ PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 BACKUP_DIRNAME = ".harness-init-backup"
 MANIFEST_NAME = ".harness-manifest.json"
 MANIFEST_SCHEMA_VERSION = 1
+# JSON 模板里这些占位符是「JSON 片段」而不是字符串值，渲染时不能做 JSON 转义。
+JSON_RAW_KEYS = {"HARNESS_BUDGET"}
+# K11：.gitignore 只追加与项目语言相关的条目（kit 工具是 Python，__pycache__ 始终保留）。
+GITIGNORE_LANGUAGE_LINES = {
+    "python": ".pytest_cache/\n.venv/",
+    "node": "node_modules/",
+    "swift": ".build/\n.swiftpm/",
+    "go": "",
+    "android": ".gradle/\nlocal.properties",
+    "other": "",
+}
+DEFAULT_AGENTS_ARCHIVE = "docs/legacy-agents.md"
 def suggest_test_command(target: Path, language: str) -> tuple[str, str]:
     """Return (command, source_note). The kit does not parse test output; counts are host-provided."""
     if language == "python":
@@ -151,14 +171,57 @@ def detect_language(target: Path) -> str:
     return "other"
 
 
-def detect_branch(target: Path) -> str:
-    proc = subprocess.run(
-        ["git", "-C", str(target), "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True,
-        text=True,
-    )
-    branch = proc.stdout.strip()
-    return branch if proc.returncode == 0 and branch and branch != "HEAD" else "main"
+def git_output(target: Path, args: list[str]) -> tuple[int, str]:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(target), *args], capture_output=True, text=True, timeout=15
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return 127, ""
+    return proc.returncode, proc.stdout.strip()
+
+
+def is_git_repo(target: Path) -> bool:
+    code, out = git_output(target, ["rev-parse", "--is-inside-work-tree"])
+    return code == 0 and out == "true"
+
+
+def detect_default_branch(target: Path) -> str | None:
+    """Repository default branch, not the current (feature) branch.
+
+    Order: origin/HEAD (authoritative) -> init.defaultBranch config -> current branch.
+    K05: initting on a feature branch must not hard-code that branch into CI.
+    """
+    if not is_git_repo(target):
+        return "main"
+    code, out = git_output(target, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
+    if code == 0 and out:
+        return out.split("/", 1)[1] if out.startswith("origin/") else out
+    code, out = git_output(target, ["rev-parse", "--abbrev-ref", "origin/HEAD"])
+    if code == 0 and out and out != "origin/HEAD":
+        return out.split("/", 1)[1] if out.startswith("origin/") else out
+    code, out = git_output(target, ["config", "--get", "init.defaultBranch"])
+    if code == 0 and out:
+        return out
+    code, out = git_output(target, ["rev-parse", "--abbrev-ref", "HEAD"])
+    if code == 0 and out and out != "HEAD":
+        return out
+    return "main"
+
+
+def resolve_default_branch(target: Path, override: str | None) -> tuple[str, str]:
+    """Return (branch, source) for the CI / manifest branch injection."""
+    if override:
+        return override, "--default-branch"
+    if not is_git_repo(target):
+        return "main", "非 git 仓库，默认 main"
+    code, out = git_output(target, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
+    if code == 0 and out:
+        return detect_default_branch(target) or "main", "origin/HEAD"
+    branch = detect_default_branch(target) or "main"
+    if branch == "main":
+        return branch, "回退：当前分支/默认 main"
+    return branch, "回退：当前分支（未找到 origin/HEAD；可用 --default-branch 指定）"
 
 
 def safe_rel(value: str, *, field: str) -> str:
@@ -193,19 +256,33 @@ def substitutions(
         "ROOT_AGENTS": "AGENTS.md",
         "DEFAULT_BRANCH": branch,
         "HARNESS_BUDGET": harness_budget,
+        "GITIGNORE_LANGUAGE_LINES": GITIGNORE_LANGUAGE_LINES.get(language, ""),
     }
 
 
-def render(text: str, subs: dict[str, str], *, src: Path) -> str:
+def render(text: str, subs: dict[str, str], *, src: Path, json_context: bool = False) -> str:
     def replace(match: re.Match[str]) -> str:
         key = match.group(1)
         if key not in subs:
             raise InitError(f"unknown placeholder {{{{ {key} }}}} in {src}")
-        return subs[key]
+        value = subs[key]
+        if json_context and key not in JSON_RAW_KEYS:
+            # 值嵌在 JSON 字符串里：按 JSON 规则转义（引号/反斜杠/换行/控制字符）。
+            value = json.dumps(value, ensure_ascii=False)[1:-1]
+        return value
 
     rendered = PLACEHOLDER_RE.sub(replace, text)
     if "{{" in rendered:
         raise InitError(f"{src} still contains an unresolved placeholder after rendering")
+    if json_context:
+        try:
+            json.loads(rendered)
+        except json.JSONDecodeError as exc:
+            first_line = rendered.splitlines()[exc.lineno - 1] if exc.lineno <= len(rendered.splitlines()) else ""
+            raise InitError(
+                f"rendered JSON is invalid in {src} (line {exc.lineno}, col {exc.colno}): "
+                f"{exc.msg}; near {first_line.strip()[:120]!r}"
+            ) from exc
     return rendered
 
 
@@ -273,13 +350,29 @@ def collect_actions(
     return actions
 
 
-def append_block(dst: Path, block: str) -> None:
+def append_block(dst: Path, block: str) -> str | None:
+    """Append a kit block, skipping lines the file already has; return the written block.
+
+    Dedupe keeps `.gitignore` from repeating `node_modules/` etc. when the project
+    already ignored it (K11). The marker line is always kept for idempotent re-init.
+    """
     marker = "# harness-kit"
     existing = dst.read_text(encoding="utf-8") if dst.exists() else ""
     if marker in existing:
-        return
+        return None
+    existing_lines = {line.strip() for line in existing.splitlines()}
+    kept: list[str] = []
+    for line in block.rstrip().splitlines():
+        stripped = line.strip()
+        if stripped and stripped != marker and not stripped.startswith("#") and stripped in existing_lines:
+            continue
+        kept.append(line)
+    if not kept:
+        return None
+    text = "\n".join(kept).rstrip() + "\n"
     prefix = "" if not existing or existing.endswith("\n") else "\n"
-    dst.write_text(existing + prefix + "\n" + block.rstrip() + "\n", encoding="utf-8")
+    dst.write_text(existing + prefix + "\n" + text, encoding="utf-8")
+    return text
 
 
 def backup_file(path: Path, target: Path, backup_root: Path) -> None:
@@ -316,16 +409,23 @@ def execute(
         text = src.read_text(encoding="utf-8", errors="replace")
 
         if action["append"]:
+            rendered = render(text, subs, src=src) if action["render"] else text
             if dry_run:
                 created.append(label)
                 print(f"APPEND  {label}")
                 continue
             dst.parent.mkdir(parents=True, exist_ok=True)
-            append_block(dst, text)
+            written = append_block(dst, rendered)
+            if written is not None:
+                action["appendedBlock"] = written
             created.append(label)
             continue
 
-        rendered = render(text, subs, src=src) if action["render"] else text
+        rendered = (
+            render(text, subs, src=src, json_context=dst.suffix.lower() == ".json")
+            if action["render"]
+            else text
+        )
         if dst.exists():
             if action["onConflict"] == "skip":
                 skipped.append(label)
@@ -352,6 +452,110 @@ def execute(
         created.append(label)
 
     return created, skipped, conflicts
+
+
+def find_action(actions: list[dict], target: Path, rel: str) -> dict | None:
+    want = (target / rel).resolve()
+    for action in actions:
+        try:
+            same = action["dst"].resolve() == want
+        except OSError:
+            same = False
+        if same:
+            return action
+    return None
+
+
+def move_agents_file(target: Path, src_rel: str, dst_rel: str) -> None:
+    """Move the pre-adoption AGENTS.md, preserving git history when tracked (K03)."""
+    src = target / src_rel
+    dst = target / dst_rel
+    if not src.is_file():
+        raise InitError(f"--agents-mode move 需要已有 {src_rel}")
+    if dst.exists():
+        raise InitError(f"--agents-mode move 目标已存在：{dst_rel}（换一个 --agents-archive-path）")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tracked = False
+    if is_git_repo(target):
+        code, _ = git_output(target, ["ls-files", "--error-unmatch", src_rel])
+        tracked = code == 0
+    if tracked:
+        code, out = git_output(target, ["mv", src_rel, dst_rel])
+        if code != 0:
+            raise InitError(f"git mv {src_rel} -> {dst_rel} 失败：{out or '未知错误'}")
+    else:
+        shutil.move(str(src), str(dst))
+
+
+def register_migrated_agents(target: Path, rel: str) -> list[str]:
+    """Register the moved AGENTS copy in config whitelist + docs index (K03).
+
+    Returns human-readable notes (registered / skipped reason).
+    """
+    notes: list[str] = []
+    config_path = target / "harness" / "config.json"
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"WARN: 无法更新 harness/config.json 白名单：{exc}"]
+    docs = config.get("docs")
+    if isinstance(docs, dict) and isinstance(docs.get("publicWhitelist"), list):
+        whitelist = docs["publicWhitelist"]
+        if rel not in whitelist:
+            whitelist.append(rel)
+            config_path.write_text(
+                json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            notes.append(f"已登记 {rel} 到 config.docs.publicWhitelist")
+    docs_dir = str((config.get("paths") or {}).get("docs") or "docs").strip("/")
+    if not rel.startswith(docs_dir + "/"):
+        notes.append(f"WARN: 迁移文件不在 {docs_dir}/ 下，未登记到 docs 索引")
+        return notes
+    doc_index = target / docs_dir / "README.md"
+    try:
+        text = doc_index.read_text(encoding="utf-8")
+    except OSError:
+        notes.append(f"WARN: 缺少 {docs_dir}/README.md，未登记迁移文档")
+        return notes
+    name = rel[len(docs_dir) + 1 :]
+    row = f"| [`{name}`]({name}) | 接入前原 AGENTS.md（存量项目迁移；内容与历史保留） | 迁移时登记 |"
+    if f"]({name})" in text:
+        notes.append(f"docs 索引已包含 {name}")
+        return notes
+    lines = text.splitlines()
+    try:
+        start = next(i for i, line in enumerate(lines) if line.strip().startswith("## 当前文档"))
+    except StopIteration:
+        start = -1
+    insert_at = -1
+    if start >= 0:
+        for index in range(start + 1, len(lines)):
+            if lines[index].startswith("| ["):
+                insert_at = index
+            elif insert_at >= 0 and not lines[index].startswith("|"):
+                break
+        if insert_at < 0:  # 表为空：插到标题段之后
+            insert_at = start + 1
+    if insert_at < 0:
+        lines.append(row)
+    else:
+        lines.insert(insert_at + 1, row)
+    doc_index.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    notes.append(f"已登记 {rel} 到 {docs_dir}/README.md 文档索引")
+    return notes
+
+
+def install_hooks(target: Path) -> str | None:
+    """Persist core.hooksPath so the generated pre-push hook actually runs (K10)."""
+    hook = target / ".githooks" / "pre-push"
+    if not hook.is_file():
+        return None
+    if not is_git_repo(target):
+        return "非 git 仓库，跳过 hooks 安装"
+    code, out = git_output(target, ["config", "--local", "core.hooksPath", ".githooks"])
+    if code != 0:
+        return f"git config core.hooksPath 失败：{out or '未知错误'}"
+    return "已设置 core.hooksPath=.githooks（pre-push 生效）"
 
 
 def run_check(
@@ -407,6 +611,7 @@ def write_manifest(
     actions: list[dict],
     created: list[str],
     skipped: list[str],
+    subs: dict[str, str],
 ) -> Path:
     """Record kit-managed files + append blocks (`.harness-manifest.json`)."""
     created_set = set(created)
@@ -417,7 +622,10 @@ def write_manifest(
         if label not in created_set:
             continue
         if action["append"]:
-            block = action["src"].read_text(encoding="utf-8", errors="replace")
+            src_text = action["src"].read_text(encoding="utf-8", errors="replace")
+            rendered = render(src_text, subs, src=action["src"]) if action["render"] else src_text
+            # 记录真实写入的块（去重后可能与模板不同）；marker 已存在时回退到模板块。
+            block = action.get("appendedBlock") or rendered
             appends.append({
                 "path": label,
                 "marker": "# harness-kit",
@@ -442,6 +650,9 @@ def write_manifest(
             "testCommand": options["testCommand"],
             "adapters": options["adapters"],
             "branch": options["branch"],
+            "branchSource": options.get("branchSource"),
+            "agentsMode": options.get("agentsMode", "replace"),
+            "hooksPath": options.get("hooksPath"),
         },
         "files": sorted(files, key=lambda item: item["path"]),
         "appends": sorted(appends, key=lambda item: item["path"]),
@@ -452,7 +663,16 @@ def write_manifest(
     return path
 
 
-def write_summary(target: Path, profile_name: str, created: list[str], skipped: list[str]) -> None:
+def write_summary(
+    target: Path,
+    profile_name: str,
+    created: list[str],
+    skipped: list[str],
+    *,
+    agents_mode: str = "replace",
+    moved_agents_rel: str | None = None,
+    hooks_message: str | None = None,
+) -> None:
     print()
     print(f"harness-kit init: profile={profile_name} target={target}")
     print(f"  created/updated: {len(created)} file(s)")
@@ -463,15 +683,20 @@ def write_summary(target: Path, profile_name: str, created: list[str], skipped: 
     print("  2. Run `make check` / `make verify-static` and fix the failing gate.")
     print("  3. Read HARNESS.md (standard/strict) or docs/README.md, then AGENTS.md.")
     print("  4. Commit the scaffold; keep plans/evidence in the harness/ workspace.")
-    print("  5. Optional: install git hooks (`git config core.hooksPath .githooks`).")
-    print(
-        "  6. Brownfield only: archive the read-only inventory report after adoption "
-        "(keeps the pre-adoption baseline in-repo):"
-    )
-    print(
-        "     <kit>/scripts/harness-adopt --target . "
-        "--archive-report <path-to-inventory-report.md>"
-    )
+    if hooks_message:
+        print(f"  5. [OK] {hooks_message}")
+    else:
+        print("  5. Install git hooks so pre-push actually runs: `git config core.hooksPath .githooks`")
+        print("     (or re-run init with `--install-hooks`).")
+    if agents_mode == "keep":
+        print("  6. [WARN] 本轮保留了现有 AGENTS.md：先按 docs/adoption.md §2.2 迁移/压缩，")
+        print("     否则 make check 的 token 预算可能失败。可改用 `--agents-mode move`。")
+    elif moved_agents_rel:
+        print(f"  6. 原 AGENTS.md 已迁移到 {moved_agents_rel} 并登记索引；把项目规则按需合并进根 AGENTS.md。")
+    else:
+        print("  6. Brownfield only: archive the read-only inventory report after adoption "
+              "(keeps the pre-adoption baseline in-repo):")
+        print("     <kit>/scripts/harness-adopt --target . --archive-report <path-to-inventory-report.md>")
     print("  7. Build the baseline: `make scorecard` (draft) and `make selftest` (mutation check).")
     print(
         "  8. Agent entry: install the harness skill once (user scope; every repo sees it), "
@@ -498,6 +723,27 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--force", action="store_true", help="back up and overwrite conflicting files")
     parser.add_argument("--no-check", action="store_true", help="skip the post-init check")
     parser.add_argument("--backup-dir", help=f"backup directory (default: <target>/{BACKUP_DIRNAME}/<UTC>)")
+    parser.add_argument(
+        "--default-branch",
+        help="default branch injected into CI/manifest (default: origin/HEAD, then current branch)",
+    )
+    parser.add_argument(
+        "--agents-mode",
+        choices=("replace", "keep", "move"),
+        default="replace",
+        help="existing AGENTS.md: replace (needs --force) | keep (leave as-is) | "
+        "move (git-mv to --agents-archive-path, then render the template)",
+    )
+    parser.add_argument(
+        "--agents-archive-path",
+        default=DEFAULT_AGENTS_ARCHIVE,
+        help=f"where --agents-mode move archives the old AGENTS.md (default: {DEFAULT_AGENTS_ARCHIVE})",
+    )
+    parser.add_argument(
+        "--install-hooks",
+        action="store_true",
+        help="set core.hooksPath=.githooks so the generated pre-push hook runs",
+    )
     parser.add_argument("--root", default=str(DEFAULT_KIT_ROOT), help="kit root (default: script parent parent)")
     return parser
 
@@ -525,29 +771,71 @@ def main(argv: list[str] | None = None) -> int:
                 f"{test_command!r} ({command_note}); edit harness/config.json if wrong"
             )
         has_harness = any(str(item.get("dst")) == "HARNESS.md" for item in profile.get("files", []))
+        branch, branch_source = resolve_default_branch(target, args.default_branch)
         subs = substitutions(
             project_name,
             language,
             test_command,
             version,
-            detect_branch(target),
+            branch,
             include_harness_budget=has_harness,
         )
         actions = collect_actions(kit_root, target, profile, adapter_files, force=args.force)
 
         print(f"harness-kit {version} · profile={args.profile} · target={target}")
         print(f"project={project_name} language={language} test={test_command}")
-        print(f"adapters={adapters or 'none'}")
+        print(f"adapters={adapters or 'none'} · default-branch={branch}（{branch_source}）")
         print()
+
+        # K03：存量 AGENTS.md 的三种处理方式（replace 仍走原来的 --force 冲突流程）。
+        agents_rel = "AGENTS.md"
+        agents_action = find_action(actions, target, agents_rel)
+        moved_agents_rel: str | None = None
+        skipped_extra: list[str] = []
+        agents_file_exists = (target / agents_rel).is_file()
+
+        # 先做冲突预检（任何冲突都必须在移动/写文件之前失败，避免半改造状态）。
+        skip_agents_conflict = (
+            agents_action is not None
+            and args.agents_mode in ("keep", "move")
+            and agents_file_exists
+        )
         if not args.force and not args.dry_run:
-            existing = [describe(action["dst"], target) for action in actions
-                        if action["dst"].exists() and action["onConflict"] != "skip" and not action["append"]]
+            existing = [
+                describe(action["dst"], target)
+                for action in actions
+                if not (skip_agents_conflict and action is agents_action)
+                and action["dst"].exists()
+                and action["onConflict"] != "skip"
+                and not action["append"]
+            ]
             if existing:
                 for label in existing:
                     print(f"CONFLICT {label}  (exists; re-run with --force to back up and overwrite)")
                 print()
                 print("ERROR: refusing to overwrite existing files (use --force to back up first)", file=sys.stderr)
                 return 1
+
+        if agents_action is not None and args.agents_mode != "replace":
+            if not agents_file_exists:
+                print(f"NOTE: --agents-mode {args.agents_mode} 需要已有 {agents_rel}；按 replace 生成模板")
+            elif args.agents_mode == "keep":
+                actions.remove(agents_action)
+                skipped_extra.append(agents_rel)
+                print(f"KEEP    {agents_rel}  (--agents-mode keep：保留现有指令文件，不覆盖)")
+                print("WARN: 预算门禁会检查现有 AGENTS.md；超预算先按 docs/adoption.md §2.2 迁移或压缩")
+            else:  # move
+                archive_rel = safe_rel(
+                    args.agents_archive_path or DEFAULT_AGENTS_ARCHIVE,
+                    field="--agents-archive-path",
+                )
+                if args.dry_run:
+                    print(f"MOVE    {agents_rel} -> {archive_rel}  (dry-run: 不移动)")
+                    moved_agents_rel = archive_rel
+                else:
+                    move_agents_file(target, agents_rel, archive_rel)
+                    moved_agents_rel = archive_rel
+                    print(f"MOVE    {agents_rel} -> {archive_rel}  (保留 git 历史)")
 
         backup_root = Path(args.backup_dir).expanduser() if args.backup_dir else (
             target / BACKUP_DIRNAME / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -561,7 +849,23 @@ def main(argv: list[str] | None = None) -> int:
             backup_root=backup_root,
         )
         makefile_used = "Makefile.harness" if (target / "Makefile.harness").exists() else "Makefile"
+        skipped = sorted(set(skipped) | set(skipped_extra))
+        hooks_message: str | None = None
+        hooks_path: str | None = None
         if not args.dry_run:
+            if moved_agents_rel:
+                for note in register_migrated_agents(target, moved_agents_rel):
+                    print(f"[agents-mode] {note}")
+            if args.install_hooks:
+                hooks_message = install_hooks(target)
+                if hooks_message and hooks_message.startswith("已设置"):
+                    hooks_path = ".githooks"
+            elif (target / ".githooks" / "pre-push").is_file() and is_git_repo(target):
+                code, out = git_output(target, ["config", "--get", "core.hooksPath"])
+                if code != 0 or out != ".githooks":
+                    print()
+                    print("WARN: .githooks/pre-push 已生成但未生效（core.hooksPath 未指向 .githooks）")
+                    print("      运行 `git config core.hooksPath .githooks`，或重新 init 时加 --install-hooks")
             write_manifest(
                 target,
                 kit_root,
@@ -573,16 +877,28 @@ def main(argv: list[str] | None = None) -> int:
                     "testCommand": test_command,
                     "adapters": adapters,
                     "branch": subs["DEFAULT_BRANCH"],
+                    "branchSource": branch_source,
+                    "agentsMode": args.agents_mode,
+                    "hooksPath": hooks_path,
                 },
                 actions=actions,
                 created=created,
                 skipped=skipped,
+                subs=subs,
             )
         if args.dry_run:
             print()
             print(f"dry-run: {len(created)} file(s) would be written; nothing changed")
             return 0
-        write_summary(target, args.profile, created, skipped)
+        write_summary(
+            target,
+            args.profile,
+            created,
+            skipped,
+            agents_mode=args.agents_mode,
+            moved_agents_rel=moved_agents_rel,
+            hooks_message=hooks_message,
+        )
         if "Makefile.harness" in created:
             print()
             print("NOTE: target already had a Makefile. Add this line to it:")

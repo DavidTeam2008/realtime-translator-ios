@@ -124,7 +124,8 @@ python3 harness-kit/scripts/harness-adopt --target ../legacy-app --report ../har
 python3 harness-kit/scripts/harness-adopt --target ../legacy-app --json   # 机器可读
 ```
 
-- 关注：语言/构建探测、文档索引缺口与断链、被跟踪构建产物、绝对符号链接、本机路径、大文件。
+- 关注：语言/构建探测、文档索引缺口与断链、被跟踪构建产物、绝对符号链接、本机路径、大文件；以及 v0.5.2 新增的**接入诊断**：根 AGENTS 是否超预算、当前分支 vs 仓库默认分支、测试命令的「可执行探测」（只跑 `--version`，**不等于**已验证）、按语言判定的 `.gitignore` 缺失项。
+- 报告末尾的「下一步」会直接给出带入 init 的 flags（`--default-branch` / `--agents-mode move` / `--install-hooks`），照抄即可。
 - 退出信号：exit 0 = 盘点完成；exit 1 = 用法错误/目标不存在。默认 0 写入（只有 `--report` 写你指定文件）。
 - 回滚：删除报告文件即可。
 
@@ -141,11 +142,17 @@ cd ../legacy-app && git status --short    # 必须干净
 ### ③ scaffold（`harness-init`，不碰既有文档）
 
 ```bash
-python3 harness-kit/scripts/harness-init --profile standard --target ../legacy-app --dry-run
-python3 harness-kit/scripts/harness-init --profile standard --target ../legacy-app
+python3 harness-kit/scripts/harness-init --profile standard --target ../legacy-app --dry-run \
+  --test-command "<宿主实跑通过的测试命令>" --default-branch main \
+  --agents-mode move --install-hooks
+python3 harness-kit/scripts/harness-init ...   # 复核 dry-run 后去掉 --dry-run 执行
 ```
 
 - 约束：init 对已存在文件默认 `CONFLICT` 不覆盖；目标已有 `Makefile` 时写 `Makefile.harness`（不改原文件）。
+- `--agents-mode`：`replace`（无 AGENTS 时生成模板）/ `keep`（保留现有，预算门禁可能红）/ `move`（`git mv` 到 `docs/legacy-agents.md`，保留历史并自动登记 config 白名单 + docs 索引）。存量 AGENTS 超预算时用 `move`。
+- `--default-branch`：在 feature 分支接入时必填（默认探测 `origin/HEAD`），否则 CI 会锁死在 feature 分支。
+- `--install-hooks`：直接设置 `core.hooksPath=.githooks`；不加时 init 会明确 WARN「pre-push 未生效」。
+- 含双引号/反斜杠的 `--test-command` 会自动 JSON 转义并在写盘前回读校验（K01）。
 - init 后可生成改造计划草稿：`python3 harness-kit/scripts/harness-adopt --target ../legacy-app --write-plan`（输出 `<target>/harness/plans/<DATE>-adopt-harness.md`，已存在则拒绝覆盖；需 `harness/plans/` 已存在）。
 - 退出信号：0 = 生成并首次 `make check` 通过；1 = 用法/冲突；其他非 0 = 首次 check 失败（按提示修）。
 - 回滚：先读 dry-run 计划；失败时删除本次新增的未跟踪文件/目录，或 `git checkout -- .`（`--force` 会先备份）。
@@ -197,6 +204,7 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 - 归档只读盘点报告：`python3 harness-kit/scripts/harness-adopt --target . --archive-report <报告路径>`（只复制到 `harness/reports/adoption-<YYYY-MM-DD>.md`，拒绝覆盖，不重扫）。
 - 生成评分卡草稿：`make scorecard`（`harness/reviews/<date>-scorecard.md`；自评 / 独立复评分列）。
 - 负向注入自检：`make selftest`（证明门禁会红；需要 clean tree）。
+- 完成前统一跑 `make verify-all`（= `verify-static` + `verify-claim`；standard/strict）；`verify-static` 只覆盖静态门禁，**不含**证据三值判定。
 - 未验证项清零，或写计划「未验证豁免」表（理由 / 负责人 / 到期日）后归档。
 
 ### ⑧ 冷启动首访验收
@@ -213,6 +221,10 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 4. **本机路径泄漏**：home 目录路径、设备 ID、Team 不要入库；`check_agents.py` 扫到即清，不要加白名单绕过。
 5. **升级没有 in-place 命令**：版本升级与 profile 升级都是「临时渲染新版 → 逐文件 diff → 人工合并」；版本升级已在 Android/Gradle 存量仓验证（v0.2.2→v0.2.3），profile 升级（minimal→standard→strict）仍未验证。
 6. **profile 选择**：统一口径——存量仓库**默认 `standard`**（计划 + 证据 + CI）；`minimal` 只适合先立规则；`strict`（adapters / red-team / release-check）必须由用户**显式选择并写清理由**，报告里的备选不自动采用。
+7. **存量 AGENTS 超预算**：模板已瘦身（约 730 tokens / 预算 1200），但老仓 AGENTS 仍可能数倍于预算；用 `--agents-mode move` 迁移并保留历史，不要直接调高预算或删规则了事。
+8. **首次证据死锁**：JUnit artifact 天然让工作树 dirty；v0.5.2 起证据目录下的待提交产物默认豁免（WARN），其他目录用 `--allow-untracked-under`。不要长期靠 `.git/info/exclude` 绕过且不记录。
+9. **自动探测不是验证**：adopt 的 `--version` 探测只证明程序存在；测试命令必须在宿主实跑，Node 24 的 `node --test` 对无扩展名 TS 相对导入会 `ERR_MODULE_NOT_FOUND`，优先 `tsx --test` / 项目 `scripts.test`。
+10. **仓库当前分支≠默认分支**：在 feature 分支接入后，merge 到 main 的 CI 可能不再触发；init 会探测 `origin/HEAD`，接入后用 `python3 tools/harness.py status` 检查 manifest 分支漂移。
 
 ## 常见坑
 

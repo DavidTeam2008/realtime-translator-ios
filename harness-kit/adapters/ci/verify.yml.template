@@ -1,6 +1,8 @@
 # {{PROJECT_NAME}} · GitHub Actions 静态门禁（由 harness-kit 渲染）
 # 只跑 Python 标准库静态链路，不需要项目运行时或测试框架；
 # 动态测试（项目测试 / 设备 / 集成）请在项目自己的 CI 里单独加。
+# 分支说明：push 只在默认分支触发（init 探测 origin/HEAD，可用 --default-branch 覆盖）；
+# pull_request 不限制来源/目标分支，避免在 feature 分支上接入时 CI 永久失联。
 name: verify
 
 on:
@@ -8,8 +10,7 @@ on:
     branches:
       - {{DEFAULT_BRANCH}}
   pull_request:
-    branches:
-      - {{DEFAULT_BRANCH}}
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -14,7 +14,7 @@ KIT = Path(__file__).resolve().parents[1]
 FORBIDDEN = re.compile(r"(?i)duiyi|对译|TranslationSession|SwiftData|DuiyiTests")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 # Top-level kit docs whose relative links must resolve inside the kit.
-KIT_DOCS = ("README.md", "SPEC.md", "docs/playbook.md", "docs/adoption.md", "docs/agent-prompts.md", "docs/governance.md", "docs/why.md")
+KIT_DOCS = ("README.md", "SPEC.md", "docs/playbook.md", "docs/adoption.md", "docs/agent-prompts.md", "docs/governance.md", "docs/why.md", "docs/cases/fcnsystem-adoption.md")
 ALLOWED_DUIYI_FILES = {"README.md"}  # origin-case section only
 
 

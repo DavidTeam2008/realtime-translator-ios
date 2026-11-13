@@ -6,6 +6,7 @@
   python3 tools/evidence.py validate [--root PATH]
   python3 tools/evidence.py write --claim NAME --from-json <FILE|-> [--root PATH]
   python3 tools/evidence.py write --from-json <FILE|-> [--root PATH]   # claim 取自 JSON
+       [--allow-untracked-under PATH ...]   # 额外豁免「待提交产物」（证据目录已默认豁免）
 
 根目录 = 脚本上级目录（tools/ 的父目录）；--root 可覆盖。配置唯一来源
 <root>/harness/config.json；证据格式由 <root>/harness/evidence/schema.json 定义
@@ -15,7 +16,9 @@
   - 证据文件名为 `<id>.json`，id 形如 `20260101T000000Z-<claim>`；`id` 必须等于
     文件名 stem；`claim` 必须已声明在 config.claims。
   - `write` 自动填 id / createdAt / git.commit / git.dirty / verifier（覆盖输入里的
-    同名字段）；工作树必须 clean，否则拒绝写入（dirty 证据不可判 PASS）。
+    同名字段）；工作树必须 clean，否则拒绝写入（dirty 证据不可判 PASS）。**证据目录例外**：
+    `<paths.evidence>/` 下的未跟踪/已修改文件自动豁免（JUnit artifact 与待写 JSON 正是
+    待提交产物），只输出 WARN；其他目录可用 `--allow-untracked-under PATH` 显式豁免。
   - `write` 必须用 `--from-json` 提供 command / result / environment / verdict 等
     业务字段；不支持空文档静默补全。
   - `validate` 只扫描文件名符合证据 id 的文件；`TEMPLATE.json` / `schema.json` /
@@ -84,6 +87,16 @@ def pop_option(args: list[str], name: str) -> str | None:
             del args[index]
             return value
     return None
+
+
+def pop_options(args: list[str], name: str) -> list[str]:
+    """取出可重复的多值选项（`--name value` / `--name=value`）。"""
+    values: list[str] = []
+    while True:
+        value = pop_option(args, name)
+        if value is None:
+            return values
+        values.append(value)
 
 
 # ── 配置 ─────────────────────────────────────────────────────────────────
@@ -414,7 +427,22 @@ def read_payload(source: str) -> dict:
     return payload
 
 
-def cmd_write(root: Path, config: dict, claim_arg: str | None, source: str | None) -> int:
+def normalize_exempt(value: str, *, option: str) -> str:
+    """Normalize an exemption path: repo-relative, no absolute path / '..'."""
+    path = Path(str(value).strip())
+    if not str(path) or path.is_absolute() or ".." in path.parts:
+        fail(f"{option} 需要仓库内相对路径（无 ..）：{value!r}", 2)
+    return path.as_posix().rstrip("/")
+
+
+def cmd_write(
+    root: Path,
+    config: dict,
+    claim_arg: str | None,
+    source: str | None,
+    *,
+    allow_under: list[str] | None = None,
+) -> int:
     if not source:
         fail("write 需要 --from-json <FILE|->（提供 command/result/environment/verdict 等字段）")
     payload = read_payload(source)
@@ -432,8 +460,28 @@ def cmd_write(root: Path, config: dict, claim_arg: str | None, source: str | Non
     if changed is None:
         fail("读取 git status 失败")
     if changed:
-        preview = "、".join(sorted(changed)[:5]) + ("…" if len(changed) > 5 else "")
-        fail(f"工作树不 clean（{len(changed)} 个改动：{preview}）；先提交/清理后再写证据")
+        # K02：证据目录下的未跟踪/修改文件就是待提交产物，默认豁免；其余目录须显式豁免或先提交。
+        exempt = [evidence_rel(root, evidence_dir(root, config))]
+        exempt += [normalize_exempt(item, option="--allow-untracked-under") for item in allow_under or []]
+
+        def is_exempt(path: str) -> bool:
+            return any(path == item or path.startswith(item + "/") for item in exempt if item)
+
+        remaining = sorted(path for path in changed if not is_exempt(path))
+        exempted = sorted(path for path in changed if is_exempt(path))
+        if exempted:
+            preview = "、".join(exempted[:5]) + ("…" if len(exempted) > 5 else "")
+            print(
+                f"[WARN] 豁免 {len(exempted)} 个待提交产物（证据目录 / --allow-untracked-under）："
+                f"{preview}；证据写入后请 git add 并提交"
+            )
+        if remaining:
+            preview = "、".join(remaining[:5]) + ("…" if len(remaining) > 5 else "")
+            fail(
+                f"工作树不 clean（{len(remaining)} 个改动：{preview}）；先提交/清理后再写证据。"
+                "可先 `git add` 相关文件，或用 --allow-untracked-under <path> 豁免待提交产物"
+                f"（证据目录 {exempt[0]} 已默认豁免）"
+            )
     commit = git_sha(root, "HEAD")
     if commit is None:
         fail("无法解析 HEAD 提交（仓库还没有 commit？）")
@@ -463,6 +511,7 @@ def main(argv: list[str]) -> int:
     root, args = parse_cli(argv)
     claim_arg = pop_option(args, "--claim")
     source = pop_option(args, "--from-json")
+    allow_under = pop_options(args, "--allow-untracked-under")
     if not args or args[0] in ("-h", "--help", "help"):
         print(__doc__)
         return 0 if args else 2
@@ -479,8 +528,12 @@ def main(argv: list[str]) -> int:
         return cmd_validate(root, config)
     if command == "write":
         if rest:
-            fail(f"用法：evidence.py write --claim NAME --from-json <FILE|->（未知参数：{' '.join(rest)}）", 2)
-        return cmd_write(root, config, claim_arg, source)
+            fail(
+                "用法：evidence.py write --claim NAME --from-json <FILE|-> "
+                f"[--allow-untracked-under PATH]（未知参数：{' '.join(rest)}）",
+                2,
+            )
+        return cmd_write(root, config, claim_arg, source, allow_under=allow_under)
     print(__doc__)
     return 2
 

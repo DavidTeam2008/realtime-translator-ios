@@ -62,6 +62,7 @@
     "check-plan-strict",
     "verify-static",
     "verify-claim",
+    "verify-all",
     "release",
     "release-check",
     "doctor",

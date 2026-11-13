@@ -2,7 +2,10 @@
 # 由 harness-kit {{KIT_VERSION}} 渲染；路径 / 命令 / 预算的唯一来源是 harness/config.json。
 # 目标已有 Makefile 时本文件被写成 Makefile.harness，请在原 Makefile 末尾加：include Makefile.harness
 
-.PHONY: help status start verify handoff release check check-plan-strict check-evidence check-host verify-static verify-claim plan release selftest upgrade-check scorecard
+# 门禁工具是 Python 标准库脚本：禁止写 __pycache__（K13 / 运行卫生）
+export PYTHONDONTWRITEBYTECODE := 1
+
+.PHONY: help status start verify handoff release check check-plan-strict check-evidence check-host verify-static verify-claim verify-all plan release selftest upgrade-check scorecard
 
 help: ## 显示可用目标
 	@echo "{{PROJECT_NAME}} · harness 目标"
@@ -49,10 +52,13 @@ upgrade-check: ## 只读检查 kit 升级项（需要 KIT_ROOT 指向 kit 克隆
 scorecard: ## 生成/刷新评分卡草稿（harness/reviews/<date>-scorecard.md）
 	@python3 tools/scorecard.py --generate
 
-verify-static: check check-plan-strict check-evidence check-host ## 本地静态门禁（含证据、宿主检查与计划严格校验）
+verify-static: check check-plan-strict check-evidence check-host ## 本地静态门禁（计划严格校验 + 证据 schema + 宿主；不含证据三值判定）
+	@echo "[INFO] verify-static 不含证据三值判定；完成声明 / PR 前请运行 make verify-claim 或 make verify-all"
 
-verify-claim: ## 证据三值判定（PASS / FAIL / UNVERIFIED）
+verify-claim: ## 证据三值判定（PASS / FAIL / UNVERIFIED；完成声明前必跑）
 	@python3 tools/verify_claim.py --all
+
+verify-all: verify-static verify-claim ## 完整本地验证（静态门禁 + 证据三值判定；完成声明 / PR 前推荐）
 
 release: ## 发布前检查：严格计划 + fresh 证据（standard 分级）
 	@python3 tools/harness.py release --check

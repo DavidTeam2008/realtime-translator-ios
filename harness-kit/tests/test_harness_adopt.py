@@ -399,9 +399,106 @@ class HarnessAdoptTests(unittest.TestCase):
         self.assertFalse(recommendation["testCommandExecutable"])
         self.assertIn("未找到", recommendation["testCommandProbe"])
         report = self.invoke("--test-command", "missing-program-xyz --flag").stdout
-        self.assertIn("探测结果", report)
-        self.assertIn("已验证命令", report)
+        self.assertIn("可执行探测", report)
+        self.assertIn("未验证（smoke=not-run）", report)
         self.assertIn("使用命令", report)
+        # K04：探测（--version）不能被称为「已验证命令」
+        self.assertNotIn("已验证命令", report)
+
+    # ── K03 / K04 / K05 / K06 / K11（存量接入反馈）─────────────────
+    def _git_repo(self, name: str) -> Path:
+        target = self.tmp / name
+        target.mkdir(parents=True)
+        write(target / "README.md", "# Demo\n")
+        run(["git", "init", "-q"], cwd=target)
+        git(target, "config", "user.name", "kit-test")
+        git(target, "config", "user.email", "kit-test@example.invalid")
+        git(target, "add", "-A")
+        git(target, "commit", "-q", "-m", "init")
+        return target
+
+    def test_probe_is_not_a_verified_command(self) -> None:
+        """K04：--version 探测不能被报告/JSON 宣称成「已验证命令」。"""
+        proc = self.invoke("--json")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertEqual("not-run", recommendation["testCommandSmoke"])
+        self.assertTrue(recommendation["testCommandProbeOnly"])
+        self.assertNotIn("testCommandVerified", recommendation)
+        report = self.invoke().stdout
+        self.assertNotIn("已验证命令", report)
+
+    def test_agents_assessment_recommends_move_for_oversized_agents(self) -> None:
+        """K03：盘点要给出 AGENTS 超预算诊断与 move 迁移命令。"""
+        target = self._git_repo("agents-over")
+        write(target / "AGENTS.md", "规则。" * 700)  # ≈1400 tokens > 默认预算 1200
+        git(target, "add", "-A")
+        git(target, "commit", "-q", "-m", "big agents")
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        data = json.loads(proc.stdout)
+        agents = data["overview"]["agents"]
+        self.assertTrue(agents["overBudget"])
+        self.assertGreater(agents["overBy"], 0)
+        self.assertEqual("move", agents["recommendedMode"])
+        report = self.invoke(target=target).stdout
+        self.assertIn("## AGENTS 迁移建议", report)
+        self.assertIn("--agents-mode move", report)
+        self.assertIn("--agents-archive-path", report)
+
+    def test_default_branch_drift_is_detected(self) -> None:
+        """K05：当前在 feature 分支、默认分支是 main 时要提示 --default-branch。"""
+        target = self._git_repo("branch-drift")
+        run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=target)
+        run(
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"],
+            cwd=target,
+        )
+        run(["git", "checkout", "-q", "-b", "feature/x"], cwd=target)
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        data = json.loads(proc.stdout)
+        self.assertEqual("main", data["overview"]["git"]["defaultBranch"])
+        self.assertTrue(data["overview"]["git"]["branchDrift"])
+        self.assertTrue(any("--default-branch main" in step for step in data["nextSteps"]))
+        report = self.invoke(target=target).stdout
+        self.assertIn("当前分支与默认分支不一致", report)
+
+    def test_untracked_docs_index_counts_as_present(self) -> None:
+        """K06：git 未跟踪但磁盘存在的 docs/README.md 不能报「缺失」。"""
+        target = self._git_repo("untracked-index")
+        write(target / "docs" / "README.md", "# Docs index\n\n- [Guide](guide.md)\n")
+        write(target / "docs" / "guide.md", "# Guide\n")
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        docs = json.loads(proc.stdout)["docs"]
+        self.assertTrue(docs["hasIndex"])
+        self.assertFalse(docs["hasIndexTracked"])
+
+    def test_gitignore_expectations_are_language_aware(self) -> None:
+        """K11：Node 项目不应被建议补 .build/、*.xcresult 等 Swift 条目。"""
+        target = self._git_repo("node-ignore")
+        write(target / "package.json", json.dumps({"name": "node-app"}))
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        missing = json.loads(proc.stdout)["hygiene"]["gitignoreMissing"]
+        self.assertIn("node_modules/", missing)
+        self.assertNotIn(".build/", missing)
+        self.assertNotIn("*.xcresult", missing)
+        self.assertNotIn("DerivedData/", missing)
+
+    def test_node_typescript_suggestion_avoids_bare_node_test(self) -> None:
+        """K04 真实触发条件：有 tsx 依赖时建议 tsx --test，而不是 node --test。"""
+        target = self._git_repo("node-tsx")
+        write(
+            target / "package.json",
+            json.dumps({"name": "node-app", "devDependencies": {"tsx": "^4.19.0"}}),
+        )
+        proc = self.invoke("--json", target=target)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        recommendation = json.loads(proc.stdout)["recommendation"]
+        self.assertIn("tsx --test", recommendation["testCommandSuggested"])
+        self.assertIn("ERR_MODULE_NOT_FOUND", recommendation["testCommandSource"])
 
     def test_profile_guidance_defaults_to_standard(self) -> None:
         proc = self.invoke("--json")
@@ -475,8 +572,9 @@ class HarnessAdoptTests(unittest.TestCase):
         self.assertIn(".venv/bin/python", probe)
         self.assertIn("候选探测通过", recommendation["testCommandSource"])
         report = self.invoke(target=target).stdout
-        self.assertIn("探测结果", report)
-        self.assertIn("已验证命令", report)
+        self.assertIn("可执行探测", report)
+        self.assertIn("未验证（smoke=not-run）", report)
+        self.assertNotIn("已验证命令", report)
 
     def test_archive_report_sanitizes_local_paths(self) -> None:
         report = self.tmp / "leaky-report.md"

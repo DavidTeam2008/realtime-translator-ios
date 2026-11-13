@@ -13,8 +13,9 @@
 
 ```bash
 make check          # 文档 / 指令 / 计划静态门禁
-make verify-static  # 再加证据 schema 校验
+make verify-static  # 再加证据 schema 校验（不含证据三值判定）
 make verify-claim   # 已有证据的三值判定（PASS / FAIL / UNVERIFIED）
+make verify-all     # 完整本地验证 = verify-static + verify-claim（完成声明前推荐；standard+）
 ```
 
 任何一步失败：先修门禁，不要为“变绿”删检查、放宽 skip 或改写既有断言。
