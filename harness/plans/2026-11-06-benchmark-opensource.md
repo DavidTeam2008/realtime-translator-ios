@@ -687,30 +687,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-Phase 5.26 的本地改动（22 个文件，待用户确认后提交）：
-
-- `harness/plans/2026-11-06-benchmark-opensource.md`
-- `harness-kit/CHANGELOG.md`
-- `harness-kit/adapters/manifest.json`
-- `harness-kit/adapters/gitattributes/export-ignore.append`
-- `harness-kit/README.md`
-- `harness-kit/SPEC.md`
-- `harness-kit/docs/adoption.md`
-- `harness-kit/docs/playbook.md`
-- `harness-kit/docs/why.md`
-- `harness-kit/core/config.schema.json`
-- `harness-kit/core/templates/HARNESS.md.template`
-- `harness-kit/core/templates/harness/config.json.template`
-- `harness-kit/core/tools/check_agents.py`
-- `harness-kit/core/tools/check_docs.py`
-- `harness-kit/core/tools/check_plan.py`
-- `harness-kit/core/tools/evidence.py`
-- `harness-kit/docs/governance.md`
-- `harness-kit/scripts/harness-init`
-- `harness-kit/tests/test_core_docs_agents_doctor.py`
-- `harness-kit/tests/test_core_plan_evidence_claim.py`
-- `harness-kit/tests/test_kit_hygiene.py`
-- `harness-kit/tests/test_kit_profiles.py`
+- 无未提交改动（kit v0.5.2 改动已提交：a094e25；待用户确认 push/发版）。
 
 ## 下一步
 
@@ -736,7 +713,7 @@ Phase 5.26 的本地改动（22 个文件，待用户确认后提交）：
 20. kit `v0.5.0`（入口 skill 优先）**已发版**（iOS CI run `43054971279` / `43055990364` success；镜像 main `1bdf2ac` + tag `v0.5.0`；镜像 CI run `43056158044` success；tag clone 275 tests OK；`kit-drift` in sync）：`--scope user` 一次安装（`~/.agents/skills`）替代提示词粘贴；A/B 后置（v0.5.x）；DSH 插件不做。
 21. 待用户决定：barra 等已接入仓的 v0.4→v0.5 迁移按 playbook「v0.4.0 → v0.5.0 升级自检」处理（用户 2026-11-11 选择先不动）。
 22. kit `v0.5.1`（入口安装默认覆盖 Claude Code + slash 调用说明）**已发版**（iOS CI run `43160375148` success；镜像 main `a4b0065` + tag `v0.5.1`；镜像 CI run `43160494234` success；tag clone 275 tests OK；`kit-drift` in sync）。
-23. kit `v0.5.2` 改动已在工作区（284 tests PASS；`check_plan --strict` 输出修复 + token 预算补强 + 文档漂移修正），待用户确认后提交；发版沿用既有序列（提交 → clean marker → push → iOS CI → kit-publish → annotated tag → 镜像 CI → tag clone 验证 → 记录 → clean marker → push → final CI）。
+23. kit `v0.5.2` 改动已提交（`a094e25`：`check_plan --strict` 输出修复 + token 预算补强 + skill 优先文档 + `gitattributes` 打包排除；kit **285 tests**、`make verify-static` PASS；`.gitattributes` export-ignore 已用 `git archive` 实测），待用户确认后 push 并发版（后续沿用：iOS CI → kit-publish → annotated tag → 镜像 CI → tag clone 验证 → 记录 → clean marker → push → final CI）。
 
 ## 待确认
 
