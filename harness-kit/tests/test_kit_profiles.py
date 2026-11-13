@@ -76,7 +76,12 @@ class HarnessInitProfileTests(unittest.TestCase):
                 )
                 self.assertEqual(proc.returncode, 0, f"{profile} init failed:\n{proc.stdout}\n{proc.stderr}")
                 self.assertIn("post-init check: PASS", proc.stdout)
+                # v0.5.2 反馈通道：init 收尾提示 + 渲染后的根 AGENTS 都写明上游 issue 入口。
+                self.assertIn("harness-engineering-kit/issues", proc.stdout)
                 self.assertTrue((target / "AGENTS.md").is_file())
+                agents_text = (target / "AGENTS.md").read_text(encoding="utf-8")
+                self.assertIn("harness-engineering-kit/issues", agents_text)
+                self.assertIn("kit 自身缺陷", agents_text)
                 self.assertTrue((target / "harness" / "config.json").is_file())
                 config = json.loads((target / "harness" / "config.json").read_text(encoding="utf-8"))
                 instructions = config["instructions"]
@@ -93,6 +98,7 @@ class HarnessInitProfileTests(unittest.TestCase):
                 )
                 self.assertIn("（余 ", checked.stdout)
                 self.assertIn("nestedMaxTokens=1000", checked.stdout)
+                self.assertIn("token 预算：AGENTS.md ≈", checked.stdout)
                 if profile in ("standard", "strict"):
                     self.assertTrue((target / "harness" / "plans" / "_template.md").is_file())
                     self.assertTrue((target / "tools" / "verify_claim.py").is_file())

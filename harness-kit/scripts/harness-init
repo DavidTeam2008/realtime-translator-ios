@@ -703,6 +703,9 @@ def write_summary(
         "then just ask the agent to adopt/work:"
     )
     print("     <kit>/scripts/harness-skill install --scope user")
+    print("  9. kit 自身缺陷/文档不一致：附 VERSION + profile + 命令/退出码 + 最小复现，向")
+    print("     https://github.com/DavidTeam2008/harness-engineering-kit/issues 提 issue；")
+    print("     不要在宿主仓改 tools/ 门禁绕过（升级会覆盖）。")
 
 
 def build_parser() -> argparse.ArgumentParser:

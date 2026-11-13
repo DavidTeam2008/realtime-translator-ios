@@ -1,6 +1,6 @@
 ---
 name: harness
-description: Harness Engineering 项目管理入口（接入 / 升级 / 接手 / 计划 / 验证 / 评审 / 发布 / 交接）。未接入的仓库先走 adopt：定位 kit → 只读盘点 → dry-run → init；已接入先运行 python3 tools/harness.py status。触发：用 harness-kit 接入或改造存量项目、接手项目、建计划、完成前验证、发布前检查、交接、升级 kit。
+description: Harness Engineering 项目管理入口（接入 / 升级 / 接手 / 计划 / 验证 / 评审 / 发布 / 交接 / 反馈 kit 问题）。未接入的仓库先走 adopt：定位 kit → 只读盘点 → dry-run → init；已接入先运行 python3 tools/harness.py status。触发：用 harness-kit 接入或改造存量项目、接手项目、建计划、完成前验证、发布前检查、交接、升级 kit、反馈 kit 缺陷或文档不一致。
 license: MIT
 compatibility: 已接入仓库用仓库内工具（tools/harness.py）；未接入仓库用 kit 脚本（kit 位置见用户级 install.json、仓内/父目录 harness-kit/，或问用户一次）。
 metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.5.0}
@@ -35,6 +35,7 @@ metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.5.0}
 | 发布 / 安全检查 / 性能 | `references/release.md`（`release --check`） |
 | 交接 / 换 Agent / 多 Agent 分工 | `references/collaborate.md`（`handoff`） |
 | 升级 harness-kit | `references/upgrade.md` |
+| 反馈 kit 缺陷 / 文档不一致 / 需要新能力 | `references/feedback.md` |
 
 ## 2. 硬约束（不可协商）
 
@@ -42,6 +43,7 @@ metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.5.0}
 - **证据**：没有证据不写“已完成/已验证”；未运行写“未验证 + 手动步骤”。test-count PASS 需要可重算 artifact（JUnit XML），**证据 JSON 与 artifact 都必须 git 入库**；归档证据不参与判定。
 - **归档**：`_archive` 计划/证据是历史快照，不是当前状态；没有 active 计划时先读 status/handoff 的归档回读，再决定新建计划。
 - **门禁**：`make check` / `harness.py verify` 红了先修根因；不删除、不弱化、不绕过门禁。
+- **反馈上游**：kit 自身缺陷/文档不一致先按 `references/feedback.md` 交回上游（<https://github.com/DavidTeam2008/harness-engineering-kit/issues>）；不改宿主 `tools/` 或 kit 模板来绕过（升级会覆盖）。
 - **问人**：push、发布、删除、改规则/门禁、`--force` 覆盖前先问。
 - **单一状态源**：计划与证据是仓库文件；不把进度只留在对话里。
 - **不装 skill 也能工作**：skill 只是入口；所有事实与流程都在仓库文件和 kit 文档里。

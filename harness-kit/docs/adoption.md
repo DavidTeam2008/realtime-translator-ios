@@ -213,6 +213,28 @@ git archive HEAD | tar t | grep -E '^(harness/|tools/|HARNESS\.md)' \
 
 > 若希望源码包仍能跑 `make check`，从块里删掉 `/tools/ export-ignore`（门禁脚本需要）。该块只影响发布归档，不影响仓库内容与日常开发。
 
+### 3.6 遇到 kit 问题：反馈上游
+
+kit 只承诺结构与门禁层；**kit 自身的缺陷、模板/JSON 渲染异常、文档与行为不一致**不应由宿主就地绕过，而是交回上游修。
+
+| 现象 | 归属 | 动作 |
+| --- | --- | --- |
+| init / adopt / 门禁脚本报错、结果不可信、模板或 JSON 渲染坏 | kit 缺陷 | 按下面清单开 issue |
+| 文档与行为不一致（命令跑不通、字段/路径变了） | 文档缺陷 | 开 issue；能定位就直接向上游提 PR |
+| 未登记文档、测试命令不真实、环境/签名/CI 平台差异 | 宿主侧 | 宿主内修，不占 kit issue |
+| kit 未承诺能力（不跑测试、不解析测试输出、不做代码迁移） | kit 边界 | 先读 README「局限与未验证」 |
+| 想加 profile / 门禁 / 场景 | 需求建议 | 开 issue 并附真实失败案例 |
+
+**必附信息**：kit `VERSION`（或宿主 `.harness-manifest.json` 的 `kitVersion`）、profile、宿主语言/构建、**命令原文 + 退出码 + 关键输出**、期望 vs 实际、最小复现（空白临时仓 `harness-init` 步骤，或一个最小 commit / 精简片段）。脱敏后再贴（不贴密钥/Token、宿主私有代码、本机绝对路径）。
+
+**提交地址**：<https://github.com/DavidTeam2008/harness-engineering-kit/issues>（公开镜像仓受理 issue；镜像只读，修复在来源仓完成后随版本发布）。
+
+**修好之后回流**：`harness-upgrade --check/--plan` → 按 [playbook](playbook.md) 的「版本升级」只回写 kit 管理面 → 重装入口 skill → `make verify-static` 复核 → 把结论回写 issue。
+
+**不要**：为绕过缺陷改宿主仓里的 kit 门禁脚本/模板（升级会覆盖，同类问题会扩散到下一个宿主）；宿主自己的 `commands` / `claims` / `budgets` 配置不受此限。
+
+> 反馈入口也是 kit 的演化输入：真实 issue 会沉淀成案例（如 [fcnsystem 案例](cases/fcnsystem-adoption.md)）与回归用例；Agent 侧流程见入口 skill 的 `references/feedback.md`。
+
 ## 4. 按 Agent 能力分层（不绑定具体产品）
 
 | 层 | 做什么 | 备注 |
@@ -337,6 +359,7 @@ cd /path/to/your-project                             # 在目标仓库根目录�
 | 项目交接 | [§18 交接](agent-prompts.md#18-项目交接换人--换-agent) |
 | 结束项目 / 阶段 | [§19 结束项目](agent-prompts.md#19-结束项目--阶段done--归档) |
 | 完成声明（任意任务） | [§20 完成声明](agent-prompts.md#20-完成声明附加到任意任务末尾) |
+| 反馈 kit 问题 | [§23 反馈 kit 问题](agent-prompts.md#23-反馈-kit-问题缺陷--文档不一致--需求) |
 
 ## 7. 真实案例：接入前后五子系统评分
 
@@ -387,7 +410,7 @@ Next.js 16 + React 19 + TypeScript + pnpm + MySQL 的存量仓库，standard 档
 | 边界 | 业务代码零改动（`src/`、`package.json` 未改）；project 自有文档保留在项目内 |
 | 未验证 | 远端是 Gitee，GitHub Actions 未触发；scorecard 仅自评；hygiene/layers 未配置 |
 
-反哺 kit 的修复（v0.5.2 未发布）：K01 JSON 安全渲染 + 回读校验、K02 证据目录豁免、K03 `AGENTS.md` 模板瘦身（1172→约 730 tokens）+ `--agents-mode`、K04 adopt 探测语义（`smoke=not-run`）、K05 默认分支探测 + `--default-branch` + CI PR 触发、K08 `verify-all`/提示、K10 `--install-hooks`、K11 语言相关 `.gitignore`、K16 rename 审计、K17 非 ASCII 路径（已并入）；K06/K07/K09/K12/K13/K15 同步修正或登记。完整问题映射与复盘见 [案例：fcnsystem 存量接入](cases/fcnsystem-adoption.md)。
+反哺 kit 的修复（v0.5.2）：K01 JSON 安全渲染 + 回读校验、K02 证据目录豁免、K03 `AGENTS.md` 模板瘦身（1172→约 730 tokens）+ `--agents-mode`、K04 adopt 探测语义（`smoke=not-run`）、K05 默认分支探测 + `--default-branch` + CI PR 触发、K08 `verify-all`/提示、K10 `--install-hooks`、K11 语言相关 `.gitignore`、K16 rename 审计、K17 非 ASCII 路径（已并入）；K06/K07/K09/K12/K13/K15 同步修正或登记。完整问题映射与复盘见 [案例：fcnsystem 存量接入](cases/fcnsystem-adoption.md)。
 
 > 口径声明：这是接入方视角的单次样本（1 个项目、1 个技术栈）；分数与结论外推需谨慎。该仓的接入反馈报告在其仓库 `harness/reports/harness-kit-adoption-feedback.md`。
 
@@ -427,3 +450,6 @@ A：Agent 接入通常 10 分钟到 1–2 天（文档蒸馏与清洁占大头�
 
 **Q：和"多写几个 skill / 多加几条规则"的区别？**
 A：kit 的原则是**能机检的不写进指令**、规则必须对应真实失败、指令有 token 预算。规则越多不等于越安全——详见 [governance](governance.md)。
+
+**Q：用 kit 时遇到 bug 或文档不一致，怎么反馈？**
+A：见 §3.6：附 kit 版本、profile、命令与退出码、期望/实际、最小复现，向镜像仓 issues 提交；不要把宿主仓里的 kit 门禁改掉绕过（升级会覆盖）。

@@ -20,7 +20,10 @@ ALLOWED_DUIYI_FILES = {"README.md"}  # origin-case section only
 
 class NoProjectSpecificRefsTests(unittest.TestCase):
     def scan_dirs(self) -> list[Path]:
-        roots = [KIT / "core", KIT / "adapters", KIT / "profiles", KIT / "scripts", KIT / "prompts", KIT / "skills"]
+        roots = [
+            KIT / "core", KIT / "adapters", KIT / "profiles", KIT / "scripts",
+            KIT / "prompts", KIT / "skills", KIT / ".github",
+        ]
         files: list[Path] = []
         for root in roots:
             if not root.exists():
@@ -107,6 +110,29 @@ class NoProjectSpecificRefsTests(unittest.TestCase):
                 if not (path.parent / local).exists():
                     missing.append(f"{rel}: broken link {target}")
         self.assertEqual([], missing)
+
+    def test_feedback_channel_consistent(self) -> None:
+        """v0.5.2：宿主可见的反馈入口必须指向同一个公开 issue 地址，且 issue 模板存在。"""
+        url = "https://github.com/DavidTeam2008/harness-engineering-kit/issues"
+        rels = (
+            "README.md",
+            "SPEC.md",
+            "docs/adoption.md",
+            "skills/harness/SKILL.md",
+            "skills/harness/references/feedback.md",
+            "prompts/feedback.md",
+            "scripts/harness-init",
+            "scripts/harness-adopt",
+            "core/templates/AGENTS.md.template",
+        )
+        for rel in rels:
+            text = (KIT / rel).read_text(encoding="utf-8")
+            self.assertIn(url, text, f"{rel} 缺少统一的 kit 反馈入口")
+        template = KIT / ".github" / "ISSUE_TEMPLATE" / "kit-feedback.yml"
+        self.assertTrue(template.is_file(), "镜像仓 issue 模板缺失")
+        template_text = template.read_text(encoding="utf-8")
+        for key in ("kit 版本", "profile 与宿主技术栈", "命令与退出码", "期望 vs 实际", "最小复现"):
+            self.assertIn(key, template_text)
 
     def test_readme_origin_section(self) -> None:
         readme = KIT / "README.md"

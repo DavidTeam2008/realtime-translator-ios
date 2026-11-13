@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased — 2026-11-13
+## 0.5.2 — 2026-11-13
 
 > 来源：kit v0.5.1 行为核对 + token 约束复盘 + **fcnsystem 存量接入反馈（K01–K17）**。
-> 主题：**门禁输出可信 + 预算覆盖完整 + 存量接入不再踩坑**。
+> 主题：**门禁输出可信 + 预算覆盖完整 + 存量接入不再踩坑 + 宿主机问题可回流上游**。
 
 ### 修复
 
@@ -51,6 +51,22 @@
   `git archive` 与 GitHub Source zip 自动排除；`harness-init` 适配器支持 append 语义
   （manifest 记录 appends），重复 init 幂等；adoption 增加 git / npm / Docker / Python / Xcode
   的发布排除食谱。不改目录布局，已接入仓零迁移。
+
+### 反馈通道（宿主 → kit 上游）
+
+- 入口 skill 新增反馈场景：`skills/harness/references/feedback.md`（分诊 kit 缺陷/文档不一致/宿主侧/
+  需求建议、必附信息、公开镜像仓 issue 地址、修复后回流、禁止绕过门禁）；`SKILL.md` 的路由表、
+  硬约束与 description 同步。
+- 宿主可见入口：根 `AGENTS.md` 模板 §6、`harness-init` 收尾「下一步」、`harness-adopt` 报告末尾与
+  JSON `feedback` 字段、`docs/adoption.md` §3.6 + FAQ、README「反馈与贡献」。
+- 镜像仓：新增 `.github/ISSUE_TEMPLATE/kit-feedback.yml`（随 subtree 发布），结构化收集类型/版本/
+  profile/命令/期望/最小复现/脱敏确认。
+- 提示词兜底：新增 `prompts/feedback.md`（第 20 个场景，`stage: both` 不拼 0A/0B），
+  `docs/agent-prompts.md` 重新生成；§21 场景表改为先收集所有 task 行再插入（编号 > 21 的场景也进表）。
+- 治理闭环：governance 与 fcnsystem 案例补充「反馈 → 案例 → 回归用例」链路；清单与口径以
+  [adoption §3.6](docs/adoption.md#36-遇到-kit-问题反馈上游) 为真源。
+- 测试：kit 304 → **308**（反馈场景 stage-agnostic、§21 表覆盖小编号、adopt 报告/JSON 反馈入口、
+  各宿主可见面 URL 一致性、SKILL 反馈场景）。
 
 ### 文档
 

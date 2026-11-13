@@ -57,6 +57,8 @@ WALK_FILE_LIMIT = 5000
 # kit 模板默认预算（core/templates/harness/config.json.template）；用于存量 AGENTS 迁移建议。
 DEFAULT_AGENTS_BUDGET = 1200
 DEFAULT_AGENTS_ARCHIVE = "docs/legacy-agents.md"
+# kit 问题反馈入口（公开镜像仓受理 issue；镜像只读，修复回上游后随版本发布）。
+FEEDBACK_URL = "https://github.com/DavidTeam2008/harness-engineering-kit/issues"
 
 BUILD_DIRS = (
     "build", "dist", "target", "node_modules", ".build", "DerivedData",
@@ -937,6 +939,18 @@ def collect_inventory(
         },
         "nextSteps": next_steps,
         "writePlan": {"written": False, "path": None},
+        "feedback": {
+            "url": FEEDBACK_URL,
+            "include": [
+                "kitVersion",
+                "profile",
+                "宿主语言/构建",
+                "命令原文 + 退出码 + 关键输出（脱敏）",
+                "期望 vs 实际",
+                "最小复现",
+            ],
+            "note": "只在确认是 kit 缺陷/文档不一致时提交；宿主侧问题先在宿主内修。脱敏后再贴。",
+        },
     }
     return data
 
@@ -1054,6 +1068,14 @@ def render_markdown(data: dict) -> str:
         "## 下一步",
         "",
         *[f"- [ ] {step}" for step in data["nextSteps"]],
+        "",
+        "## 反馈 kit 问题",
+        "",
+        f"- kit 缺陷 / 文档与行为不一致：附 kitVersion（{data['kitVersion']}）、profile、"
+        "命令原文与退出码、最小复现，向 "
+        f"<{data['feedback']['url']}> 提 issue（脱敏后再贴）。",
+        "- 宿主侧问题（文档未登记 / 测试命令 / 环境差异）先在宿主内修；不要改宿主 tools/ 门禁绕过"
+        "（升级会覆盖，问题会扩散）。",
         "",
     ]
     return "\n".join(lines)

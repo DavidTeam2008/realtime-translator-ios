@@ -46,6 +46,7 @@ STAGE_LABELS = {
     "partial": "部分接入",
     "mismatch": "manifest 与实际安装不一致",
     "adopted": "已接入",
+    "both": "接入或已接入",
     "any": "附加",
 }
 MANIFEST_NAME = ".harness-manifest.json"
@@ -133,8 +134,10 @@ def load_prompts(kit_root: Path) -> list[dict]:
             raise PromptError(f"{path.name}: kind must be 'task' or 'addon', got {kind!r}")
         if stage not in STAGE_LABELS:
             raise PromptError(f"{path.name}: stage must be one of {sorted(STAGE_LABELS)}, got {stage!r}")
-        if kind == "task" and stage not in ("unadopted", "adopted"):
-            raise PromptError(f"{path.name}: task prompts must declare stage unadopted or adopted")
+        if kind == "task" and stage not in ("unadopted", "adopted", "both"):
+            raise PromptError(
+                f"{path.name}: task prompts must declare stage unadopted, adopted or both"
+            )
         if kind == "addon" and stage != "any":
             raise PromptError(f"{path.name}: addon prompts must declare stage: any")
         if kind == "task":
@@ -162,7 +165,8 @@ def load_prompts(kit_root: Path) -> list[dict]:
             )
         preamble = "none"
         if kind == "task":
-            preamble = "adoption" if stage == "unadopted" else "adopted"
+            # both = 接入阶段与日常使用都适用（如 kit 问题反馈）；不自动拼 0A/0B，模板自包含。
+            preamble = {"unadopted": "adoption", "adopted": "adopted"}.get(stage, "none")
         prompts.append({
             "id": prompt_id,
             "title": meta["title"],
@@ -258,11 +262,13 @@ def section_note(prompt: dict) -> str:
     copy_cmd = f"<kit>/scripts/harness-prompt copy {prompt['id']}"
     if prompt["kind"] == "addon":
         return f"> 用法：附加片段，贴到任务末尾（不单独使用）· 复制：`{copy_cmd}`"
-    stage = "未接入" if prompt["stage"] == "unadopted" else "已接入"
-    preamble = (
-        "CLI 自动拼 0B（含 kit 路径与只读约束）；手工复制请先贴 §0B" if prompt["preamble"] == "adoption"
-        else "CLI 自动拼 0A；手工复制请先贴 §0A"
-    )
+    stage = STAGE_LABELS[prompt["stage"]]
+    if prompt["preamble"] == "adoption":
+        preamble = "CLI 自动拼 0B（含 kit 路径与只读约束）；手工复制请先贴 §0B"
+    elif prompt["preamble"] == "adopted":
+        preamble = "CLI 自动拼 0A；手工复制请先贴 §0A"
+    else:
+        preamble = "无（模板自包含，接入/日常均可用）"
     replace = "、".join(f"`<{key}>`" for key in prompt["placeholders"]) or "无"
     if not prompt["placeholders"] and prompt["stage"] == "unadopted":
         replace = "无占位符（命令示例参数按第 2 步结论替换）"
@@ -284,7 +290,14 @@ def render_doc(kit_root: Path) -> str:
 
     by_number = {prompt["number"]: prompt for prompt in prompts}
     max_number = max(by_number)
-    table_rows: list[str] = []
+    # 先收集全部 task 行，再在 §21 处插入：编号 21 之后的场景（如反馈场景）也必须在表里。
+    table_rows = [
+        "| {short} | {returns} | {fail_signal} |".format(
+            short=prompt["short"], returns=prompt["returns"], fail_signal=prompt["fail_signal"],
+        )
+        for number in range(1, max_number + 1)
+        if (prompt := by_number.get(number)) is not None and prompt["kind"] == "task"
+    ]
     for number in range(1, max_number + 1):
         if number == 21:
             blocks.append(
@@ -302,11 +315,6 @@ def render_doc(kit_root: Path) -> str:
         blocks.append(f"## {number}. {prompt['title']}")
         blocks.append(section_note(prompt))
         blocks.append(fence(doc_text(prompt["body"], prompt["placeholders"])))
-        if prompt["kind"] == "task":
-            row = "| {short} | {returns} | {fail_signal} |".format(
-                short=prompt["short"], returns=prompt["returns"], fail_signal=prompt["fail_signal"],
-            )
-            table_rows.append(row)
     return "\n\n".join(blocks).rstrip("\n") + "\n"
 
 
@@ -442,7 +450,7 @@ def target_warnings(prompt: dict, target: Path, kit_root: Path) -> list[str]:
             f"[WARN] 当前目标仓库是 kit 克隆目录（{target}）；请用 --target 指向你的项目，"
             "或先 cd 到目标仓库根目录再运行。"
         )
-    if prompt["kind"] != "task":
+    if prompt["kind"] != "task" or prompt["stage"] == "both":
         return warnings
     actual, missing = detect_target_stage(target, kit_root)
     if actual == prompt["stage"]:
@@ -686,7 +694,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     list_parser = sub.add_parser("list", help="list prompt ids (grouped, with stage)")
-    list_parser.add_argument("--stage", choices=("all", "unadopted", "adopted", "addon"), default="all")
+    list_parser.add_argument(
+        "--stage", choices=("all", "unadopted", "adopted", "both", "addon"), default="all"
+    )
     list_parser.add_argument("--json", action="store_true", help="machine-readable output")
     list_parser.add_argument("--kit", help="kit root (default: script parent parent)")
     list_parser.add_argument("--target", default=".", help="target repository (default: cwd)")

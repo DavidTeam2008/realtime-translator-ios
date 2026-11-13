@@ -20,7 +20,7 @@ SCRIPT = KIT / "scripts" / "harness-prompt"
 PROMPTS = KIT / "prompts"
 DOC = KIT / "docs" / "agent-prompts.md"
 PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
-STAGE_LABELS = {"unadopted", "adopted", "any"}
+STAGE_LABELS = {"unadopted", "adopted", "both", "any"}
 REQUIRED = ("id", "title", "short", "number", "group", "stage", "kind", "when")
 
 
@@ -81,7 +81,7 @@ class PromptSourceTests(unittest.TestCase):
         return sorted(path for path in PROMPTS.glob("*.md") if not path.name.startswith("_"))
 
     def test_front_matter_and_placeholders(self) -> None:
-        self.assertEqual(21, len(self.prompt_files()), "expected 19 task + 2 addon prompt files")
+        self.assertEqual(22, len(self.prompt_files()), "expected 20 task + 2 addon prompt files")
         ids: set[str] = set()
         numbers: set[int] = set()
         for path in self.prompt_files():
@@ -92,7 +92,7 @@ class PromptSourceTests(unittest.TestCase):
             self.assertIn(meta["stage"], STAGE_LABELS, f"{path.name}: bad stage")
             self.assertIn(meta["kind"], {"task", "addon"}, f"{path.name}: bad kind")
             if meta["kind"] == "task":
-                self.assertIn(meta["stage"], {"unadopted", "adopted"}, f"{path.name}: task stage")
+                self.assertIn(meta["stage"], {"unadopted", "adopted", "both"}, f"{path.name}: task stage")
                 self.assertTrue(meta.get("returns"), f"{path.name}: task needs returns")
                 self.assertTrue(meta.get("fail_signal"), f"{path.name}: task needs fail_signal")
             else:
@@ -133,7 +133,7 @@ class PromptDocTests(unittest.TestCase):
             self.assertIn(f"## {prompt['number']}. {prompt['title']}", doc)
             if prompt["kind"] == "task":
                 self.assertIn(f"| {prompt['short']} |", doc, f"missing table row for {prompt['id']}")
-        self.assertEqual(21, doc.count("\n| "), "scenario table header + rows")
+        self.assertEqual(22, doc.count("\n| "), "scenario table header + rows")
 
     def test_doc_has_usage_and_preambles(self) -> None:
         doc = DOC.read_text(encoding="utf-8")
@@ -176,11 +176,12 @@ class PromptCliTests(unittest.TestCase):
         inventory = json.loads(run_prompt(["list", "--json"]).stdout)
         prompts = inventory["prompts"]
         by_id = {prompt["id"]: prompt for prompt in prompts}
-        self.assertEqual(21, len(prompts))
-        self.assertEqual(19, sum(1 for prompt in prompts if prompt["kind"] == "task"))
+        self.assertEqual(22, len(prompts))
+        self.assertEqual(20, sum(1 for prompt in prompts if prompt["kind"] == "task"))
         self.assertEqual(2, sum(1 for prompt in prompts if prompt["kind"] == "addon"))
         self.assertEqual(2, sum(1 for prompt in prompts if prompt["stage"] == "unadopted"))
         self.assertEqual(17, sum(1 for prompt in prompts if prompt["stage"] == "adopted"))
+        self.assertEqual(1, sum(1 for prompt in prompts if prompt["stage"] == "both"))
         self.assertEqual("adopt-brownfield", prompts[1]["id"])
 
     def test_list_grouped_and_filtered(self) -> None:
@@ -286,6 +287,33 @@ class PromptCliTests(unittest.TestCase):
             adopted_warning = run_prompt(["show", "adopt-new", "--target", str(adopted)])
             self.assertEqual(0, adopted_warning.returncode)
             self.assertIn("看起来已接入", adopted_warning.stderr)
+
+    def test_feedback_scenario_is_stage_agnostic(self) -> None:
+        """v0.5.2: feedback 用 stage=both，接入/未接入都不拼 0A/0B、也不给阶段 WARN。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = Path(tmp) / "empty"
+            empty.mkdir()
+            unadopted = run_prompt(["show", "feedback", "--target", str(empty)])
+            self.assertEqual(0, unadopted.returncode, unadopted.stderr)
+            self.assertNotIn("前置｜", unadopted.stdout)
+            self.assertNotIn("看起来未接入", unadopted.stderr)
+            self.assertIn("harness-engineering-kit/issues", unadopted.stdout)
+            adopted = make_adopted_target(Path(tmp) / "adopted")
+            adopted_run = run_prompt(["show", "feedback", "--target", str(adopted)])
+            self.assertEqual(0, adopted_run.returncode, adopted_run.stderr)
+            self.assertNotIn("前置｜", adopted_run.stdout)
+            self.assertNotIn("看起来已接入", adopted_run.stderr)
+            listed = run_prompt(["list", "--stage", "both"])
+            self.assertIn("feedback", listed.stdout)
+            self.assertNotIn("fix-bug", listed.stdout)
+
+    def test_doc_scenario_table_includes_late_numbered_tasks(self) -> None:
+        """§21 表必须先收齐 task 行再插入：编号 > 21 的 task 场景也进表。"""
+        doc = DOC.read_text(encoding="utf-8")
+        table_start = doc.index("## 21. ")
+        table_end = doc.index("## 22. ")
+        rows = doc[table_start:table_end]
+        self.assertIn("| 反馈 kit 问题 |", rows)
 
     def test_show_warns_when_target_is_kit_dir(self) -> None:
         process = run_prompt(["show", "fix-bug"])

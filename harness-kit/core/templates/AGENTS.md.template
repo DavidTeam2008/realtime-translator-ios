@@ -41,3 +41,5 @@
 ## 6. 维护
 
 本文件只写定位与约束，不复制细则；结构或命令变化时同步更新本文件与 `{{HARNESS_DIR}}/config.json`。
+
+- kit 自身缺陷或文档不一致：收集 kit `VERSION`、profile、命令与退出码、最小复现，向 <https://github.com/DavidTeam2008/harness-engineering-kit/issues> 提 issue；不要改 `tools/` 门禁绕过（升级会覆盖）。

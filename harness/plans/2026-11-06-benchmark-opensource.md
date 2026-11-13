@@ -491,6 +491,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.16：kit `v0.2.9` 发版完成：README 主入口改为 Agent 接入指南 + 提示词模板；adoption 重排（Agent 接入 → 命令行手动接入）；新增 agent-prompts.md（8 类场景模板 + 场景对照表）；kit **122 tests**；镜像 `main` `9ecf13f` + tag `v0.2.9`（CI run `42846710435` success）、`kit-drift` in sync；iOS CI run `42846540918` success
 - [x] Phase 5.17：kit `v0.2.10` 发版完成：README 接入路径上移 + 命令内联 + 导航拆分；agent-prompts 19 类场景模板（发布前/对抗性评审等）；整体审查修复（SPEC/schema/锚点/路径/版本一致性）；kit **122 tests**；镜像 `main` `c80fb69` + tag `v0.2.10`（CI run `42854494726` success）、`kit-drift` in sync；iOS CI run `42854316813` success
 - [x] Phase 5.18：kit `v0.2.11` 发版完成：`prompts/` 单源 + `harness-prompt` CLI（list/show/copy/render；按场景拼前置、路径填充、阶段 WARN、剪贴板回退）；agent-prompts 改为生成物；接入模板修复（kit 路径/0A-0B/尖括号）；独立审计两轮后复验通过；kit **140 tests**；镜像 `main` `52e1ad7` + tag `v0.2.11`（CI run `42863127498` success）、`kit-drift` in sync；iOS CI run `42862894694` success
+- [x] Phase 5.28（本地完成，待提交，2026-11-13）：**宿主机问题 → kit 上游的反馈通道**（用户需求：接入了 harness-kit 的项目遇到问题时能提 issue，且要显式告知宿主）。落地：①入口 skill 新增 `references/feedback.md`（分诊 kit 缺陷/文档不一致/宿主侧/需求建议、必附信息、公开镜像仓 issue 地址、修复后回流、禁止绕过门禁），`SKILL.md` 路由表/硬约束/description 同步；②`harness-prompt` 支持 `stage: both`（不拼 0A/0B、不因目标阶段给 WARN），新增 `prompts/feedback.md`（第 20 个场景），`docs/agent-prompts.md` 重新生成，§21 场景表改为先收齐 task 行再插入（编号 > 21 的场景也进表）；③宿主可见入口：根 `AGENTS.md` 模板 §6（渲染后 731→796/1200 tokens）、`harness-init` 收尾第 9 条、`harness-adopt` 报告「## 反馈 kit 问题」与 JSON `feedback` 字段、`docs/adoption.md` §3.6 + FAQ、README「反馈与贡献」；④镜像仓 `.github/ISSUE_TEMPLATE/kit-feedback.yml`（随 subtree 发布）；⑤治理闭环：governance 与 fcnsystem 案例补「反馈 → 案例 → 回归用例」，SPEC/CHANGELOG 同步。验收：kit **308 tests PASS**（+4：反馈 stage-agnostic、§21 表覆盖小编号、adopt 反馈入口、宿主可见面 URL 一致性、SKILL 反馈场景）；三档 init smoke（AGENTS 796/1200 + summary 第 9 条）；adopt 报告/JSON 含反馈段；`harness-prompt show feedback` 无前置且 render --check 一致；iOS 侧 `make verify-static` PASS。用户确认后做 v0.5.2 定版（VERSION `0.5.1`→`0.5.2`、CHANGELOG `Unreleased`→`0.5.2`、README/SPEC/why/adoption/案例的版本与「未发布」口径同步），并按发布序列：提交 → push → iOS CI → `kit-publish` → annotated tag `v0.5.2` → 镜像 CI → tag clone 验证 → `kit-drift` → 记录回本计划。
 - [x] Phase 5.27（已提交 92b9584，2026-11-13）：**fcnsystem 存量接入反馈（K01–K17）收口 + 真实案例沉淀**——接入方报告在其仓 `harness/reports/harness-kit-adoption-feedback.md`（17 条，5 条 P1）。落地：①K01 JSON 安全渲染（`.json` 模板按 `json.dumps` 转义 + 写盘前 `json.loads` 回读校验，含引号/反斜杠测试命令）；②K02 证据目录豁免（首次写证据不再 clean-tree 死锁，`--allow-untracked-under`，错误信息给 git add 解法）；③K03 `AGENTS.md` 模板 1172→≈730 tokens，`harness-init --agents-mode replace|keep|move`（move 保留 git 历史 + 自动登记 config 白名单与 docs 索引），adopt 输出 AGENTS tokens/预算诊断与迁移命令；④K04 adopt 探测语义（改称「可执行探测」、`smoke=not-run`；Node/TS 优先 tsx 并提示 `ERR_MODULE_NOT_FOUND`）；⑤K05/K14 默认分支 `origin/HEAD` 探测 + `--default-branch` + CI `pull_request` 不限分支 + `harness.py status` 检测 manifest 分支漂移；⑥K08 `verify-static` 显式提示未跑三值判定 + 新增 `verify-all`（= static + claim，fresh init 仍可绿）；⑦K10 `--install-hooks` + status 检查 `core.hooksPath`；⑧K11 `.gitignore` 按语言生成 + 已有行去重（adopt 缺失项同口径）；⑨K16 scope 审计 rename 配对（普通删除仍拦截）、K17 补 `verify_claim.changed_paths -z`；K06/K07/K09/K12/K13/K15 同步修正/复核（K12 已满足、K13 Makefile `PYTHONDONTWRITEBYTECODE`）。⑩案例沉淀：新增 `docs/cases/fcnsystem-adoption.md`（接入过程、17 条问题 → 修复映射、可复用结论），adoption §2.2.1/案例 C、playbook 七步法与存量坑、README/SPEC/CHANGELOG/skill reference 同步。验收：kit **304 tests PASS**；iOS 侧 `make verify-static` PASS（91 tools + 304 kit + 文档/架构/计数/计划/证据/adapters）；fcnsystem 只读复跑 adopt 实测新诊断（feature/fcn vs main 漂移、AGENTS 1179/1200、tsx 建议）。已提交 92b9584；发版仍按用户决定「项目稳定后再发」。
 - [x] Phase 5.26（已提交并 push，2026-11-13）：kit `v0.5.2` 第一批——审计 v0.5.1 行为时发现三类问题并修复：①`check_plan check --strict` 归档计划只有 WARN 时误打 `[FAIL]` 头（汇总/退出码仍 PASS），改为 `[WARN]` 头，docstring/SPEC 同步为「error 级问题升 FAIL（warn 不阻断）」；②token 约束缺口：`check_docs`/`check_agents` 逐文件输出 used/budget/remain（超预算输出超出量），模板 `budgets` 纳入 `docs/README.md`(≈1000) 与 `HARNESS.md`(standard/strict，≈1500)，新增可选 `instructions.nestedMaxTokens`(默认 1000，`nestedMaxBytes` 保留)，`evidence.py validate` 对 >3KB 证据 WARN（不阻断，汇总显示 warn 数）；③修正 README/governance 与模板预算常量漂移（旧写「模板默认 1650/950–1000」，实际 1200/700；1650/975 标注为来源案例数值），加回归测试防再漂移；④文档重排为 skill 优先：`docs/adoption.md` 重写为「装 skill → 接入 → 按场景使用 → 硬约束 → 手动/兜底」，新增场景路由表与任务循环，README 入口顺序改为先装 skill。 ⑤打包排除（方案 A 落地）：新增 opt-in 适配器 `gitattributes`（`--adapters gitattributes` 向 `.gitattributes` 追加 `export-ignore` 块，覆盖 `/harness/`、`/tools/`、`/HARNESS.md`、`/.harness-manifest.json`），`harness-init` 适配器支持 append 语义（manifest 记录 appends、重复 init 幂等），`git archive`/GitHub Source zip 实测排除；adoption 增加 git/npm/Docker/Python/Xcode 打包排除食谱（不改目录布局、已接入仓零迁移）。验收：kit **285 tests PASS**；三档 init 的 config/`make check` 通过且输出逐文件余量；`make verify-static` PASS；新增回归用例（strict 归档 WARN 头、逐文件用量、嵌套 token 正/负/输出、3KB WARN、预算文档一致性、profile 渲染断言）。
 - [x] Phase 5.25（**已发版**，2026-11-12）：kit `v0.5.1` 入口安装默认覆盖 Claude Code——用户反馈 Claude Code skill 列表无 `harness`：v0.5.0 的 `--scope user` 默认只装 `~/.agents/skills`（DSH 读），而 Claude Code 只读 `~/.claude/skills`；改为用户级默认 agent `agents,claude-code`（一次安装写两个根，`--agent` 可单独指定）；单测断言两根存在/卸载同时清理；文档补充 slash 调用方式（DSH/Qoder CN/Claude Code 输入框有「技能」补全，`/harness` 显式加载确定性更强，自然语言点名是兜底）。验收：kit **275 tests PASS**；`make verify-static` PASS；本机 `install --scope user --force` 后 `check --scope user` in sync（agents, claude-code）。**已发版**：源提交 `aa35b33` + `98d4811`；iOS CI run `43160375148` success；镜像 main `a4b0065`；annotated tag `v0.5.1`（tag object `aad588d` → `a4b0065`）；镜像 CI run `43160494234` success；tag clone VERSION `0.5.1` / 275 tests OK / `render --check` OK；`make kit-drift` in sync。
@@ -688,9 +689,37 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.5.2 第二批已提交：92b9584；与第一批 be48b04/a094e25/d6c3f6c 一起待用户确认 push/发版）。
+Phase 5.28（反馈通道 + v0.5.2 定版，本地完成待提交；23 个文件，含本计划）：
+- `harness/plans/2026-11-06-benchmark-opensource.md`
+- `harness-kit/VERSION`
+- `harness-kit/.github/ISSUE_TEMPLATE/kit-feedback.yml`
+- `harness-kit/CHANGELOG.md`
+- `harness-kit/README.md`
+- `harness-kit/SPEC.md`
+- `harness-kit/core/templates/AGENTS.md.template`
+- `harness-kit/docs/adoption.md`
+- `harness-kit/docs/agent-prompts.md`
+- `harness-kit/docs/cases/fcnsystem-adoption.md`
+- `harness-kit/docs/governance.md`
+- `harness-kit/docs/why.md`
+- `harness-kit/prompts/feedback.md`
+- `harness-kit/scripts/harness-adopt`
+- `harness-kit/scripts/harness-init`
+- `harness-kit/scripts/harness-prompt`
+- `harness-kit/skills/harness/SKILL.md`
+- `harness-kit/skills/harness/references/feedback.md`
+- `harness-kit/tests/test_harness_adopt.py`
+- `harness-kit/tests/test_harness_skill.py`
+- `harness-kit/tests/test_kit_hygiene.py`
+- `harness-kit/tests/test_kit_profiles.py`
+- `harness-kit/tests/test_kit_prompts.py`
 
 ## 本批提交
+
+Phase 5.28 / kit v0.5.2 定版（本地完成，待提交）：宿主机问题 → kit 上游反馈通道——入口 skill `feedback`
+场景、`stage: both` 提示词场景、根 AGENTS/init summary/adopt 报告与 JSON/adoption §3.6/README 的反馈入口、
+镜像仓 issue 模板；`VERSION` 升 `0.5.2`、CHANGELOG 定版；kit **308 tests**；23 个文件，均为
+`harness-kit/` 内变更（含本计划），不改 iOS 业务代码。
 
 Phase 5.27：fcnsystem 接入反馈 K01–K17 的 kit 侧修复 + 案例文档 + 回归测试（37 个文件；
 新增 `harness-kit/docs/cases/`），提交 92b9584。本轮不改 iOS 业务代码、不动 iOS 自身 harness 门禁。
@@ -719,8 +748,12 @@ Phase 5.27：fcnsystem 接入反馈 K01–K17 的 kit 侧修复 + 案例文档 +
 20. kit `v0.5.0`（入口 skill 优先）**已发版**（iOS CI run `43054971279` / `43055990364` success；镜像 main `1bdf2ac` + tag `v0.5.0`；镜像 CI run `43056158044` success；tag clone 275 tests OK；`kit-drift` in sync）：`--scope user` 一次安装（`~/.agents/skills`）替代提示词粘贴；A/B 后置（v0.5.x）；DSH 插件不做。
 21. 待用户决定：barra 等已接入仓的 v0.4→v0.5 迁移按 playbook「v0.4.0 → v0.5.0 升级自检」处理（用户 2026-11-11 选择先不动）。
 22. kit `v0.5.1`（入口安装默认覆盖 Claude Code + slash 调用说明）**已发版**（iOS CI run `43160375148` success；镜像 main `a4b0065` + tag `v0.5.1`；镜像 CI run `43160494234` success；tag clone 275 tests OK；`kit-drift` in sync）。
-23. kit `v0.5.2` 第一批已提交并 push（`be48b04` / `a094e25` / `d6c3f6c`，`origin/main` 已同步：`check_plan --strict` 输出修复 + token 预算补强 + skill 优先文档 + `gitattributes` 打包排除；当时 kit **285 tests**）。用户决定：**先 push，等项目稳定后再发版**（发版序列仍为 iOS CI → kit-publish → annotated tag → 镜像 CI → tag clone 验证 → 记录 → clean marker → push → final CI）。
-24. kit `v0.5.2` 第二批已提交（`92b9584`，Phase 5.27）：fcnsystem 存量接入反馈 K01–K17 全部处置（JSON 安全渲染、证据目录豁免、AGENTS 模板瘦身 + `--agents-mode`、adopt 探测语义、默认分支探测、`verify-all`、`--install-hooks`、语言相关 gitignore、rename/非 ASCII 审计、status 漂移告警），新增案例文档 `docs/cases/fcnsystem-adoption.md`；kit **304 tests**。与第一批一起**待用户确认 push**；发版仍按「项目稳定后再发」。（PR #1 已 MERGED，merge commit 即 be48b04。）
+23. kit `v0.5.2` 第一批已提交并 push（`be48b04` / `a094e25` / `d6c3f6c`，`origin/main` 已同步至 `c3c6e0e`：`check_plan --strict` 输出修复 + token 预算补强 + skill 优先文档 + `gitattributes` 打包排除；当时 kit **285 tests**）。用户决定：**先 push，等项目稳定后再发版**（发版序列仍为 iOS CI → kit-publish → annotated tag → 镜像 CI → tag clone 验证 → 记录 → clean marker → push → final CI）。
+24. kit `v0.5.2` 第二批已提交并 push（`92b9584` / `c3c6e0e`，Phase 5.27；`origin/main` = `c3c6e0e`，CI run `43448101058` success）：fcnsystem 存量接入反馈 K01–K17 全部处置（JSON 安全渲染、证据目录豁免、AGENTS 模板瘦身 + `--agents-mode`、adopt 探测语义、默认分支探测、`verify-all`、`--install-hooks`、语言相关 gitignore、rename/非 ASCII 审计、status 漂移告警），新增案例文档 `docs/cases/fcnsystem-adoption.md`；kit **304 tests**。发版仍按「项目稳定后再发」。（PR #1 已 MERGED，merge commit 即 be48b04。）
+
+25. kit `v0.5.2` 第三批（Phase 5.28，本地完成待提交）：宿主机问题 → kit 上游反馈通道已落地（skill `feedback`
+    场景 + `stage: both` 提示词 + 根 AGENTS/init/adopt/adoption/README/issue 模板）；kit **308 tests**；
+    待用户确认后提交；发版仍等「项目稳定」。
 
 ## 待确认
 

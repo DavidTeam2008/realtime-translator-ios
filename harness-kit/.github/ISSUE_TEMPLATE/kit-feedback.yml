@@ -1,0 +1,63 @@
+name: kit 问题反馈
+description: 反馈 harness-kit 自身的缺陷、文档与行为不一致，或提出新能力需求（接入/升级/门禁场景）
+title: "[kit] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。这个仓库是只读镜像，issue 在这里受理；修复在来源仓完成后随版本发布。
+        提交前请脱敏：不要贴密钥/Token、宿主私有代码、本机绝对路径（用 `<repo>` 代替）。
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 类型
+      options:
+        - kit 缺陷（脚本/模板/门禁）
+        - 文档与行为不一致
+        - 需求建议（附真实失败案例）
+        - 不确定，需要分诊
+    validations:
+      required: true
+  - type: input
+    id: kit-version
+    attributes:
+      label: kit 版本
+      description: <kit>/VERSION，或宿主 .harness-manifest.json 的 kitVersion
+      placeholder: 0.5.1
+    validations:
+      required: true
+  - type: input
+    id: profile
+    attributes:
+      label: profile 与宿主技术栈
+      placeholder: standard + Node/pnpm；minimal + Python
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: 命令与退出码
+      description: 复现命令原文 + exit code + 关键输出（脱敏后）
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: 期望 vs 实际
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 最小复现
+      description: 空白临时仓 harness-init 步骤，或一个最小 commit / 精简后的文件片段
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 已移除密钥/Token、宿主私有代码与本机绝对路径
+          required: true
+        - label: 已用当前版本复现，并确认不是宿主侧责任（文档未登记/测试命令/环境差异）
+          required: true

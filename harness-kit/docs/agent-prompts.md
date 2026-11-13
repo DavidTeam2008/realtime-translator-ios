@@ -393,6 +393,7 @@ cd /path/to/your-project
 | 结束会话 | 计划更新、brief 摘要、5 行交接 | 只在聊天里说“做完了” |
 | 项目交接 | 5 问交接摘要、可 clone 复现 | 依赖对话历史才能接手 |
 | 结束项目 | done/submitted、证据 id、归档、最终报告 | 无证据宣布完成 |
+| 反馈 kit 问题 | 可粘贴的 issue 草稿（版本/环境/命令/期望/最小复现）与是否已提交 | 改宿主仓的 kit 门禁绕过，或未确认就对外发 issue |
 
 ## 22. 可选附加约束（按需粘贴）
 
@@ -404,4 +405,17 @@ cd /path/to/your-project
 - 小步提交：每个可验证点一个提交，提交信息跟仓库语言。
 - 不联网 / 不安装依赖：环境不可用就写“未验证”。
 - 每步汇报：命令、exit code、证据 id、下一步。
+```
+
+## 23. 反馈 kit 问题（缺陷 / 文档不一致 / 需求）
+
+> 阶段：接入或已接入 · 前置：无（模板自包含，接入/日常均可用） · 需替换：`<KIND>` · 复制：`<kit>/scripts/harness-prompt copy feedback`
+
+```text
+处理 kit 自身问题的反馈（类型：<KIND>）。先分诊，再产出 issue 草稿，不要替用户直接发布：
+1) 分诊：kit 缺陷 / 文档不一致 / 宿主侧问题 / 需求建议。宿主侧问题（文档未登记、测试命令不真实、环境差异）先在宿主内修，不占 kit issue；kit 未承诺能力（不跑测试、不解析测试输出）先读 kit README 的「局限与未验证」。
+2) 收集最小信息：kit 版本（`<kit>/VERSION` 或 `.harness-manifest.json` 的 kitVersion）、profile、宿主技术栈、复现命令原文 + 退出码 + 关键输出（脱敏）、期望 vs 实际、最小复现（空白临时仓 init 或一个最小 commit）。
+3) 输出一份可直接粘贴的 issue 草稿：标题 `[缺陷|文档|需求] 一句话现象`，正文按上面的信息分段；提交地址 <https://github.com/DavidTeam2008/harness-engineering-kit/issues>（公开镜像仓受理，镜像只读）。
+4) 对外动作先问：建议用户确认后再提交；修复发布后按升级流程回流——`<kit>/scripts/harness-upgrade --check/--plan` → 只回写 kit 管理面 → 重装入口 skill → `make verify-static` 复核。
+禁止：改宿主 `tools/` / kit 模板绕过缺陷（升级会覆盖）；删除或弱化门禁。
 ```

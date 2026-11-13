@@ -194,8 +194,11 @@ class HarnessAdoptTests(unittest.TestCase):
         self.assertLess(elapsed, 5.0, "inventory should be fast")
         self.assertEqual(before, snapshot(self.target), "default run must not modify the target")
         report = proc.stdout
-        for heading in ("## 概览", "## 文档盘点", "## 卫生盘点", "## 建议", "## 下一步"):
+        for heading in (
+            "## 概览", "## 文档盘点", "## 卫生盘点", "## 建议", "## 下一步", "## 反馈 kit 问题",
+        ):
             self.assertIn(heading, report)
+        self.assertIn("harness-engineering-kit/issues", report)
         for expected in (
             "NOTES.md",             # root markdown outside the documented entry set
             "docs/extra.md",        # doc missing from docs/README.md index
@@ -221,9 +224,10 @@ class HarnessAdoptTests(unittest.TestCase):
         data = json.loads(proc.stdout)
         for key in (
             "target", "kitVersion", "generatedAt", "readOnly",
-            "overview", "docs", "hygiene", "recommendation", "nextSteps", "writePlan",
+            "overview", "docs", "hygiene", "recommendation", "nextSteps", "writePlan", "feedback",
         ):
             self.assertIn(key, data)
+        self.assertIn("harness-engineering-kit/issues", data["feedback"]["url"])
         self.assertTrue(data["readOnly"])
         self.assertIn("android", data["overview"]["languages"])  # build.gradle → android
         self.assertEqual("./gradlew testDebugUnitTest", data["recommendation"]["testCommand"])

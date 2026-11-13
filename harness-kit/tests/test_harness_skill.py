@@ -259,6 +259,17 @@ class SkillContentTests(unittest.TestCase):
         for path in refs:
             self.assertNotIn("Duiyi", path.read_text(encoding="utf-8"))
 
+    def test_skill_has_feedback_scenario(self) -> None:
+        """v0.5.2：kit 问题反馈是入口 skill 的正式场景，含上游 issue 与「对外先问」。"""
+        base = KIT / "skills" / "harness"
+        skill = (base / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("references/feedback.md", skill)
+        self.assertIn("反馈上游", skill)
+        feedback = (base / "references" / "feedback.md").read_text(encoding="utf-8")
+        self.assertIn("harness-engineering-kit/issues", feedback)
+        self.assertIn("不要替用户直接发布", feedback)
+        self.assertIn("不要做", feedback)
+
 
 if __name__ == "__main__":
     unittest.main()

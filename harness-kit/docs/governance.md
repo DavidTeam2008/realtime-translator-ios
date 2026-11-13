@@ -42,6 +42,7 @@ kit 的应对不是"写得更多"，而是**把约束尽量变成可执行的门
 - 真实 Android/Gradle 存量仓（brownfield 七步法）：文档蒸馏 → 宿主传感器 → JUnit 证据链 → 负向注入 → 计划归档。
 - 版本升级试验：v0.2.2→v0.2.3 在真实仓完成，其中**宿主 fork 的脚本被上游化并删除**（`check_plan` / `check_hygiene` / `check_layers`）——这是"删除优先"的实例。
 - 门禁自测发现的真实退化：历史清洗把门禁里的本机路径模式改成 `/local/`，`harness-selftest` 的 M5/M8 注入当场失效 → 修复。**门禁会腐烂，必须能被自测。**
+- 宿主反馈入口：宿主遇到 kit 缺陷/文档不一致时，经公开镜像仓 issue 回流（清单见 [adoption §3.6](adoption.md#36-遇到-kit-问题反馈上游)），修完补案例与回归用例；**没有反馈通道的 kit 只能靠维护者猜问题**。
 - v0.3.0 真实失败：分发/入口仍是"提示词复制"与"人读文档" → router skill 单入口（显式安装）+ intake/release/doctor 能力探测；A/B 未完成前不默认启用 skill。
 - v0.3.0-alpha.1 真实失败：计划「未提交改动」段与 git 双状态对账靠 Agent 手抄 → 统一入口 `harness.py verify` 自动同步；日常 `make check` 降为宽松（严格校验独立 `check-plan-strict`，由 verify/CI 使用）。
 - v0.2.12 真实失败：旧 `verify_claim` 信任证据自报 counts，手写 PASS 证据可通过全部门禁 → 增加 JUnit XML 独立重算 + commit 祖先/dirty 复核 + M9（失败 → 规则 → 门禁 → 负向用例的完整闭环）。
