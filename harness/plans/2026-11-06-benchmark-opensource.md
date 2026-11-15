@@ -691,7 +691,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（fcnsystem 真实宿主 v0.5.2 升级演练已记录进本计划第 27 条）。
+- 无未提交改动（fcnsystem 证据收尾 + barra v0.5.2 升级 + kit 反馈报告已随本轮提交入库，见第 28 条）。
 
 ## 本批提交
 
@@ -756,6 +756,23 @@ Phase 5.27：fcnsystem 接入反馈 K01–K17 的 kit 侧修复 + 案例文档 +
     ⑤发现的 kit 待改进点（未提 issue）：kit 0.5.2 HARNESS 模板只余 6 tokens，宿主无空间加内容；`--plan` 的
     `.gitignore` 追加块对比用「空目录渲染 sha」，宿主 init 时去重后的块 sha 永远不同 → 升级后仍报 CONFLICT
     假阳性（本演练按模板全量块写入才收敛）。这两点可作为下轮 kit 反馈/修复输入。
+
+28. **真实宿主 v0.5.2 升级补记：fcnsystem 证据收尾 + barra 0.3.0→0.5.2（2026-11-16）**——
+    fcnsystem：按用户确认把升级前旧证据移入 `harness/evidence/_archive/`，当前证据 `supersedes` 接管，
+    `verify_claim --all --fresh --strict` 由「旧证据 STALE → UNVERIFIED」变为 **2 PASS + 2 SUPERSEDED（exit 0）**；
+    因 kit `check_plan` 不查 `_archive`，旧接入计划改 `status: archived` 并注明来由（`check-plan --strict` 恢复 PASS）；
+    提交 `a775f6e` 已 push 到 gitee `origin/feature/fcn`。
+    barra（**kit 0.3.0 → 0.5.2** 跨级升级，宿主 main）：升级提交 `d3630d4`（13 UPGRADE / 3 ADD / 人工合并
+    CONTRIBUTING·HARNESS·docs README·config·.gitignore、迁移归档计划豁免表与 submitted scope 例外、证据 supersedes、
+    入库 0.3.0 反馈报告）、docs-pass 证据 `482648c`、计划归档 `7924d72`、release 记录 `f295e8d`、CI 修复 `01a51b5`、
+    维护记录 `6550776`，均已 push；终态 `--plan` = SAME=28 / LOCAL_ONLY=5 / NOT_MANAGED=1（无 UPGRADE/CONFLICT/ADD），
+    `make check` / `verify-static` / `verify-claim` / `verify-all` PASS，`selftest` **9 PASS / 0 FAIL / 0 SKIP**，
+    `make release --check` PASS；GitHub Actions `verify` run `43736736196`（fetch-depth 修复后）与 `43736889342` success，
+    项目自带 `CI` 仍为升级前既有红（3 个缓存依赖用例，238 passed / 50 skipped / 3 failed）。
+    kit 反馈：本轮共提 **5 个 issue**（#1 HARNESS 预算无余量、#2 .gitignore 追加块假 CONFLICT、#3 归档证据与 done 计划引用、
+    #4 verify.yml 浅克隆、#5 check_plan 缺 `import fnmatch`），汇总报告
+    `harness/reviews/2026-11-16-kit-v0.5.2-host-upgrade-feedback.md`；barra 0.3.0 的 15 项反馈报告此前已由 kit v0.4.0
+    处理，本轮随升级入库。
 
 ## 待确认
 
