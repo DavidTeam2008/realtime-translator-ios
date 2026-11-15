@@ -691,7 +691,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.5.3 修复/测试/文档、发布记录、issue 关闭与 skill 重装已随本轮提交入库，见第 29 条）。
+- 无未提交改动（三宿主 0.5.3 升级结果已随本提交入库，见第 30 条）。
 
 ## 本批提交
 
@@ -786,6 +786,24 @@ Phase 5.27：fcnsystem 接入反馈 K01–K17 的 kit 侧修复 + 案例文档 +
     tag clone 验证 `VERSION=0.5.3` / **312 tests OK** / `render --check` OK / 反馈资产与 `fetch-depth` 存在 →
     `make kit-drift` **in sync**；用户级 skill 重装 **0.5.3 in sync**（11 文件）。5 个 issue 已回帖并 **CLOSED**。
     后续：fcnsystem / barra 升级到 0.5.3 按 playbook「v0.5.2 → v0.5.3 升级自检」例行同步（本轮未执行）。
+
+30. **三宿主升级到 kit v0.5.3（2026-11-16，按 playbook「v0.5.2 → v0.5.3 升级自检」）**——
+    **fcnsystem**（0.5.2→0.5.3）：提交 `7f41e81`（升级）+ `4b6c2df`（证据），已 push `origin/feature/fcn`；
+    `--plan` 收敛 **SAME=30 / LOCAL_ONLY=4**；`make check` / `verify-static` / `verify-all` PASS，
+    `selftest` 8 PASS / 1 SKIP（hygiene 未配置）；`verify_claim --all --fresh --strict` 保持 PASS（新证据
+    `20261115T173007Z-*`，旧证据归档并由其 `supersedes`）；legacy 接入计划恢复 `status: done`（0.5.3 起支持
+    `_archive` 证据解析）。
+    **barra**（0.5.2→0.5.3）：提交 `e98401c`（升级）+ `6801738`（证据），已 push `origin/main`；`--plan` 收敛
+    **SAME=28 / LOCAL_ONLY=5 / NOT_MANAGED=1**；HARNESS 瘦身模板 + 宿主 JUnit 例外 1244/1500；`verify-all` PASS、
+    `selftest` 9/9；docs-pass 证据刷新（`20261115T173047Z-docs-pass`），tests-pass 未本地重跑（保留豁免）。
+    **Android**（0.2.3→0.5.3 跨级）：分支 `chore/kit-v0.5.3` → PR #3（`static gates` CI pass）→ merge commit
+    `84fa35b`（main 已合并，verify run `43745248037` success）；首次建立 `.harness-manifest.json`（33 文件 +
+    `templateSha256`，`--plan` **SAME=23 / LOCAL_ONLY=11**）；`tools/`、config、Makefile、CI（fetch-depth 0）、
+    证据 schema 全部 0.5.3；HARNESS **1451/1500**、docs/README **846/1000**、docs/AGENTS **984/1000**；证据迁移
+    （tests-pass `20261115T173424Z` 由既有 JUnit 脱敏复制入库并重算 65/0/0，docs-pass 新建，旧证据归档
+    `supersedes`）；`make check` / `verify-static` / `verify-claim` / `verify-all` PASS，`selftest` 9/9。
+    未验证（均已入宿主计划豁免至 2026-12-31）：Android 本机无 SDK 未重跑单测/真机/`check-quality`/release APK；
+    barra 全量 pytest 未本地重跑。
 
 ## 待确认
 
