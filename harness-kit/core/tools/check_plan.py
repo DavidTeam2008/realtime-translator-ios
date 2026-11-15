@@ -48,6 +48,7 @@ check 校验（FAIL 会计入退出码 1，WARN 不阻断）：
 from __future__ import annotations
 
 import datetime as dt
+import fnmatch
 import json
 import re
 import subprocess
@@ -494,14 +495,25 @@ def evidence_table(plan: Plan, section: Section | None) -> tuple[list[str] | Non
 
 # ── 计划校验 ─────────────────────────────────────────────────────────────
 def load_evidence_doc(root: Path, config: dict, evidence_id: str) -> tuple[str, dict | None]:
-    path = config_path(root, config, "evidence") / f"{evidence_id}.json"
-    if not path.is_file():
-        return "missing", None
-    try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return "invalid", None
-    return ("ok", doc) if isinstance(doc, dict) else ("invalid", None)
+    """按 id 读取证据：先当前目录，再 `_archive/`（v0.5.3 起支持计划引用归档证据）。
+
+    返回 state：`ok`（当前）/ `ok_archived`（已归档历史）/ `missing` / `invalid`。
+    归档证据可用于 done 历史计划的引用解析，但会输出 WARN，提醒它不参与当前判定。
+    """
+    base = config_path(root, config, "evidence")
+    candidates = (
+        (base / f"{evidence_id}.json", "ok"),
+        (base / "_archive" / f"{evidence_id}.json", "ok_archived"),
+    )
+    for path, state in candidates:
+        if not path.is_file():
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return "invalid", None
+        return (state, doc) if isinstance(doc, dict) else ("invalid", None)
+    return "missing", None
 
 
 def submitted_tokens(plan: Plan) -> list[str]:
@@ -1023,8 +1035,16 @@ def check_evidence(plan: Plan, root: Path, config: dict) -> tuple[list[str], lis
             if state == "invalid" or doc is None:
                 issue.append(f"证据 JSON 无法解析：{evidence_id}")
                 continue
+            if state == "ok_archived":
+                warnings.append(
+                    f"证据位于 _archive（归档历史，不参与当前判定）：{evidence_id}"
+                )
             referenced[evidence_id] = doc
-            evidence_rel = f"{config['paths']['evidence'].rstrip('/')}/{evidence_id}.json"
+            evidence_rel = (
+                f"{config['paths']['evidence'].rstrip('/')}/_archive/{evidence_id}.json"
+                if state == "ok_archived"
+                else f"{config['paths']['evidence'].rstrip('/')}/{evidence_id}.json"
+            )
             if git_is_repo(root) and not git_tracked(root, evidence_rel):
                 warnings.append(f"证据未被 git 跟踪：{evidence_id}（verify_claim 会判 UNVERIFIED）")
             if doc.get("verdict") == "PASS":

@@ -116,6 +116,10 @@ def load_manifest(target: Path) -> dict | None:
                 problems.append(f"appends[{index}] 需要 path")
             elif not isinstance(item.get("sha256"), str) or len(str(item.get("sha256"))) != 64:
                 problems.append(f"appends[{index}].sha256 必须是 64 位 sha256")
+            elif item.get("templateSha256") is not None:
+                template_sha = item.get("templateSha256")
+                if not isinstance(template_sha, str) or len(template_sha) != 64:
+                    problems.append(f"appends[{index}].templateSha256 必须是 64 位 sha256（可选字段）")
     if problems:
         raise UpgradeError(f"{MANIFEST_NAME} 不可用：\n  - " + "\n  - ".join(problems))
     return doc
@@ -307,28 +311,44 @@ def run_plan(target: Path, kit_root: Path, args: argparse.Namespace) -> tuple[in
         for rel in sorted(set(old_files) - set(new_files)):
             append_row(rows, "OBSOLETE", rel, "新版本不再管理（文件保留，从 manifest 移除）")
         old_appends = {
-            str(item["path"]): str(item["sha256"])
+            str(item["path"]): item
             for item in (manifest or {}).get("appends", [])
             if isinstance(item, dict) and item.get("path")
         }
         new_appends = {
-            str(item["path"]): str(item["sha256"])
+            str(item["path"]): item
             for item in new_manifest.get("appends", [])
             if isinstance(item, dict) and item.get("path")
         }
         for rel in sorted(set(old_appends) | set(new_appends)):
-            old_sha = old_appends.get(rel)
-            new_sha = new_appends.get(rel)
+            old_item = old_appends.get(rel) or {}
+            new_item = new_appends.get(rel) or {}
+            old_sha = str(old_item.get("sha256") or "")
+            new_sha = str(new_item.get("sha256") or "") or None
+            old_template = old_item.get("templateSha256")
+            new_template = new_item.get("templateSha256")
             path = target / rel
             marker = "# harness-kit"
             if new_sha is None:
                 append_row(rows, "OBSOLETE", rel, "追加块不再需要（保留现状）")
             elif not path.is_file() or marker not in path.read_text(encoding="utf-8", errors="replace"):
                 append_row(rows, "APPEND", rel, "需要补 kit 追加块")
+            elif old_template and new_template:
+                # v0.5.3：按「去重前模板块」比较，避免宿主已有行去重后 sha 永远不同 → 假 CONFLICT。
+                if old_template == new_template:
+                    append_row(rows, "SAME", rel, "追加块无需变更")
+                else:
+                    append_row(rows, "CONFLICT", rel, "追加块上游已变（人工确认）")
             elif old_sha == new_sha:
                 append_row(rows, "SAME", rel, "追加块无需变更")
             else:
-                append_row(rows, "CONFLICT", rel, "追加块上游已变（人工确认）")
+                # 旧 manifest（<0.5.3）没有 templateSha256：无法区分去重差异与真实变更。
+                # 不报假 CONFLICT；提示人工确认并在下次重渲染 manifest 后对齐。
+                append_row(
+                    rows, "SAME", rel,
+                    "追加块基线为 legacy（无 templateSha256），按无变更处理；"
+                    "如上游模板块有变需人工确认，建议重渲染 manifest 对齐",
+                )
         summary = {action: sum(1 for row in rows if row["action"] == action) for action in ACTIONS}
         result = {
             "mode": "plan",

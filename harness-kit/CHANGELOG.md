@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.3 — 2026-11-16
+
+> 来源：**v0.5.2 真实宿主升级反馈**（fcnsystem 0.5.1→0.5.2、barra 0.3.0→0.5.2，公开镜像仓 issue #1–#5）。
+> 主题：**修复升级路径本身**——CI 全历史、假 CONFLICT、归档证据引用、模板预算余量、工具 import 回归。
+
+### 修复
+
+- **#4 宿主 CI 浅克隆必红**：`adapters/ci/verify.yml.template` 的 Checkout 增加 `fetch-depth: 0`；
+  归档计划的 `submitted` 短 hash 与证据 `git.commit` 绑定需要完整 git 历史（barra 真实 CI 复现）。
+- **#5 `check_plan.py` 缺 `import fnmatch`**：通配符 `scope.allow` 分支会 `NameError`，带 lint 的宿主
+  CI 直接 `F821`；补 import 并新增通配符 scope 回归用例。
+- **#2 `.gitignore` 追加块假 CONFLICT**：manifest 的 append 记录新增 `templateSha256`（去重前模板块），
+  `harness-upgrade --plan` 优先按它比较；旧 manifest 无该字段时不再把去重差异报成 CONFLICT
+  （标记 SAME + legacy 提示，next init 后对齐）。
+- **#3 归档证据无法被 done 计划引用**：`check_plan` 的证据解析回退 `harness/evidence/_archive/`，
+  输出 `WARN` 提示历史证据；按证据政策归档旧证据不再导致 done/归档计划 strict FAIL（也修正归档证据的
+  git tracked 检查路径）。
+- **#1 HARNESS 模板无预算余量**：`HARNESS.md.template` 证据政策段收敛为要点 + 指向
+  `harness/evidence/README.md`；standard 渲染约 **1491 → 1182 tokens**（预算 1500，余约 300 给宿主本地说明）。
+  模板不再与 evidence README 重复长段，宿主 CONFLICT 合并有空间。
+
+### 测试
+
+- kit **312 tests**（+4）：append `templateSha256` 与 legacy 分类、归档证据被 done 计划引用、
+  scope 通配符分支、CI `fetch-depth: 0` 断言。
+
 ## 0.5.2 — 2026-11-13
 
 > 来源：kit v0.5.1 行为核对 + token 约束复盘 + **fcnsystem 存量接入反馈（K01–K17）**。

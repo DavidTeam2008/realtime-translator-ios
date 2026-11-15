@@ -110,6 +110,9 @@ class ManifestTests(unittest.TestCase):
         appends = {item["path"]: item for item in manifest["appends"]}
         self.assertIn(".gitignore", appends)
         self.assertIn("# harness-kit", (self.host / ".gitignore").read_text(encoding="utf-8"))
+        # v0.5.3：记录去重前模板块 sha，供 upgrade --plan 跨宿主比较（避免假 CONFLICT）。
+        for item in manifest["appends"]:
+            self.assertEqual(64, len(item.get("templateSha256", "")), item["path"])
 
     def test_manifest_not_written_on_dry_run(self) -> None:
         host = self.tmp / "dry-host"
@@ -261,6 +264,33 @@ class UpgradePlanTests(unittest.TestCase):
         (host / "AGENTS.md").write_text("different\n", encoding="utf-8")
         proc = upgrade(host, "--plan", "--profile", "minimal", "--fail-on-conflict")
         self.assertEqual(1, proc.returncode, proc.stdout + proc.stderr)
+
+    def _append_row(self, host: Path) -> dict:
+        proc = upgrade(host, "--plan", "--json")
+        self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+        data = json.loads(proc.stdout)
+        return next(row for row in data["rows"] if row["path"] == ".gitignore")
+
+    def test_plan_legacy_append_without_template_sha_is_not_conflict(self) -> None:
+        """v0.5.3：旧 manifest（无 templateSha256）不因去重差异报假 CONFLICT。"""
+        host = init_host(self.tmp, "legacy-append")
+        manifest = load_manifest(host)
+        append = manifest["appends"][0]
+        append.pop("templateSha256", None)
+        append["sha256"] = "0" * 64  # 模拟 init 去重后写入块的 sha（与空目录渲染不同）
+        save_manifest(host, manifest)
+        row = self._append_row(host)
+        self.assertEqual("SAME", row["action"], row)
+        self.assertIn("templateSha256", row["detail"])
+
+    def test_plan_append_template_change_is_conflict(self) -> None:
+        """v0.5.3：双方都有 templateSha256 且模板块变了 → CONFLICT。"""
+        host = init_host(self.tmp, "append-change")
+        manifest = load_manifest(host)
+        manifest["appends"][0]["templateSha256"] = "0" * 64
+        save_manifest(host, manifest)
+        row = self._append_row(host)
+        self.assertEqual("CONFLICT", row["action"], row)
 
 
 class UpgradeCliTests(unittest.TestCase):

@@ -23,6 +23,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 归档计划的 submitted 短 hash / 证据 commit 绑定需要完整 git 历史（v0.5.3）
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

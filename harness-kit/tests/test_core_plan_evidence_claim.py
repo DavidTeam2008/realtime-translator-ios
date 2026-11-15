@@ -1132,6 +1132,46 @@ class KitCoreTest(unittest.TestCase):
         )
         self.assert_fail(self.check_plan("check"), "未被豁免覆盖")
 
+    def test_done_plan_can_reference_archived_evidence(self) -> None:
+        """v0.5.3：done 计划的证据引用可从 `_archive/` 解析（带 WARN，不再 strict FAIL）。"""
+        base = self.base
+        rows = f"| python3 tools/check_docs.py | PASS（exit 0） | local | {VALID_EVIDENCE_ID} |"
+        body = plan_body(rows, uncommitted=False)
+        self.write_plan_id(
+            plan_front_allow(("harness/", "README.md"), status="done", submitted=base),
+            body, "2026-01-01-demo",
+        )
+        archive = self.root / "harness" / "evidence" / "_archive"
+        archive.mkdir(parents=True)
+        doc = evidence_doc(VALID_EVIDENCE_ID, "docs-pass", commit=base)
+        (archive / f"{VALID_EVIDENCE_ID}.json").write_text(
+            json.dumps(doc, ensure_ascii=False), encoding="utf-8"
+        )
+        self.commit_all()
+        proc = self.check_plan("check", "--strict")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("_archive", proc.stdout)
+
+    def test_scope_wildcard_allow_matches_submitted_paths(self) -> None:
+        """v0.5.3：scope.allow 通配符分支必须可用（曾漏 import fnmatch 会 NameError）。"""
+        review = self.root / "harness" / "reviews" / "note.md"
+        review.parent.mkdir(parents=True)
+        review.write_text("review\n", encoding="utf-8")
+        # 只提交该路径（setUp 的 config/schema 仍在未提交区会污染 scope 审计）
+        self.assertEqual(0, git(self.root, "add", "harness/reviews/note.md").returncode)
+        self.assertEqual(0, git(self.root, "commit", "-q", "-m", "review note").returncode)
+        commit = head_short(self.root)
+        front = plan_front_allow(("harness/reviews/*",), submitted=commit)
+        body = plan_body(
+            "| python3 -m unittest | PASS（exit 0） | local | —（过程记录：fixture） |",
+            uncommitted=False,
+        )
+        self.write_plan_id(front, body, "2026-01-01-demo")
+        self.commit_all()
+        proc = self.check_plan("check")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn("scope.allow/例外之外", proc.stdout)
+
     def test_missing_config_fails_readably(self) -> None:
         (self.root / "harness" / "config.json").unlink()
         proc = self.check_plan("check")

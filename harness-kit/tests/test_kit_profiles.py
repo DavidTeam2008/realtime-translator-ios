@@ -268,6 +268,8 @@ class HarnessInitProfileTests(unittest.TestCase):
         workflow = (target / ".github" / "workflows" / "verify.yml").read_text(encoding="utf-8")
         self.assertIn("- develop", workflow)
         self.assertIn("pull_request:", workflow)
+        # v0.5.3：归档计划的 submitted/证据 commit 绑定需要完整历史，CI 必须全量 clone。
+        self.assertIn("fetch-depth: 0", workflow)
         manifest = json.loads((target / ".harness-manifest.json").read_text(encoding="utf-8"))
         self.assertEqual("develop", manifest["options"]["branch"])
         self.assertEqual("--default-branch", manifest["options"]["branchSource"])

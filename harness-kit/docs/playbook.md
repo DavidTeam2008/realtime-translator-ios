@@ -304,6 +304,20 @@ v0.5.0 只改**入口与文档**：`tools/`、门禁、证据判定、`config` s
 
 升级后 `make selftest` 预期不变（M1–M9）。行为级 A/B 未执行前，不要对外声称 skill 提升了 Agent 表现。
 
+### v0.5.2 → v0.5.3 升级自检（升级路径反馈修复）
+
+v0.5.3 修复真实宿主升级中暴露的 5 个问题（镜像仓 issue #1–#5），门禁语义无破坏性变更：
+
+| 变更 | 旧仓预期 | 修复动作 |
+| --- | --- | --- |
+| CI 模板 Checkout 加 `fetch-depth: 0` | 旧 `verify.yml` 仍浅克隆 → 归档计划的 `submitted`/证据 commit 在 CI 解析失败 | 重渲染或手工给 `.github/workflows/verify.yml` 的 checkout 加 `with: fetch-depth: 0` |
+| `check_plan.py` 补 `import fnmatch` | 宿主若保留 0.5.2 的 tools 副本，lint 宿主可能报 `F821` | 按 `--plan` 回写 `tools/check_plan.py`（含通配符 scope 修复） |
+| append 块按 `templateSha256` 比较；manifest 新增该字段 | 0.5.2 的 `harness-upgrade --plan` 对 `.gitignore` 追加块报假 CONFLICT | 升级后重渲染 manifest（init 临时目录）即可记录 `templateSha256`；旧 manifest 首次升级按 SAME + legacy 提示处理 |
+| `check_plan` 证据解析回退 `_archive/` | 0.5.2 下把旧证据移入 `_archive` 会让 done 计划 strict FAIL（只能把计划改 `archived`） | 回写 `tools/check_plan.py` 后，done/归档计划引用归档证据恢复可解析（输出 WARN）；有条件时把 legacy 计划改回 `done` |
+| `HARNESS.md` 模板瘦身（约 1182/1500） | 0.5.2 模板接近预算上限，宿主本地说明放不下 | 升级后可保留/恢复宿主本地说明；不要再把证据政策长段抄回 HARNESS（指向 `harness/evidence/README.md`） |
+
+升级后仍须 `make verify-static` + `make selftest`；CI 首次运行确认全历史 checkout 生效。
+
 ### profile 升级（仍未验证）
 
 - **升级 = 在已接入目录上再 init 更高档**：先 `--dry-run` 对比新增文件/冲突，再执行；已有文件默认 CONFLICT。

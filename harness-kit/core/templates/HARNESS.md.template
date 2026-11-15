@@ -33,14 +33,9 @@ harness 的目标是让完成声明**可复跑、可否定、可交接**，而�
 
 ## 4. 证据政策
 
-- 证据是**摘要**（1–3KB JSON）：命令、环境、计数、commit、verdict；原始日志不入库；单个证据 > 3KB 时 `make check-evidence` 输出 WARN（不阻断）。
-- **证据 JSON 与 `artifacts/` 里的脱敏 JUnit 都必须 `git add` 入库**；未跟踪证据/artifact 的 PASS 会被判 UNVERIFIED。
-- **首次写证据不会死锁**：`evidence.py write` 要求工作树 clean，但证据目录下的待提交产物（JUnit artifact / 待写 JSON）默认豁免并 WARN；其他目录用 `--allow-untracked-under`。
-- **必需 claim 完整性**：`config.claims` 每项 `required` 默认 true；某个 claim 没有当前证据 → UNVERIFIED（不能只交一条）。
-- **归档**：`{{HARNESS_DIR}}/evidence/_archive/` 的证据只输出 `SUPERSEDED`、不参与判定；归档 FAIL/UNVERIFIED 必须由当前 PASS 证据的 `supersedes` 声明接管，否则聚合 UNVERIFIED。
-- 无证据的“已验证”按未验证处理；换机器无法复核的产物（截图/构建目录）标 UNVERIFIED。
-- 三类判定：PASS（可复跑通过）/ FAIL（有反证）/ UNVERIFIED（证据不足，不算通过）。
-- 证据不防伪；高风险改动仍走独立复核与人工体验。门禁能证明“仓库内部自洽 + artifact 可按当前文件重算”，不能证明测试真实执行/环境/评审独立性。
+- 证据是 **1–3KB 摘要**：命令、环境、计数、commit、verdict；原始日志不入库。
+  入库/归档/supersedes/claim 完整性/artifact 追踪细则见 `{{HARNESS_DIR}}/evidence/README.md`。
+- 判定三值 **PASS / FAIL / UNVERIFIED**；无证据按未验证处理；证据不防伪，高风险改动仍走独立复核。
 
 ## 5. 采用与升级
 

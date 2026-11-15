@@ -626,10 +626,14 @@ def write_manifest(
             rendered = render(src_text, subs, src=action["src"]) if action["render"] else src_text
             # 记录真实写入的块（去重后可能与模板不同）；marker 已存在时回退到模板块。
             block = action.get("appendedBlock") or rendered
+            template_sha = sha256_bytes((rendered.rstrip() + "\n").encode("utf-8"))
             appends.append({
                 "path": label,
                 "marker": "# harness-kit",
                 "sha256": sha256_bytes((block.rstrip() + "\n").encode("utf-8")),
+                # v0.5.3：模板 sha（去重前），供 harness-upgrade --plan 跨宿主比较；
+                # 旧 manifest 没有该字段时按 legacy 兼容处理（不报假 CONFLICT）。
+                "templateSha256": template_sha,
             })
             continue
         files.append({
