@@ -691,7 +691,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.5.2 已发版：源提交 2e5c0a0 + 9ec0d21、镜像 6b83e79、annotated tag v0.5.2）。
+- 无未提交改动（fcnsystem 真实宿主 v0.5.2 升级演练已记录进本计划第 27 条）。
 
 ## 本批提交
 
@@ -740,6 +740,22 @@ Phase 5.27：fcnsystem 接入反馈 K01–K17 的 kit 侧修复 + 案例文档 +
     `harness-selftest` 复核 → 重装入口 skill（`install --scope user --force`）→ 回写升级记录/issue。
     fcnsystem / barra 等宿主按此处理；v0.5.2 为附加型变更（无破坏性），但根 AGENTS/Makefile 的反馈入口与
     `verify-all`/`PYTHONDONTWRITEBYTECODE` 属模板改动，升级时以 CONFLICT/UPGRADE 提示为准。
+
+27. **真实宿主完整 v0.5.2 升级演练已完成**（2026-11-16，fcnsystem，宿主分支 `feature/fcn`，
+    本地提交 `2a1d4b5` 升级 + `eea03f2` 证据 + `5e2bdd4` 归档计划；用户选择只提交本地、不 push）：
+    ①升级前：manifest/config `0.5.1`，`harness-upgrade --check` exit 3（VERSION_MISMATCH）+ 7 个 LOCAL_CHANGED；
+    `--plan` = SAME 15 / LOCAL_ONLY 2 / UPGRADE 11 / CONFLICT 6。②用 tag `v0.5.2`（镜像仓克隆）重新 init
+    到临时目录做三方 diff，人工回写：11 个 UPGRADE 替换、`verify.yml`/`check_plan.py` 整文件替换
+    （含 K16/K17/K07）、AGENTS/config 保留宿主定制、`.gitignore` 追加块更新、manifest 基线升到 0.5.2。
+    ③升级后：`--plan` 收敛 **SAME=30 / LOCAL_ONLY=4（无 UPGRADE/CONFLICT/ADD/OBSOLETE）**；`--check` 无
+    VERSION_MISMATCH，只剩 4 个已声明 LOCAL_CHANGED（AGENTS/docs README/config/test-baseline）；宿主
+    `make check` / `verify-static` / `verify-all` PASS，`make selftest` **8 PASS / 0 FAIL / 1 SKIP**（未配置
+    hygiene，不适用），新证据 `20261115T161205Z-tests-pass|docs-pass` 均 PASS（`--fresh` 下新 tests-pass 为
+    fresh，旧 2026-11-12 证据 STALE 属升级前既有）。④取舍：`HARNESS.md` 宿主证据命令块 118 tokens 在 0.5.2
+    模板 1494/1500 预算下放不下，删除并改由 evidence README/references 覆盖（已入宿主计划未验证豁免）。
+    ⑤发现的 kit 待改进点（未提 issue）：kit 0.5.2 HARNESS 模板只余 6 tokens，宿主无空间加内容；`--plan` 的
+    `.gitignore` 追加块对比用「空目录渲染 sha」，宿主 init 时去重后的块 sha 永远不同 → 升级后仍报 CONFLICT
+    假阳性（本演练按模板全量块写入才收敛）。这两点可作为下轮 kit 反馈/修复输入。
 
 ## 待确认
 
