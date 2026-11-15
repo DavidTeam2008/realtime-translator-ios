@@ -691,7 +691,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（fcnsystem 证据收尾 + barra v0.5.2 升级 + kit 反馈报告已随本轮提交入库，见第 28 条）。
+- 无未提交改动（kit v0.5.3 修复/测试/文档、发布记录、issue 关闭与 skill 重装已随本轮提交入库，见第 29 条）。
 
 ## 本批提交
 
@@ -768,11 +768,24 @@ Phase 5.27：fcnsystem 接入反馈 K01–K17 的 kit 侧修复 + 案例文档 +
     维护记录 `6550776`，均已 push；终态 `--plan` = SAME=28 / LOCAL_ONLY=5 / NOT_MANAGED=1（无 UPGRADE/CONFLICT/ADD），
     `make check` / `verify-static` / `verify-claim` / `verify-all` PASS，`selftest` **9 PASS / 0 FAIL / 0 SKIP**，
     `make release --check` PASS；GitHub Actions `verify` run `43736736196`（fetch-depth 修复后）与 `43736889342` success，
-    项目自带 `CI` 仍为升级前既有红（3 个缓存依赖用例，238 passed / 50 skipped / 3 failed）。
+    项目自带 `CI` 的 3 个缓存依赖用例随后用 stub 修复（升级计划的测试 helper 加了 `_latest_cache_date` 替身，不改断言/业务代码），项目 `CI` run `43739332691` 首次全绿。
     kit 反馈：本轮共提 **5 个 issue**（#1 HARNESS 预算无余量、#2 .gitignore 追加块假 CONFLICT、#3 归档证据与 done 计划引用、
     #4 verify.yml 浅克隆、#5 check_plan 缺 `import fnmatch`），汇总报告
     `harness/reviews/2026-11-16-kit-v0.5.2-host-upgrade-feedback.md`；barra 0.3.0 的 15 项反馈报告此前已由 kit v0.4.0
     处理，本轮随升级入库。
+
+29. **kit v0.5.3：真实宿主升级反馈 5 项修复 + 发布（2026-11-16）**——
+    issues #1–#5（HARNESS 预算无余量 #1、`.gitignore` 追加块假 CONFLICT #2、归档证据与 done 计划引用 #3、
+    verify.yml 浅克隆 #4、`check_plan` 缺 `import fnmatch` #5）全部修复：HARNESS 模板渲染 1491→**1182** tokens；
+    manifest append 新增 `templateSha256` + upgrade 对 legacy 基线不再报假 CONFLICT；`check_plan` 证据解析回退
+    `harness/evidence/_archive/` 并补 fnmatch import；CI 模板 `fetch-depth: 0`。版本定版 `VERSION` 0.5.3 +
+    CHANGELOG/README/SPEC/playbook/skill reference；kit tests 308→**312**（+4 回归）；`make kit-check`、
+    `harness-prompt render --check` PASS。
+    发布：源提交 `2adf0f3`（iOS CI run `43740260624` success）→ `make kit-publish` 镜像 main `8e08c37`
+    （镜像 CI run `43740496679` success）→ annotated tag **`v0.5.3`**（tag object `6d1d0ab` → `8e08c37`）→
+    tag clone 验证 `VERSION=0.5.3` / **312 tests OK** / `render --check` OK / 反馈资产与 `fetch-depth` 存在 →
+    `make kit-drift` **in sync**；用户级 skill 重装 **0.5.3 in sync**（11 文件）。5 个 issue 已回帖并 **CLOSED**。
+    后续：fcnsystem / barra 升级到 0.5.3 按 playbook「v0.5.2 → v0.5.3 升级自检」例行同步（本轮未执行）。
 
 ## 待确认
 
