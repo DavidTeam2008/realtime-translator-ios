@@ -504,12 +504,18 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 - [x] Phase 5.19（本地完成，待提交/发版）：kit `v0.2.12` 证据链加固（P0）：重定位提案与独立评审冻结到 `harness/reviews/2026-11-11-kit-repositioning/`；`verify_claim` 增加 JUnit XML 独立重算 / commit 祖先 / dirty 复核；`requireArtifact` 默认 true；`harness-selftest` 新增 M9 伪造 PASS；计划模板补 `submitted`/`_archive`；README 定位句改为「给 AI Coding Agent 用的 Harness Engineering 项目管理工具」；kit **142 tests**；本地 `make verify-static` **PASS**（91 iOS 脚本单测 + 142 kit tests + docs/架构/计数/harness/计划/证据/adapters 全过）；源与提案冻结已提交（`3daa192` / `5a95c79`）；**已发版**：iOS CI run `42965932382` success、镜像 main `0330974` + tag `v0.2.12`（镜像 CI run `42966078254` success）、tag clone 142 tests OK、`kit-drift` in sync
 - [ ] Phase 6（可选）产品可信度
 
+- [x] Phase 5.29（2026-11-16，已完成并提交）：**iOS 宿主层从 kit v0.2.x legacy fork 升级到 0.5.3（strict）**。按 kit「版本升级（v0.2.13 前接入、无 manifest）」人工路径：0.5.3 strict 渲染 → 逐文件回写 kit 管理面（tools/ 14 个脚本、harness/{AGENTS,README,config,evidence,plans/_template,requirements,reviews}、skills/handoff+red-team+verify-change、`.githooks/pre-push`、首次 `.harness-manifest.json`），删除旧 fork（check-docs/check-harness/plan/verify-claim/token_estimate/rules-budget/tools/tests），iOS 专属环境自检保留 `tools/doctor-ios.py`；config 用宿主口径（AGENTS 1650 / references 975 / docs 1000 / HARNESS 1500；4 条 claims，test-count legacy `requireArtifact=false`）；HARNESS 4948→1499 token、docs/README 1415→882 token；Makefile 集成 0.5.3 入口并保留宿主目标；CI 静态触发路径补 `harness/config.json`。证据迁移：3 条旧证据归档并由 newer `supersedes` 接管、4 条保留证据去掉 xcresult 不可入库引用、新增 `20261116T055240Z-docs-pass`。验收：`--plan` 收敛 **SAME=28 / LOCAL_ONLY=13**（无 CONFLICT/UPGRADE/ADD/OBSOLETE/APPEND）；`make check` / `verify-static`（312 kit tests）/ `selftest` **7 PASS / 2 SKIP**（M8 未配 hygiene、M9 无 requireArtifact=true）/ `verify-all` / `release-check` 全 PASS；`verify_claim --all --fresh --strict` **5 PASS / 0 FAIL / 0 UNVERIFIED / 3 SUPERSEDED**。提交：`9cba91f`（升级）+ `8fb07ea`（证据）；本计划前置 `414ae10`。未验证：本机无 Xcode，动态测试未重跑（见「未验证项」）。
+
 ## 验证证据
 
 > 本节记录本方案制定时的基线事实与已执行命令；执行阶段的证据在对应阶段提交时补充。
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
+| `harness-upgrade --target . --plan`（kit v0.5.3，iOS 宿主） | **PASS**：SAME=28 / LOCAL_ONLY=13（LOCAL_ONLY 均为宿主自维护文档/配置：AGENTS/CONTRIBUTING/HARNESS/Makefile/docs/README/docs/AGENTS/docs/harness-scorecard/references×3/harness config/test-baseline/.github workflow），无 CONFLICT/UPGRADE/ADD/OBSOLETE/APPEND | 本机 python3 3.14.7；kit 0.5.3 | —（过程记录：升级收敛） |
+| `make check` + `make verify-static`（0.5.3 迁移后） | **PASS**：check 全绿；verify-static 含 312 kit tests + 证据 schema + 计划严格 + 宿主（hygiene/layers SKIP：未配置） | 本机 macOS 27.0.1；python3 3.14.7 | —（过程记录：0.5.3 宿主门禁） |
+| `python3 tools/harness_selftest --target .`（0.5.3 迁移后） | **PASS**：M1–M7 PASS / M8、M9 SKIP（SKIP≠PASS：M8 未配 hygiene、M9 无 requireArtifact=true 证据）；recovery PASS | 本机 | —（过程记录：门禁自检） |
+| `make verify-all` + `make release-check`（0.5.3 迁移后） | **PASS**：verify-all = static + 证据三值；release-check = static + scorecard strict + fresh strict；`verify_claim --fresh --strict` 5 PASS / 0 FAIL / 0 UNVERIFIED / 3 SUPERSEDED | 本机 | `20261116T055240Z-docs-pass`（docs-pass）；test-count 沿用历史证据 |
 | `cd harness-kit && python3 -m unittest discover -s tests -q`（v0.4.0） | **PASS**：`Ran 270 tests OK`（证据链 28 用例、scorecard、layers untracked、submitted scope/归档 strict、脱敏等） | 本机 python3 3.14.7 | —（过程记录：kit v0.4.0 本地回归） |
 | v0.4.0 标准档 init 端到端 smoke | **PASS**：`make check` / `make scorecard` / `make upgrade-check KIT_ROOT=…` / `make selftest`（PASS 5 / SKIP 4，SKIP≠PASS）/ `make verify-static`；status 显示 kit 0.4.0 | 本机 temp git 仓 | —（过程记录：v0.4.0 smoke） |
 | barra 只读复验（v0.4.0 候选） | **PASS（只读）**：`check_layers` 171 tracked/0 untracked；`verify_claim` 归档 UNVERIFIED 未接管 → exit 2；`check_plan` daily WARN / strict FAIL（4 个 submitted 越界 + 3 条归档未验证）；status/handoff 归档回读；/tmp 迁移（supersedes+waiver+例外表）后 strict PASS | 本机 + barra HEAD `bab9ac6`（只读） | —（过程记录：barra 复验） |
@@ -616,6 +622,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未验证项
 
+- **iOS 宿主 0.5.3 迁移（2026-11-16）**：本机已无 Xcode（`xcode-select -p` = CommandLineTools、`/Applications` 无 Xcode.app），`make test` / `test-ui` / `device-test` 未重跑；test-count 证据沿用历史计数并显式 `requireArtifact=false`（legacy opt-out），selftest M9 因此 SKIP。后续补 xcresult→JUnit 流水线并收紧 claims 后再把 `requireArtifact` 改回 true。另：`harness-upgrade --check` 在含 LOCAL_ONLY 自维护文件的宿主上恒返回 1（本地漂移），本次以 `--plan` 收敛为验收判据；若上游确认属设计，建议 kit 文档注明（候选反馈）。
 - 首访：作者自测 4/5；Phase 4 由无上下文 AI 代理按公开 clone 复测 4/5；**人类非作者首访已完成**（2026-11-09 用户确认、反馈无阻塞；仓库内无该次首访记录，仅用户报告）。
 - 独立复评为只读：未跑 xcodebuild/模拟器/真机/clean clone；3.6/5 与 24/35 为当前口径，不证明动态行为正确。
 - clean clone 已实测（Phase 3.1，PASS）；独立复评时的未提交状态已提交，clone 可复现。
@@ -658,6 +665,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 尝试# | 动作 | 结果 | 时间 |
 | --- | --- | --- | --- |
+| 32 | iOS 宿主层 kit v0.2.x legacy → 0.5.3 strict 升级（用户确认：执行 + push + 触发 CI） | 0.5.3 strict 渲染逐文件回写 kit 管理面 + 首次 manifest；旧 fork 工具删除、iOS doctor 保留为 doctor-ios；HARNESS/docs 压缩到预算；config 宿主口径 4 claims（test-count legacy opt-out）；证据归档+supersedes+docs-pass；`--plan` 收敛 SAME=28 / LOCAL_ONLY=13；check/verify-static/selftest(7P/2S)/verify-all/release-check 全 PASS | 2026-11-16 |
 | 31 | kit `v0.5.2`：宿主机问题反馈通道（用户需求：接入了 kit 的项目能提 issue 且显式告知宿主） | skill `feedback` 场景 + `stage: both` 提示词 + 根 AGENTS/init/adopt/adoption/README 入口 + 镜像仓 issue 模板；定版 VERSION `0.5.2`；kit **308 tests PASS**、`make verify-static` PASS；发版：源 `2e5c0a0` + `9ec0d21` → iOS CI `43458559079` success；镜像 main `6b83e79` + tag `v0.5.2`；镜像 CI `43459006377` success；tag clone 308 tests OK | 2026-11-13 |
 | 30 | kit `v0.5.1`：用户级安装默认覆盖 Claude Code + slash 调用说明 | `--scope user` 默认 agent 改 `agents,claude-code`（写 `~/.agents/skills` + `~/.claude/skills`）；单测断言两根/卸载清理；文档补 `/harness` 显式加载优先、自然语言兜底；kit **275 tests PASS**、`make verify-static` PASS；本机 reinstall 后 in sync；发版：镜像 main `a4b0065` + tag `v0.5.1`；镜像 CI run `43160494234` success；tag clone 275 tests OK | 2026-11-12 |
 | 29 | kit `v0.5.0` 入口 skill 优先（用户选择「先做 skill 主入口，A/B 后置」；全局装 `~/.agents/skills`） | `harness-skill --scope user/project` + uninstall + 用户级元数据；SKILL.md 触发词/kit 定位/版本地板；adopt.md 自足；adopt/init/prompt 引导 skill 优先；README/adoption/playbook/SPEC/why/DSH 适配器同步；`docs/agent-prompts.md` 再生成；kit **275 tests PASS**；用户级安装实测 in sync；DSH 插件决策：不做（理由与复访条件写 why.md §5）；A/B 后置。发版：镜像 main `1bdf2ac` + tag `v0.5.0`；镜像 CI run `43056158044` success；tag clone 275 tests OK；镜像 CI 首跑因测试写死目录名失败（run `43055148155`）→ 修后重发转绿 | 2026-11-12 |
@@ -692,7 +700,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（三宿主 0.5.3 升级结果已随本提交入库，见第 30 条）。
+- 无未提交改动（iOS 宿主 0.5.3 升级与证据迁移已入库：`9cba91f`、`8fb07ea`；本提交仅更新计划记录）。
 
 ## 本批提交
 
