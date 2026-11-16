@@ -506,12 +506,20 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 - [x] Phase 5.29（2026-11-16，已完成并提交）：**iOS 宿主层从 kit v0.2.x legacy fork 升级到 0.5.3（strict）**。按 kit「版本升级（v0.2.13 前接入、无 manifest）」人工路径：0.5.3 strict 渲染 → 逐文件回写 kit 管理面（tools/ 14 个脚本、harness/{AGENTS,README,config,evidence,plans/_template,requirements,reviews}、skills/handoff+red-team+verify-change、`.githooks/pre-push`、首次 `.harness-manifest.json`），删除旧 fork（check-docs/check-harness/plan/verify-claim/token_estimate/rules-budget/tools/tests），iOS 专属环境自检保留 `tools/doctor-ios.py`；config 用宿主口径（AGENTS 1650 / references 975 / docs 1000 / HARNESS 1500；4 条 claims，test-count legacy `requireArtifact=false`）；HARNESS 4948→1499 token、docs/README 1415→882 token；Makefile 集成 0.5.3 入口并保留宿主目标；CI 静态触发路径补 `harness/config.json`。证据迁移：3 条旧证据归档并由 newer `supersedes` 接管、4 条保留证据去掉 xcresult 不可入库引用、新增 `20261116T055240Z-docs-pass`。验收：`--plan` 收敛 **SAME=28 / LOCAL_ONLY=13**（无 CONFLICT/UPGRADE/ADD/OBSOLETE/APPEND）；`make check` / `verify-static`（312 kit tests）/ `selftest` **7 PASS / 2 SKIP**（M8 未配 hygiene、M9 无 requireArtifact=true）/ `verify-all` / `release-check` 全 PASS；`verify_claim --all --fresh --strict` **5 PASS / 0 FAIL / 0 UNVERIFIED / 3 SUPERSEDED**。提交：`9cba91f`（升级）+ `8fb07ea`（证据）；本计划前置 `414ae10`。未验证：本机无 Xcode，动态测试未重跑（见「未验证项」）。
 
+- [x] Phase 5.30（2026-11-16，已完成并提交）：**kit v0.5.4「npx 一等入口」（分发层）**。用户决策「让 npx 成为一等入口」；两轮独立红队复核（报告 `harness/reviews/2026-11-16-kit-0.5.4-npx-redteam.md`：R1 4 P1 + R2 3 P1，逐条接受/延后，无 P0）。kit 侧：①入口 skill 新增 `skills/harness/scripts/kit-resolve.py`（唯一联网点；解析顺序 显式 → 仓内/父目录内嵌 kit → **adopted 仓库离线快路径** → npx 管理时忽略旧 meta/否则旧用户级 meta → cache（XDG、repo-url 分桶、marker 本地校验）→ clone annotated tag + peeled commit 校验；`--offline`/`--refresh`/`--json`；内嵌/meta 只要求 ≥ `min_version`，低于 skill 期望只 WARN）；②`SKILL.md` metadata 增 `kit_version`/`kit_repo`（派生值，测试守护与 `VERSION` 一致），§0 改为 resolver 优先 + 人工回退；③`harness-skill` 识别 npx skills 管理（XDG/默认 lock + 来源校验；check 不再误报元数据缺失；install/uninstall 在 npx 布局默认拒绝、`--force` 才接管；uninstall 先 `lstat` 断链）；④`harness-init`/`adopt`/`prompt` 提示与 `core/tools/harness.py` status（识别用户级 npx/harness-skill + version）统一 npx 首选；⑤README/adoption/playbook（v0.5.3→v0.5.4 升级自检）/why/SPEC（resolver 契约 + 唯一联网例外 + 派生版本口径）/CHANGELOG/`prompts` 单源重新 render；镜像 CI workflow 增 `tags: ["v*"]` 使 tag 有独立 CI。测试：kit **312 → 330 tests**（resolver 13、npx 检测/符号链接 4、status 1）。宿主（诚实小升级，非零变更）：按 `--plan` 只做版本串最小替换（`harness/config.json` kitVersion、`Makefile` 注释）+ 回写 kit 管理面 `tools/harness.py` + 用 0.5.4 临时渲染整份重写 `.harness-manifest.json` + 更新 `HARNESS.md`（v0.5.4 / 330 tests，token 1495/1500）。验收：`--plan` **SAME=28 / LOCAL_ONLY=13（0 CONFLICT）**；`--check` exit 1 且仅 13 条 LOCAL_CHANGED（无 VERSION_MISMATCH，已知 --check 对 LOCAL_ONLY 假漂移）；`make check` / `verify-static`（330 kit tests）/ `selftest`（7 PASS / 2 SKIP）/ `verify-all` / `release-check` / `verify_claim --fresh --strict`（5 PASS / 0 FAIL / 0 UNVERIFIED / 3 SUPERSEDED）全 PASS；iOS CI run `43823133315` success。**发版**：提交 `d01ca45`（kit）+ `b3c75ca`（宿主同步）；kit split `4ad6bc8`；**tag 先推** annotated `v0.5.4`（tag object `3a6880e` → `4ad6bc8`），tag CI run `43823470842` success；`make kit-publish` → 镜像 main `4ad6bc8`，main CI run `43823628871` success；本地 tag clone 验证 VERSION `0.5.4` / **330 tests OK** / `render --check` OK；`kit-drift` in sync（`4ad6bc8`）；`git ls-remote` tag^{} == main == `4ad6bc8`。**E2E**：隔离 HOME `npx skills@1.8.1 add ... -g -a claude-code -a codex -y` → canonical 真目录 + 符号链接 + lock 来源正确；skill 自带 resolver 默认 HTTPS 自动 clone v0.5.4（commit `4ad6bc8`）到缓存、`--offline` 缓存命中不联网、`harness-adopt` 只读兼容、`npx skills update/remove` 生命周期干净；`harness-skill check --scope user` 识别 npx 管理 exit 0；本机旧 harness-skill 安装已迁移到 npx（`~/.agents/skills/harness` 真目录 + `~/.claude` 符号链接 + `~/.agents/.skill-lock.json`），`make status` 显示「用户级 npx v0.5.4」。未验证：npx 链路仅人工 E2E（未加 CI 回归门）、本机 HTTPS 曾一次 HTTP2 framing 重试成功、Windows 未实测、缓存 TOFU（见「未验证项」）。
+
 ## 验证证据
 
 > 本节记录本方案制定时的基线事实与已执行命令；执行阶段的证据在对应阶段提交时补充。
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
+| `cd harness-kit && python3 -m unittest discover -s tests -q`（v0.5.4） | **PASS**：`Ran 330 tests OK`（+18：resolver 13、npx skill 检测/符号链接 4、status 1） | 本机 python3 3.14.7 | —（过程记录：kit v0.5.4 本地回归） |
+| `make verify-static` / `make verify-all` / `make release-check` / `make selftest`（宿主 0.5.4） | **PASS**：verify-static 含 330 kit tests；verify-all/release-check 证据三值 5 PASS / 0 FAIL / 0 UNVERIFIED / 3 SUPERSEDED；selftest 7 PASS / 2 SKIP（M8/M9 不适用，SKIP≠PASS）；iOS CI run `43823133315` success | 本机 macOS 27.0.1；python3 3.14.7；GitHub Actions | `20261116T055240Z-docs-pass`（docs-pass；test-count 沿用历史证据） |
+| `harness-upgrade --target . --plan` / `--check`（kit v0.5.4，iOS 宿主） | **PASS（按预期）**：`--plan` SAME=28 / LOCAL_ONLY=13、0 CONFLICT；`--check` exit 1 且仅 13 条 LOCAL_CHANGED、无 VERSION_MISMATCH（已知 `--check` 对宿主自维护文件的假漂移，以 `--plan` 收敛为验收判据） | 本机；kit 0.5.4 | —（过程记录：宿主小升级收敛） |
+| kit v0.5.4 发版（2026-11-16） | **PASS**：tag 先推 annotated `v0.5.4`（`3a6880e` → `4ad6bc8`）→ tag CI run `43823470842` success；`make kit-publish` → 镜像 main `4ad6bc8` → main CI run `43823628871` success；tag clone VERSION `0.5.4` / **330 tests OK** / `render --check` OK；`git ls-remote` tag^{} == main == `4ad6bc8`；`make kit-drift` in sync | 本机 + GitHub Actions 公开 API | —（外部记录：镜像发布 v0.5.4） |
+| npx 一等入口 E2E（隔离 HOME） | **PASS**：`npx skills@1.8.1 add DavidTeam2008/harness-engineering-kit --skill harness -g -a claude-code -a codex -y` → `~/.agents/skills/harness` 真目录（含 `scripts/kit-resolve.py`）+ `~/.claude/skills/harness` 符号链接 + lock `source` 匹配；resolver 默认 HTTPS 自动 clone v0.5.4（commit `4ad6bc8`）→ 缓存；`--offline` 缓存命中不联网；`harness-adopt` 只读 JSON；`npx skills update/remove` 清理干净；`harness-skill check --scope user` 识别 npx 管理 exit 0 | 隔离 HOME `/tmp/npx-e2e`；skills CLI 1.8.1；Node 24.14.0 | —（过程记录：npx 链路；HTTPS 一次 framing 错误后重试成功） |
+| 本机用户级安装迁移（harness-skill → npx） | **PASS**：旧安装 `harness-skill uninstall --scope user --force` → npx add（canonical 真目录 + claude 符号链接 + `~/.agents/.skill-lock.json`）；`harness-skill check --scope user` exit 0（npx in sync）；安装副本 resolver `--target .` → source=embedded/0.5.4/adopted=true；`make status` 显示「用户级 npx v0.5.4」 | 本机 | —（过程记录：安装方式迁移） |
 | `harness-upgrade --target . --plan`（kit v0.5.3，iOS 宿主） | **PASS**：SAME=28 / LOCAL_ONLY=13（LOCAL_ONLY 均为宿主自维护文档/配置：AGENTS/CONTRIBUTING/HARNESS/Makefile/docs/README/docs/AGENTS/docs/harness-scorecard/references×3/harness config/test-baseline/.github workflow），无 CONFLICT/UPGRADE/ADD/OBSOLETE/APPEND | 本机 python3 3.14.7；kit 0.5.3 | —（过程记录：升级收敛） |
 | `make check` + `make verify-static`（0.5.3 迁移后） | **PASS**：check 全绿；verify-static 含 312 kit tests + 证据 schema + 计划严格 + 宿主（hygiene/layers SKIP：未配置） | 本机 macOS 27.0.1；python3 3.14.7 | —（过程记录：0.5.3 宿主门禁） |
 | `python3 tools/harness_selftest --target .`（0.5.3 迁移后） | **PASS**：M1–M7 PASS / M8、M9 SKIP（SKIP≠PASS：M8 未配 hygiene、M9 无 requireArtifact=true 证据）；recovery PASS | 本机 | —（过程记录：门禁自检） |
@@ -622,6 +630,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未验证项
 
+- **kit v0.5.4 入口自举（2026-11-16）**：npx 链路仅为隔离 HOME 人工 E2E（skills CLI `1.8.1`；未加带网络/Node 的 CI 回归门，第三方 CLI 升级可能改变安装布局）；本机到 github.com 的 HTTPS 曾出现一次 HTTP2 framing 错误/超时（重试成功），受限网络仍走 `HARNESS_KIT_ROOT`/`harness-skill` 备用路径；resolver 缓存为 TOFU（已发布 tag 被 force-move 需 `--refresh`，依赖发布约定）；`harness-skill --scope project` 的 manifest 仍未记录 kitRoot（未内嵌 kit 的 pinned 仓离线仍需 clone，v0.5.5 候选）；Windows 未实测。
+- **iOS 宿主 0.5.4 为「诚实小升级」**：模板内嵌版本使 `harness/config.json`/`Makefile`/`docs/harness-scorecard.md`/`tools/harness.py` 渲染结果变化；本次只做版本串最小替换 + manifest 以 0.5.4 临时渲染整份重写，未整文件覆盖宿主自定义 Makefile/评分卡。`--check` 对 LOCAL_ONLY 自维护文件仍恒 exit 1（13 条 LOCAL_CHANGED），属已知 kit 行为，未提上游 issue（候选反馈）。
 - **iOS 宿主 0.5.3 迁移（2026-11-16）**：本机已无 Xcode（`xcode-select -p` = CommandLineTools、`/Applications` 无 Xcode.app），`make test` / `test-ui` / `device-test` 未重跑；test-count 证据沿用历史计数并显式 `requireArtifact=false`（legacy opt-out），selftest M9 因此 SKIP。后续补 xcresult→JUnit 流水线并收紧 claims 后再把 `requireArtifact` 改回 true。另：`harness-upgrade --check` 在含 LOCAL_ONLY 自维护文件的宿主上恒返回 1（本地漂移），本次以 `--plan` 收敛为验收判据；若上游确认属设计，建议 kit 文档注明（候选反馈）。
 - 首访：作者自测 4/5；Phase 4 由无上下文 AI 代理按公开 clone 复测 4/5；**人类非作者首访已完成**（2026-11-09 用户确认、反馈无阻塞；仓库内无该次首访记录，仅用户报告）。
 - 独立复评为只读：未跑 xcodebuild/模拟器/真机/clean clone；3.6/5 与 24/35 为当前口径，不证明动态行为正确。
@@ -665,6 +675,7 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 | 尝试# | 动作 | 结果 | 时间 |
 | --- | --- | --- | --- |
+| 33 | kit `v0.5.4`：npx 一等入口（用户决策「让 npx 成为一等入口」；两轮红队后执行+发布+本机迁移） | skill 自带 resolver（adopted 离线快路径/缓存/annotated tag 校验）、npx/harness-skill 双管理器安全交互、文档/SPEC/CHANGELOG/镜像 tag CI 同步；kit 312→**330 tests**；宿主按 `--plan` 小升级（SAME=28/LOCAL_ONLY=13、0 CONFLICT）；发布：tag 先推 `v0.5.4` → 镜像 main `4ad6bc8`、tag/main CI 均 success、drift in sync；隔离 HOME npx E2E + 本机安装迁移完成 | 2026-11-16 |
 | 32 | iOS 宿主层 kit v0.2.x legacy → 0.5.3 strict 升级（用户确认：执行 + push + 触发 CI） | 0.5.3 strict 渲染逐文件回写 kit 管理面 + 首次 manifest；旧 fork 工具删除、iOS doctor 保留为 doctor-ios；HARNESS/docs 压缩到预算；config 宿主口径 4 claims（test-count legacy opt-out）；证据归档+supersedes+docs-pass；`--plan` 收敛 SAME=28 / LOCAL_ONLY=13；check/verify-static/selftest(7P/2S)/verify-all/release-check 全 PASS | 2026-11-16 |
 | 31 | kit `v0.5.2`：宿主机问题反馈通道（用户需求：接入了 kit 的项目能提 issue 且显式告知宿主） | skill `feedback` 场景 + `stage: both` 提示词 + 根 AGENTS/init/adopt/adoption/README 入口 + 镜像仓 issue 模板；定版 VERSION `0.5.2`；kit **308 tests PASS**、`make verify-static` PASS；发版：源 `2e5c0a0` + `9ec0d21` → iOS CI `43458559079` success；镜像 main `6b83e79` + tag `v0.5.2`；镜像 CI `43459006377` success；tag clone 308 tests OK | 2026-11-13 |
 | 30 | kit `v0.5.1`：用户级安装默认覆盖 Claude Code + slash 调用说明 | `--scope user` 默认 agent 改 `agents,claude-code`（写 `~/.agents/skills` + `~/.claude/skills`）；单测断言两根/卸载清理；文档补 `/harness` 显式加载优先、自然语言兜底；kit **275 tests PASS**、`make verify-static` PASS；本机 reinstall 后 in sync；发版：镜像 main `a4b0065` + tag `v0.5.1`；镜像 CI run `43160494234` success；tag clone 275 tests OK | 2026-11-12 |
@@ -700,9 +711,14 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（iOS 宿主 0.5.3 升级与证据迁移已入库：`9cba91f`、`8fb07ea`；本提交仅更新计划记录）。
+- 无未提交改动（kit v0.5.4 与宿主同步已入库：`d01ca45`（kit）/ `b3c75ca`（宿主）；发版证据与红队报告由本计划记录提交入库）。
 
 ## 本批提交
+
+Phase 5.30 / kit v0.5.4 定版（提交 `d01ca45` kit + `b3c75ca` 宿主同步 + 计划/审查记录）：npx 一等入口（skill 自举 resolver、
+adopted 离线快路径、双管理器安全交互、tag CI）；kit 330 tests；宿主诚实小升级（config/Makefile 注释/tools/HARNESS/manifest）；
+镜像 main `4ad6bc8` + annotated tag `v0.5.4`（tag^{} == main）、tag/main CI success、drift in sync；隔离 HOME npx E2E 与本机安装迁移通过；
+报告 `harness/reviews/2026-11-16-kit-0.5.4-npx-redteam.md`。仍不改 iOS 业务代码、不动业务测试。
 
 Phase 5.28 / kit v0.5.2 定版（已提交 2e5c0a0）：宿主机问题 → kit 上游反馈通道——入口 skill `feedback`
 场景、`stage: both` 提示词场景、根 AGENTS/init summary/adopt 报告与 JSON/adoption §3.6/README 的反馈入口、
