@@ -1,41 +1,28 @@
 #!/usr/bin/env python3
-"""环境自检（doctor）：Xcode / 模拟器 runtime / 真机入口 / python / git / 模板仓。
+"""环境自检（doctor）：python3 / git 仓库 / 配置中的测试命令 / 可选适配器。
 
 用法：
-  PYTHONDONTWRITEBYTECODE=1 python3 tools/doctor.py [--root <repo>]
+    python3 tools/doctor.py [--root PATH] [--agent]
 
-环境变量：
-  SIM_OS      期望的模拟器 runtime（默认 26.4.1，与 Makefile 一致）
-  SIM_NAME    期望的模拟器设备名（默认 iPhone 17 Pro Max，仅用于展示）
-  TEAM_RULES  团队规则模板仓路径（默认 ../../agent/template，相对仓库根）
+根目录默认「本脚本上级目录」（脚本位于目标项目 `tools/` 下）；`--root` 可覆盖。
+配置唯一来源：`<root>/harness/config.json`。配置缺失/字段缺失时 doctor **降级继续**
+（WARN + 建议行），其余脚本要求配置齐全（exit 1）。
 
-每项输出 OK / WARN / FAIL / SKIP：
-  OK    可用
-  WARN  非阻塞缺失（例如真机入口 mobilebuildmcp 不在 PATH）
-  FAIL  阻塞（例如不是 git 仓库）
-  SKIP  不适用或未配置（例如没有模板仓）
+每项输出 OK / WARN / FAIL / SKIP；失败/降级项在报告末尾给出固定建议行：
+    [必需|可选] <检查项>：→ 影响：…；如何补：…
 
-建议区（Phase 3.4 新增）：
-  只要出现有建议的非 OK 项，报告末尾追加「建议」区，每项固定为：
-    [必需|可选] <检查项>：→ 影响：…；如何补：…[；替代：…]
-  - 必需：缺失会阻断动态验证或关键门禁（xcodebuild、基线 simctl runtime、git 仓库）；
-    不修复时动态验证结论只能是“未验证”。
-  - 可选：只影响真机入口/团队基线等增强能力（mobilebuildmcp、TEAM_RULES、git status），
-    不影响 make verify-static 静态门禁。
-  - 未被专用映射覆盖的 WARN/FAIL 走通用兜底文案；显式登记过的 SKIP（目前只有 TEAM_RULES）
-    按可选列出；未登记的 SKIP 视为不适用、保持安静；全部 OK 时不输出建议区。
+退出码（契约）：
+    2 = 缺 python3 或 git 仓库（动态验证不可用）
+    0 = 其余情况（含配置缺失的降级 WARN）
 
-退出码（不变）：
-  0 = 静态环境就绪（可能有 WARN；本命令不运行测试/真机 → 代码行为仍为“未验证”）
-  2 = 动态验证不可用（xcodebuild 或 simctl runtime 缺失）→ 代码行为结论 = “未验证”
-      环境问题不等于代码问题：不要把“跑不了”写成“测试通过”。
-
-注意：doctor 只查环境，不跑 xcodebuild 测试、不装依赖、不改任何文件。
+仅标准库；不联网、不写文件、不运行测试命令。
 """
 from __future__ import annotations
 
+import argparse
+import json
 import os
-import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -43,102 +30,67 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+CONFIG_REL = Path("harness") / "config.json"
 OK, WARN, FAIL, SKIP = "OK", "WARN", "FAIL", "SKIP"
-
-DEFAULT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_SIM_OS = "26.4.1"
-DEFAULT_SIM_NAME = "iPhone 17 Pro Max"
-DEFAULT_TEAM_RULES = "../../agent/template"
-
-ROOT = DEFAULT_ROOT
 
 
 @dataclass(frozen=True)
 class Suggestion:
-    """缺失/降级项的修复建议：必需性 + 影响 + 如何补（可选替代方案）。
-
-    required=True 表示「必需」：不修则动态验证不可用；False 表示「可选」：不影响静态门禁。
-    impact/fix/alternative 支持 {sim_os} 占位符，由 render(context) 替换。
-    """
+    """WARN/FAIL 项建议：必需性 + 影响 + 如何补。"""
 
     required: bool
     impact: str
     fix: str
-    alternative: str = ""
 
     @property
     def label(self) -> str:
         return "必需" if self.required else "可选"
 
-    def render(self, context: Mapping[str, str] | None = None) -> str:
-        values = {"sim_os": DEFAULT_SIM_OS}
-        if context:
-            values.update({key: str(value) for key, value in context.items()})
-
-        def fill(text: str) -> str:
-            return text.replace("{sim_os}", values["sim_os"])
-
-        line = f"→ 影响：{fill(self.impact)}；如何补：{fill(self.fix)}"
-        if self.alternative:
-            line += f"；替代：{fill(self.alternative)}"
-        return line
+    def render(self) -> str:
+        return f"→ 影响：{self.impact}；如何补：{self.fix}"
 
 
-# 检查项名 → 建议（Phase 3.4：缺失时说明“影响什么、怎么补、必需还是可选”）。
 SUGGESTIONS: dict[str, Suggestion] = {
-    "xcodebuild": Suggestion(
+    "python3": Suggestion(
         required=True,
-        impact="模拟器/真机动态验证不可执行（make test / make test-ui / make device-test 都会失败）",
-        fix="安装 Xcode（App Store 或 developer.apple.com）后执行 "
-        "`sudo xcode-select -s /Applications/Xcode.app`，再重跑 make doctor",
-        alternative="只跑 make verify-static（静态门禁）；动态验证放到有 Xcode 的机器/CI",
-    ),
-    "simctl runtime": Suggestion(
-        required=True,
-        impact="make test 的 SIM_DEST 找不到基线模拟器，模拟器单测/UI 测试不可执行",
-        fix="Xcode → Settings → Components（Platforms）下载 iOS {sim_os} runtime，"
-        "或执行 `xcodebuild -downloadPlatform iOS`；也可用 SIM_OS=<已有版本> 覆盖",
-        alternative="只跑 make verify-static；或用已有 runtime 的 SIM_OS 重跑",
-    ),
-    "mobilebuildmcp": Suggestion(
-        required=False,
-        impact="真机测试入口 make device-test / harness/tools/device-test.sh 不可用，"
-        "真机验证结论只能写“未验证”",
-        fix="按 CONTRIBUTING.md / references/verification.md 安装 mobilebuildmcp，并确保它在 PATH",
-        alternative="不影响静态门禁；真机验证改用手动步骤",
-    ),
-    "TEAM_RULES": Suggestion(
-        required=False,
-        impact="make check-agents 无法校验团队基线（按团队约定 SKIP，不阻断本地门禁）",
-        fix="忽略；或设置 TEAM_RULES=<模板仓路径> 后重跑 make check-agents / make doctor",
+        impact="所有 Python 门禁脚本不可执行，动态验证不可用",
+        fix="安装 Python 3 并确保 `python3` 在 PATH（重新打开终端后重跑 make doctor）",
     ),
     "git 仓库": Suggestion(
         required=True,
-        impact="计划状态、证据与所有 git 相关门禁不可用（make verify-static / plan.py check 会失败）",
-        fix="在仓库根运行 doctor；若目录不完整，重新 clone 仓库",
+        impact="计划状态、证据与所有 git 相关门禁不可用（verify-static / 计划检查会失败）",
+        fix="在项目根初始化 git（git init）或重新 clone 仓库后重跑 make doctor",
     ),
-    "git status": Suggestion(
+    "config": Suggestion(
+        required=True,
+        impact="其他 harness 脚本无法运行（配置是唯一读取源）；doctor 自身降级继续",
+        fix="按 harness/config.json 模板补齐配置（可重跑 harness-init 或手动创建）",
+    ),
+    "测试命令": Suggestion(
         required=False,
-        impact="无法确认工作区是否清洁（收尾/交接时的未提交改动判断受影响）",
-        fix="确认 git 可用并能读取仓库元数据后重跑 make doctor",
+        impact="本机无法直接运行配置的测试命令，测试结论仍为“未验证”",
+        fix="安装命令依赖的工具，或修改 config.commands.test 指向本机可用的测试入口",
+    ),
+    "adapters": Suggestion(
+        required=False,
+        impact="适配器同步/检查不可用（仅可选集成能力受影响，不阻断静态门禁）",
+        fix="按 kit 的 adapters 说明补齐目录或删除 config.adapters 中的对应条目",
     ),
 }
 
-# 未登记检查项的通用兜底：FAIL 按必需、WARN 按可选处理。
 FALLBACK_FAIL = Suggestion(
     required=True,
     impact="该必需检查项失败会阻断对应的门禁/验证链路（详见上方 detail 行）",
-    fix="按上方 detail 修复；不确定时先跑 make verify-static 缩小范围",
+    fix="按上方 detail 修复后重跑 make doctor",
 )
 FALLBACK_WARN = Suggestion(
     required=False,
     impact="该可选检查项缺失只影响对应增强能力，不阻断静态门禁（详见上方 detail 行）",
-    fix="按上方 detail 修复或忽略；静态门禁可用 make verify-static",
+    fix="按上方 detail 修复或忽略",
 )
 
 
 def suggestion_for(name: str, level: str) -> Suggestion | None:
-    """按检查项名/级别取建议；SKIP 只对显式登记项给建议（不适用项保持安静）。"""
     suggestion = SUGGESTIONS.get(name)
     if suggestion is not None:
         return suggestion
@@ -147,25 +99,6 @@ def suggestion_for(name: str, level: str) -> Suggestion | None:
     if level == WARN:
         return FALLBACK_WARN
     return None
-
-
-def exit_code(xcode_ok: bool, runtime_ok: bool) -> int:
-    """退出码语义（保持不变）：动态验证不可用（缺 Xcode 或基线 runtime）→ 2，否则 0。"""
-    return 0 if xcode_ok and runtime_ok else 2
-
-
-def run(cmd: list[str], timeout: int = 30, cwd: Path | None = None) -> tuple[int, str, str]:
-    try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd or ROOT
-        )
-        return result.returncode, result.stdout.strip(), result.stderr.strip()
-    except FileNotFoundError:
-        return 127, "", "命令不存在"
-    except subprocess.TimeoutExpired:
-        return 124, "", f"超时（{timeout}s）"
-    except OSError as exc:  # pragma: no cover - 极端环境
-        return 126, "", str(exc)
 
 
 class Report:
@@ -182,17 +115,16 @@ class Report:
         return result
 
     def suggestions(self, context: Mapping[str, str] | None = None) -> list[str]:
-        """非 OK 行的建议行（每个检查项一行；同名校验只列一次）。"""
         lines: list[str] = []
         seen: set[str] = set()
         for level, name, _ in self.rows:
-            if level == OK or name in seen:
+            if level not in (WARN, FAIL) or name in seen:
                 continue
             suggestion = suggestion_for(name, level)
             if suggestion is None:
                 continue
             seen.add(name)
-            lines.append(f"  [{suggestion.label}] {name}：{suggestion.render(context)}")
+            lines.append(f"  [{suggestion.label}] {name}：{suggestion.render()}")
         return lines
 
     def render(self, context: Mapping[str, str] | None = None) -> str:
@@ -209,171 +141,190 @@ class Report:
         suggestions = self.suggestions(context)
         if suggestions:
             lines.append("")
-            lines.append("建议（缺失/降级项：影响与修复方式；必需项不修则动态验证不可用）：")
+            lines.append("建议（缺失/降级项：影响与修复方式）：")
             lines.extend(suggestions)
         return "\n".join(lines)
 
 
-def first_line(text: str) -> str:
-    return text.splitlines()[0].strip() if text.strip() else ""
+def run(cmd: list[str], timeout: int = 15) -> tuple[int, str, str]:
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except FileNotFoundError:
+        return 127, "", "命令不存在"
+    except subprocess.TimeoutExpired:
+        return 124, "", f"超时（{timeout}s）"
+    except OSError as exc:  # pragma: no cover - 极端环境
+        return 126, "", str(exc)
 
 
-def check_xcode(report: Report) -> bool:
-    code, out, err = run(["xcodebuild", "-version"])
-    if code != 0:
-        detail = first_line(err) or first_line(out) or f"exit {code}"
-        report.add(FAIL, "xcodebuild", f"不可用：{detail}；动态验证不可执行")
-        return False
-    version = " ".join(line.strip() for line in out.splitlines()[:2] if line.strip())
-    developer = ""
-    dev_code, dev_out, _ = run(["xcode-select", "-p"])
-    if dev_code == 0 and dev_out.strip():
-        developer = f"；developer: {dev_out.strip()}"
-    report.add(OK, "xcodebuild", version + developer)
-    return True
+def load_config(root: Path) -> tuple[dict | None, str]:
+    """返回 (config, 错误说明)；错误说明为空表示成功。"""
+    path = root / CONFIG_REL
+    if not path.is_file():
+        return None, f"缺少配置文件 {CONFIG_REL.as_posix()}"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return None, f"{CONFIG_REL.as_posix()} 不是合法 JSON：{exc}"
+    if not isinstance(data, dict):
+        return None, f"{CONFIG_REL.as_posix()} 顶层必须是 JSON 对象"
+    return data, ""
 
 
-def check_simctl(report: Report, sim_os: str) -> bool:
-    code, out, err = run(["xcrun", "simctl", "list", "runtimes"])
-    if code != 0:
-        detail = first_line(err) or first_line(out) or f"exit {code}"
-        report.add(FAIL, "simctl runtime", f"xcrun simctl 不可用：{detail}；动态验证不可执行")
-        return False
-    runtime_lines = [line.strip() for line in out.splitlines() if line.strip()]
-    ios_lines = [line for line in runtime_lines if line.startswith("iOS ")]
-    matched = [line for line in ios_lines if sim_os in line]
-    available = ", ".join(re.sub(r"\s+-.*$", "", line) for line in ios_lines) or "无 iOS runtime"
-    if matched:
-        report.add(OK, "simctl runtime", f"iOS {sim_os} 可用（SIM_OS={sim_os}）：{matched[0]}")
-        return True
-    report.add(
-        WARN,
-        "simctl runtime",
-        f"未找到 iOS {sim_os}（SIM_OS={sim_os}）；可用：{available}；"
-        f"用 SIM_OS=<version> 覆盖，或安装对应 runtime（make test 的 SIM_DEST 依赖它）",
-    )
-    return False
+def program_from_command(command: object) -> str:
+    """取配置命令的首个可执行程序名（引号/参数安全解析）。"""
+    if not isinstance(command, str) or not command.strip():
+        return ""
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return ""
+    return parts[0] if parts else ""
 
 
-def check_mobilebuildmcp(report: Report) -> None:
-    found = shutil.which("mobilebuildmcp")
-    if found:
-        report.add(OK, "mobilebuildmcp", found)
-    else:
-        report.add(
-            WARN,
-            "mobilebuildmcp",
-            "不在 PATH；make device-test / harness/tools/device-test.sh 不可用（真机验证结论=未验证）",
-        )
-
-
-def check_python(report: Report) -> None:
-    version = sys.version.split()[0]
-    executable = shutil.which("python3") or sys.executable
-    report.add(OK, "python3", f"{version}（{executable}）")
-
-
-def check_git(report: Report) -> bool:
-    code, out, err = run(["git", "rev-parse", "--is-inside-work-tree"])
-    if code != 0 or out.strip() != "true":
-        detail = first_line(err) or first_line(out) or f"exit {code}"
-        report.add(FAIL, "git 仓库", f"不是 git 仓库或 git 不可用：{detail}")
-        return False
-    branch = ""
-    _, branch_out, _ = run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-    if branch_out.strip():
-        branch = f"branch={branch_out.strip()}"
-    commit = ""
-    _, commit_out, _ = run(["git", "rev-parse", "--short", "HEAD"])
-    if commit_out.strip():
-        commit = f"HEAD={commit_out.strip()}"
-    detail = "，".join(part for part in (commit, branch) if part) or "仓库可用"
-    report.add(OK, "git 仓库", detail)
-    return True
-
-
-def check_team_rules(report: Report, root: Path) -> None:
-    configured = os.environ.get("TEAM_RULES", "").strip()
-    label = configured or DEFAULT_TEAM_RULES
-    candidate = Path(configured) if configured else root / DEFAULT_TEAM_RULES
-    if not candidate.is_absolute():
-        candidate = (root / candidate).resolve()
-    if not candidate.is_dir():
-        report.add(
-            SKIP,
-            "TEAM_RULES",
-            f"模板仓不存在：{label}（make check-agents 会 SKIP，不阻断；设置 TEAM_RULES=<path> 可复跑）",
-        )
-        return
-    sync_script = candidate / "scripts" / "sync_team_baseline.py"
-    if sync_script.is_file():
-        report.add(OK, "TEAM_RULES", f"{label}（模板仓存在，含 sync_team_baseline.py）")
-    else:
-        report.add(WARN, "TEAM_RULES", f"{label}（目录存在但缺 scripts/sync_team_baseline.py）")
-
-
-def check_git_status(report: Report) -> None:
-    code, out, _ = run(["git", "status", "--short"])
-    if code != 0:
-        report.add(WARN, "git status", "无法读取 git status")
-        return
-    count = len([line for line in out.splitlines() if line.strip()])
-    if count:
-        report.add(OK, "git status", f"工作区有 {count} 项未提交改动（开发中正常；收尾用 make end 核对计划）")
-    else:
-        report.add(OK, "git status", "工作区 clean")
-
-
-def main(argv: list[str]) -> int:
-    global ROOT
-    args = list(argv)
-    if "--root" in args:
-        index = args.index("--root")
+def agent_probe(root: Path) -> list[str]:
+    """Read-only capability probe for the current AI coding Agent (env/CLI/skill roots)."""
+    rows: list[str] = []
+    env = os.environ
+    hints: list[str] = []
+    if env.get("CLAUDECODE") or env.get("CLAUDE_CODE_ENTRYPOINT"):
+        hints.append("claude-code（环境变量）")
+    if any(key.startswith("DSH_") for key in env):
+        hints.append("deepseek-harness（DSH_* 环境变量）")
+    if any(key.startswith("CODEX_") for key in env):
+        hints.append("codex（CODEX_* 环境变量）")
+    if any(key.startswith("CURSOR_") for key in env):
+        hints.append("cursor（CURSOR_* 环境变量）")
+    rows.append("agent: " + ("、".join(hints) if hints else "未识别（按 AGENTS.md 通用流程执行）"))
+    clis = [name for name in ("claude", "dsh", "codex", "cursor-agent") if shutil.which(name)]
+    rows.append("可用 CLI: " + ("、".join(f"{name}={shutil.which(name)}" for name in clis) if clis else "无"))
+    models = [f"{key}={env[key]}" for key in ("ANTHROPIC_MODEL", "CLAUDE_MODEL", "DEEPSEEK_MODEL", "DSH_MODEL") if env.get(key)]
+    rows.append("模型（env）: " + ("、".join(models) if models else "未从环境变量识别"))
+    roots = [".dsh/skills", ".claude/skills"]
+    present = [name for name in roots if (root / name).is_dir()]
+    harness_skills = [name for name in roots if (root / name / "harness" / "SKILL.md").is_file()]
+    rows.append("skill 根: " + ("、".join(present) if present else "无") +
+                (f"；harness skill 已安装：{'、'.join(harness_skills)}" if harness_skills else "；harness skill 未安装（可选）"))
+    manifest = root / ".harness-manifest.json"
+    if manifest.is_file():
         try:
-            ROOT = Path(args[index + 1]).expanduser().resolve()
-        except IndexError:
-            sys.exit("用法：python3 tools/doctor.py [--root <repo>]")
-        del args[index: index + 2]
-    if args and args[0] in ("-h", "--help", "help"):
-        print(__doc__)
-        return 0
-    if not ROOT.is_dir():
-        sys.exit(f"[FAIL] 仓库根不存在：{ROOT}")
+            rows.append("manifest: " + json.loads(manifest.read_text(encoding="utf-8")).get("kitVersion", "?"))
+        except (OSError, json.JSONDecodeError):
+            rows.append("manifest: 无法解析")
+    else:
+        rows.append("manifest: 无（v0.2.13 之前接入）")
+    rows.append("提示: 本探测只读；不安装插件、不调用 Agent。")
+    return rows
 
-    sim_os = os.environ.get("SIM_OS", DEFAULT_SIM_OS).strip() or DEFAULT_SIM_OS
-    sim_name = os.environ.get("SIM_NAME", DEFAULT_SIM_NAME).strip() or DEFAULT_SIM_NAME
 
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="环境自检（doctor）：python3 / git / 测试命令 / 适配器")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent,
+        help="目标项目根（默认脚本上级目录）",
+    )
+    parser.add_argument("--agent", action="store_true", help="额外输出 Agent 能力探测（只读；环境变量/CLI/skill 根）")
+    args = parser.parse_args(argv)
+    root = args.root.expanduser().resolve()
     report = Report()
-    xcode_ok = check_xcode(report)
-    runtime_ok = check_simctl(report, sim_os)
-    check_mobilebuildmcp(report)
-    check_python(report)
-    git_ok = check_git(report)
-    check_team_rules(report, ROOT)
+
+    python_path = shutil.which("python3")
+    python_ok = bool(python_path)
+    if python_ok:
+        report.add(OK, "python3", f"{sys.version.split()[0]}（{python_path}）")
+    else:
+        report.add(FAIL, "python3", "PATH 中找不到 python3")
+
+    code, out, err = run(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"])
+    git_ok = code == 0 and out.strip() == "true"
     if git_ok:
-        check_git_status(report)
+        _, branch, _ = run(["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"])
+        _, commit, _ = run(["git", "-C", str(root), "rev-parse", "--short", "HEAD"])
+        parts = []
+        branch_name = branch.strip()
+        if branch_name and branch_name != "HEAD":
+            parts.append(f"branch={branch_name}")
+        if commit.strip():
+            parts.append(f"HEAD={commit.strip()}")
+        report.add(OK, "git 仓库", "，".join(parts) or "仓库可用（尚无提交或游离 HEAD）")
+    else:
+        message = err.splitlines()[0].strip() if err.strip() else f"exit {code}"
+        report.add(FAIL, "git 仓库", f"不是 git 仓库或 git 不可用：{message}")
 
-    code = exit_code(xcode_ok, runtime_ok)
+    config, config_error = load_config(root)
+    if config is None:
+        report.add(WARN, "config", f"{config_error}（doctor 降级：跳过测试命令/适配器检查）")
+    else:
+        version = config.get("kitVersion", "未知")
+        report.add(OK, "config", f"{CONFIG_REL.as_posix()}（kitVersion={version}）")
 
-    print("对译 Duiyi · 环境自检（doctor）")
-    print(f"仓库：{ROOT}")
-    print(f"目标模拟器：{sim_name} / iOS {sim_os}（SIM_OS / SIM_NAME 可覆盖）")
-    print(report.render({"sim_os": sim_os}))
+        commands = config.get("commands")
+        test_command = commands.get("test") if isinstance(commands, dict) else None
+        program = program_from_command(test_command)
+        if not program:
+            report.add(WARN, "测试命令", "config.commands.test 缺失或无法解析")
+        else:
+            resolved = shutil.which(program)
+            if resolved:
+                report.add(OK, "测试命令", f"{program}（{resolved}）← {test_command}")
+            else:
+                report.add(
+                    WARN,
+                    "测试命令",
+                    f"首个程序不在 PATH：{program}（config.commands.test={test_command!r}）",
+                )
+
+        adapters = config.get("adapters")
+        if adapters is None or adapters == {}:
+            report.add(SKIP, "adapters", "未配置 adapters（可选集成，跳过）")
+        elif not isinstance(adapters, dict):
+            report.add(WARN, "adapters", "config.adapters 必须是对象")
+        else:
+            problems: list[str] = []
+            for name, spec in sorted(adapters.items()):
+                if not isinstance(spec, dict):
+                    problems.append(f"{name} 配置必须是对象")
+                    continue
+                source = spec.get("skillsSource")
+                if source is None:
+                    continue
+                if not isinstance(source, str) or not source.strip():
+                    problems.append(f"{name}.skillsSource 必须是非空字符串")
+                elif not (root / source).is_dir():
+                    problems.append(f"{name}.skillsSource 目录不存在：{source}")
+            if problems:
+                for problem in problems:
+                    report.add(WARN, "adapters", problem)
+            else:
+                report.add(OK, "adapters", f"{len(adapters)} 项配置，来源目录可用")
+
+    print("环境自检（doctor）")
+    print(f"项目根：{root}")
+    print(report.render())
+    if args.agent:
+        print()
+        print("Agent 能力探测（--agent，只读）")
+        for row in agent_probe(root):
+            print(f"  {row}")
     print()
+    code = 2 if (not python_ok or not git_ok) else 0
     if code == 2:
-        failures = []
-        if not xcode_ok:
-            failures.append("xcodebuild 不可用")
-        if not runtime_ok:
-            failures.append("simctl runtime 不可用或缺少基线版本")
-        print("结论：动态验证不可执行（" + "、".join(failures) + "）→ 代码行为结论=未验证。")
-        print("      这是环境问题，不是代码问题：不要在无 Xcode 的机器上把 make test 失败归因于代码。")
-        print("      改用：make verify-static（静态）+ 有 Xcode 的机器/CI 跑动态验证。")
+        missing = []
+        if not python_ok:
+            missing.append("python3")
+        if not git_ok:
+            missing.append("git 仓库")
+        print(f"[FAIL] 环境自检未通过：缺少必需项（{'、'.join(missing)}）→ 动态验证不可用（exit 2）")
         return code
-    print("结论：动态验证环境就绪（Xcode + 基线模拟器可用）。")
-    print("      本命令不运行测试/真机 —— 代码行为结论仍为“未验证”；需要跑 make test / make test-ui / make device-test。")
+    if config is None:
+        print("[WARN] 环境自检降级通过：python3/git 可用，但配置缺失（修好配置后重跑；exit 0）")
+    else:
+        print("[OK] 环境自检通过（完整工具链可用；本命令不运行测试命令）")
     return code
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())

@@ -9,7 +9,7 @@
 - `BilingualSpeechEngine()` 只在组合根（`AppEnvironment` 默认参数）实例化；其它位置注入协议。
 - P0-1 的 `SpeechSessionGate`（owner + generation）是**目标而非现行**：实现前不得在代码/注释/文档/提交信息里声称已有全局仲裁。
 - 快速切模块/前后台切换的并发问题仍在；改这块必须配假引擎并发测试（20 次切换 + 10 次前后台）。
-- 资源不足降级与 `UtteranceAssembler` 语种锁定是现状（`docs/02` §4），不要顺手改听写策略。
+- 资源不足降级与 `UtteranceAssembler` 语种锁定是现状（`docs/02-architecture.md` §4），不要顺手改听写策略。
 
 ## 2. 翻译：Session 只在 Host View
 

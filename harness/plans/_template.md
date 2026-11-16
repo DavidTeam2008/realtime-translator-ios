@@ -1,65 +1,45 @@
 ---
 id: <date>-<topic>
-status: <active|done|blocked|archived>
-level: <L0|L1|L2>
+status: <status>
+level: L1
 owner: <owner>
-updated: <YYYY-MM-DD>
-# submitted 只在 status: done 时填：逗号分隔的提交短 hash，如 a431bd7,9473b90
-submitted:
-scope:              # 允许/禁止改动的文件或目录；越界先停并更新计划
-  allow:            # 允许
-    - <path or dir>
-  deny:             # 禁止
-    - <path or dir>
-acceptance:         # 可执行判据（与正文“验收”一致，机检非空）
-  - <命令 + 期望结果>
-verify:             # 完成前必须跑的命令
-  - <make 目标或脚本命令>
+updated: <date>
+scope:
+  allow:
+    - <允许改动的文件或目录>
+  deny: []
+  # exceptions: []   # 可选：submitted 审计例外（路径前缀），必须写理由并可见
+acceptance:
+  - <可执行、可复核的验收判据>
+verify:
+  - make verify-static
+# 完成（status: done）时填写：证据 commit 的短 hash（逗号/空格分隔，如 `abc1234`）
+# submitted: <hash1,hash2>
 ---
 
-# <主题> · 执行计划
+# <date>-<topic> · 执行计划
 
-> 跨会话任务的唯一进度真源；用 `make plan TOPIC=<topic>` 生成 `YYYY-MM-DD-<topic>.md`。
-> front matter 是机检字段（`tools/plan.py check`）；正文是给下一棒读的事实。
-> `status` 只取 active | done | blocked | archived；同一时刻只允许 1 个 active 计划。
-> 计划入库：不写本机绝对路径、密钥、设备 UDID；中断、交接、提交前必须更新。
+> 计划是跨会话任务的进度真源：中断 / 交接前更新，完成后归档。
+> 根指令见 [`../../AGENTS.md`](../../AGENTS.md)，流程见 [`../../references/workflow.md`](../../references/workflow.md)，证据格式见 [`../evidence/README.md`](../evidence/README.md)。
+> **完成流程**：验证证据 + `submitted` 填好 → 移入 `_archive/` → `make check-plan` 通过后再收尾。
 
 ## 目标与非目标
 
 - 目标：
 - 非目标：
 
-## 改动范围
-
-- 允许：见 front matter `scope.allow`。
-- 禁止：见 front matter `scope.deny`。
-- 越界处理：先停下，更新计划与 scope，再继续。
-
 ## 验收
 
-- 待填（可执行判据，如命令 + 期望结果）
+- [ ] <可执行判据（命令 / 结果 / 阈值）>
 
-## Definition of Done
+## 改动范围
 
-- [ ] 验收判据全部满足（可执行、可复核）
-- [ ] `make check` / `make verify-static` PASS
-- [ ] 验证证据已记录（命令 + 结果 + 环境）
-- [ ] 未验证项已单列
-- [ ] 未提交改动与 `git status` 一致
-- [ ] 计划已更新；提交前已询问用户
+- 允许：
+- 禁止：
 
 ## 进度
 
 - [ ]
-- [x]
-
-## 关键决策与理由
-
-- 
-
-## 已排除（勿重试）
-
-- 方案 / 失败原因 / 证据：
 
 ## 验证证据
 
@@ -69,22 +49,20 @@ verify:             # 完成前必须跑的命令
 
 ## 未验证项
 
-- （未运行 / 未取得证据的项；没有则写“无”）
+- 
 
-## 尝试记录
+## 未验证豁免（done 前有未验证项时必须填）
 
-| 尝试# | 动作 | 结果 | 时间 |
+> 每条未验证项都要被下面的「项目」覆盖；到期日 YYYY-MM-DD，过期即 FAIL。没有未验证项时保留表头即可。
+
+| 项目 | 理由 | 负责人 | 到期日 |
 | --- | --- | --- | --- |
-| 1 |  |  |  |
+| <未验证项关键词> | <为什么可以接受> | <owner> | <YYYY-MM-DD> |
 
 ## 未提交改动
 
-- 文件 / 意图 / 是否可丢弃：（必须与 `git status --short` 一致；没有则写“无”）
+- 文件 / 意图 / 是否可丢弃：
 
 ## 下一步
 
 1. 
-
-## 待确认
-
-- 

@@ -1,88 +1,89 @@
-# 验证证据（evidence）
+# 证据目录（evidence）
 
-> 目的：把「已验证 / 测试通过 / 真机通过 / 性能没退化」从**自由文本**变成**可被脚本反驳的对象**。
-> 规则：无 evidence 的「已验证」按**未验证**处理；`UNVERIFIED` 不是 `PASS`。
-> 事实源：schema 见 [schema.json](schema.json)，起稿见 [TEMPLATE.json](TEMPLATE.json)，测试基线见 [harness/test-baseline.json](../test-baseline.json)。
+> 一条验证结论一个文件，让“完成”可复核；原始产物不入库。
+> 目录协议见 [`../AGENTS.md`](../AGENTS.md)，判定口径见 [`../../references/verification.md`](../../references/verification.md)。
 
-> environment 还支持可选 `agent` / `model` / `harnessVersion` 字段（跨 agent/模型对比用；不改变 schemaVersion，向后兼容）。
+## 1. 命名与位置
 
-## 1. 目录与入库策略
+- 名称：`<UTC时间>-<claim>.json`，例如 `20260101T000000Z-tests-pass.json`。
+- `claim` 必须出现在 `harness/config.json` 的 `claims[].name` 中。
+- 同一 claim 可保留多条历史文件；最新一条用于判定。
+- **当前证据必须被 git 跟踪**（`git ls-files --error-unmatch`）：未跟踪的 PASS 证据会降为
+  UNVERIFIED（CI checkout 后不存在，无法复核）；`verify_claim.py --allow-untracked`
+  是显式逃生口（不降级、只 WARN，风险自担）。
+- 递归扫描：证据目录子目录里的 JSON 也参与判定；路径含 `_archive` 段的是**归档证据**。
 
-| 文件 | 说明 | 入库 |
-| --- | --- | --- |
-| `schema.json` | draft-07 证据 schema（`tools/evidence.py` 实现其子集，无第三方依赖） | 是 |
-| `TEMPLATE.json` | 起稿模板；`id` 必须改成文件名 stem | 是 |
-| `<UTC 时间>Z-<claim>.json` | 每次验证 1 条摘要，1–3KB，不含大产物 | 是 |
-| 原始产物（xcresult / 日志 / trace） | 留在本机或 `harness/runs/`（已 gitignore） | **否** |
+## 2. 归档与取代（不静默消失）
 
-不写本机绝对路径、设备 UDID/CoreDevice ID、密钥。机器本地事实写 `AGENTS.local.md`（gitignore）。
-**dirty 工作树生成的证据不能判 PASS**：正确顺序是 clean tree → 跑验证 → 生成证据 `/ 提交`；提交后证据里的 commit 变成新 HEAD 的祖先，仍可复核。
+- 过期证据用 `git mv` 移到 `harness/evidence/_archive/`，**不要直接删除**。
+- `verify_claim` 会对归档证据逐个输出 `CLAIM <id>: SUPERSEDED — <原因>`：
+  当前证据的 `supersedes`（字符串或数组）包含该 id，或归档证据的 `supersededBy`
+  指向当前 id → `已被 <id> 取代`；否则 `位于 _archive（未声明取代关系）`。
+- 归档证据不参与 PASS/FAIL/UNVERIFIED 聚合、不改变退出码，但**必须出现在输出里**；
+  只有归档证据、没有当前证据时聚合为 UNVERIFIED（exit 2），不能用移动文件变绿。
+- **归档 FAIL/UNVERIFIED 不得静默**：必须有 claim 相同、存在且非自环的当前 PASS 证据在
+  `supersedes` 里声明接管该 id；否则输出 `CLAIM <archived-id>: UNVERIFIED — 归档失败/
+  未验证证据未被合法取代` 并至少 UNVERIFIED（不能只靠移动文件变绿）。归档 PASS 只列
+  `SUPERSEDED`，不惩罚。
+- **必需 claim 完整性**：`config.claims` 每项 `required` 默认 true；某个 required claim
+  没有任何“当前证据”匹配（按 `doc.claim`）→ 输出 `CLAIM <claim>: UNVERIFIED — 缺少
+  当前证据`，参与 exit 2。`required: false` 可显式 opt-out（例如仅手工触发的 claim）。
 
-## 2. 命名与 id
+## 3. 结构
 
-- 文件名 = `<UTC 时间>Z-<claim>.json`，例：`20261105T052500Z-unit-tests-pass.json`。
-- `id` 必须等于文件名 stem；`createdAt` 是同一时刻的 UTC RFC3339。
-- 生成工具自动填 `id/createdAt/git/verifier`，不要手改。
+- 字段以 [`schema.json`](schema.json) 为准；可从 [`TEMPLATE.json`](TEMPLATE.json) 复制后填写。
+- 必需：`schemaVersion` / `id` / `claim` / `createdAt` / `git{commit,dirty}` / `command` / `environment` / `result` / `verdict` / `verifier`。
+- `verdict` 只能是 PASS / FAIL / UNVERIFIED；`git.dirty` 必须为 false 才代表可复核的提交态。
+- **test-count 的 PASS 证据必须带 `result.artifacts`（JUnit XML，仓库相对路径）**：`verify-claim` 会从 XML 独立重算 counts，与自报值不一致即 FAIL；缺 artifact 或只有 xcresult 等不可重算产物 → UNVERIFIED。
+- `result.artifactMode` 标明 artifact 来源：`sanitized-copy`（默认脱敏复制）/ `raw`（`--keep-raw` 旧行为）。
+- **artifact 也必须被 git 跟踪**（存在 + `git ls-files --error-unmatch`）；否则 UNVERIFIED
+  （`--allow-untracked` 只 WARN，`--strict` 下强制 UNVERIFIED）。本地能跑、CI 不可复核的
+  artifact 不算证据。
+- 可选 `supersedes` / `supersededBy`：声明证据间取代关系（见 §2）。
 
-## 3. claim 类型与判定规则
+## 4. claim 环境声明与 skipped 容差
 
-三值：`PASS`（exit 0）/ `FAIL`（exit 1）/ `UNVERIFIED`（exit 2，**证据不足，不算通过**）。
+- `harness/config.json` 的 claim 可声明 `environment`：
+  `{ "id": "server", "requires": ["mysql", "model-cache"], "os": "linux", "python": "3.12" }`。
+  `verify-claim` 会先比对证据的 `environment`：缺 `id` / id 不等 / `requires` 未覆盖 /
+  `os`、`python` 前缀不匹配 → **UNVERIFIED**（环境不满足不是代码回归），原因列出差集。
+- `expectedSkipped` 支持三种写法（点号路径指向的 baseline 值同样适用）：
+  - 整数：精确相等；
+  - `{ "min": 0, "max": 5 }`：闭区间；
+  - `{ "byEnvironment": { "server": 1, "ci": { "min": 40, "max": 60 } } }`：
+    按证据 `environment.id` 取值；缺 id 或未定义该环境 → UNVERIFIED。
+- 区间宽度 `max-min` 不得超过 `config.harden.maxSkippedRange`（默认 5）；byEnvironment
+  分支同样适用，超过即 FAIL 并提示收紧（避免用大区间“适配”环境差异）。
+- `claim.floorByEnvironment`（环境→整数）可按 `environment.id` 选择 floor；缺 id /
+  未定义环境 → UNVERIFIED，未配置时沿用 `floor`。
+- 配置非法（缺 min/max、min>max、byEnvironment 非 object、maxSkippedRange 非法等）→ FAIL，
+  不会“放行通过”。`os` 用词段匹配（linux 匹配 linux-gnu），`python` 用版本边界匹配
+  （3.12 匹配 3.12.x，不匹配 3.120）。
+- `type=static` 的 claim 每次重跑 command，`--fresh` 下不做 STALE 判定，原因会注明
+  `freshness 不适用`；freshness 主要约束 test-count 等一次性证据。
 
-| claim | 含义 | verify-claim 校验（摘要） |
-| --- | --- | --- |
-| `unit-tests-pass` | 模拟器单元（`make test`） | passed ≥ baseline.unit.floor；failed=0；skipped=0；commit 合法且 dirty=false；xcresult 存在，否则 UNVERIFIED |
-| `ui-tests-pass` | UI 测试（模拟器或真机） | passed ≥ baseline.ui.floor；simulator 环境 expected skipped=1，device 环境=0；其余同上 |
-| `device-tests-pass` | 真机全套（预热+单元+UI） | passed ≥ unit.floor+ui.floor；skipped=0（真机白名单）；其余同上 |
-| `docs-pass` | 文档门禁 | 复跑 `tools/check-docs.py`，exit 0 → PASS |
-| `arch-pass` | 架构铁律 R1–R6 | 复跑 `tools/check-arch.py`，exit 0 → PASS |
-| `perf-measurement` / `perf-no-regression` / `perf-improved` | 启动性能测量 | metrics 文件存在；context 的 commit/build 与证据一致；n≥10；CV≤10%；否则 UNVERIFIED |
+## 5. 生成与校验
 
-> 性能 `PASS` 只表示**测量可用 + context 一致**；A/B 显著性与最小效应属后续阶段，不要拿本 PASS 当"更快了"的证明。
+- 用工具写入（自动填 id / 时间 / git 信息），**必须提供 `--from-json`**：
+  `python3 tools/evidence.py write --from-json /tmp/evidence.json`（claim 取自 JSON，
+  或另加 `--claim NAME`）。
+- 测试证据先跑出 JUnit，再生成 payload：
+  `python3 tools/evidence_from_junit.py --xml <glob> --command "<测试命令>" --output /tmp/evidence.json`。
+  - 默认**脱敏复制**：删除 `system-out/system-err`、`hostname`、含本机路径的 `properties`，把仓库/Home 绝对路径相对化，并清理 `failure/error` 的 `message/type`、testcase 的 `classname/file` 属性与元素文本；产物写入 `<evidence>/artifacts/`（`--artifacts-dir` 可改，必须在仓库内且非符号链接），临时文件原子替换落盘。脱敏后会重新计数，若与原始 JUnit 计数不一致直接拒绝（防 sanitize 改坏测试树）。
+  - 输入或产物 >5MiB 直接拒绝；输入 JUnit 不能是符号链接。
+  - `--keep-raw` 保留旧行为（不脱敏不复制）；仓库外输入必须同时 `--allow-outside-root`，否则报错并提示默认模式。即使允许，也会 WARN：artifact 是绝对路径，`verify_claim` 会判 UNVERIFIED（并在 `notes` 里写明）。
+  - 环境声明用 `--environment id=server --environment os=linux` 传入；claim 需要 `requires` 覆盖时同理。值命中 IP、本机路径或 hostname 形态时 WARN（它会写入证据 JSON，注意隐私）。
+- xcresult 请先转 JUnit XML；不计数的原始产物不要入库。
+- 全量校验：`make check-evidence`（或 `python3 tools/evidence.py validate`）。
+- 三值判定：`make verify-claim`（或 `python3 tools/verify_claim.py --all`）；无当前证据 = UNVERIFIED，环境不可复核 = UNVERIFIED。
+- **写入前工作树必须 clean，但证据目录例外**：`write` 会自动豁免
+  `<paths.evidence>/` 下的未跟踪/已修改文件（JUnit artifact 与待写 JSON 本身就是待提交产物），
+  只输出 WARN 提示；其他目录的改动仍需先提交/清理。显式豁免其他目录用
+  `--allow-untracked-under <path>`（可重复）。豁免只是放宽“写入时点”，证据入库后仍要
+  提交并保证 `git.dirty=false`。
 
-## 4. 生成
+## 6. 入库策略
 
-真机与测量自动写（推荐）：
-
-```bash
-make device-test          # 成功后自动写 harness/evidence/<UTC>-device-tests-pass.json
-harness/tools/measure-launch.sh 10
-```
-
-其他验证手工写（示例，命令按实际改动替换）：
-
-```bash
-python3 tools/evidence.py write \
-  --claim unit-tests-pass --status SUCCEEDED --passed 120 --failed 0 --skipped 0 \
-  --duration 42.5 --xcode "Xcode 27.1" --simulator "iOS 26.4.1" --build Debug \
-  --command "make test" --xcresult <xcresult 路径或 ~/…>
-```
-
-`--from-json -` 可读 stdin；设备脚本即为"草稿 JSON → `write --from-json`"两段式。
-写入前会按 schema 校验；失败 exit 1 且不落盘。
-
-## 5. 校验
-
-```bash
-python3 tools/evidence.py ls                 # = make evidence
-python3 tools/evidence.py show <id|路径>     # 查看单条
-python3 tools/evidence.py validate           # = make check-evidence
-make test-tools                              # evidence / verify-claim 工具单测
-
-python3 tools/verify-claim.py <证据路径>     # = make verify-claim CLAIM=<路径>
-python3 tools/verify-claim.py --all          # = make verify-claim（缺省 --all）
-```
-
-输出固定格式：`CLAIM <id>: PASS|FAIL|UNVERIFIED — <原因>`。
-`make verify-static` 已包含 `check-evidence` + `test-tools`（无需手跑）。
-
-## 6. 何时必须写证据
-
-- 任何「已完成 / 已修复 / 测试通过 / 真机验证 / 性能没退化」声明之前。
-- 计划「验证证据」表必须引用 evidence id（表列：命令 | 结果 | 环境 | 证据 ID）。
-- 环境不可用（无 Xcode / 无设备）→ 不写 PASS 证据，写「未验证 + 手动步骤」；可用 `make doctor` 说明环境原因。
-
-## 7. 限制（诚实声明）
-
-- 提高撒谎成本 ≠ 绝对防伪：evidence JSON 可被伪造；但 commit 祖先校验、计数、xcresult/metrics 存在性、CI 复跑静态门禁会显著提高成本。
-- 行为质量（翻译/听写正确性、UI 手感）本目录无法自动判定；夹具 eval 就绪前，此类声明一律 UNVERIFIED。
-- `harness/runs/` 保持 gitignore：入库的是摘要；xcresult/metrics 路径跨机器不可达时，verify-claim 正确地判 UNVERIFIED，而不是绿。
+- 入库：小的 JSON 摘要 + 命令 + 结论 + `artifacts/` 下的脱敏 JUnit 摘要；不提交原始日志、截图、大文件。
+- 不写本机绝对路径、设备 ID、令牌 / 密钥；用相对路径或摘要指纹。
+- 证据 ID 必须能被计划「验证证据」表引用；引用不存在的 ID 视为未验证。

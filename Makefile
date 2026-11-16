@@ -11,13 +11,21 @@ TEAM_RULES ?= ../../agent/template
 KIT_REMOTE ?= git@github.com:DavidTeam2008/harness-engineering-kit.git
 N ?= 10
 
-.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one check-docs check-arch check-tests check-harness check-plan adapters-sync adapters-check check-evidence test-tools kit-check kit-prompts kit-publish kit-drift check check-all verify-static verify verify-claim verify-claim-fresh release-check evidence hooks-install harness-audit doctor resume end measure-launch plan handoff
+# 门禁工具是 Python 标准库脚本：禁止写 __pycache__（运行卫生）
+export PYTHONDONTWRITEBYTECODE := 1
+
+.PHONY: help build build-device test test-ui test-one device-test device-test-ui device-test-one \
+	status start verify handoff release check check-plan-strict check-evidence check-host \
+	adapters-check adapters-sync verify-static verify-claim verify-all release-check doctor doctor-ios plan \
+	selftest upgrade-check scorecard check-arch check-tests check-docs check-harness check-plan \
+	resume end verify-claim-fresh check-agents check-all evidence hooks-install kit-check kit-prompts \
+	kit-publish kit-drift measure-launch harness-audit
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
-	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-18s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-22s %s\n", $$1, $$2}'
 
+# ── 宿主：构建 / 测试 / 真机 ──────────────────────────────────────────────
 build: ## 模拟器编译
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -destination '$(SIM_DEST)' -derivedDataPath $(DERIVED) build
 
@@ -44,27 +52,134 @@ device-test-one: ## 真机单用例：make device-test-one TEST=DuiyiUITests/Sim
 	@test -n "$(TEST)" || { echo "用法：make device-test-one TEST=Target/Class/test"; exit 2; }
 	harness/tools/device-test.sh one $(TEST)
 
-check-docs: ## 文档链接 / 围栏 / 索引 / token 预算
-	python3 tools/check-docs.py
+measure-launch: ## 真机冷启动：APM_APP=... APM_UDID=... make measure-launch [N=10]
+	@test -n "$(APM_APP)" || { echo "缺少 APM_APP（Release-iphoneos 的 .app）"; exit 2; }
+	@test -n "$(APM_UDID)" || { echo "缺少 APM_UDID（硬件 UDID）"; exit 2; }
+	APM_APP="$(APM_APP)" APM_UDID="$(APM_UDID)" harness/tools/measure-launch.sh $(N)
 
+# ── kit 0.5.3：状态 / 计划 / 证据 / 适配层（配置唯一来源 harness/config.json）──
+status: ## 一屏状态（只读；Agent 冷启动第一命令）
+	python3 tools/harness.py status
+
+start: ## 新建计划：make start TOPIC=<topic> [GOAL="..."] [SCOPE="dir1 dir2"]
+	@test -n "$(TOPIC)" || { echo "用法：make start TOPIC=<topic> [GOAL=\"...\"] [SCOPE=\"dir1 dir2\"]"; exit 2; }
+	python3 tools/harness.py start --topic "$(TOPIC)" $(if $(GOAL),--goal "$(GOAL)") $(foreach s,$(SCOPE),--scope $(s))
+
+verify: ## 同步未提交段 + 静态门禁 + 计划严格校验
+	python3 tools/harness.py verify
+
+handoff: ## 交接摘要：make handoff [PLAN=harness/plans/xxx.md]
+	python3 tools/harness.py handoff $(if $(PLAN),--plan $(PLAN),)
+
+release: ## 发布前检查：严格计划 + fresh 证据（standard 分级）
+	python3 tools/harness.py release --check
+
+check-plan-strict: ## 计划严格校验（未提交段 / 归档 / submitted scope）
+	python3 tools/check_plan.py check --strict
+
+check-evidence: ## 证据 schema 校验
+	python3 tools/evidence.py validate
+
+check-host: ## 宿主卫生 / 分层守卫（未配置 hygiene/layers 时 SKIP）
+	python3 tools/check_hygiene.py
+	python3 tools/check_layers.py
+
+adapters-check: ## 校验适配层（skills 单源 / 哈希）
+	python3 tools/adapters.py check
+
+adapters-sync: ## 同步 .dsh/skills → .claude/skills（本机生成物）
+	python3 tools/adapters.py sync
+
+verify-claim: ## 证据三值判定：make verify-claim [CLAIM=harness/evidence/xxx.json]
+	python3 tools/verify_claim.py $(if $(CLAIM),$(CLAIM),--all)
+
+verify-claim-fresh: ## 证据时效检查（STALE 告警，不阻断）
+	python3 tools/verify_claim.py --all --fresh
+
+verify-all: verify-static verify-claim ## 完整本地验证（静态门禁 + 证据三值判定）
+	@echo "[INFO] verify-all 通过：静态门禁 + 证据三值判定"
+
+doctor: ## 环境自检（kit 通用：python3 / git / 测试命令 / 适配器）
+	python3 tools/doctor.py
+
+doctor-ios: ## iOS 宿主环境自检（Xcode / 模拟器 runtime / 真机入口 / 模板仓）
+	python3 tools/doctor-ios.py
+
+plan: ## 新建跨会话计划：make plan TOPIC=<topic>
+	@test -n "$(TOPIC)" || { echo "用法：make plan TOPIC=<topic>"; exit 2; }
+	python3 tools/check_plan.py new "$(TOPIC)"
+
+selftest: ## 负向注入自检（证明门禁会红；需 tools/harness_selftest）
+	@test -f tools/harness_selftest || { echo "缺少 tools/harness_selftest：用 v0.4.0+ 的 profile 重新 init，或从 kit 复制 scripts/harness-selftest"; exit 2; }
+	python3 tools/harness_selftest --target .
+
+upgrade-check: ## 只读检查 kit 升级项（需要 KIT_ROOT 指向 kit 克隆）
+	@test -n "$(KIT_ROOT)" || { echo "用法：make upgrade-check KIT_ROOT=<kit 克隆路径>"; exit 2; }
+	@test -f "$(KIT_ROOT)/scripts/harness-upgrade" || { echo "KIT_ROOT 下缺少 scripts/harness-upgrade：$(KIT_ROOT)"; exit 2; }
+	python3 "$(KIT_ROOT)/scripts/harness-upgrade" --target . --check
+
+scorecard: ## 生成/刷新评分卡草稿（harness/reviews/<date>-scorecard.md）
+	python3 tools/scorecard.py --generate
+
+evidence: ## 列出已入库证据
+	python3 tools/evidence.py ls
+
+resume: ## 接手：active 计划 + git 状态 + 下一步（status 别名）
+	python3 tools/harness.py status
+
+end: verify-static verify-claim-fresh check-plan-strict ## 收尾：静态门禁 + 证据判定/时效 + 计划严格校验
+	@git status --short
+
+# ── 宿主：既有检查（保留）────────────────────────────────────────────────
 check-arch: ## 架构铁律 R1–R6（依赖单向 / 翻译锚 View / 单引擎 / 内存为准）
 	python3 tools/check-arch.py
 
 check-tests: ## 测试计数下限 + skip 白名单（防删测试变绿）
 	python3 tools/check-test-baseline.py
 
-check-harness: ## 指令层机检：预算 / § 引用 / 嵌套 AGENTS / skills / 敏感路径
-	python3 tools/check-harness.py
+check-docs: ## 文档链接 / 围栏 / 索引 / 预算（check_docs 别名）
+	python3 tools/check_docs.py
 
-check-plan: ## 计划状态机与必填字段 / 未提交改动 vs git
-	python3 tools/plan.py check
+check-harness: ## 指令层机检（check_agents 别名）
+	python3 tools/check_agents.py
 
-check-evidence: ## 证据 schema 校验（harness/evidence/*.json）
-	python3 tools/evidence.py validate
+check-plan: ## 计划状态机与必填字段（check_plan 别名）
+	python3 tools/check_plan.py check
 
-test-tools: ## harness 脚本单测（verify-claim / evidence）
-	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/tests -q
+check: check-arch check-tests ## 本地门禁（kit + 宿主）
+	@python3 tools/check_docs.py
+	@python3 tools/check_agents.py
+	@python3 tools/check_plan.py check --lenient-uncommitted
+	@python3 tools/scorecard.py --check-stale
+	@python3 tools/adapters.py check
 
+check-agents: ## 校验团队基线（无模板仓时 SKIP）
+	@if [ ! -f "$(TEAM_RULES)/scripts/sync_team_baseline.py" ]; then \
+		echo "[SKIP] 未找到团队规则仓：$(TEAM_RULES)"; \
+		echo "       有模板仓时用 TEAM_RULES=<path> make check-agents 复跑"; \
+	else \
+		python3 "$(TEAM_RULES)/scripts/sync_team_baseline.py" --check AGENTS.md; \
+	fi
+
+check-all: verify-static check-agents ## 本地门禁 + 团队基线
+
+verify-static: check check-plan-strict check-evidence check-host kit-check ## 本地静态门禁（计划严格 + 证据 schema + 宿主 + kit 验收；不含证据三值判定）
+	@bash -n harness/tools/*.sh tools/*.sh .githooks/pre-push
+	@echo "[INFO] verify-static 不含证据三值判定；完成声明 / PR 前请运行 make verify-claim 或 make verify-all"
+
+release-check: verify-static ## 发布前门禁：证据时效 strict + 评分卡有效期
+	@python3 tools/scorecard.py --check-stale --strict
+	@python3 tools/verify_claim.py --all --fresh --strict
+
+hooks-install: ## 安装 git hooks（pre-push 跑 verify-static）
+	@git config core.hooksPath .githooks
+	@chmod +x .githooks/pre-push
+	@echo "已安装 core.hooksPath=.githooks；SKIP_HARNESS_HOOK=1 可跳过 pre-push"
+
+harness-audit: check-all doctor-ios evidence ## 五子系统月度审计入口（Phase 3 前人工打分）
+	@echo "按 HARNESS.md 的审计清单给 Instructions/State/Verification/Scope/Lifecycle 打分，结果写 harness/reviews/"
+
+# ── kit 仓自身：发布 / 镜像 ──────────────────────────────────────────────
 kit-check: ## harness-kit 端到端验收（三 profile init + make check + hygiene）
 	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s harness-kit/tests -q
 
@@ -87,67 +202,3 @@ kit-drift: ## 校验独立模板仓与仓内 harness-kit 是否同步（漂移 e
 		echo "只改仓内 harness-kit/ 再 make kit-publish；不要直接改镜像仓"; \
 		exit 1; \
 	fi
-
-verify-static: check check-evidence test-tools kit-check ## 本地秒级门禁（docs+架构+计数+harness+计划+证据+脚本语法+脚本单测+kit 验收）
-	@bash -n harness/tools/*.sh tools/*.sh .githooks/pre-push
-	@python3 -m py_compile tools/*.py
-
-verify: verify-static ## 同 verify-static（阶段别名）
-
-verify-claim: ## 校验证据：make verify-claim [CLAIM=harness/evidence/xxx.json]（默认全部）
-	python3 tools/verify-claim.py $(if $(CLAIM),$(CLAIM),--all)
-
-evidence: ## 列出已入库证据
-	python3 tools/evidence.py ls
-
-hooks-install: ## 安装 git hooks（pre-push 跑 verify-static）
-	@git config core.hooksPath .githooks
-	@chmod +x .githooks/pre-push
-	@echo "已安装 core.hooksPath=.githooks；SKIP_HARNESS_HOOK=1 可跳过 pre-push"
-
-harness-audit: check-all doctor evidence ## 五子系统月度审计入口（Phase 3 前人工打分）
-	@echo "按 HARNESS.md 的审计清单给 Instructions/State/Verification/Scope/Lifecycle 打分，结果写 harness/reviews/（不存在则创建）"
-
-doctor: ## 环境自检（Xcode / 模拟器 / mobilebuildmcp / python / 模板仓）
-	python3 tools/doctor.py
-
-resume: ## 接手：active 计划 + git 状态 + 下一步 + 建议阅读
-	python3 tools/plan.py resume
-
-verify-claim-fresh: ## 证据时效检查（相关文件变更后 → STALE 告警，不阻断）
-	python3 tools/verify-claim.py --all --fresh
-
-release-check: verify-static ## 发布前门禁：静态 + 证据时效 strict（STALE 判 UNVERIFIED）
-	python3 tools/verify-claim.py --all --fresh --strict
-
-end: verify-static verify-claim-fresh ## 收尾：静态门禁 + 证据判定/时效 + 计划检查 + git 状态
-	@python3 tools/plan.py end
-
-check-agents: ## 校验团队基线（无模板仓时 SKIP）
-	@if [ ! -f "$(TEAM_RULES)/scripts/sync_team_baseline.py" ]; then \
-		echo "[SKIP] 未找到团队规则仓：$(TEAM_RULES)"; \
-		echo "       有模板仓时用 TEAM_RULES=<path> make check-agents 复跑"; \
-	else \
-		python3 "$(TEAM_RULES)/scripts/sync_team_baseline.py" --check AGENTS.md; \
-	fi
-
-adapters-sync: ## 生成 Agent 适配（.dsh/skills → .claude/skills；本机生成物）
-	python3 tools/adapters.py sync
-
-adapters-check: ## 校验 Agent 适配层（skills 单源 / hooks 示例 / 适配文档）
-	python3 tools/adapters.py check
-
-check: check-docs check-arch check-tests check-harness check-plan adapters-check ## 本地门禁（不依赖模板仓）
-check-all: verify-static check-agents ## 本地门禁 + 团队基线
-
-plan: ## 新建跨会话计划：make plan TOPIC=speech-gate
-	@test -n "$(TOPIC)" || { echo "用法：make plan TOPIC=speech-gate"; exit 2; }
-	@python3 tools/plan.py new "$(TOPIC)"
-
-handoff: ## 交接摘要：make handoff [PLAN=harness/plans/xxx.md]
-	@python3 tools/plan.py brief $(PLAN)
-
-measure-launch: ## 真机冷启动：APM_APP=... APM_UDID=... make measure-launch [N=10]
-	@test -n "$(APM_APP)" || { echo "缺少 APM_APP（Release-iphoneos 的 .app）"; exit 2; }
-	@test -n "$(APM_UDID)" || { echo "缺少 APM_UDID（硬件 UDID）"; exit 2; }
-	APM_APP="$(APM_APP)" APM_UDID="$(APM_UDID)" harness/tools/measure-launch.sh $(N)

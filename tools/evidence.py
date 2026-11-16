@@ -1,573 +1,542 @@
 #!/usr/bin/env python3
-"""证据链工具（纯标准库）：列出 / 查看 / 校验 / 写入 `harness/evidence/*.json`。
+"""harness-kit 通用证据工具（标准库；无第三方依赖；不联网）。
 
-用法：
-    python3 tools/evidence.py                       # 默认 = ls + validate（便利入口）
-    python3 tools/evidence.py ls [--claim CLAIM] [--json]
-    python3 tools/evidence.py show <id|路径>
-    python3 tools/evidence.py validate              # 校验 schema + 语义；失败 exit 1
-    python3 tools/evidence.py write --claim NAME --status STATUS --passed N [--failed N]
-        [--skipped N] [--duration SEC] [--xcode VER] [--simulator RUNTIME] [--device NAME]
-        [--build CONFIG] [--host HOST] [--xcresult PATH] [--metrics PATH]
-        [--command CMD] [--verdict V] [--notes TEXT] [--session-id ID]
-    python3 tools/evidence.py write --from-json PATH|-    # 读草稿 JSON（支持 stdin）
+用法（脚本被 init 复制到目标项目 tools/ 下）：
+  python3 tools/evidence.py ls [--claim NAME] [--root PATH]
+  python3 tools/evidence.py validate [--root PATH]
+  python3 tools/evidence.py write --claim NAME --from-json <FILE|-> [--root PATH]
+  python3 tools/evidence.py write --from-json <FILE|-> [--root PATH]   # claim 取自 JSON
+       [--allow-untracked-under PATH ...]   # 额外豁免「待提交产物」（证据目录已默认豁免）
 
-通用参数：--root PATH（默认脚本上级目录，供 fixture/测试使用）。
-退出码：0 成功；1 校验/写入失败；2 用法错误。
-写入前按 `harness/evidence/schema.json` 校验并自动填 id/createdAt/git/verifier；
-路径按"仓库相对 或 ~/ 相对"归一化，不在仓库/主目录内的产物路径置 null 并告警。
+根目录 = 脚本上级目录（tools/ 的父目录）；--root 可覆盖。配置唯一来源
+<root>/harness/config.json；证据格式由 <root>/harness/evidence/schema.json 定义
+（脚本内置标准库手写子集校验，不引入 jsonschema）。
+
+语义约定：
+  - 证据文件名为 `<id>.json`，id 形如 `20260101T000000Z-<claim>`；`id` 必须等于
+    文件名 stem；`claim` 必须已声明在 config.claims。
+  - `write` 自动填 id / createdAt / git.commit / git.dirty / verifier（覆盖输入里的
+    同名字段）；工作树必须 clean，否则拒绝写入（dirty 证据不可判 PASS）。**证据目录例外**：
+    `<paths.evidence>/` 下的未跟踪/已修改文件自动豁免（JUnit artifact 与待写 JSON 正是
+    待提交产物），只输出 WARN；其他目录可用 `--allow-untracked-under PATH` 显式豁免。
+  - `write` 必须用 `--from-json` 提供 command / result / environment / verdict 等
+    业务字段；不支持空文档静默补全。
+  - `validate` 只扫描文件名符合证据 id 的文件；`TEMPLATE.json` / `schema.json` /
+    README 等非证据文件会被跳过并计数。额外语义：verdict=PASS 时 git.dirty 必须为
+    false；单个证据文件 > 3KB 输出 `[WARN]`（证据应是摘要，大内容放 artifact/文档；
+    WARN 不阻断，汇总显示 warn 数）。
+
+退出码：0 = 成功/全部有效；1 = 校验失败 / 拒绝写入 / 配置不可用；2 = 用法错误。
 """
 from __future__ import annotations
 
-import argparse
+import datetime as dt
 import json
-import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-DEFAULT_ROOT = Path(__file__).resolve().parent.parent
-EVIDENCE_REL = "harness/evidence"
-SCHEMA_NAME = "schema.json"
-TEMPLATE_NAME = "TEMPLATE.json"
-README_NAME = "README.md"
-VERIFIER = "tools/evidence.py@1"
-SCHEMA_VERSION = 1
-ID_RE = re.compile(r"^[0-9]{8}T[0-9]{6}Z-[a-z0-9][a-z0-9-]*$")
-CREATED_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
-CLAIMS = (
-    "unit-tests-pass",
-    "ui-tests-pass",
-    "device-tests-pass",
-    "docs-pass",
-    "arch-pass",
-    "perf-measurement",
-    "perf-no-regression",
-    "perf-improved",
-)
-STATUSES = ("SUCCEEDED", "FAILED", "SKIPPED", "UNVERIFIED")
+CONFIG_REL = Path("harness") / "config.json"
+EVIDENCE_ID_RE = re.compile(r"^\d{8}T\d{6}Z-[a-z0-9-]+$")
+EVIDENCE_WARN_BYTES = 3 * 1024  # 证据是摘要（1–3KB）；超过只 WARN、不阻断
+CREATED_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
 VERDICTS = ("PASS", "FAIL", "UNVERIFIED")
-SKIP_NAMES = frozenset({SCHEMA_NAME, TEMPLATE_NAME, README_NAME})
 
 
-# ── 基础工具 ────────────────────────────────────────────────────────────────
-def evidence_dir(root: Path) -> Path:
-    return root / EVIDENCE_REL
+# ── 输出与 CLI ────────────────────────────────────────────────────────────
+def fail(message: str, code: int = 1) -> None:
+    print(f"[FAIL] {message}")
+    raise SystemExit(code)
 
 
-def now_utc() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+def info(message: str) -> None:
+    print(f"[INFO] {message}")
 
 
-def id_stamp() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+def display(path: Path) -> str:
+    return str(path)
 
 
-def git_short_commit(root: Path) -> str:
-    """返回 HEAD 短 hash；不在 git 仓库或有误时抛 RuntimeError。"""
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "--short=12", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover - 环境异常
-        raise RuntimeError(f"无法执行 git：{exc}") from exc
-    if proc.returncode != 0:
-        raise RuntimeError(f"无法获取 git HEAD（exit {proc.returncode}）：{proc.stderr.strip()[:160]}")
-    commit = proc.stdout.strip()
-    if not re.fullmatch(r"[0-9a-f]{7,40}", commit):
-        raise RuntimeError(f"git HEAD 短 hash 非法：{commit!r}")
-    return commit
+def parse_cli(argv: list[str]) -> tuple[Path, list[str]]:
+    args = list(argv)
+    root: Path | None = None
+    if "--root" in args:
+        index = args.index("--root")
+        if index + 1 >= len(args):
+            fail("--root 需要一个目录参数", 2)
+        root = Path(args[index + 1]).expanduser().resolve()
+        del args[index:index + 2]
+    if root is None:
+        root = Path(__file__).resolve().parent.parent
+    return root, args
 
 
-def git_dirty(root: Path) -> bool:
-    try:
-        proc = subprocess.run(
-            ["git", "-C", str(root), "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover - 环境异常
-        raise RuntimeError(f"无法执行 git status：{exc}") from exc
-    if proc.returncode != 0:
-        raise RuntimeError(f"无法获取 git status（exit {proc.returncode}）")
-    return bool(proc.stdout.strip())
+def pop_option(args: list[str], name: str) -> str | None:
+    """取出单值选项（支持 `--name value` 与 `--name=value`）。"""
+    for index, item in enumerate(list(args)):
+        if item == name:
+            if index + 1 >= len(args):
+                fail(f"{name} 需要一个参数", 2)
+            value = args[index + 1]
+            del args[index:index + 2]
+            return value
+        if item.startswith(name + "="):
+            value = item.split("=", 1)[1]
+            del args[index]
+            return value
+    return None
 
 
-def portable_path(root: Path, value: str | None) -> tuple[str | None, str | None]:
-    """把路径归一化为仓库相对或 ~/ 相对。
-
-    返回 (portable, warning)。不在仓库/主目录内的路径返回 (None, warning)，
-    避免把本机绝对路径写进入库证据。
-    """
-    if value is None:
-        return None, None
-    raw = str(value).strip()
-    if not raw:
-        return None, None
-    path = Path(os.path.expanduser(raw))
-    if not path.is_absolute():
-        path = root / path
-    try:
-        resolved = path.resolve()
-    except OSError:  # pragma: no cover - 极端文件系统错误
-        resolved = path
-    root_resolved = root.resolve()
-    try:
-        return resolved.relative_to(root_resolved).as_posix(), None
-    except ValueError:
-        pass
-    home = Path(os.path.expanduser("~"))
-    try:
-        home_resolved = home.resolve()
-    except OSError:  # pragma: no cover
-        home_resolved = home
-    try:
-        return "~/" + resolved.relative_to(home_resolved).as_posix(), None
-    except ValueError:
-        return None, f"产物路径不在仓库/主目录内，已置 null：{path.name}"
+def pop_options(args: list[str], name: str) -> list[str]:
+    """取出可重复的多值选项（`--name value` / `--name=value`）。"""
+    values: list[str] = []
+    while True:
+        value = pop_option(args, name)
+        if value is None:
+            return values
+        values.append(value)
 
 
-# ── 最小 draft-07 子集校验（无第三方依赖）────────────────────────────────────
-_TYPE_CHECKS = {
-    "string": lambda v: isinstance(v, str),
-    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
-    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
-    "boolean": lambda v: isinstance(v, bool),
-    "object": lambda v: isinstance(v, dict),
-    "array": lambda v: isinstance(v, list),
-    "null": lambda v: v is None,
-}
-
-
-def _type_ok(value: Any, spec_type: str | list[str]) -> bool:
-    types = [spec_type] if isinstance(spec_type, str) else list(spec_type)
-    return any(_TYPE_CHECKS.get(t, lambda _v: False)(value) for t in types)
-
-
-def validate_document(value: Any, spec: dict[str, Any], path: str = "") -> list[str]:
-    """校验 JSON 文档与 schema 子集；返回错误列表（空 = 通过）。"""
-    errors: list[str] = []
-    label = path or "<root>"
-    spec_type = spec.get("type")
-    if spec_type is not None and not _type_ok(value, spec_type):
-        errors.append(f"{label}: 类型应为 {spec_type}，实际 {type(value).__name__}")
-        return errors
-    if "const" in spec and value != spec["const"]:
-        errors.append(f"{label}: 期望常量 {spec['const']!r}，实际 {value!r}")
-    enum = spec.get("enum")
-    if enum is not None and value not in enum:
-        errors.append(f"{label}: 取值 {value!r} 不在允许集合 {enum}")
-    if isinstance(value, str):
-        minimum_length = spec.get("minLength")
-        if isinstance(minimum_length, int) and len(value) < minimum_length:
-            errors.append(f"{label}: 长度 {len(value)} < {minimum_length}")
-        pattern = spec.get("pattern")
-        if pattern and not re.search(pattern, value):
-            errors.append(f"{label}: 不匹配 pattern {pattern}（值 {value!r}）")
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        if "minimum" in spec and value < spec["minimum"]:
-            errors.append(f"{label}: {value} < minimum {spec['minimum']}")
-        if "maximum" in spec and value > spec["maximum"]:
-            errors.append(f"{label}: {value} > maximum {spec['maximum']}")
-    if isinstance(value, list):
-        min_items = spec.get("minItems")
-        if isinstance(min_items, int) and len(value) < min_items:
-            errors.append(f"{label}: 元素数 {len(value)} < {min_items}")
-        item_spec = spec.get("items")
-        if isinstance(item_spec, dict):
-            for index, item in enumerate(value):
-                errors.extend(validate_document(item, item_spec, f"{label}[{index}]"))
-    if isinstance(value, dict):
-        for required in spec.get("required", []):
-            if required not in value:
-                errors.append(f"{label}: 缺少必填字段 {required!r}")
-        properties = spec.get("properties", {})
-        extra = spec.get("additionalProperties", True)
-        for key, item in value.items():
-            child = f"{label}.{key}" if label != "<root>" else key
-            if key in properties:
-                errors.extend(validate_document(item, properties[key], child))
-            elif extra is False:
-                errors.append(f"{label}: 不允许的字段 {key!r}")
-            elif isinstance(extra, dict):
-                errors.extend(validate_document(item, extra, child))
-    return errors
-
-
-def load_schema(root: Path) -> tuple[dict[str, Any] | None, list[str]]:
-    path = evidence_dir(root) / SCHEMA_NAME
+# ── 配置 ─────────────────────────────────────────────────────────────────
+def load_config(root: Path) -> dict:
+    path = root / CONFIG_REL
     if not path.is_file():
-        return None, [f"缺少 {EVIDENCE_REL}/{SCHEMA_NAME}"]
+        fail(f"缺少配置：{display(path)}（先运行 harness-init 生成 harness/config.json）")
     try:
-        return json.loads(path.read_text(encoding="utf-8")), []
-    except json.JSONDecodeError as exc:
-        return None, [f"{EVIDENCE_REL}/{SCHEMA_NAME} 不是合法 JSON：{exc}"]
-
-
-def load_schema_for(root: Path) -> tuple[dict[str, Any] | None, list[str]]:
-    """优先用目标仓库 schema；fixture 仓库没有时退回工具自身仓库（schema 属工具链）。"""
-    schema, errors = load_schema(root)
-    if schema is not None:
-        return schema, errors
-    try:
-        same_as_tool = root.resolve() == DEFAULT_ROOT.resolve()
-    except OSError:  # pragma: no cover - 极端路径
-        same_as_tool = False
-    if same_as_tool:
-        return None, errors
-    fallback, fallback_errors = load_schema(DEFAULT_ROOT)
-    if fallback is not None:
-        return fallback, []
-    return None, errors + fallback_errors
-
-
-def evidence_files(root: Path) -> list[Path]:
-    directory = evidence_dir(root)
-    if not directory.is_dir():
-        return []
-    return sorted(
-        path
-        for path in directory.glob("*.json")
-        if path.is_file() and path.name not in SKIP_NAMES
-    )
-
-
-def semantic_errors(doc: dict[str, Any], path: Path) -> list[str]:
-    """schema 之外的语义检查（id=文件名、时间可解析、verdict 与 result 自洽）。"""
-    errors: list[str] = []
-    if doc.get("id") != path.stem:
-        errors.append(f"id {doc.get('id')!r} 必须等于文件名 stem {path.stem!r}")
-    created = doc.get("createdAt")
-    if isinstance(created, str) and not CREATED_RE.match(created):
-        errors.append(f"createdAt 必须是 UTC RFC3339（…Z）：{created!r}")
-    if doc.get("verdict") == "PASS":
-        result = doc.get("result") or {}
-        if result.get("status") != "SUCCEEDED":
-            errors.append("verdict=PASS 但 result.status != SUCCEEDED")
-        if int(result.get("failed", 0) or 0) != 0:
-            errors.append("verdict=PASS 但 result.failed != 0")
-    return errors
-
-
-def validate_file(root: Path, schema: dict[str, Any], path: Path) -> list[str]:
-    try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        return [f"{path.name}: 不是合法 JSON：{exc}"]
-    errors = [f"{path.name}: {e}" for e in validate_document(doc, schema)]
-    if not errors:
-        errors = [f"{path.name}: {e}" for e in semantic_errors(doc, path)]
-    return errors
-
-
-# ── 子命令 ──────────────────────────────────────────────────────────────────
-def cmd_ls(root: Path, args: argparse.Namespace) -> int:
-    files = evidence_files(root)
-    if args.claim:
-        files = [
-            path
-            for path in files
-            if (json.loads(path.read_text(encoding="utf-8")).get("claim") == args.claim)
-        ]
-    if args.json:
-        entries = []
-        for path in files:
-            try:
-                doc = json.loads(path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                entries.append({"file": path.name, "error": "invalid json"})
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"配置无法解析：{display(path)}：{exc}")
+    if not isinstance(config, dict):
+        fail(f"配置必须是 JSON object：{display(path)}")
+    problems: list[str] = []
+    for key in ("kitVersion", "project", "paths", "commands", "claims"):
+        if key not in config:
+            problems.append(f"缺少字段 {key}")
+    paths = config.get("paths") if isinstance(config.get("paths"), dict) else {}
+    for key in ("docs", "references", "harness", "plans", "evidence", "tools"):
+        if key not in paths:
+            problems.append(f"缺少字段 paths.{key}")
+    commands = config.get("commands") if isinstance(config.get("commands"), dict) else {}
+    if not isinstance(commands.get("test"), str) or not commands.get("test", "").strip():
+        problems.append("缺少字段 commands.test")
+    claims = config.get("claims")
+    if not isinstance(claims, list) or not claims:
+        problems.append("缺少非空字段 claims")
+    else:
+        for index, claim in enumerate(claims):
+            if not isinstance(claim, dict):
+                problems.append(f"claims[{index}] 必须是 object")
                 continue
-            entries.append(doc)
-        print(json.dumps(entries, ensure_ascii=False, indent=2))
-        return 0
-    if not files:
-        print("（无 evidence 文件；先在 harness/evidence/ 生成或写入）")
-        return 0
-    for path in files:
-        try:
-            doc = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            print(f"[BAD-JSON] {path.name}")
+            if not isinstance(claim.get("name"), str) or not claim.get("name"):
+                problems.append(f"claims[{index}].name 缺失")
+            if claim.get("type") not in ("test-count", "static"):
+                problems.append(f"claims[{index}].type 必须是 test-count|static")
+    for key, value in paths.items():
+        if isinstance(value, list):  # 如 paths.rootDocs
+            if not all(isinstance(item, str) and item for item in value):
+                problems.append(f"paths.{key} 列表项必须是非空字符串")
             continue
-        git = doc.get("git") or {}
-        result = doc.get("result") or {}
-        print(
-            f"{doc.get('id', path.stem)}  claim={doc.get('claim', '?')}  "
-            f"verdict={doc.get('verdict', '?')}  git={git.get('commit', '?')}"
-            f"(dirty={git.get('dirty', '?')})  "
-            f"passed={result.get('passed', '?')} failed={result.get('failed', '?')} "
-            f"skipped={result.get('skipped', '?')}"
+        if not isinstance(value, str) or not value:
+            problems.append(f"paths.{key} 必须是非空字符串或字符串列表")
+            continue
+        candidate = Path(value)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            problems.append(f"paths.{key} 必须是仓库相对路径且不含 ..：{value!r}")
+    if problems:
+        fail("配置不可用：\n  - " + "\n  - ".join(problems))
+    return config
+
+
+def config_path(root: Path, config: dict, key: str) -> Path:
+    return root / config["paths"][key]
+
+
+def claim_names(config: dict) -> list[str]:
+    return [
+        claim["name"]
+        for claim in config.get("claims", [])
+        if isinstance(claim, dict) and claim.get("name")
+    ]
+
+
+# ── git ──────────────────────────────────────────────────────────────────
+def git(root: Path, args: list[str]) -> tuple[int, str, str]:
+    try:
+        result = subprocess.run(
+            ["git", *args], cwd=str(root), capture_output=True, text=True, timeout=30
         )
-    print(f"共 {len(files)} 条 evidence")
-    return 0
+        return result.returncode, result.stdout, result.stderr
+    except (OSError, subprocess.TimeoutExpired) as exc:  # pragma: no cover - 防御
+        return 127, "", str(exc)
 
 
-def cmd_show(root: Path, args: argparse.Namespace) -> int:
-    target = Path(args.target)
-    candidates: list[Path] = []
-    if target.is_file():
-        candidates.append(target)
-    else:
-        candidates.extend(path for path in evidence_files(root) if path.stem == args.target)
-    if not candidates:
-        print(f"[FAIL] 找不到 evidence：{args.target}", file=sys.stderr)
-        return 1
-    for path in candidates:
-        print(path.read_text(encoding="utf-8"))
-    return 0
+def git_is_repo(root: Path) -> bool:
+    code, out, _ = git(root, ["rev-parse", "--is-inside-work-tree"])
+    return code == 0 and out.strip() == "true"
 
 
-def cmd_validate(root: Path, args: argparse.Namespace) -> int:
-    if not evidence_dir(root).is_dir():
-        print(f"[FAIL] 缺少 {EVIDENCE_REL}/（证据目录应入库）", file=sys.stderr)
-        return 1
-    schema, schema_errors = load_schema_for(root)
-    if schema is None:
-        for error in schema_errors:
-            print(f"[FAIL] {error}", file=sys.stderr)
-        return 1
-    files = evidence_files(root)
-    errors: list[str] = []
-    for path in files:
-        file_errors = validate_file(root, schema, path)
-        if file_errors:
-            errors.extend(file_errors)
-        else:
-            doc = json.loads(path.read_text(encoding="utf-8"))
-            print(f"[OK] {doc.get('id')}  claim={doc.get('claim')}  verdict={doc.get('verdict')}")
-    if errors:
-        print(f"\n[FAIL] {len(errors)} 个 evidence 校验问题：", file=sys.stderr)
-        for error in errors:
-            print(f"- {error}", file=sys.stderr)
-        return 1
-    print(f"[PASS] {len(files)} 条 evidence 通过 schema + 语义校验")
-    return 0
-
-
-def _derive_verdict(result: dict[str, Any]) -> str:
-    if result.get("status") == "SUCCEEDED" and int(result.get("failed", 0) or 0) == 0:
-        return "PASS"
-    return "FAIL"
-
-
-def _build_from_args(args: argparse.Namespace) -> dict[str, Any]:
-    doc: dict[str, Any] = {
-        "schemaVersion": SCHEMA_VERSION,
-        "claim": args.claim,
-        "command": args.evidence_command,
-        "environment": {
-            "xcode": args.xcode,
-            "simulator": args.simulator,
-            "device": args.device,
-            "build": args.build,
-            "host": args.host,
-        },
-        "result": {
-            "status": args.status,
-            "passed": args.passed,
-            "failed": args.failed,
-            "skipped": args.skipped,
-            "durationSec": args.duration,
-            "xcresultPath": args.xcresult,
-            "metricsPath": args.metrics,
-        },
-        "verdict": args.verdict,
-        "verifier": VERIFIER,
-    }
-    if args.notes:
-        doc["notes"] = args.notes
-    if args.session_id:
-        doc["sessionId"] = args.session_id
-    return doc
-
-
-def _read_draft(from_json: str) -> dict[str, Any]:
-    try:
-        if from_json == "-":
-            return json.load(sys.stdin)
-        return json.loads(Path(from_json).read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"草稿 JSON 非法：{exc}") from exc
-    except OSError as exc:
-        raise ValueError(f"无法读取草稿 {from_json}：{exc}") from exc
-
-
-def _next_id(directory: Path, claim: str) -> str:
-    base = f"{id_stamp()}-{claim}"
-    candidate = base
-    index = 2
-    while (directory / f"{candidate}.json").exists():
-        candidate = f"{base}-{index}"
+def git_status_paths(root: Path) -> set[str] | None:
+    code, out, _ = git(root, ["status", "--porcelain", "-z", "--untracked-files=all"])
+    if code != 0:
+        return None
+    paths: set[str] = set()
+    records = out.split("\0")
+    index = 0
+    while index < len(records):
+        record = records[index]
         index += 1
-    return candidate
+        if not record or len(record) < 4:
+            continue
+        status, path = record[:2], record[3:]
+        if "R" in status or "C" in status:
+            index += 1
+        paths.add(path.strip())
+    return paths
 
 
-def cmd_write(root: Path, args: argparse.Namespace) -> int:
-    if args.from_json:
-        try:
-            doc = _read_draft(args.from_json)
-        except ValueError as exc:
-            print(f"[FAIL] {exc}", file=sys.stderr)
-            return 1
-        if not isinstance(doc, dict):
-            print("[FAIL] 草稿必须是 JSON object", file=sys.stderr)
-            return 1
-    else:
-        doc = _build_from_args(args)
+def git_sha(root: Path, rev: str) -> str | None:
+    code, out, _ = git(root, ["rev-parse", "--verify", f"{rev}^{{commit}}"])
+    return out.strip() if code == 0 and out.strip() else None
 
+
+# ── JSON Schema 子集校验（手写，无第三方） ───────────────────────────────
+def type_matches(value: object, expected: str) -> bool:
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "null":
+        return value is None
+    return True
+
+
+def validate_schema(instance: object, schema: object, path: str = "$") -> list[str]:
+    """JSON Schema draft-07 的常用子集：type/required/properties/items/enum/const/
+    pattern/minLength/minItems/minimum/additionalProperties=false。未知关键字忽略。"""
+    issues: list[str] = []
+    if not isinstance(schema, dict):
+        return issues
+    if "const" in schema and instance != schema["const"]:
+        issues.append(f"{path}: 值应为 {schema['const']!r}")
+    expected = schema.get("type")
+    if expected is not None:
+        types = expected if isinstance(expected, list) else [expected]
+        if not any(type_matches(instance, item) for item in types if isinstance(item, str)):
+            return [f"{path}: 类型应为 {'/'.join(str(item) for item in types)}"]
+    if "enum" in schema and instance not in schema["enum"]:
+        issues.append(f"{path}: 值不在枚举 {schema['enum']!r} 内")
+    if isinstance(instance, str):
+        if "pattern" in schema and isinstance(schema["pattern"], str):
+            if re.search(schema["pattern"], instance) is None:
+                issues.append(f"{path}: 不符合 pattern {schema['pattern']!r}")
+        if "minLength" in schema and len(instance) < int(schema["minLength"]):
+            issues.append(f"{path}: 长度小于 {schema['minLength']}")
+    if isinstance(instance, (int, float)) and not isinstance(instance, bool):
+        if "minimum" in schema and instance < schema["minimum"]:
+            issues.append(f"{path}: 小于最小值 {schema['minimum']}")
+    if isinstance(instance, list):
+        if "minItems" in schema and len(instance) < int(schema["minItems"]):
+            issues.append(f"{path}: 元素数小于 {schema['minItems']}")
+        items = schema.get("items")
+        if isinstance(items, dict):
+            for index, item in enumerate(instance):
+                issues.extend(validate_schema(item, items, f"{path}[{index}]"))
+    if isinstance(instance, dict):
+        for key in schema.get("required", []) or []:
+            if key not in instance:
+                issues.append(f"{path}: 缺少必需字段 {key}")
+        properties = schema.get("properties") or {}
+        if isinstance(properties, dict):
+            for key, sub_schema in properties.items():
+                if key in instance:
+                    issues.extend(validate_schema(instance[key], sub_schema, f"{path}.{key}"))
+        if schema.get("additionalProperties") is False and isinstance(properties, dict):
+            for key in instance:
+                if key not in properties:
+                    issues.append(f"{path}: 不允许的字段 {key}")
+    return issues
+
+
+# ── 证据文件 ─────────────────────────────────────────────────────────────
+def evidence_dir(root: Path, config: dict) -> Path:
+    return config_path(root, config, "evidence")
+
+
+def evidence_rel(root: Path, path: Path) -> str:
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return display(path)
+
+
+def load_schema(root: Path, config: dict) -> dict:
+    path = evidence_dir(root, config) / "schema.json"
+    if not path.is_file():
+        fail(f"缺少证据 schema：{display(path)}（先运行 harness-init 生成）")
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"证据 schema 无法解析：{display(path)}：{exc}")
+    if not isinstance(schema, dict):
+        fail(f"证据 schema 必须是 JSON object：{display(path)}")
+    return schema
+
+
+def evidence_paths(root: Path, config: dict) -> list[Path]:
+    directory = evidence_dir(root, config)
+    if not directory.is_dir():
+        fail(f"证据目录不存在：{display(directory)}（先运行 harness-init 生成）")
+    return sorted(
+        path for path in directory.glob("*.json") if EVIDENCE_ID_RE.fullmatch(path.stem)
+    )
+
+
+def load_json_file(path: Path) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def semantic_issues(config: dict, evidence_id: str, doc: dict) -> list[str]:
+    """schema 之外的跨字段语义校验。"""
+    issues: list[str] = []
+    if doc.get("id") != evidence_id:
+        issues.append(f"id 与文件名不一致：{doc.get('id')!r} != {evidence_id!r}")
     claim = doc.get("claim")
-    if claim not in CLAIMS:
-        print(f"[FAIL] claim 非法：{claim!r}（允许：{', '.join(CLAIMS)}）", file=sys.stderr)
-        return 1
-    warnings: list[str] = []
+    if claim not in claim_names(config):
+        issues.append(f"claim 未在 config.claims 中声明：{claim!r}")
+    created = doc.get("createdAt")
+    if not isinstance(created, str) or CREATED_AT_RE.fullmatch(created) is None:
+        issues.append(f"createdAt 需为 UTC RFC3339（YYYY-MM-DDTHH:MM:SSZ）：{created!r}")
+    git_meta = doc.get("git")
+    if not isinstance(git_meta, dict):
+        issues.append("git 必须是 object（含 commit/dirty）")
+    else:
+        commit = git_meta.get("commit")
+        if not isinstance(commit, str) or COMMIT_RE.fullmatch(commit) is None:
+            issues.append(f"git.commit 需为 7–40 位短 hash：{commit!r}")
+        if not isinstance(git_meta.get("dirty"), bool):
+            issues.append("git.dirty 必须是 boolean")
+        if doc.get("verdict") == "PASS" and git_meta.get("dirty") is not False:
+            issues.append("verdict=PASS 但 git.dirty 非 false（dirty 证据不可判 PASS）")
+    if doc.get("verdict") not in VERDICTS:
+        issues.append(f"verdict 必须是 {'/'.join(VERDICTS)}：{doc.get('verdict')!r}")
+    return issues
 
-    # 写方可靠性字段：无论来自参数还是草稿，都由 writer 重新生成（防止手填/复制旧值）。
-    doc["schemaVersion"] = SCHEMA_VERSION
-    try:
-        doc["git"] = {"commit": git_short_commit(root), "dirty": git_dirty(root)}
-    except RuntimeError as exc:
-        print(f"[FAIL] {exc}", file=sys.stderr)
-        return 1
-    if not doc.get("createdAt"):
-        doc["createdAt"] = now_utc()
-    if not doc.get("verifier"):
-        doc["verifier"] = VERIFIER
 
-    result = doc.setdefault("result", {})
-    if not isinstance(result, dict):
-        print("[FAIL] result 必须是 object", file=sys.stderr)
-        return 1
-    for key in ("xcresultPath", "metricsPath"):
-        if key in result and result[key] is not None:
-            portable, warning = portable_path(root, str(result[key]))
-            result[key] = portable
-            if warning:
-                warnings.append(warning)
-    if "verdict" not in doc or not doc["verdict"]:
-        doc["verdict"] = _derive_verdict(result)
+def validate_doc(root: Path, config: dict, schema: dict, evidence_id: str, doc: dict) -> list[str]:
+    return validate_schema(doc, schema) + semantic_issues(config, evidence_id, doc)
 
-    directory = evidence_dir(root)
-    directory.mkdir(parents=True, exist_ok=True)
-    doc["id"] = _next_id(directory, claim)
-    doc["createdAt"] = doc.get("createdAt") or now_utc()
 
-    schema, schema_errors = load_schema_for(root)
-    if schema is None:
-        for error in schema_errors:
-            print(f"[FAIL] {error}", file=sys.stderr)
-        return 1
-    errors = validate_document(doc, schema)
-    if not errors:
-        target = directory / f"{doc['id']}.json"
-        errors = semantic_errors(doc, target)
-    if errors:
-        print(f"[FAIL] evidence 未通过 schema 校验（未写入）：", file=sys.stderr)
-        for error in errors:
-            print(f"- {error}", file=sys.stderr)
-        return 1
-
-    target = directory / f"{doc['id']}.json"
-    target.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    for warning in warnings:
-        print(f"[WARN] {warning}", file=sys.stderr)
-    try:
-        print(target.relative_to(root).as_posix())
-    except ValueError:  # pragma: no cover - root 外不常见
-        print(target.as_posix())
+# ── 命令：ls / validate / write ──────────────────────────────────────────
+def cmd_ls(root: Path, config: dict, claim_filter: str | None) -> int:
+    names = claim_names(config)
+    if claim_filter and claim_filter not in names:
+        fail(f"--claim 不在 config.claims：{claim_filter!r}（可用：{', '.join(names)}）")
+    rows: list[tuple[str, str, str, str]] = []
+    for path in evidence_paths(root, config):
+        try:
+            doc = load_json_file(path)
+        except ValueError:
+            rows.append((path.stem, "?", "?", "（无法解析）"))
+            continue
+        if not isinstance(doc, dict):
+            rows.append((path.stem, "?", "?", "（非 object）"))
+            continue
+        claim = str(doc.get("claim") or "?")
+        if claim_filter and claim != claim_filter:
+            continue
+        rows.append((path.stem, str(doc.get("verdict") or "?"), claim, str(doc.get("createdAt") or "?")))
+    print(f"证据目录：{evidence_rel(root, evidence_dir(root, config))}（{len(rows)} 条）")
+    for evidence_id, verdict, claim, created in rows:
+        print(f"{evidence_id}\t{verdict}\t{claim}\t{created}")
     return 0
 
 
-# ── CLI ────────────────────────────────────────────────────────────────────
-def _add_root_option(parser: argparse.ArgumentParser) -> None:
-    """子命令也接受 --root（兼容 `write ... --root X` 写法）；未显式给出时不覆盖全局值。"""
-    parser.add_argument(
-        "--root",
-        type=Path,
-        default=argparse.SUPPRESS,
-        help="仓库根（也可写在子命令前；默认脚本上级目录）",
-    )
+def cmd_validate(root: Path, config: dict) -> int:
+    schema = load_schema(root, config)
+    directory = evidence_dir(root, config)
+    all_files = sorted(directory.glob("*.json")) if directory.is_dir() else []
+    if not directory.is_dir():
+        fail(f"证据目录不存在：{display(directory)}")
+    evidence_files = [path for path in all_files if EVIDENCE_ID_RE.fullmatch(path.stem)]
+    skipped = [path.name for path in all_files if path not in evidence_files]
+    print(f"校验 {evidence_rel(root, directory)}/*.json（跳过 {len(skipped)} 个非证据文件）")
+    if skipped:
+        info("跳过：" + ", ".join(skipped[:5]) + ("…" if len(skipped) > 5 else ""))
+    errors = 0
+    warnings = 0
+    for path in evidence_files:
+        try:
+            doc = load_json_file(path)
+        except ValueError as exc:
+            print(f"[FAIL] {path.name}: JSON 无法解析：{exc}")
+            errors += 1
+            continue
+        if not isinstance(doc, dict):
+            print(f"[FAIL] {path.name}: 顶层必须是 object")
+            errors += 1
+            continue
+        issues = validate_doc(root, config, schema, path.stem, doc)
+        if issues:
+            print(f"[FAIL] {path.name}")
+            for issue in issues:
+                print(f"       - {issue}")
+            errors += 1
+        else:
+            print(f"[OK]   {path.name}  verdict={doc.get('verdict')}  claim={doc.get('claim')}")
+        size = path.stat().st_size
+        if size > EVIDENCE_WARN_BYTES:
+            print(
+                f"[WARN] {path.name} 大小 {size} B > 3 KB：证据应是摘要"
+                "（命令/环境/计数/commit），大内容放 artifact 或文档；WARN 不阻断"
+            )
+            warnings += 1
+    verdict = "PASS" if errors == 0 else "FAIL"
+    print(f"结论：{verdict}（{len(evidence_files)} 个证据，{errors} error / {warnings} warn）")
+    return 0 if errors == 0 else 1
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="证据链工具：ls / show / validate / write（默认 ls + validate）",
-    )
-    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help="仓库根（默认脚本上级目录）")
-    sub = parser.add_subparsers(dest="command")
-
-    ls = sub.add_parser("ls", help="列出 evidence")
-    _add_root_option(ls)
-    ls.add_argument("--claim", help="只列指定 claim")
-    ls.add_argument("--json", action="store_true", help="输出 JSON 数组")
-
-    show = sub.add_parser("show", help="查看单条 evidence（id 或路径）")
-    _add_root_option(show)
-    show.add_argument("target")
-
-    validate = sub.add_parser("validate", help="校验 harness/evidence/*.json（schema + 语义）")
-    _add_root_option(validate)
-    validate.set_defaults(command="validate")
-
-    check = sub.add_parser("check", help="validate 的别名")
-    _add_root_option(check)
-    check.set_defaults(command="validate")
-
-    write = sub.add_parser("write", help="写入一条 evidence")
-    _add_root_option(write)
-    write.add_argument("--from-json", help="草稿 JSON 路径；- 表示 stdin")
-    write.add_argument("--claim", choices=CLAIMS)
-    write.add_argument("--status", choices=STATUSES, default="SUCCEEDED")
-    write.add_argument("--passed", type=int, default=0)
-    write.add_argument("--failed", type=int, default=0)
-    write.add_argument("--skipped", type=int, default=0)
-    write.add_argument("--duration", type=float, default=0.0)
-    write.add_argument("--xcode", default=None)
-    write.add_argument("--simulator", default=None)
-    write.add_argument("--device", default=None)
-    write.add_argument("--build", default=None)
-    write.add_argument("--host", default=None)
-    write.add_argument("--xcresult", default=None)
-    write.add_argument("--metrics", default=None)
-    write.add_argument("--command", dest="evidence_command", default="")
-    write.add_argument("--verdict", choices=VERDICTS, default=None)
-    write.add_argument("--notes", default=None)
-    write.add_argument("--session-id", default=None)
-    return parser
+def read_payload(source: str) -> dict:
+    if source == "-":
+        raw = sys.stdin.read()
+        origin = "stdin"
+    else:
+        path = Path(source)
+        if not path.is_file():
+            fail(f"--from-json 文件不存在：{source}")
+        raw = path.read_text(encoding="utf-8")
+        origin = source
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        fail(f"--from-json 无法解析（{origin}）：{exc}")
+    if not isinstance(payload, dict):
+        fail("--from-json 顶层必须是 JSON object")
+    return payload
 
 
-def parse_args(argv: list[str] | None) -> argparse.Namespace:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    if args.command in ("ls", "show", "write"):
-        pass
-    elif args.command is None:
-        # 无子命令 = 便利入口：列证据 + 校验
-        args.command = "list-and-validate"
-    return args
+def normalize_exempt(value: str, *, option: str) -> str:
+    """Normalize an exemption path: repo-relative, no absolute path / '..'."""
+    path = Path(str(value).strip())
+    if not str(path) or path.is_absolute() or ".." in path.parts:
+        fail(f"{option} 需要仓库内相对路径（无 ..）：{value!r}", 2)
+    return path.as_posix().rstrip("/")
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    root = Path(args.root).resolve()
-    if args.command == "ls":
-        return cmd_ls(root, args)
-    if args.command == "show":
-        return cmd_show(root, args)
-    if args.command == "validate":
-        return cmd_validate(root, args)
-    if args.command == "write":
-        return cmd_write(root, args)
-    # 无子命令：ls + validate
-    rc = cmd_ls(root, argparse.Namespace(claim=None, json=False))
-    return cmd_validate(root, argparse.Namespace()) or rc
+def cmd_write(
+    root: Path,
+    config: dict,
+    claim_arg: str | None,
+    source: str | None,
+    *,
+    allow_under: list[str] | None = None,
+) -> int:
+    if not source:
+        fail("write 需要 --from-json <FILE|->（提供 command/result/environment/verdict 等字段）")
+    payload = read_payload(source)
+    claim = claim_arg or payload.get("claim")
+    if not claim:
+        fail("缺少 claim：用 --claim NAME 或在 JSON 内提供 claim")
+    names = claim_names(config)
+    if claim not in names:
+        fail(f"claim 不在 config.claims：{claim!r}（可用：{', '.join(names)}）")
+    if payload.get("claim") and payload["claim"] != claim:
+        fail(f"--claim 与 JSON 内 claim 不一致：{claim!r} != {payload['claim']!r}")
+    if not git_is_repo(root):
+        fail("不是 git 仓库：无法自动填 git.commit/git.dirty")
+    changed = git_status_paths(root)
+    if changed is None:
+        fail("读取 git status 失败")
+    if changed:
+        # K02：证据目录下的未跟踪/修改文件就是待提交产物，默认豁免；其余目录须显式豁免或先提交。
+        exempt = [evidence_rel(root, evidence_dir(root, config))]
+        exempt += [normalize_exempt(item, option="--allow-untracked-under") for item in allow_under or []]
+
+        def is_exempt(path: str) -> bool:
+            return any(path == item or path.startswith(item + "/") for item in exempt if item)
+
+        remaining = sorted(path for path in changed if not is_exempt(path))
+        exempted = sorted(path for path in changed if is_exempt(path))
+        if exempted:
+            preview = "、".join(exempted[:5]) + ("…" if len(exempted) > 5 else "")
+            print(
+                f"[WARN] 豁免 {len(exempted)} 个待提交产物（证据目录 / --allow-untracked-under）："
+                f"{preview}；证据写入后请 git add 并提交"
+            )
+        if remaining:
+            preview = "、".join(remaining[:5]) + ("…" if len(remaining) > 5 else "")
+            fail(
+                f"工作树不 clean（{len(remaining)} 个改动：{preview}）；先提交/清理后再写证据。"
+                "可先 `git add` 相关文件，或用 --allow-untracked-under <path> 豁免待提交产物"
+                f"（证据目录 {exempt[0]} 已默认豁免）"
+            )
+    commit = git_sha(root, "HEAD")
+    if commit is None:
+        fail("无法解析 HEAD 提交（仓库还没有 commit？）")
+    now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+    evidence_id = f"{now.strftime('%Y%m%dT%H%M%SZ')}-{claim}"
+    target = evidence_dir(root, config) / f"{evidence_id}.json"
+    if target.exists():
+        fail(f"证据已存在：{evidence_rel(root, target)}（同一秒重复写入；稍后重试）")
+    doc = dict(payload)
+    doc["id"] = evidence_id
+    doc["claim"] = claim
+    doc["createdAt"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    doc["git"] = {"commit": commit[:12], "dirty": False}
+    doc["verifier"] = f"tools/evidence.py@{config.get('kitVersion', 'unknown')}"
+    schema = load_schema(root, config)
+    issues = validate_doc(root, config, schema, evidence_id, doc)
+    if issues:
+        fail("证据不符合 schema/语义：\n  - " + "\n  - ".join(issues))
+    evidence_dir(root, config).mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"[OK] 已写入 {evidence_rel(root, target)}（id={evidence_id}，verdict={doc.get('verdict')}）")
+    return 0
+
+
+# ── main ─────────────────────────────────────────────────────────────────
+def main(argv: list[str]) -> int:
+    root, args = parse_cli(argv)
+    claim_arg = pop_option(args, "--claim")
+    source = pop_option(args, "--from-json")
+    allow_under = pop_options(args, "--allow-untracked-under")
+    if not args or args[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return 0 if args else 2
+    command = args[0]
+    rest = args[1:]
+    config = load_config(root)
+    if command == "ls":
+        if rest:
+            fail(f"用法：evidence.py ls [--claim NAME]（未知参数：{' '.join(rest)}）", 2)
+        return cmd_ls(root, config, claim_arg)
+    if command == "validate":
+        if rest:
+            fail(f"用法：evidence.py validate（未知参数：{' '.join(rest)}）", 2)
+        return cmd_validate(root, config)
+    if command == "write":
+        if rest:
+            fail(
+                "用法：evidence.py write --claim NAME --from-json <FILE|-> "
+                f"[--allow-untracked-under PATH]（未知参数：{' '.join(rest)}）",
+                2,
+            )
+        return cmd_write(root, config, claim_arg, source, allow_under=allow_under)
+    print(__doc__)
+    return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

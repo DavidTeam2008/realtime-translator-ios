@@ -1,0 +1,118 @@
+{
+  "kitVersion": "0.5.3",
+  "project": {
+    "name": "Duiyi",
+    "language": "swift"
+  },
+  "paths": {
+    "docs": "docs",
+    "references": "references",
+    "harness": "harness",
+    "plans": "harness/plans",
+    "evidence": "harness/evidence",
+    "reviews": "harness/reviews",
+    "tools": "tools",
+    "rootDocs": ["README.md", "AGENTS.md", "HARNESS.md", "CONTRIBUTING.md"]
+  },
+  "instructions": {
+    "root": "AGENTS.md",
+    "nested": [
+      "docs/AGENTS.md",
+      "harness/AGENTS.md",
+      "Duiyi/Services/AGENTS.md",
+      "Duiyi/Features/AGENTS.md",
+      "DuiyiTests/AGENTS.md",
+      "DuiyiUITests/AGENTS.md"
+    ],
+    "nestedMaxBytes": 8192,
+    "nestedMaxTokens": 2000,
+    "budgets": {
+      "AGENTS.md": 1650,
+      "references/contracts.md": 975,
+      "references/verification.md": 975,
+      "references/workflow.md": 975,
+      "docs/README.md": 1000,
+      "HARNESS.md": 1500
+    },
+    "sensitivePatterns": ["/Users/", "sk-"]
+  },
+  "docs": {
+    "publicWhitelist": [
+      "README.md",
+      "AGENTS.md",
+      "docs/README.md",
+      "docs/AGENTS.md",
+      "docs/01-product-design.md",
+      "docs/02-architecture.md",
+      "docs/03-tech-choices.md",
+      "docs/04-roadmap.md",
+      "docs/decisions.md",
+      "docs/case-startup-performance.md",
+      "docs/harness-scorecard.md"
+    ],
+    "publicBudget": 10,
+    "rootMarkdownAllowed": [
+      "README.md",
+      "AGENTS.md",
+      "HARNESS.md",
+      "CONTRIBUTING.md",
+      "AGENTS.local.md",
+      "CLAUDE.local.md"
+    ]
+  },
+  "commands": {
+    "check": "make check",
+    "verify": "make verify-static",
+    "test": "make test"
+  },
+  "claims": [
+    {
+      "name": "unit-tests-pass",
+      "type": "test-count",
+      "baseline": "harness/test-baseline.json",
+      "floor": "unit.floor",
+      "expectedSkipped": "expectedSkipped.unit",
+      "requireArtifact": false,
+      "command": "make test"
+    },
+    {
+      "name": "ui-tests-pass",
+      "type": "test-count",
+      "baseline": "harness/test-baseline.json",
+      "floor": "ui.passedFloor",
+      "expectedSkipped": "expectedSkipped.ui",
+      "requireArtifact": false,
+      "command": "make test-ui"
+    },
+    {
+      "name": "device-tests-pass",
+      "type": "test-count",
+      "baseline": "harness/test-baseline.json",
+      "floor": "device.floor",
+      "expectedSkipped": "expectedSkipped.device",
+      "requireArtifact": false,
+      "command": "harness/tools/device-test.sh"
+    },
+    {
+      "name": "docs-pass",
+      "type": "static",
+      "command": "python3 tools/check_docs.py"
+    }
+  ],
+  "freshness": {
+    "unit-tests-pass": ["**/*.swift", "DuiyiTests/**"],
+    "ui-tests-pass": ["**/*.swift", "DuiyiUITests/**"],
+    "device-tests-pass": ["**/*.swift"],
+    "docs-pass": ["docs/**", "references/**", "AGENTS.md", "HARNESS.md"]
+  },
+  "scorecard": {
+    "maxAgeDays": 30,
+    "maxCommits": 50
+  },
+  "adapters": {
+    "claudeCode": {
+      "skillsSource": ".dsh/skills",
+      "skillsTarget": ".claude/skills"
+    }
+  }
+}

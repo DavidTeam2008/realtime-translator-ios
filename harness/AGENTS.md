@@ -1,48 +1,35 @@
-# AGENTS.md · harness
+# harness/AGENTS.md
 
-> 触发：读写计划、验证证据、问题单、独立审查或基准数据前先读本页。
-> 本页只写 `harness/` 的增量协议；分级与红队细则见 [`references/workflow.md`](../references/workflow.md)，项目入口见根 [`AGENTS.md`](../AGENTS.md)。
+> 触发：读写计划、证据、审查或配置前读本页。
+> 本页只写 `harness/` 的增量协议；项目规则见 [`../AGENTS.md`](../AGENTS.md)，分级与红队见 [`../references/workflow.md`](../references/workflow.md)。
 
-## 1. 目录职责
+## 1. 配置
 
-- `plans/`：跨会话计划的唯一进度真源；`_template.md` 是起稿模板。
-- `evidence/`：可复核证据（schema / 模板 / 摘要 JSON）；结论与证据 ID 写回计划。
-- `tools/`：真机/测量脚本（`device-test.sh`、`measure-launch.sh`）。
-- `test-baseline.json`：测试计数与 skip 白名单基线（供 `make check-tests`）。
-- `README.md`：工作区索引（与 `docs/` 的边界说明）。
-- `runs/`：原始测量产物，已 gitignore；入库的只有证据摘要与结论。
+- [`config.json`](config.json) 是路径 / 命令 / claims / 预算的唯一来源；脚本缺字段必须报错，不得静默用默认值。
+- 路径一律相对项目根；不接受绝对路径。
+- 改配置属于 L1 以上改动，必须同步本目录文档并跑 `make verify-static`。
 
-## 2. 计划状态机
+## 2. 计划（`plans/`）
 
-- 用 `make plan TOPIC=<topic>` 新建；同一时间只允许 1 个 active 计划（唯一认领）。
-- front matter 必填：`id`、`status`、`level`、`owner`、`updated`、`scope`（允许/禁止改动的文件或目录）、`acceptance`、`verify`。
-- `status` 取值：`active` / `done` / `blocked` / `archived`；完成后改 `done` 并移入 `plans/_archive/`。
-- 正文必填：目标、验收（可执行判据）、改动范围、DoD、验证证据、未验证项、下一步。
-- 越界改动先停并更新 `scope`；计划不是规范文档，事实引用 `docs/` 与 `references/`。
+- 同一时间只保留一个 active 计划，front matter 必填 `id` / `status` / `level` / `owner` / `updated` / `scope` / `acceptance` / `verify`。
+- `status` 取值：`active` / `done` / `blocked` / `archived`；完成后改 `done` 并归档。
+- 正文必填：目标与非目标、验收、进度、验证证据（命令 | 结果 | 环境 | 证据ID）、未验证项、未提交改动、下一步。
+- 越界改动先停，更新 `scope` 再继续；计划不是规范文档，事实引用 `docs/`。
 
-## 3. 验证证据
+## 3. 证据（`evidence/`，standard / strict）
 
-- 表固定四列：`命令 | 结果 | 环境 | 证据 ID`。
-- 结果写退出码/通过数/skip 数；环境写 Xcode/模拟器 runtime 或真机型号 + iOS。
-- 证据 ID：填 `harness/evidence/` 的 evidence id（生成/校验见 `harness/evidence/README.md`、`make evidence`、`make verify-claim`）；无 id 的“已验证”按未验证处理。
-- 未运行/未验证单列；不得把“环境跑不了”写成“代码通过”。
+- 一条证据一个文件，命名 `<UTC时间>-<claim>.json`；结构以 `evidence/schema.json` 为准（该 profile 启用时）。
+- `verdict` 只有 PASS / FAIL / UNVERIFIED；伪造或无法复核的证据不写入。
+- 原始大产物不入库；入库摘要必须含命令、退出码、环境与提交号。
+- 无证据的“已验证”按未验证处理；完成声明引用证据 ID。
 
-## 4. 红队 / 独立审查协议
+## 4. 审查（`reviews/`，strict）
 
-- 范围：L2 中的并发、持久化、发布工程（见根 AGENTS 第 7 节）；其他 L2 用自检 + 用户确认。
-- 只读：不改文件、不读 `.env`、不跑破坏性命令；输入只有任务 + 方案 + 仓库路径，不传起草对话、自评或既往结论。
-- 输出：结论；P0/P1/P2 表（问题 | 证据/位置 | 影响 | 建议）；被挑战假设；缺失信息；最小验证清单。
-- 作者逐条回应（接受/拒绝/待定 + 理由），最多两轮；P0/P1 执行前解决，P2 记录排期。
-- 报告写入 `reviews/`；没有子 Agent 时用新会话兜底。
+- 只读独立审查：输入任务 + 方案 + 仓库路径，不传起草历史与自评。
+- 输出结论 + P0/P1/P2 表 + 被挑战假设 + 缺失信息 + 最小验证清单；作者逐条回应。
+- 报告保留证据链接，不写本机绝对路径、设备 ID 与密钥。
 
 ## 5. 写入卫生
 
-- 计划/证据/审查不写本机绝对路径、设备 UDID、密钥/Token；只写仓库相对路径。
-- 机器本地事实（Team、设备 ID、本机路径）写 `AGENTS.local.md`（如存在；gitignore，不入库）。
-- 不把大产物、日志、截图入库；`harness/runs/` 保持忽略。
-
-## 6. 交接与收尾
-
-- 中断/交接前更新：进度、已排除、验证证据、未提交改动、下一步（1 条具体动作）。
-- `make resume` 接手；`make check-plan` 校验状态与必填字段；`make end` 收尾；`make handoff` 取最新 active 计划摘要。
-- 同一失败修 2 次 / 同一子任务 3 轮无进展 → 按 [`references/workflow.md`](../references/workflow.md) 阻塞报告上报，并记入计划的尝试记录。
+- 不写本机绝对路径、设备 ID、令牌 / 密钥；机器本地事实放本地覆盖文件（不入库）。
+- `runs/` 等运行产物保持忽略；不提交大文件与原始日志。

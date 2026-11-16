@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 1,
+  "kitVersion": "0.5.3",
+  "profile": "strict",
+  "generatedAt": "2026-11-16T05:49:50Z",
+  "options": {
+    "name": "Duiyi",
+    "language": "swift",
+    "testCommand": "make test",
+    "adapters": [
+      "githooks",
+      "ci"
+    ],
+    "branch": "main",
+    "branchSource": "非 git 仓库，默认 main",
+    "agentsMode": "replace",
+    "hooksPath": null
+  },
+  "files": [
+    {
+      "path": ".dsh/skills/handoff/SKILL.md",
+      "sha256": "389544a7e8d12281addcde17178d9e67d54cb81be3b9eb35e413ced574d4c3d5",
+      "src": "core/templates/skills/handoff/SKILL.md",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": ".dsh/skills/red-team/SKILL.md",
+      "sha256": "48b0698bd0c1e7bbc353d41c29f65629e5fa237560de2f41929ee9e90c876cbb",
+      "src": "core/templates/skills/red-team/SKILL.md",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": ".dsh/skills/verify-change/SKILL.md",
+      "sha256": "c88e3b64ee7da7d8ed8901a6c76af7ec639f6e3f84be98c2943dfa5890e72676",
+      "src": "core/templates/skills/verify-change/SKILL.md",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": ".githooks/pre-push",
+      "sha256": "a6a4444b2a3e9336b39c74177741875bf22048e866a6f8f9862b5825ea5bf04c",
+      "src": "adapters/githooks/pre-push",
+      "render": false,
+      "executable": true
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "sha256": "787f36f0eef2ddb491ee586cd109de7c6a860be98221780a09af29515ab2e758",
+      "src": "adapters/ci/verify.yml.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "ff7fbc03a7604d227b84bffeca53682df90be273fccc7089389246a539622096",
+      "src": "core/templates/AGENTS.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "f23f09dfb5f5e62384f73f58b4ff9556951f3a8aa1a481bf0b673ca1e716e61e",
+      "src": "core/templates/CONTRIBUTING.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "HARNESS.md",
+      "sha256": "286bbd761151d40f4a56755d6891c85471f73646eda2cef6389952f8484c94e5",
+      "src": "core/templates/HARNESS.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "Makefile",
+      "sha256": "e1fad9f574b08188a576132b857f1b232a0e16e6f4c610f9776587311109b2c7",
+      "src": "core/templates/makefiles/Makefile.strict.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "docs/AGENTS.md",
+      "sha256": "8eba9c8fc594d9286c285de078a128ad075c9b93bd86cb74a9cb69caf17b2069",
+      "src": "core/templates/docs/AGENTS.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "bed58e15e2a0e9e4d17dd91d3b79694a7f81d05d74d2658fbe3cefbe53b68308",
+      "src": "core/templates/docs/README.strict.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "docs/harness-scorecard.md",
+      "sha256": "9b8927f97dde92b4011225394f8ec8bd2f234fbf2a8e7ebf8f0e153e3140c7bf",
+      "src": "core/templates/docs/harness-scorecard.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/AGENTS.md",
+      "sha256": "384d6606e6885d2d8cd266bcd5068de427b46799f4132c37a9c3035f5bf2b8c5",
+      "src": "core/templates/harness/AGENTS.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/README.md",
+      "sha256": "225236088160f863119cfe9af4901186397d4d3f944ee6775cdda9a18d0828c6",
+      "src": "core/templates/harness/README.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/config.json",
+      "sha256": "436bb8018f1763acb466afbcbdb961c8c272b86383710ce3209c85821eff623b",
+      "src": "core/templates/harness/config.json.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/evidence/README.md",
+      "sha256": "64d7f7ae1a1e788264cdf6544597866a340767400f4b7deaf3ad11c7694f3d5f",
+      "src": "core/templates/harness/evidence/README.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/evidence/TEMPLATE.json",
+      "sha256": "43af16228860d630bbb98c6aba9cacd6360fef0f1281204bb64fb6e94c026367",
+      "src": "core/templates/harness/evidence/TEMPLATE.json",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/evidence/schema.json",
+      "sha256": "0a8c8f46f4c7213265e1cd30471d64944f6eeb456fc147e5117e0404f6771ec4",
+      "src": "core/templates/harness/evidence/schema.json",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "harness/plans/_template.md",
+      "sha256": "7065d53a3905b9d8a44073ef7cf5c967ca1d97f6f40dbc84b5eeb35d0a24290f",
+      "src": "core/templates/harness/plans/_template.md",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/requirements/_template.md",
+      "sha256": "1e51e424560bf901f665967f09f03ec5021ead86773c16e30331912750cd02a6",
+      "src": "core/templates/harness/requirements/_template.md",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "harness/reviews/README.md",
+      "sha256": "af44e2230f53ffc218d99e423512bf0d5ec41ad709b12f2cd885d8b492d1a461",
+      "src": "core/templates/harness/reviews/README.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/reviews/_template.md",
+      "sha256": "50917b0e848f67efef147a5a8f12a9486d24ff59e0f66e0b3fe248fff42bfe26",
+      "src": "core/templates/harness/reviews/_template.md",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "harness/test-baseline.json",
+      "sha256": "158cc4298fcef11901a9862e8b17a7bf27d41425ab0f3ffe9ddcb1cffb8bfb8b",
+      "src": "core/templates/harness/test-baseline.json.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "references/contracts.md",
+      "sha256": "17216b61529c3c718332d068fde9a583d620f8a8b3e7bf5dc475e98da8edf435",
+      "src": "core/templates/references/contracts.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "references/verification.md",
+      "sha256": "18933e16f34f9307166aa9fffe1dee928a56a3eb772f444b3896250f2b3f2210",
+      "src": "core/templates/references/verification.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "references/workflow.md",
+      "sha256": "302cbe6025624d743a9256009480ff1dc7bf2b145a48074de4795e28b5f1b165",
+      "src": "core/templates/references/workflow.md.template",
+      "render": true,
+      "executable": false
+    },
+    {
+      "path": "tools/adapters.py",
+      "sha256": "16f2dce45b4de9d42a55f25ecfe92caff5a133099ce305fc445d1665170926dd",
+      "src": "core/tools/adapters.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/check_agents.py",
+      "sha256": "a4b1ac8f350f81201ff3f6d9219e501968a18542ab219a4462e80cad18c8e14c",
+      "src": "core/tools/check_agents.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/check_docs.py",
+      "sha256": "f564037d58baa901fd6510e90cfca8321835ecabc30adf0be8dfb89b9ace723b",
+      "src": "core/tools/check_docs.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/check_hygiene.py",
+      "sha256": "9c9c5565618475b5586a19c02095c84fc6119039196ea1e3e8c0e4ec09fe958b",
+      "src": "core/tools/check_hygiene.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/check_layers.py",
+      "sha256": "4c890a017555ec4c13a4b0b0d48e0203e856ee7eaf4a50070a05b6a0b3ebc6c3",
+      "src": "core/tools/check_layers.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/check_plan.py",
+      "sha256": "71df7c70181ad686b7d48f5bee3aa3fa79cd479a62572393d220d684285ff72f",
+      "src": "core/tools/check_plan.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/doctor.py",
+      "sha256": "c575d54b56eab28a2dc97d7e665d71e0acc4a90fd876603a1ae5c9911836849b",
+      "src": "core/tools/doctor.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/evidence.py",
+      "sha256": "b1c835e03cbba12e0258b5242c242d09ea13f7dcf35208ef143a8aef160d78d1",
+      "src": "core/tools/evidence.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/evidence_from_junit.py",
+      "sha256": "4428c59efd8764619beaaf041c1a4cbaeffdb3e5b24ccd16aae5e4b97c00cfa0",
+      "src": "core/tools/evidence_from_junit.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/harness.py",
+      "sha256": "e7e84640fdcad5898337d5f6c5fa6d8e531331905f3af91a39a1b591cf9402c9",
+      "src": "core/tools/harness.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/harness_selftest",
+      "sha256": "c1e253311809d3d4f2c0358d7f7160e88f47809f2dfe129222602268e6f82581",
+      "src": "scripts/harness-selftest",
+      "render": false,
+      "executable": true
+    },
+    {
+      "path": "tools/scorecard.py",
+      "sha256": "9a565c223d47b9a27ed5690485f69e2c85d62050536cbcabd14110b0e31bef30",
+      "src": "core/tools/scorecard.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/token_estimate.py",
+      "sha256": "d115f76f7c750c9a66118e1be3e6a7571741b29b98cce0797ab5473ca70a33d1",
+      "src": "core/tools/token_estimate.py",
+      "render": false,
+      "executable": false
+    },
+    {
+      "path": "tools/verify_claim.py",
+      "sha256": "8d1f41f05a7ecd2964cd0ed0add4e943038f27b06ab21e54e8c91689a139692d",
+      "src": "core/tools/verify_claim.py",
+      "render": false,
+      "executable": false
+    }
+  ],
+  "appends": [
+    {
+      "path": ".gitignore",
+      "marker": "# harness-kit",
+      "sha256": "1b44a31b6c6916e1aae2a9207ae22b91c611fb316a3011f69e318d6118a22005",
+      "templateSha256": "1b44a31b6c6916e1aae2a9207ae22b91c611fb316a3011f69e318d6118a22005"
+    }
+  ],
+  "skipped": []
+}

@@ -30,3 +30,8 @@ __pycache__/
 # Claude Code 适配生成物（skills 单源在 .dsh/skills）
 .claude/skills/
 .claude/settings.local.json
+
+# harness-kit 追加：运行产物 / 初始化备份 / kit 工具缓存（保留原有内容，不覆盖）
+.harness-init-backup/
+.build/
+.swiftpm/
