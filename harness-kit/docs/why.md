@@ -62,7 +62,7 @@ Claude Code（或任何单个 Agent）是**执行面**，不是**跨厂商项目
 - 不做权限 / 工单 / 审批系统（在 Git/CI/团队系统）；
 - 不覆盖线上运维 / 监控 / SLO；
 - 不成为运行时依赖，不 import 进业务代码。
-- **不做 DSH 插件（v0.5.0 决策）**：DSH 已原生发现 `.dsh/skills`、`.agents/skills`、`~/.agents/skills` 等 skill 根，入口 skill 用 `harness-skill --scope user` 一次安装即可覆盖发现与分发；插件只增加安装/版本维护面，不改善门禁与证据。复访条件：需要跨项目自动更新、或需要工具级/MCP 集成。
+- **不做 DSH 插件（v0.5.0 决策；v0.5.4 复评）**：DSH 已原生发现 `.dsh/skills`、`.agents/skills`、`~/.agents/skills` 等 skill 根；v0.5.4 起入口 skill 支持 **npx 一等安装**（`npx skills add ... --skill harness -g -a claude-code -a codex -y`，skill 首次在未接入仓库使用时按 annotated tag 自动 clone kit 到缓存），无需额外插件即可完成安装/升级，`harness-skill` 保留为无 Node / 离线 / 项目级 pin 的备用入口。插件只增加安装/版本维护面，不改善门禁与证据。复访条件：需要跨项目自动更新、或需要工具级/MCP 集成。
 
 ## 6. 什么时候不该用
 

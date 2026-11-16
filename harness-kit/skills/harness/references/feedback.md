@@ -31,7 +31,8 @@
 ## 4. 修复后回流
 
 1. `harness-upgrade --check/--plan` 对照新版；只回写 kit 管理面（见 `upgrade.md`）。
-2. 重装入口 skill：`<kit>/scripts/harness-skill install --scope user --force`。
+2. 同步入口 skill（按安装方式）：npx 安装用 `npx skills update harness -g`；
+   harness-skill 安装用 `<kit>/scripts/harness-skill install --scope user --force`（不要混用）。
 3. `make verify-static` 复核，把结论回写 issue。
 
 ## 5. 不要做

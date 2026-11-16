@@ -507,6 +507,60 @@ def detect_default_branch(root: Path) -> str | None:
     return None
 
 
+def _skill_front_matter_version(path: Path) -> str | None:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    if not text.startswith("---"):
+        return None
+    front = text.split("---", 2)[1]
+    match = re.search(r"kit_version:\s*([0-9][0-9A-Za-z.\-]*)", front)
+    return match.group(1) if match else None
+
+
+def user_skill_state() -> dict:
+    """Read-only view of the user-scope entry skill (npx or harness-skill managed)."""
+    agents_home = Path(os.environ.get("DSH_AGENTS_HOME", "~/.agents")).expanduser()
+    roots = {
+        "agents": agents_home / "skills" / "harness",
+        "claude-code": Path.home() / ".claude" / "skills" / "harness",
+    }
+    installed = [name for name, path in roots.items() if (path / "SKILL.md").is_file()]
+    managed = None
+    lock_paths: list[Path] = []
+    state = os.environ.get("XDG_STATE_HOME")
+    if state:
+        lock_paths.append(Path(state).expanduser() / "skills" / ".skill-lock.json")
+    lock_paths.append(agents_home / ".skill-lock.json")
+    for path in lock_paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        skills = data.get("skills") if isinstance(data, dict) else None
+        entry = skills.get("harness") if isinstance(skills, dict) else None
+        if isinstance(entry, dict):
+            source = str(entry.get("source") or entry.get("sourceUrl") or "")
+            if "harness-engineering-kit" in source:
+                managed = "npx"
+                break
+    if managed is None:
+        try:
+            meta = json.loads(
+                (agents_home / "skills" / ".harness-kit-skill.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            meta = {}
+        if isinstance(meta, dict) and meta.get("kitRoot"):
+            managed = "harness-skill"
+    version = None
+    for name in installed:
+        version = _skill_front_matter_version(roots[name] / "SKILL.md")
+        if version:
+            break
+    return {"installed": installed, "managedBy": managed, "version": version}
+
+
 def hooks_state(root: Path) -> dict:
     hook = root / ".githooks" / "pre-push"
     code, out, _ = git(root, ["config", "--get", "core.hooksPath"])
@@ -523,6 +577,7 @@ def build_status(root: Path, config: dict) -> dict:
     manifest_branch = ((manifest or {}).get("options") or {}).get("branch")
     default_branch = detect_default_branch(root)
     hooks = hooks_state(root)
+    user_skill = user_skill_state()
     plans = load_plans(root, config)
     plan = active_plan(plans)
     archived = load_archived_plans(root, config)
@@ -607,6 +662,7 @@ def build_status(root: Path, config: dict) -> dict:
         },
         "evidence": evidence,
         "skills": skills,
+        "userSkill": user_skill,
         "nextActions": actions,
     }
 
@@ -656,7 +712,17 @@ def cmd_status(root: Path, args: argparse.Namespace) -> int:
     counts = result["evidence"]["counts"]
     archived_note = f"；归档 {result['evidence'].get('archivedTotal', 0)} 条（不参与判定）" if result['evidence'].get('archivedTotal') else ""
     print(f"证据: {result['evidence']['total']} 条（PASS={counts['PASS']} / UNVERIFIED={counts['UNVERIFIED']} / FAIL={counts['FAIL']}{archived_note}）")
-    print(f"skill: {', '.join(result['skills']) if result['skills'] else '未安装（可选；kit 侧 harness-skill install）'}")
+    skill_parts = list(result["skills"])
+    user_skill = result.get("userSkill") or {}
+    if user_skill.get("installed"):
+        managed = user_skill.get("managedBy") or "未知管理"
+        version = f" v{user_skill['version']}" if user_skill.get("version") else ""
+        skill_parts.append(f"用户级 {managed}{version}")
+    if skill_parts:
+        print(f"skill: {', '.join(skill_parts)}")
+    else:
+        print("skill: 未安装（可选；首选 npx skills add DavidTeam2008/harness-engineering-kit "
+              "--skill harness -g，或 kit 侧 harness-skill install）")
     if result["versionProblem"]:
         print(f"[WARN] {result['versionProblem']}")
     if result.get("branchProblem"):

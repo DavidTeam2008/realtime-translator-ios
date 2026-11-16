@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -154,6 +155,7 @@ class SkillScopeTests(unittest.TestCase):
             "HOME": str(self.home),
             "DSH_HOME": str(self.home / ".dsh"),
             "DSH_AGENTS_HOME": str(self.home / ".agents"),
+            "XDG_STATE_HOME": str(self.home / ".state"),
         })
         self.host = init_host(self.tmp, "scope-host")
 
@@ -217,6 +219,68 @@ class SkillScopeTests(unittest.TestCase):
         self.assertTrue((self.home / ".claude" / "skills" / "harness" / "SKILL.md").is_file())
         check = self.skill("check", "--scope", "user", "--agent", "claude-code")
         self.assertEqual(0, check.returncode, check.stdout + check.stderr)
+
+    # ── v0.5.4: npx skills coexistence ───────────────────────────────────
+    def npx_layout(self) -> tuple[Path, Path]:
+        """npx-style layout: canonical real dir + Claude Code symlink + skills lock, no meta."""
+        installed = self.skill("install", "--scope", "user")
+        assert installed.returncode == 0, installed.stdout + installed.stderr
+        canonical = self.user_skill_dir()
+        (self.home / ".agents" / "skills" / ".harness-kit-skill.json").unlink()
+        claude = self.home / ".claude" / "skills" / "harness"
+        shutil.rmtree(claude)
+        claude.symlink_to(canonical)
+        lock_dir = self.home / ".state" / "skills"
+        lock_dir.mkdir(parents=True)
+        (lock_dir / ".skill-lock.json").write_text(json.dumps(
+            {"skills": {"harness": {"source": "DavidTeam2008/harness-engineering-kit"}}}),
+            encoding="utf-8")
+        return canonical, claude
+
+    def test_check_recognizes_npx_managed_install(self) -> None:
+        self.npx_layout()
+        proc = self.skill("check", "--scope", "user", "--json")
+        self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+        data = json.loads(proc.stdout)
+        self.assertEqual("npx", data["managedBy"])
+        self.assertEqual([], data["drift"])
+        human = self.skill("check", "--scope", "user")
+        self.assertEqual(0, human.returncode, human.stdout + human.stderr)
+        self.assertIn("npx", human.stdout)
+
+    def test_check_npx_source_mismatch_is_not_npx(self) -> None:
+        self.npx_layout()
+        lock_dir = self.home / ".state" / "skills"
+        (lock_dir / ".skill-lock.json").write_text(json.dumps(
+            {"skills": {"harness": {"source": "someone/other-kit"}}}), encoding="utf-8")
+        proc = self.skill("check", "--scope", "user", "--json")
+        self.assertEqual(1, proc.returncode, proc.stdout + proc.stderr)
+        self.assertIsNone(json.loads(proc.stdout)["managedBy"])
+
+    def test_install_refuses_npx_managed_layout_unless_forced(self) -> None:
+        canonical, claude = self.npx_layout()
+        refused = self.skill("install", "--scope", "user")
+        self.assertEqual(2, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("npx", refused.stderr)
+        forced = self.skill("install", "--scope", "user", "--force")
+        self.assertEqual(0, forced.returncode, forced.stdout + forced.stderr)
+        self.assertIn("WARN", forced.stdout)
+        self.assertTrue((self.home / ".agents" / "skills" / ".harness-kit-skill.json").is_file())
+        self.assertFalse(claude.is_symlink())
+        self.assertTrue((claude / "SKILL.md").is_file())
+
+    def test_uninstall_refuses_then_force_clears_npx_symlink(self) -> None:
+        canonical, claude = self.npx_layout()
+        refused = self.skill("uninstall", "--scope", "user")
+        self.assertEqual(2, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn("npx", refused.stderr)
+        forced = self.skill("uninstall", "--scope", "user", "--force")
+        self.assertEqual(0, forced.returncode, forced.stdout + forced.stderr)
+        self.assertFalse(canonical.exists())
+        self.assertFalse(claude.exists())
+        self.assertFalse(claude.is_symlink())
+        self.assertNotIn("Traceback", forced.stderr)
+        self.assertIn("npx lock", forced.stdout)
 
     def test_project_agents_scope_install_and_uninstall(self) -> None:
         proc = self.skill("install", "--agent", "agents")

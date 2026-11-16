@@ -32,6 +32,11 @@ roots with kitRoot/version/hashes (outside any repo, never committed); project s
 records the same in <target>/.harness-manifest.json under ``skills.harness``.
 
 Standard library only; no network.
+
+Installs made by ``npx skills add`` are detected through the skills CLI lock
+file (``$XDG_STATE_HOME/skills/.skill-lock.json`` or ``~/.agents/.skill-lock.json``):
+``check`` reports them as npx-managed instead of as missing legacy metadata,
+and ``install``/``uninstall`` refuse to fight the npx manager unless ``--force``.
 """
 from __future__ import annotations
 
@@ -48,6 +53,7 @@ DEFAULT_KIT_ROOT = Path(__file__).resolve().parent.parent
 SKILL_NAME = "harness"
 MANIFEST_NAME = ".harness-manifest.json"
 USER_META_NAME = ".harness-kit-skill.json"
+NPX_SOURCE_HINT = "harness-engineering-kit"
 AGENTS = ("dsh", "agents", "claude-code")
 SCOPES = ("project", "user")
 PROJECT_AGENT_PATHS = {
@@ -150,6 +156,32 @@ def read_json(path: Path) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
+def npx_lock_entry() -> dict | None:
+    """Return the skills-CLI lock entry for the kit's harness skill, if any."""
+    candidates: list[Path] = []
+    state = os.environ.get("XDG_STATE_HOME")
+    if state:
+        candidates.append(Path(state).expanduser() / "skills" / ".skill-lock.json")
+    candidates.append(user_meta_path().parent.parent / ".skill-lock.json")
+    for path in candidates:
+        data = read_json(path) or {}
+        skills = data.get("skills")
+        entry = skills.get(SKILL_NAME) if isinstance(skills, dict) else None
+        if isinstance(entry, dict):
+            source = str(entry.get("source") or entry.get("sourceUrl") or "")
+            if NPX_SOURCE_HINT in source:
+                return {"path": path.as_posix(), "entry": entry}
+    return None
+
+
+def drop_symlink(directory: Path) -> bool:
+    """Remove a symlinked agent root so we never write through the npx layout."""
+    if directory.is_symlink():
+        directory.unlink()
+        return True
+    return False
+
+
 def update_project_manifest(target: Path, version: str, agents: list[str],
                             files: dict[str, bytes]) -> str | None:
     path = target / MANIFEST_NAME
@@ -215,6 +247,13 @@ def cmd_install(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
     agents = parse_agents(args.agent, scope)
     files = source_files(kit_root)
     destinations = {agent: agent_path(scope, agent, target) for agent in agents}
+    npx = npx_lock_entry() if scope == "user" else None
+    if npx and not args.force:
+        raise SkillError(
+            "入口 skill 当前由 npx skills 管理：升级/重装用 `npx skills update harness -g`；"
+            "确需改为 harness-skill 管理，先 `npx skills remove harness -g -y` 再安装"
+            "（或加 --force 强制接管，但 npx lock 会残留）"
+        )
 
     conflicts: list[str] = []
     for agent, directory in destinations.items():
@@ -238,6 +277,8 @@ def cmd_install(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
 
     hash_map = {name: sha256_bytes(data) for name, data in sorted(files.items())}
     installed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for directory in destinations.values():
+        drop_symlink(directory)
     for agent, directory in destinations.items():
         for name, data in files.items():
             path = directory / name
@@ -261,6 +302,9 @@ def cmd_install(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
             print(f"[WARN] {notice}")
         where = ", ".join(display_path(scope, directory, target) for directory in destinations.values())
         print(f"[OK] installed skill '{SKILL_NAME}' {version} -> {where}（用户级，{len(files)} 个文件）")
+        if npx:
+            print("[WARN] 已强制接管 npx 管理的安装；npx lock 仍存在，"
+                  "`npx skills update` 会再次覆盖。建议先 `npx skills remove harness -g -y`。")
         print("下一步：新开一个 Agent 会话；任意仓库里说「接入这个项目」即可，不需要每仓安装。")
     return 0
 
@@ -292,6 +336,8 @@ def cmd_check(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
         recorded_version = meta.get("kitVersion")
         agents_meta = meta.get("agents")
         recorded_agents = agents_meta if isinstance(agents_meta, dict) else {}
+    npx = npx_lock_entry() if scope == "user" else None
+    result["managedBy"] = "npx" if npx else None
 
     installed_agents = [agent for agent, directory in directories.items()
                         if (directory / "SKILL.md").is_file()]
@@ -324,7 +370,11 @@ def cmd_check(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
         elif installed_agents and manifest_present:
             result["drift"].append("manifest 未记录 skills.harness（未用本工具安装）")
     else:
-        if not user_meta_path().is_file():
+        if npx:
+            if user_meta_path().is_file():
+                result["drift"].append(
+                    "同时存在旧 harness-skill 元数据（混合管理；建议删除或迁移到单一方式）")
+        elif not user_meta_path().is_file():
             result["drift"].append("用户级元数据缺失（非本工具安装或已损坏）")
         else:
             if str(recorded_version) != version:
@@ -343,12 +393,16 @@ def cmd_check(target: Path, kit_root: Path, args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     elif result["ok"]:
+        managed = "；由 npx skills 管理，升级用 npx skills update harness -g" if npx else ""
         print(f"[OK] skill '{SKILL_NAME}' in sync（{version}；scope={scope}；"
-              f"agents={', '.join(installed_agents)}）")
+              f"agents={', '.join(installed_agents)}{managed}）")
     else:
         print(f"[FAIL] skill 漂移（scope={scope}）：")
         for item in result["drift"]:
             print(f"  - {item}")
+        if npx:
+            print("  npx 管理的安装请用 `npx skills update harness -g` 同步；"
+                  "只有本地 kit 与已装版本不一致时才需要升级 kit。")
     return 0 if result["ok"] else 1
 
 
@@ -380,9 +434,18 @@ def cmd_uninstall(target: Path, kit_root: Path, args: argparse.Namespace) -> int
     version = kit_version(kit_root)
     files = source_files(kit_root)
     agents = parse_agents(args.agent, scope)
+    npx = npx_lock_entry() if scope == "user" else None
+    if npx and not args.force:
+        raise SkillError(
+            "入口 skill 当前由 npx skills 管理：卸载用 `npx skills remove harness -g -y`；"
+            "确需 harness-skill 清理本地目录，加 --force（npx lock 会残留，需再 remove）"
+        )
     removed: list[str] = []
     for agent in agents:
         directory = agent_path(scope, agent, target)
+        if drop_symlink(directory):
+            removed.append(display_path(scope, directory, target))
+            continue
         if not directory.is_dir():
             continue
         installed = installed_files(directory)
@@ -415,6 +478,8 @@ def cmd_uninstall(target: Path, kit_root: Path, args: argparse.Namespace) -> int
                 meta_path.unlink(missing_ok=True)
     print(f"[OK] uninstalled skill '{SKILL_NAME}' {version}（scope={scope}）："
           f"{', '.join(removed)}")
+    if npx:
+        print("[WARN] npx lock 仍记录该 skill：用 `npx skills remove harness -g -y` 清理。")
     return 0
 
 

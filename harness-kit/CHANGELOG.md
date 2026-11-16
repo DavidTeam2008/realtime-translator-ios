@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.5.4 — 2026-11-16
+
+> 来源：用户决策（npx 成为一等入口）+ 两轮独立红队复核（见来源仓 `harness/reviews/2026-11-16-kit-0.5.4-npx-redteam.md`）。
+> 主题：**分发层**——入口 skill 支持 npx 安装，并在 kit 缺失时按发布 tag 自举；`harness-skill` 保留备用；宿主随版本模板做小改。
+
+### 新增
+
+- **npx 一等入口**：`npx --yes skills@1.8.1 add DavidTeam2008/harness-engineering-kit --skill harness -g -a claude-code -a codex -y`
+  （CLI 1.8.1 实测；非 TTY 必须 `-a ... -y`，`-g` 必须，否则写进当前仓库；布局为 `~/.agents/skills/harness` 真目录 + 其他 agent 符号链接）。
+  `harness-skill` 保留为无 Node / 离线 / 项目级 pin 的备用入口；升级/卸载分别用 `npx skills update harness -g` / `npx skills remove harness -g -y`。
+- **skill 自举 `skills/harness/scripts/kit-resolve.py`**（唯一联网点）：解析顺序 显式 `--kit-root`/`HARNESS_KIT_ROOT`
+  → 仓库内/父目录内嵌 `harness-kit/VERSION` → 已接入仓库离线快路径（`tools/harness.py`，不联网）→ 用户级 meta
+  → 缓存（`$XDG_CACHE_HOME/harness-kit`，repo-url 哈希分桶 + marker，本地校验 marker/VERSION/HEAD）→ clone
+  annotated tag（HEAD 必须等于 `git ls-remote` peeled commit；轻量 tag 拒绝）。版本语义：内嵌/meta 只要求
+  ≥ `min_version`，低于 skill 期望版本只 WARN（`versionStatus=older-than-skill`）；`--offline` / `--refresh` / `--json`。
+- `tools/harness.py status` 识别用户级入口 skill（npx / harness-skill 管理与 `kit_version`）。
+
+### 加固
+
+- `harness-skill check --scope user` 识别 npx skills 管理的安装（锁文件 `$XDG_STATE_HOME/skills/.skill-lock.json`
+  或 `~/.agents/.skill-lock.json`，source 含 `harness-engineering-kit`）→ in sync 时 exit 0 并提示用 `npx skills update`，
+  不再误报「用户级元数据缺失」；npx + 旧 meta 混合管理给告警。
+- `harness-skill install/uninstall` 在 npx 布局下默认拒绝（exit 2，`--force` 才接管/清理）；uninstall 先 `lstat`
+  断链再删目录，避免悬空符号链接与 `rmtree` traceback。
+- 镜像发布要求 annotated tag；resolver 校验 peeled commit 与 HEAD 一致，cache marker 记录 repoUrl/version/commit。
+
+### 宿主可见变更（0.5.4 非零变更）
+
+- 模板内嵌 `{{KIT_VERSION}}`：`harness/config.json`、`Makefile` 注释、`docs/harness-scorecard.md`（若保留渲染行）
+  与 `tools/harness.py` 随版本变化。升级按 `docs/playbook.md`「v0.5.3 → v0.5.4 升级自检」：只做版本串最小替换 +
+  回写 kit 管理面 + 用新版临时渲染整份重写 `.harness-manifest.json`，**不要整文件覆盖宿主自定义 Makefile / 评分卡**。
+
+### 文档 / 测试
+
+- README / adoption / playbook / why / SPEC / `docs/agent-prompts.md`（由 `prompts/` 重新渲染）统一
+  「npx 首选 / harness-skill 备用（无 Node、离线、项目级 pin）」口径；SPEC 声明 `kit-resolve.py` 是唯一联网例外。
+- 新增 `test_harness_skill_bootstrap.py`（resolver 解析矩阵、annotated tag / cache marker / offline、metadata 一致性）；
+  `test_harness_skill.py` 增加 npx 检测、混合管理、符号链接安全卸载用例；`test_harness_cli.py` 增加 status 用户级 skill 用例。
+- kit **330 tests**（+18）。
+
 ## 0.5.3 — 2026-11-16
 
 > 来源：**v0.5.2 真实宿主升级反馈**（fcnsystem 0.5.1→0.5.2、barra 0.3.0→0.5.2，公开镜像仓 issue #1–#5）。

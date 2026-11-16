@@ -4,10 +4,19 @@
 
 ## 0. 前置：定位 kit 并核对版本
 
-- kit 位置：用户级安装记录 `~/.agents/skills/.harness-kit-skill.json` 的 `kitRoot` → 仓库内或父目录 `harness-kit/VERSION` → 问用户一次。
+- 优先用 skill 自带解析脚本（缓存/首次 clone 由它处理；只读，不改目标仓库）：
+
+  ```bash
+  python3 <本 skill 目录>/scripts/kit-resolve.py --target . --require-kit --json
+  ```
+
+  - 输出 `kitRoot` / `version` / `source`；`source=clone` = 首次自动 clone（需网络，annotated tag 校验 commit）；`versionStatus=older-than-skill` 提示升级 kit。
+  - 首次自动 clone 前用一句话告知用户；用户拒绝时用 `HARNESS_KIT_ROOT` 指向已 clone 的 kit。
+  - 解析失败（离线且无本地 kit）时给手动 clone 命令并停下，不要伪造 kit。
+- 脚本不可用时人工定位：项目内/父目录 `harness-kit/VERSION` → 用户级安装记录 `~/.agents/skills/.harness-kit-skill.json` 的 `kitRoot` → 问用户一次。
 - 核对：`<kit>/VERSION`；低于 skill 的 `min_version` 先提示用户升级 kit 或重装 skill。
 - 目标仓库可能还没有 `Makefile` / `harness/` / `tools/`，这是正常状态；不要假设 `make check` 可用。
-- 全程不联网；只读阶段不改目标仓库任何文件。
+- **除 kit 解析外全程不联网**；只读阶段不改目标仓库任何文件。
 
 ## 1. 存量项目：先只读盘点（不改目标仓）
 

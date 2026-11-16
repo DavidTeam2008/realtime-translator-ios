@@ -238,7 +238,7 @@ python3 harness-kit/scripts/harness-selftest --target ../legacy-app
 
 ## 日常循环（v0.3.0-alpha.1 起）
 
-Agent 侧装一次入口 skill（`<kit>/scripts/harness-skill install --scope user`）后按意图直接触发；下面是与人共用的同一条链（命令行等价动作，不依赖提示词复制）：
+Agent 侧装一次入口 skill（首选 npx `skills add DavidTeam2008/harness-engineering-kit --skill harness -g -a claude-code -a codex -y`；无 Node/离线用 `<kit>/scripts/harness-skill install --scope user`）后按意图直接触发；下面是与人共用的同一条链（命令行等价动作，不依赖提示词复制）：
 
 1. `make status`（或 `python3 tools/harness.py status`）——一屏状态 + 建议下一步；冷启动第一命令。
 2. `make start TOPIC=<topic> GOAL="<目标>" SCOPE="src/ ..."`——幂等建 active 计划；建完 `make check` 即绿（未提交段差异只告警）。有需求卡时用 `python3 tools/harness.py intake --file <卡>`（机检验收判据，模糊判据会被拒绝）。
@@ -318,6 +318,24 @@ v0.5.3 修复真实宿主升级中暴露的 5 个问题（镜像仓 issue #1–#
 
 升级后仍须 `make verify-static` + `make selftest`；CI 首次运行确认全历史 checkout 生效。
 
+### v0.5.3 → v0.5.4 升级自检（npx 一等入口；宿主有小改）
+
+v0.5.4 把入口 skill 的安装升级为 **npx 首选**（`npx skills add ... --skill harness -g -a claude-code -a codex -y`），
+`harness-skill` 保留为无 Node / 离线 / 项目级 pin 的备用入口。**对宿主不是零变更**：模板内嵌 `{{KIT_VERSION}}`，
+升级后 `harness/config.json`、`Makefile` 注释、`docs/harness-scorecard.md`（若保留渲染行）与 `tools/harness.py`
+（status 增加用户级 skill 识别）的渲染结果会变：
+
+| 变更 | 旧仓预期 | 修复动作 |
+| --- | --- | --- |
+| `harness/config.json.kitVersion`、`Makefile` 注释、评分卡渲染行随 VERSION 变化 | `--plan` 对这几个已本地定制的文件给 CONFLICT（不是可安全替换） | **只做版本串最小替换**（如 `config.json.kitVersion`、`Makefile` 注释行）；不要整文件覆盖宿主 `Makefile` / 评分卡 |
+| `tools/harness.py` status 识别用户级 skill（npx / harness-skill + 版本） | 旧副本只报项目级 skill 或「未安装」 | 按 `--plan` 回写 `tools/harness.py`（kit 管理面，可安全替换） |
+| `.harness-manifest.json` 需记录新渲染基线 | 旧 manifest 的 `files[]` sha 与 0.5.4 渲染不符 | 用 0.5.4 临时 `harness-init` 渲染的 manifest 整份重写（`files` 全量 sha + `kitVersion`），不要只改版本号 |
+| 入口 skill 安装方式变为 npx 首选 | 已装 harness-skill 的用户级安装继续可用，但文档/提示变化 | 保留现有安装即可；要切换先 `harness-skill uninstall --scope user --force` 再 npx 安装；`npx skills update harness -g` 是 npx 安装的升级命令 |
+| skill 自带 `scripts/kit-resolve.py`（唯一联网点） | 已接入仓库不受影响（adopted 快路径不联网）；未接入仓库首次自动 clone kit 到 `~/.cache/harness-kit`（annotated tag 校验） | 离线环境用 `HARNESS_KIT_ROOT` 指向已有 kit，或继续用 `harness-skill` 路径 |
+
+回写后验收：`--plan` = SAME=28 / LOCAL_ONLY=13（0 CONFLICT）；`--check` 预期 exit 1 且仅 LOCAL_ONLY 漂移（无
+`VERSION_MISMATCH`；`--check` 对宿主自维护文件的已知假漂移见 README 局限）；`make verify-static` + `make selftest`。
+
 ### profile 升级（仍未验证）
 
 - **升级 = 在已接入目录上再 init 更高档**：先 `--dry-run` 对比新增文件/冲突，再执行；已有文件默认 CONFLICT。
@@ -335,7 +353,7 @@ v0.5.3 修复真实宿主升级中暴露的 5 个问题（镜像仓 issue #1–#
 | `make release-check` | 0（fresh 证据）/2（无证据或 STALE）/1（有 FAIL） | 仅 strict；要求证据 fresh 且 strict。**刚接入无证据时 exit 2 属预期** |
 | `make doctor` | 0（OK/WARN）/2（缺必需项） | strict：python3/git/测试命令可执行性检查 |
 | `make adapters-check` | 0（一致）/1（漂移） | strict：skills 单源同步后应一致 |
-| `python3 <kit>/scripts/harness-skill check --scope user` | 0（in sync）/1（漂移）/2（未安装） | 入口 skill 用户级安装；升级 kit 后 `install --scope user --force` 重装 |
+| `python3 <kit>/scripts/harness-skill check --scope user` | 0（in sync）/1（漂移）/2（未安装） | 入口 skill 用户级校验；npx 管理的安装识别为 `managedBy=npx`（升级用 `npx skills update harness -g`），harness-skill 安装用 `install --scope user --force` 重装 |
 | `make scorecard` | 0 | 生成 `harness/reviews/<date>-scorecard.md` 草稿；自评/独立复评 TBD |
 | `make check` 的 scorecard 提醒 | 0（WARN 不算失败） | 过期/缺失只 WARN；`--strict` 才 exit 1（发布门禁可用） |
 | `make selftest` | 0（全拦截）/1（门禁空转）/2（环境或基线红） | 负向注入；SKIP ≠ PASS |
@@ -349,7 +367,7 @@ v0.5.3 修复真实宿主升级中暴露的 5 个问题（镜像仓 issue #1–#
 - [ ] standard+：`make verify-static` exit 0
 - [ ] standard+：`make plan TOPIC=<topic>` 能建计划，计划模板的必填节齐全
 - [ ] standard+：真实测试跑通并把 evidence 写入 `harness/evidence/`，`verify_claim --all` 为 0
-- [ ] Agent 入口：`harness-skill install --scope user` 已装，`check --scope user` exit 0（或宿主不支持 skills，确认兜底提示词流程可用）
+- [ ] Agent 入口：首选 npx `skills add ... -g -a claude-code -a codex -y`；或 `harness-skill install --scope user` + `check --scope user` exit 0（或宿主不支持 skills，确认兜底提示词流程可用）
 - [ ] strict：`make release-check` 在 fresh 证据下 exit 0；`make adapters-check` exit 0
 - [ ] 计划/handoff 记录：实际卡点、未验证项、下一步（供下一位维护者恢复）
 

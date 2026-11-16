@@ -8,6 +8,7 @@ Run: python3 -m unittest discover -s harness-kit/tests -q
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -18,8 +19,10 @@ KIT = Path(__file__).resolve().parents[1]
 INIT = KIT / "scripts" / "harness-init"
 
 
-def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, timeout=300)
+def run(cmd: list[str], cwd: Path,
+        env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True,
+                          timeout=300, env=env)
 
 
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -106,6 +109,34 @@ class StatusTests(unittest.TestCase):
             self.assertEqual("feature/stale", data["manifestBranch"])
             self.assertIsNotNone(data["branchProblem"])
             self.assertIn("分支漂移", proc.stdout)
+
+    def test_status_reports_user_scope_skill(self) -> None:
+        """v0.5.4：status 只读识别用户级 skill（npx 管理 + kit_version）。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            host = init_host(root, "user-skill-host")
+            home = root / "home"
+            skill_dir = home / ".agents" / "skills" / "harness"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                "---\nname: harness\nmetadata: {kit_version: 0.5.4}\n---\n# harness\n",
+                encoding="utf-8")
+            lock_dir = home / ".state" / "skills"
+            lock_dir.mkdir(parents=True)
+            (lock_dir / ".skill-lock.json").write_text(json.dumps({
+                "skills": {"harness": {"source": "DavidTeam2008/harness-engineering-kit"}}}),
+                encoding="utf-8")
+            env = dict(os.environ, HOME=str(home), XDG_STATE_HOME=str(home / ".state"))
+            for key in ("DSH_AGENTS_HOME", "DSH_HOME"):
+                env.pop(key, None)
+            proc = run([sys.executable, "tools/harness.py", "status", "--json"], cwd=host, env=env)
+            self.assertEqual(0, proc.returncode, proc.stdout + proc.stderr)
+            data = json.loads(proc.stdout)
+            self.assertEqual(["agents"], data["userSkill"]["installed"])
+            self.assertEqual("npx", data["userSkill"]["managedBy"])
+            self.assertEqual("0.5.4", data["userSkill"]["version"])
+            human = run([sys.executable, "tools/harness.py", "status"], cwd=host, env=env)
+            self.assertIn("用户级 npx v0.5.4", human.stdout)
 
     def test_status_is_read_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

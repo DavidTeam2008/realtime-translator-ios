@@ -1,6 +1,6 @@
 # AI coding Agent 提示词模板（兜底入口：接入 / 开发 / 评审 / 发布 / 交接 / 收尾）
 
-> harness-kit 的**默认入口是入口 skill**：装一次（`<kit>/scripts/harness-skill install --scope user`），任意仓库的 Agent 会话都能通过 skill 路由到接入/计划/验证/发布流程，不需要复制提示词。
+> harness-kit 的**默认入口是入口 skill**：首选 npx 装一次（`npx --yes skills@1.8.1 add DavidTeam2008/harness-engineering-kit --skill harness -g -a claude-code -a codex -y`；无 Node/离线用 `<kit>/scripts/harness-skill install --scope user`），任意仓库的 Agent 会话都能通过 skill 路由到接入/计划/验证/发布流程，不需要复制提示词。
 >
 > 本文是**兜底**提示词库：只在宿主不支持 skills，或你临时想用命令行拿一段文本时使用。模板与具体 Agent 无关（DeepSeek Harness / Claude Code / Codex / Cursor / 自研），前提是它能读文件、跑 shell。
 >
@@ -11,7 +11,8 @@
 **推荐（一次）**：在目标仓库根目录执行一次用户级安装，之后直接对 Agent 说「接入这个项目」：
 
 ```bash
-<kit>/scripts/harness-skill install --scope user   # 装到 ~/.agents/skills；所有仓库可见
+npx --yes skills@1.8.1 add DavidTeam2008/harness-engineering-kit --skill harness -g -a claude-code -a codex -y  # 首选
+<kit>/scripts/harness-skill install --scope user   # 备用（无 Node/离线）：装到 ~/.agents/skills；所有仓库可见
 ```
 
 **兜底（宿主没有 skills 支持时）**：一条命令拿提示词，粘贴给 Agent；下文 `<kit>` 指 kit 克隆路径：

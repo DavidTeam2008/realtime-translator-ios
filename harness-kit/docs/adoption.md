@@ -1,6 +1,6 @@
 # 接入与日常使用 · skill 优先（新项目 / 存量项目 / 手动接入）
 
-> **默认路径是入口 skill**：装一次（`<kit>/scripts/harness-skill install --scope user`），之后每个场景一句话——
+> **默认路径是入口 skill**：npx 一次安装（`npx skills add ... --skill harness -g -a claude-code -a codex -y`；无 Node/离线用 `<kit>/scripts/harness-skill install --scope user`），之后每个场景一句话——
 > 接入、接手、计划、实现、验证、评审、发布、交接、升级都由 skill 按意图路由，不需要复制提示词。
 > 只有**不支持 skills 的宿主**才用提示词兜底（§6）；**没有 Agent** 时才走命令行手动接入（§5）。
 >
@@ -31,19 +31,26 @@
 
 ## 1. 装一次入口 skill（默认）
 
-`<kit>` = kit 克隆路径；在目标仓库根目录执行：
+**首选 npx（Node ≥22.20；机器上还需要 `python3` / `git` / `make`）**：
 
 ```bash
-cd /path/to/your-project
-<kit>/scripts/harness-skill install --scope user   # 写 ~/.agents/skills/harness/（DSH）与 ~/.claude/skills/harness/（Claude Code）
-<kit>/scripts/harness-skill check --scope user     # 期望 in sync
+npx --yes skills@1.8.1 add DavidTeam2008/harness-engineering-kit --skill harness -g -a claude-code -a codex -y
 ```
 
-- **用户级安装**（`--scope user`，默认 `agents,claude-code`）：机器上所有仓库的 Agent 会话可见，不写入仓库；升级 kit 后重装 `install --scope user --force`。
+- **必须是这个确定性形式**：`-g` = 用户级（省略会写进当前仓库）；`-a ...` + `-y` = 非 TTY 环境必须（否则 CLI 要求交互）；`--skill harness` 只装入口 skill。
+- **布局与升级**：权威副本 `~/.agents/skills/harness`（DSH 读取），其他 agent 目录为符号链接；升级 `npx skills update harness -g`；卸载 `npx skills remove harness -g -y`。
+- **首次联网**：在**未接入**仓库使用 skill 时，`scripts/kit-resolve.py` 会按 `SKILL.md` metadata 的 `kit_version` 把 annotated tag clone 到 `~/.cache/harness-kit`（校验 commit；`--offline` 可关闭；也可用 `HARNESS_KIT_ROOT` 指向已有 kit）。**已接入仓库只用仓内 `tools/harness.py`，不联网。**
+- **信任边界**：`npx skills` 是第三方 CLI（实测 1.8.1），会向多个 agent 目录写符号链接；首次运行前可浏览其安装输出，介意遥测可设 `DO_NOT_TRACK=1`。
+- **备用：无 Node / 离线 / 项目级 pin**（需要已有 kit 克隆）：
+  ```bash
+  <kit>/scripts/harness-skill install --scope user   # 写 ~/.agents/skills/harness/ 与 ~/.claude/skills/harness/
+  <kit>/scripts/harness-skill check --scope user     # 期望 in sync；npx 管理的安装会被识别
+  ```
 - **项目级安装**（`--scope project`）：装到仓库 `.dsh/skills/`、`.claude/skills/` 并随仓库提交，适合团队 pin 版本；项目级同名 skill 优先于用户级。
+- **不要混用两个管理器**：npx 布局下 `harness-skill install/uninstall` 会拒绝写入（加 `--force` 才接管，npx lock 会残留）；切换方式前先清理旧安装。
 - **怎么调用**：宿主支持斜杠时（DSH / Qoder CN / Claude Code 输入框有「技能」补全）优先 `/harness`（显式、确定性强）；输入自然语言也能按 description 触发（如「用 harness-kit 接入这个项目」「接手这个项目」「发布前检查」）。
-- **skill 怎么定位 kit**：用户级安装记录 `~/.agents/skills/.harness-kit-skill.json` 的 `kitRoot` → 仓库内/父目录 `harness-kit/` → 都没有时问用户一次。
-- **版本不符**：skill 的 `min_version` 高于本机 kit 时，skill 会提示升级 kit 并重装，不会自行改仓库。
+- **skill 怎么定位 kit**：先跑 `python3 <本 skill 目录>/scripts/kit-resolve.py --target . --json`（已接入返回 `adopted`；未接入返回/自动 clone `kitRoot`）→ 失败再人工：仓库内/父目录 `harness-kit/` → 用户级 `~/.agents/skills/.harness-kit-skill.json` 的 `kitRoot` → 问用户一次。
+- **版本不符**：skill 的 `min_version` 高于本机 kit 时，skill 会提示升级 kit 并重装，不会自行改仓库；kit 低于 skill 期望版本时只提示升级。
 - 装完确认：Agent 的 skill 列表里出现 `harness`，或输入 `/har` 出现补全。
 
 ## 2. 接入项目（skill 主路径）
@@ -105,7 +112,7 @@ Agent 会：
 
 **Agent 接入（推荐）**
 
-- [ ] 入口 skill 已装一次（`harness-skill install --scope user`；`check --scope user` in sync），或宿主不支持 skills 时有可用的兜底提示词流程
+- [ ] 入口 skill 已装一次（首选 npx `skills add ...`，或 `harness-skill install --scope user` + `check --scope user` in sync），或宿主不支持 skills 时有可用的兜底提示词流程
 - [ ] Agent 冷启动只读仓库可回答"现在做到哪、下一步、哪些未验证"
 - [ ] Agent 的完成声明带 evidence id 或显式"未验证"
 - [ ] 计划 `scope.allow` 与实际改动一致
@@ -229,7 +236,7 @@ kit 只承诺结构与门禁层；**kit 自身的缺陷、模板/JSON 渲染异�
 
 **提交地址**：<https://github.com/DavidTeam2008/harness-engineering-kit/issues>（公开镜像仓受理 issue；镜像只读，修复在来源仓完成后随版本发布）。
 
-**修好之后回流**：`harness-upgrade --check/--plan` → 按 [playbook](playbook.md) 的「版本升级」只回写 kit 管理面 → 重装入口 skill → `make verify-static` 复核 → 把结论回写 issue。
+**修好之后回流**：`harness-upgrade --check/--plan` → 按 [playbook](playbook.md) 的「版本升级」只回写 kit 管理面 → 同步入口 skill（npx 用 `npx skills update harness -g`；harness-skill 用 `install --scope user --force`）→ `make verify-static` 复核 → 把结论回写 issue。
 
 **不要**：为绕过缺陷改宿主仓里的 kit 门禁脚本/模板（升级会覆盖，同类问题会扩散到下一个宿主）；宿主自己的 `commands` / `claims` / `budgets` 配置不受此限。
 
