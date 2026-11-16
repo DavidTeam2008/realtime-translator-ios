@@ -57,7 +57,7 @@ measure-launch: ## 真机冷启动：APM_APP=... APM_UDID=... make measure-launc
 	@test -n "$(APM_UDID)" || { echo "缺少 APM_UDID（硬件 UDID）"; exit 2; }
 	APM_APP="$(APM_APP)" APM_UDID="$(APM_UDID)" harness/tools/measure-launch.sh $(N)
 
-# ── kit 0.5.3：状态 / 计划 / 证据 / 适配层（配置唯一来源 harness/config.json）──
+# ── kit 0.5.4：状态 / 计划 / 证据 / 适配层（配置唯一来源 harness/config.json）──
 status: ## 一屏状态（只读；Agent 冷启动第一命令）
 	python3 tools/harness.py status
 

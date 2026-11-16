@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "kitVersion": "0.5.3",
+  "kitVersion": "0.5.4",
   "profile": "strict",
-  "generatedAt": "2026-11-16T05:49:50Z",
+  "generatedAt": "2026-11-16T07:20:00Z",
   "options": {
     "name": "Duiyi",
     "language": "swift",
@@ -75,7 +75,7 @@
     },
     {
       "path": "Makefile",
-      "sha256": "e1fad9f574b08188a576132b857f1b232a0e16e6f4c610f9776587311109b2c7",
+      "sha256": "436de1966b239e755ba450c047f38aebef314c95ca5bd2261be53b43038cb96a",
       "src": "core/templates/makefiles/Makefile.strict.template",
       "render": true,
       "executable": false
@@ -96,7 +96,7 @@
     },
     {
       "path": "docs/harness-scorecard.md",
-      "sha256": "9b8927f97dde92b4011225394f8ec8bd2f234fbf2a8e7ebf8f0e153e3140c7bf",
+      "sha256": "6f56e38ad5be9696d56d3819973af30a77feff19d3ed958954a654ba0807e80f",
       "src": "core/templates/docs/harness-scorecard.md.template",
       "render": true,
       "executable": false
@@ -117,7 +117,7 @@
     },
     {
       "path": "harness/config.json",
-      "sha256": "436bb8018f1763acb466afbcbdb961c8c272b86383710ce3209c85821eff623b",
+      "sha256": "df3b13e8b27db1399b7a7795f53fce4de4bf4f595333931d3bc0afdcdbfcbd0f",
       "src": "core/templates/harness/config.json.template",
       "render": true,
       "executable": false
@@ -264,7 +264,7 @@
     },
     {
       "path": "tools/harness.py",
-      "sha256": "e7e84640fdcad5898337d5f6c5fa6d8e531331905f3af91a39a1b591cf9402c9",
+      "sha256": "d27bbdfcb0b5c269bc512c0ee119fa2ed0be4b3fd8b730f55d2d9c32e4921d5a",
       "src": "core/tools/harness.py",
       "render": false,
       "executable": false

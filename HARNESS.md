@@ -43,18 +43,18 @@ Agent 的常见失败不是「不会写代码」，而是完成声明不可验�
 
 - Phase 0/1/2.5 已完成：五子系统、静态门禁、证据三值、CI、skills；独立复评 ≈4.0/5（报告见 [`harness/reviews/`](harness/reviews/)）。
 - Phase 3/4 已完成：clean clone 可复现、CI、`v1.0.0` tag + Release；分支保护/PR 流程未完全落地。
-- Phase 5：模板抽取为 [`harness-kit/`](harness-kit/README.md)（独立镜像，当前 `v0.5.3`）。Phase 6（行为级测试）未排期。
+- Phase 5：模板抽取为 [`harness-kit/`](harness-kit/README.md)（独立镜像，当前 `v0.5.4`）。Phase 6（行为级测试）未排期。
 
 ## 7. kit 维护（唯一源 + 只读镜像）
 
 - 唯一源是本仓 [`harness-kit/`](harness-kit/)；镜像 <https://github.com/DavidTeam2008/harness-engineering-kit> 只读。
-- 改完 `make kit-check`（312 tests）→ 发布 `make kit-publish`（subtree split push 镜像 main）→ 镜像仓手动打 annotated tag。
+- 改完 `make kit-check`（330 tests）→ 发布 `make kit-publish`（subtree split push 镜像 main）→ 镜像仓手动打 annotated tag。
 - `make kit-drift` 校验本地与镜像一致；**不一致回源仓改，不直接改镜像仓**；kit 缺陷走镜像仓 issue。
 - 本仓宿主层升级走 `harness-upgrade --plan` 逐文件回写（`--apply` 未实现），记录在计划。
 
 ## 8. 复制到其他项目（10 分钟路径）
 
-装入口 skill（`<kit>/scripts/harness-skill install --scope user`）→ 对 Agent 说「接入这个项目」；或命令行 `harness-adopt`（存量盘点）→ `harness-init --profile standard|strict` → `make check` → `make selftest`。详见 [`harness-kit/README.md`](harness-kit/README.md)。
+装入口 skill（首选 npx，见 [`harness-kit/README.md`](harness-kit/README.md)；无 Node/离线用 `harness-skill install`）→ 对 Agent 说「接入这个项目」；或命令行 `harness-adopt`→ `harness-init --profile standard|strict` → `make check` → `make selftest`。
 
 ## 9. 局限
 
