@@ -3,7 +3,7 @@ id: 2026-11-06-benchmark-opensource
 status: active
 level: L2
 owner: david
-updated: 2026-11-13
+updated: 2026-11-16
 scope:
   allow:              # 本轮只做「公开面 + 文档 + 过程档案」收敛；不动业务代码
     - README.md
@@ -24,6 +24,7 @@ scope:
     - .githooks/
     - Makefile
     - .gitignore
+    - .harness-manifest.json   # v0.5.3 升级基线（首个 manifest）
     - Order/
     - prototype/        # 删除（视觉稿由截图替代）
     - Duiyi/Services/AGENTS.md
