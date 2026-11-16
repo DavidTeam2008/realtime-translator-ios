@@ -13,7 +13,7 @@
     "failed": 0,
     "skipped": 0,
     "durationSec": 171.7,
-    "xcresultPath": "~/Library/Developer/MobileBuildMCP/workspaces/realtimeTranslatorOptimize-8df963897d87/result-bundles/test_device_2026-11-09T14-20-15-134Z_pid84104_cbb31087.xcresult"
+    "artifactNote": "xcresult 未入库（v0.5.3 迁移：claim.requireArtifact=false legacy opt-out；后续用 xcresult→JUnit 流水线补 artifact）"
   },
   "verdict": "PASS",
   "notes": "mode=all；设备 ID 不写入证据；skipped 期望=0",
@@ -24,5 +24,8 @@
   },
   "createdAt": "2026-11-09T14:23:07Z",
   "verifier": "tools/evidence.py@1",
-  "id": "20261109T142307Z-device-tests-pass"
+  "id": "20261109T142307Z-device-tests-pass",
+  "supersedes": [
+    "20261106T053620Z-device-tests-pass"
+  ]
 }

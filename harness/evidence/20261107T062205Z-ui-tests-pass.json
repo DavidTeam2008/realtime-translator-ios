@@ -15,8 +15,7 @@
     "failed": 0,
     "skipped": 1,
     "durationSec": 53.9,
-    "xcresultPath": "build/evidence-ui/Logs/Test/Test-Duiyi-2026.11.07_14-20-52-+0800.xcresult",
-    "metricsPath": null
+    "artifactNote": "xcresult 未入库（v0.5.3 迁移：claim.requireArtifact=false legacy opt-out；后续用 xcresult→JUnit 流水线补 artifact）"
   },
   "verdict": "PASS",
   "verifier": "tools/evidence.py@1",
@@ -26,5 +25,8 @@
     "dirty": false
   },
   "createdAt": "2026-11-07T06:22:05Z",
-  "id": "20261107T062205Z-ui-tests-pass"
+  "id": "20261107T062205Z-ui-tests-pass",
+  "supersedes": [
+    "20261105T055845Z-ui-tests-pass"
+  ]
 }

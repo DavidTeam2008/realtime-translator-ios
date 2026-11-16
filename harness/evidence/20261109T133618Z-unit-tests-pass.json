@@ -13,7 +13,7 @@
     "failed": 0,
     "skipped": 0,
     "durationSec": 9.0,
-    "xcresultPath": "~/Library/Developer/MobileBuildMCP/workspaces/realtimeTranslatorOptimize-8df963897d87/result-bundles/test_device_2026-11-09T13-36-07-974Z_pid65127_4d9ea2e3.xcresult"
+    "artifactNote": "xcresult 未入库（v0.5.3 迁移：claim.requireArtifact=false legacy opt-out；后续用 xcresult→JUnit 流水线补 artifact）"
   },
   "verdict": "PASS",
   "notes": "mode=unit；设备 ID 不写入证据；skipped 期望=0",

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "claim": "docs-pass",
+  "command": "python3 tools/check_docs.py",
+  "environment": {
+    "id": "local",
+    "os": "darwin",
+    "python": "3.14"
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "exitCode": 0
+  },
+  "verdict": "PASS",
+  "notes": "harness-kit 0.5.3 迁移后的静态文档门禁（47 篇文档：链接/围栏/索引/预算全过）；HARNESS 1499/1500、docs/README 882/1000",
+  "id": "20261116T055240Z-docs-pass",
+  "createdAt": "2026-11-16T05:52:40Z",
+  "git": {
+    "commit": "9cba91fd5944",
+    "dirty": false
+  },
+  "verifier": "tools/evidence.py@0.5.3"
+}
