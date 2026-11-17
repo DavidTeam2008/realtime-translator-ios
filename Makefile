@@ -10,6 +10,9 @@ TEAM_RULES ?= ../../agent/template
 # 独立模板仓（harness-kit 镜像）；`make kit-publish` 只往这里推
 KIT_REMOTE ?= git@github.com:DavidTeam2008/harness-engineering-kit.git
 N ?= 10
+# 仅本机证据构建参数；例如 macOS 26+ 嵌套沙箱环境传 OTHER_SWIFT_FLAGS=-disable-sandbox
+XCODEBUILD_BUILD_ARGS ?=
+XCODEBUILD_BUILD_FLAG = $(if $(strip $(XCODEBUILD_BUILD_ARGS)),--xcodebuild-arg '$(XCODEBUILD_BUILD_ARGS)')
 
 # 门禁工具是 Python 标准库脚本：禁止写 __pycache__（运行卫生）
 export PYTHONDONTWRITEBYTECODE := 1
@@ -132,18 +135,18 @@ evidence-chain-check: ## 证据链 pin + manifest/freshness 负向自检
 evidence-unit: ## 单元测试 → xcresult/JUnit/manifest（WRITE=1 写入证据）
 	python3 tools/evidence_chain.py run --claim unit-tests-pass \
 		$(if $(filter 1,$(WRITE)),--write-evidence) $(if $(RUN_ID),--run-id $(RUN_ID)) \
-		$(if $(TIMEOUT),--timeout $(TIMEOUT))
+		$(if $(TIMEOUT),--timeout $(TIMEOUT)) $(XCODEBUILD_BUILD_FLAG)
 
 evidence-ui: ## UI 测试 → xcresult/JUnit/manifest（WRITE=1 写入证据）
 	python3 tools/evidence_chain.py run --claim ui-tests-pass \
 		$(if $(filter 1,$(WRITE)),--write-evidence) $(if $(RUN_ID),--run-id $(RUN_ID)) \
-		$(if $(TIMEOUT),--timeout $(TIMEOUT))
+		$(if $(TIMEOUT),--timeout $(TIMEOUT)) $(XCODEBUILD_BUILD_FLAG)
 
 evidence-ui-device: ## 真机 UI（需 APM_TEAM；预热 + xcresult/JUnit/manifest）
 	@test -n "$(APM_TEAM)" || { echo "用法：APM_TEAM=<Team ID> make evidence-ui-device [WRITE=1]"; exit 2; }
 	APM_TEAM="$(APM_TEAM)" python3 tools/evidence_chain.py run --claim ui-device-tests-pass \
 		$(if $(filter 1,$(WRITE)),--write-evidence) $(if $(RUN_ID),--run-id $(RUN_ID)) \
-		$(if $(TIMEOUT),--timeout $(TIMEOUT))
+		$(if $(TIMEOUT),--timeout $(TIMEOUT)) $(XCODEBUILD_BUILD_FLAG)
 
 resume: ## 接手：active 计划 + git 状态 + 下一步（status 别名）
 	python3 tools/harness.py status

@@ -438,13 +438,23 @@ def _warmup_argv(target: dict, only_testing: str) -> list[str]:
 
 
 def _run_xcodebuild(
-    root: Path, argv: list[str], timeout: int, extra_argv: list[str] | None = None
+    root: Path,
+    argv: list[str],
+    timeout: int,
+    extra_argv: list[str] | None = None,
+    build_argv: list[str] | None = None,
 ) -> None:
     extra_argv = extra_argv or []
-    print("[INFO] " + shlex.join(argv) + ("（含本机签名参数，未写入证据）" if extra_argv else ""))
+    build_argv = build_argv or []
+    printed = [*argv, *build_argv]
+    print("[INFO] " + shlex.join(printed) + ("（含本机签名参数，未写入证据）" if extra_argv else ""))
     try:
         completed = subprocess.run(
-            [*argv, *extra_argv], cwd=str(root), capture_output=True, text=True, timeout=timeout
+            [*argv, *extra_argv, *build_argv],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
     except subprocess.TimeoutExpired:
         raise EvidenceChainError(f"xcodebuild 超时（{timeout}s）") from None
@@ -511,13 +521,20 @@ def cmd_run(root: Path, args: argparse.Namespace) -> int:
     target["resultBundlePath"] = str(bundle_path)
     modules = load_toolchain(root)
     signing = _signing_arguments(claim)
+    build_args = [item.strip() for item in args.xcodebuild_arg if item.strip()]
     warmup = claim.get("warmupOnlyTesting")
     if warmup is not None:
         if not isinstance(warmup, str) or not warmup.strip():
             raise EvidenceChainError("warmupOnlyTesting 必须是非空字符串")
-        _run_xcodebuild(root, _warmup_argv(target_static, warmup.strip()), args.timeout, signing)
+        _run_xcodebuild(
+            root,
+            _warmup_argv(target_static, warmup.strip()),
+            args.timeout,
+            signing,
+            build_args,
+        )
     argv = modules.manifest.canonical_command(target)
-    _run_xcodebuild(root, argv, args.timeout, signing)
+    _run_xcodebuild(root, argv, args.timeout, signing, build_args)
     if not bundle_path.is_dir():
         raise EvidenceChainError(f"xcodebuild 成功但 xcresult 不存在：{bundle_path}")
     conversion = modules.xcresult.convert_bundle(
@@ -559,7 +576,7 @@ def cmd_run(root: Path, args: argparse.Namespace) -> int:
     payload = {
         "schemaVersion": 1,
         "claim": args.claim,
-        "command": shlex.join(argv),
+        "command": shlex.join([*argv, *build_args]),
         "environment": environment,
         "result": {
             "status": "SUCCEEDED" if conversion.failed == 0 else "FAILED",
@@ -902,6 +919,13 @@ def build_parser() -> argparse.ArgumentParser:
     run = subparsers.add_parser("run", help="run xcodebuild and convert the xcresult to evidence artifacts")
     run.add_argument("--claim", required=True)
     run.add_argument("--environment", action="append", default=[], metavar="KEY=VALUE")
+    run.add_argument(
+        "--xcodebuild-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="append one local xcodebuild build setting (recorded in evidence command)",
+    )
     run.add_argument("--run-id")
     run.add_argument("--timeout", type=int, default=3600)
     run.add_argument("--write-evidence", action="store_true")
