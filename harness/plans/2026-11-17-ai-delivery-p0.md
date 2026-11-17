@@ -102,7 +102,7 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 - [x] 新增导出回归测试在修复前复现失败，修复后通过；既有测试与断言不修改。
 - [x] 每次准备分享得到稳定且不可被后续导出破坏的快照；清理不再删除全部 `Duiyi-*.txt`。
 - [x] 详情页任务 ID 不变但译文、摘要或导出语言变化时，导出内容仍反映最新可观察内容。
-- [ ] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；单元产物已生成并独立重算，UI 被模拟器 runner preflight 阻断；旧 legacy 证据按归档/supersedes 规则迁移后再收紧 unit/ui claims。
+- [ ] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；单元证据 `20261117T063557Z-unit-tests-pass` 已入库，UI 被模拟器 runner preflight 阻断；旧 legacy 证据按归档/supersedes 规则迁移后再收紧 unit/ui claims。
 - [ ] 缺失或损坏 xcresult、XML 计数不一致、无 artifact 的自报 PASS 都有负向测试并非零退出。
 - [ ] macOS CI 测试开启时使用同一转换路径并上传 JUnit；未开启时明确标记 CI 动态链未验证。
 - [ ] QoderCN 与 Claude Code 的同流程实测记录包含开始/结束耗时、人工干预、返工、门禁与证据 ID。
@@ -145,7 +145,7 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 - [x] 宿主 vendoring + pin 校验 + 严格 JUnit/manifest 适配与 7 类负向 fixture（`make evidence-chain-check`）。
 - [x] freshness 三类陈旧证据负向自检（Makefile / tools / xcodeproj）与过程目录豁免（4 类负向）。
 - [x] B7 CI 工作流改为 `make evidence-unit` / `make evidence-ui`，JUnit/manifest 缺失即 error，artifact 名含 run/attempt；尚未在 GitHub Actions 实际运行。
-- [x] 单元真实 xcresult → strict JUnit + manifest 生成并独立重算通过（131/131，runId `6b7b1805-d077-4259-86ac-adc80e9e5179`）；证据 JSON 待 clean 提交后写入。
+- [x] 单元真实 xcresult → strict JUnit + manifest 生成并独立重算通过（131/131，runId `dd37804b-b3d3-4a47-8c31-7baaa5479103`）；证据 `20261117T063557Z-unit-tests-pass` 已写入，待随本次提交入库。
 - [ ] UI 真实 xcresult：模拟器 xctrunner preflight 连续两次 `SBMainWorkspace Busy`，已按规则停止重试，保持未验证。
 - [ ] 新 unit/ui 证据入库、迁移 legacy claims 并收紧 `requireArtifact/requireManifest`。
 - [ ] 双 Agent 实测、成本记录与最终复核。
@@ -170,7 +170,7 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 | `make verify-static && make check-tests && git diff --check` | PASS：330 kit tests、严格计划校验、131 floor 与文档计数一致；证据三值未由本命令判定 | 本机 macOS；python3 | —（过程记录：静态门禁） |
 | `ai-delivery-toolchain`（v0.1.0）49 tests + 真实 8/8 转换 + 3 条负向 CLI | PASS：严格 JUnit/manifest 拒绝属性-only、复用路径、claim 错配；固定 tag `v0.1.0` | 本机 macOS；Python 3.14.7；Xcode 27.1 | —（过程记录：外部仓证据，见其计划） |
 | `make evidence-chain-check`（宿主） | PASS：pin `v0.1.0` 哈希一致；8 cases（7 个 manifest 负向）全部拒绝；freshness 5 cases（4 个负向：Makefile/tools/xcodeproj + 过程目录豁免） | 本机 macOS；python3 | —（过程记录：宿主证据链自检） |
-| `make evidence-unit`（真实单元） | PASS：清空构建后 131 tests / 131 passed / 0 failed / 0 skipped；strict JUnit + manifest 已生成；固定版本 `recount` 与 `verify` 再次通过；runId `6b7b1805-d077-4259-86ac-adc80e9e5179`；证据 JSON 待 clean 提交 | iPhone 17 Pro Max / iOS 26.4.1 模拟器；Xcode 27.1；Debug | —（过程记录：新链真实单元产物；未入库） |
+| `make evidence-unit WRITE=1`（clean 提交 `db4dcd2`） | PASS：131 tests / 131 passed / 0 failed / 0 skipped；strict JUnit + manifest 生成；固定版本 `recount` 与 `verify` 再次通过；runId `dd37804b-b3d3-4a47-8c31-7baaa5479103` | iPhone 17 Pro Max / iOS 26.4.1 模拟器；Xcode 27.1；Debug | `20261117T063557Z-unit-tests-pass` |
 | `make evidence-ui`（真实 UI） | FAIL（环境）：`Failed to install or launch the test runner`；`SBMainWorkspace ... Busy ("Application failed preflight checks")`；关闭全部模拟器后重试仍相同，按规则停止；无 UI manifest/证据 | 同上 | —（未验证：UI 新证据；模拟器 preflight 阻断） |
 | `ruby -e 'YAML.load_file(".github/workflows/verify.yml")'` | PASS：workflow YAML 语法；`make evidence-unit/ui`、必需 JUnit `if-no-files-found: error`、run/attempt artifact 命名已写入；GitHub Actions 未实际运行 | 本机 macOS；Ruby | —（未验证：CI 动态链） |
 | `python3 tools/verify_claim_chain.py --all`（迁移前） | FAIL：旧 unit/device 证据 passed 低于新 floor；未重算 legacy；待新链证据接管 | 本机 macOS；python3 | —（过程记录：迁移前红灯） |
@@ -179,7 +179,7 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 
 ## 未验证项
 
-- B1/B2 的宿主严格链已实现并负向自检；真实单元产物已生成并独立重算，但证据 JSON 尚未在 clean 提交写入，UI 产物被模拟器 preflight 阻断；legacy claims 仍是 `requireArtifact=false`，迁移前不能宣称 B1/B2 完成。
+- B1/B2 的宿主严格链已实现并负向自检；单元证据 `20261117T063557Z-unit-tests-pass` 已在 clean 提交生成并独立重算，待随本次提交入库；UI 产物被模拟器 preflight 阻断；legacy claims 仍是 `requireArtifact=false`，迁移前不能宣称 B1/B2 完成。
 - B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；最终 `make release-check` 仍待新证据。B7 workflow 已接入唯一产物与必需 JUnit，但尚未在 GitHub Actions 实际运行；UI CI 默认关闭时保持未验证。
 - B8 已由 `v0.1.0` pin 解除阻塞；宿主禁止引用未固定工作树。
 - 真实 ShareLink/ShareSheet 在系统分享扩展中的读取行为尚未人工实测；文件级与宿主测试不能替代该结论。
@@ -194,27 +194,10 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 
 ## 未提交改动
 
-- `docs/decisions.md` / AI Coding 交付决策 D-AI1–D-AI10
-- `harness/plans/2026-11-17-ai-delivery-p0.md` / 本 P0 执行计划
-- `harness/plans/_archive/2026-11-06-benchmark-opensource.md` / 旧计划归档状态
-- `Makefile` / 证据链目标、freshness 自检、wrapper 与 freshness 入口
-- `.github/workflows/verify.yml` / unit/ui 走 evidence 适配器、必需 JUnit 与 run/attempt 隔离
-- `harness/config.json` / expectedTarget、resultBundleRoot、freshness、claims 迁移开关
-- `harness/evidence/README.md` / 新链与 pin 说明
-- `tools/evidence_chain.py` / xcresult 运行、manifest 校验与 manifest/freshness 负向自检
-- `tools/verify_claim_chain.py` / kit 三值 + 宿主 manifest 链
-- `tools/vendor/ai_delivery_toolchain/PIN.json` / v0.1.0 固定版本与哈希
-- `tools/vendor/ai_delivery_toolchain/__init__.py` / vendored
-- `tools/vendor/ai_delivery_toolchain/__main__.py` / vendored
-- `tools/vendor/ai_delivery_toolchain/cli.py` / vendored
-- `tools/vendor/ai_delivery_toolchain/junit_strict.py` / vendored
-- `tools/vendor/ai_delivery_toolchain/manifest.py` / vendored
-- `tools/vendor/ai_delivery_toolchain/xcresult.py` / vendored
-- `harness/evidence/artifacts/20261117T062000Z-unit-tests-pass-6b7b1805/unit-tests-pass.xml` / 真实单元 strict JUnit（待 clean 提交后由新证据接管）
-- `harness/evidence/artifacts/20261117T062000Z-unit-tests-pass-6b7b1805/unit-tests-pass.manifest.json` / 真实单元单次运行 manifest（待 clean 提交后由新证据接管）
+- 无未提交改动（本次提交包含单元证据与计划更新；UI 证据仍被模拟器 preflight 阻断）。
 
 ## 下一步
 
-1. 宿主薄适配与单元产物提交需单独确认；在 clean 提交上运行 `make evidence-unit WRITE=1` 写入证据。UI 待模拟器 preflight 恢复后再运行 `make evidence-ui WRITE=1`，当前保持未验证。
-2. B6 freshness 负向自检已接入 `make evidence-chain-check`；下一步完成 B7 CI 唯一产物与必需 JUnit（UI CI 未开启时保持未验证）。
+1. 单元证据已随本次提交入库；UI 待模拟器 preflight 恢复后运行 `make evidence-ui WRITE=1`，当前保持未验证。
+2. B6 freshness 负向自检已接入 `make evidence-chain-check`；下一步完成 B7 CI 实际运行（UI CI 未开启时保持未验证）。
 3. 完成双 Agent 实测与 P0 最终复核；提交、push 与发版仍需单独确认。

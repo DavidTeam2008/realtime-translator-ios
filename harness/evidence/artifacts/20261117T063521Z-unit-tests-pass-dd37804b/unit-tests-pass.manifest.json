@@ -1,0 +1,64 @@
+{
+  "claim": "unit-tests-pass",
+  "command": {
+    "argv": [
+      "xcodebuild",
+      "test",
+      "-project",
+      "Duiyi.xcodeproj",
+      "-scheme",
+      "Duiyi",
+      "-destination",
+      "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4.1",
+      "-derivedDataPath",
+      "/tmp/duiyi-build",
+      "-resultBundlePath",
+      "/tmp/duiyi-evidence/dd37804b-b3d3-4a47-8c31-7baaa5479103/unit-tests-pass.xcresult",
+      "-only-testing:DuiyiTests"
+    ],
+    "sha256": "7658b32eebb3a6f4dce39c147bea43e2ffd02afe3b6a4fa22660a72f1e1b3673"
+  },
+  "createdAt": "2026-11-17T06:35:57Z",
+  "environment": {
+    "device": {
+      "architecture": "arm64",
+      "deviceId": "$DEVICE_ID",
+      "deviceName": "iPhone 17 Pro Max",
+      "modelName": "iPhone 17 Pro Max",
+      "osVersion": "26.4.1"
+    },
+    "host": "macOS 27.0.1",
+    "id": "local-simulator",
+    "xcode": "Xcode 27.1 / Build version 27A9275",
+    "xcresulttool": "xcresulttool version 25115, schema version: 0.4.0 (legacy commands format version: 3.60)"
+  },
+  "junit": {
+    "bytes": 19277,
+    "caseIdsSha256": "ea590288409d7ce30db4dcffbb1734dd7b2e6482085327e9c6187fa5e47888c9",
+    "failed": 0,
+    "file": "unit-tests-pass.xml",
+    "passed": 131,
+    "sha256": "b21d4f3e6c5c8133ef86730c8c4cd20659ea6ada5b1f5ba53902dadd802e7b2d",
+    "skipped": 0,
+    "tests": 131
+  },
+  "kind": "xcresult-test-run",
+  "runId": "dd37804b-b3d3-4a47-8c31-7baaa5479103",
+  "schemaVersion": 1,
+  "status": "complete",
+  "target": {
+    "derivedDataPath": "/tmp/duiyi-build",
+    "destination": "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4.1",
+    "onlyTesting": "DuiyiTests",
+    "project": "Duiyi.xcodeproj",
+    "resultBundlePath": "/tmp/duiyi-evidence/dd37804b-b3d3-4a47-8c31-7baaa5479103/unit-tests-pass.xcresult",
+    "scheme": "Duiyi"
+  },
+  "xcresult": {
+    "finishedAt": 1794897352.679,
+    "name": "unit-tests-pass.xcresult",
+    "startedAt": 1794897323.117,
+    "summarySha256": "59b394b7b148fc99f9f2acd2c60ae893aaabc1f52c01c015097606c20a0da060",
+    "testsSha256": "c9d43e0df43cc3f87cb832e36b6e99f493c195de88bfc5c6606a641291beb9b2"
+  }
+}
