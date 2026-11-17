@@ -102,11 +102,11 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 - [x] 新增导出回归测试在修复前复现失败，修复后通过；既有测试与断言不修改。
 - [x] 每次准备分享得到稳定且不可被后续导出破坏的快照；清理不再删除全部 `Duiyi-*.txt`。
 - [x] 详情页任务 ID 不变但译文、摘要或导出语言变化时，导出内容仍反映最新可观察内容。
-- [ ] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；单元证据 `20261117T063557Z-unit-tests-pass` 已入库，UI 被模拟器 runner preflight 阻断；旧 legacy 证据按归档/supersedes 规则迁移后再收紧 unit/ui claims。
-- [ ] 缺失或损坏 xcresult、XML 计数不一致、无 artifact 的自报 PASS 都有负向测试并非零退出。
+- [x] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；最终单元证据 `20261117T071412Z-unit-tests-pass`、UI 证据 `20261117T071338Z-ui-tests-pass` 均来自 clean 提交；旧 unit/ui 证据由 `supersedes` 接管，旧 device 证据归档为历史；unit/ui claims 已收紧 `requireArtifact/requireManifest`。
+- [x] 缺失或损坏 xcresult、XML 计数不一致、无 artifact 的自报 PASS 均有负向测试并非零退出（`make evidence-chain-check` 8 cases）。
 - [ ] macOS CI 测试开启时使用同一转换路径并上传 JUnit；未开启时明确标记 CI 动态链未验证。
 - [ ] QoderCN 与 Claude Code 的同流程实测记录包含开始/结束耗时、人工干预、返工、门禁与证据 ID。
-- [ ] 最终 `make verify-static`、`make verify-all`、`make release-check`、`make test`、`make test-ui` PASS；新增动态 PASS 均有可重算 artifact，freshness 覆盖代码、命令、转换器和测试配置。
+- [x] 最终 `make verify-static`、`make verify-all`、`make release-check` PASS；`make test` / `make test-ui` 已通过；新增动态 PASS 均有可重算 artifact，freshness 覆盖代码、命令、转换器和测试配置。
 
 ## 改动范围
 
@@ -148,7 +148,7 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 - [x] 单元真实 xcresult → strict JUnit + manifest 生成并独立重算通过；最终证据 `20261117T071412Z-unit-tests-pass`（131/131、0 skip，runId `dc4c7d5d-802b-4f52-89a0-06a7ab9e8e5d`）来自 clean 提交 `e3f5779`。
 - [x] UI 真实 xcresult：恢复模拟器环境后 `make evidence-ui WRITE=1` 通过，证据 `20261117T071338Z-ui-tests-pass`（2 passed / 1 expected skip，runId `e1fdc475-d12f-410d-951d-759d50674f28`）来自 clean 提交 `e3f5779`；真机 iPhone 13 非写入试跑 3/3、0 skip 通过，但正式 `ui-device-tests-pass` 被证书信任阻断，claim 保持可选未验证。
 - [x] 新增 `ui-device-tests-pass` claim 与 `make evidence-ui-device`：预热 testmanagerd、本机 Team 签名、device destination、deviceId/deviceName 脱敏；`required:false`，不阻断无真机环境。
-- [x] 新 unit/ui 证据入库、迁移 legacy claims 并收紧 `requireArtifact/requireManifest`：unit/ui 均为严格链，旧 unit/ui/device 证据归档并由新证据 `supersedes` 接管。
+- [x] 新 unit/ui 证据入库、迁移 legacy claims 并收紧 `requireArtifact/requireManifest`：unit/ui 均为严格链；旧 unit/ui 证据由新证据 `supersedes` 接管，旧 device 证据归档为历史（无同名新 claim）。
 - [x] clean 提交 `83af376` 上 `make verify-static` / `make verify-all` / `make release-check` 全部 PASS：330 kit tests、严格计划、3 条当前证据 PASS、0 UNVERIFIED；首次 release-check 因 `/tmp` 磁盘满失败，清理本次构建临时目录后重跑通过。
 - [ ] 双 Agent 实测、成本记录与最终复核。
 
@@ -178,13 +178,13 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 | `make evidence-ui WRITE=1`（clean 提交 `e3f5779`） | PASS：恢复目标模拟器后 3 tests / 2 passed / 0 failed / 1 expected skipped；strict JUnit + manifest；runId `e1fdc475-d12f-410d-951d-759d50674f28` | iPhone 17 Pro Max / iOS 26.4.1 模拟器；Xcode 27.1；Debug | `20261117T071338Z-ui-tests-pass` |
 | `make evidence-unit WRITE=1`（clean 提交 `e3f5779`） | PASS：131 tests / 131 passed / 0 failed / 0 skipped；strict JUnit + manifest；runId `dc4c7d5d-802b-4f52-89a0-06a7ab9e8e5d` | 同上 | `20261117T071412Z-unit-tests-pass` |
 | `ruby -e 'YAML.load_file(".github/workflows/verify.yml")'` | PASS：workflow YAML 语法；`make evidence-unit/ui`、必需 JUnit `if-no-files-found: error`、run/attempt artifact 命名已写入；GitHub Actions 未实际运行 | 本机 macOS；Ruby | —（未验证：CI 动态链） |
-| `python3 tools/verify_claim_chain.py --all`（迁移前） | FAIL（历史）：旧 unit/device 证据 passed 低于新 floor；未重算 legacy；新链证据已接管 | 本机 macOS；python3 | —（过程记录：迁移前红灯） |
+| `python3 tools/verify_claim_chain.py --all`（迁移前） | FAIL（历史）：旧 unit/device 证据 passed 低于新 floor；未重算 legacy；unit/ui 已由新链证据接管，device 旧证据归档为历史 | 本机 macOS；python3 | —（过程记录：迁移前红灯） |
 | `make verify-static` / `make verify-all` / `make release-check`（clean 提交 `83af376`） | PASS：330 kit tests、严格计划、3 条当前证据 PASS、0 FAIL / 0 UNVERIFIED；首次 release-check 因 `/tmp` 磁盘满失败，清理本次构建临时目录后重跑通过 | 本机 macOS；Xcode 27.1；python3 | —（过程记录：最终门禁汇总） |
 | Claude Code 同流程实测 | 未运行 | — | —（未验证） |
 
 ## 未验证项
 
-- B1/B2 宿主严格链已完成：unit 131/131 与 UI 2 passed + 1 expected skip 均来自 clean 提交 `e3f5779`，legacy unit/ui/device 证据已归档并由 `supersedes` 接管。
+- B1/B2 宿主严格链已完成：unit 131/131 与 UI 2 passed + 1 expected skip 均来自 clean 提交 `e3f5779`；legacy unit/ui 证据由 `supersedes` 接管，旧 device 证据归档为历史（无同名新 claim）。
 - 真机 UI 正式证据未生成：设备已连接且未锁定、App 签名 Team 为 `VV865TW6B3`，但 iOS 报 Developer App 证书/profile 未显式信任；`ui-device-tests-pass` 为 `required:false`，保持未验证且不阻断聚合。模拟器 UI 已在恢复环境后通过，不能据此宣称真机 UI 已验证。
 - B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；最终 `make release-check` 仍待新证据。B7 workflow 已接入唯一产物与必需 JUnit，但尚未在 GitHub Actions 实际运行；UI CI 默认关闭时保持未验证。
 - B8 已由 `v0.1.0` pin 解除阻塞；宿主禁止引用未固定工作树。
