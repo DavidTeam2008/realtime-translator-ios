@@ -145,8 +145,9 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 - [x] 宿主 vendoring + pin 校验 + 严格 JUnit/manifest 适配与 7 类负向 fixture（`make evidence-chain-check`）。
 - [x] freshness 三类陈旧证据负向自检（Makefile / tools / xcodeproj）与过程目录豁免（4 类负向）。
 - [x] B7 CI 工作流改为 `make evidence-unit` / `make evidence-ui`，JUnit/manifest 缺失即 error，artifact 名含 run/attempt；尚未在 GitHub Actions 实际运行。
-- [x] 单元真实 xcresult → strict JUnit + manifest 生成并独立重算通过（131/131，runId `dd37804b-b3d3-4a47-8c31-7baaa5479103`）；证据 `20261117T063557Z-unit-tests-pass` 已写入，待随本次提交入库。
-- [ ] UI 真实 xcresult：模拟器 xctrunner preflight 连续两次 `SBMainWorkspace Busy`，已按规则停止重试，保持未验证。
+- [x] 单元真实 xcresult → strict JUnit + manifest 生成并独立重算通过（131/131，runId `dd37804b-b3d3-4a47-8c31-7baaa5479103`）；证据 `20261117T063557Z-unit-tests-pass` 已由 `7751d8a` 入库；本轮改动触及 freshness 路径，需在 clean 提交上重新生成。
+- [ ] UI 真实 xcresult：模拟器 xctrunner preflight 连续两次 `SBMainWorkspace Busy`，已按规则停止重试；真机 iPhone 13 非写入试跑 3/3、0 skip 通过（runId `a7077cba-431d-4f4a-bb16-dbd70859d0d2`），正式证据待 clean 提交后生成。
+- [x] 新增 `ui-device-tests-pass` claim 与 `make evidence-ui-device`：预热 testmanagerd、本机 Team 签名、device destination、deviceId/deviceName 脱敏。
 - [ ] 新 unit/ui 证据入库、迁移 legacy claims 并收紧 `requireArtifact/requireManifest`。
 - [ ] 双 Agent 实测、成本记录与最终复核。
 
@@ -171,7 +172,8 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 | `ai-delivery-toolchain`（v0.1.0）49 tests + 真实 8/8 转换 + 3 条负向 CLI | PASS：严格 JUnit/manifest 拒绝属性-only、复用路径、claim 错配；固定 tag `v0.1.0` | 本机 macOS；Python 3.14.7；Xcode 27.1 | —（过程记录：外部仓证据，见其计划） |
 | `make evidence-chain-check`（宿主） | PASS：pin `v0.1.0` 哈希一致；8 cases（7 个 manifest 负向）全部拒绝；freshness 5 cases（4 个负向：Makefile/tools/xcodeproj + 过程目录豁免） | 本机 macOS；python3 | —（过程记录：宿主证据链自检） |
 | `make evidence-unit WRITE=1`（clean 提交 `db4dcd2`） | PASS：131 tests / 131 passed / 0 failed / 0 skipped；strict JUnit + manifest 生成；固定版本 `recount` 与 `verify` 再次通过；runId `dd37804b-b3d3-4a47-8c31-7baaa5479103` | iPhone 17 Pro Max / iOS 26.4.1 模拟器；Xcode 27.1；Debug | `20261117T063557Z-unit-tests-pass` |
-| `make evidence-ui`（真实 UI） | FAIL（环境）：`Failed to install or launch the test runner`；`SBMainWorkspace ... Busy ("Application failed preflight checks")`；关闭全部模拟器后重试仍相同，按规则停止；无 UI manifest/证据 | 同上 | —（未验证：UI 新证据；模拟器 preflight 阻断） |
+| `APM_TEAM=... make evidence-ui-device`（非写入试跑） | PASS：UI 3/3、0 failed、0 skipped；strict JUnit 生成；manifest 绑定 `physical-device`、iPhone 13 / iOS 27.0.1；runId `a7077cba-431d-4f4a-bb16-dbd70859d0d2`；试跑 artifact 已清理，未写证据 | iPhone 13 / iOS 27.0.1 真机；Xcode 27.1；Debug | —（过程记录：真机 UI 试跑；正式证据待 clean 提交） |
+| `make evidence-ui`（真实 UI） | FAIL（环境）：`Failed to install or launch the test runner`；`SBMainWorkspace ... Busy ("Application failed preflight checks")`；关闭全部模拟器后重试仍相同，按规则停止；无 UI manifest/证据 | 同上 | —（未验证：模拟器 UI；真机 UI 已替代试跑） |
 | `ruby -e 'YAML.load_file(".github/workflows/verify.yml")'` | PASS：workflow YAML 语法；`make evidence-unit/ui`、必需 JUnit `if-no-files-found: error`、run/attempt artifact 命名已写入；GitHub Actions 未实际运行 | 本机 macOS；Ruby | —（未验证：CI 动态链） |
 | `python3 tools/verify_claim_chain.py --all`（迁移前） | FAIL：旧 unit/device 证据 passed 低于新 floor；未重算 legacy；待新链证据接管 | 本机 macOS；python3 | —（过程记录：迁移前红灯） |
 | `make test` / `make test-ui`（新证据链） | 动态测试此前通过，但尚未由 xcresult→JUnit→manifest 生成新 PASS | — | —（未验证：新证据） |
@@ -179,7 +181,8 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 
 ## 未验证项
 
-- B1/B2 的宿主严格链已实现并负向自检；单元证据 `20261117T063557Z-unit-tests-pass` 已在 clean 提交生成并独立重算，待随本次提交入库；UI 产物被模拟器 preflight 阻断；legacy claims 仍是 `requireArtifact=false`，迁移前不能宣称 B1/B2 完成。
+- B1/B2 的宿主严格链已实现并负向自检；单元证据 `20261117T063557Z-unit-tests-pass` 已由 `7751d8a` 入库但将被本轮 freshness 判旧，需在 clean 提交上重新生成；真机 UI 非写入试跑 3/3 通过，正式 `ui-device-tests-pass` 证据待 clean 提交后写入；legacy claims 迁移尚未完成，不能宣称 B1/B2 完成。
+- 模拟器 UI 仍被 xctrunner preflight 阻断；真机 UI 是当前唯一 UI 动态验证路径，不能反推模拟器 UI 已通过。
 - B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；最终 `make release-check` 仍待新证据。B7 workflow 已接入唯一产物与必需 JUnit，但尚未在 GitHub Actions 实际运行；UI CI 默认关闭时保持未验证。
 - B8 已由 `v0.1.0` pin 解除阻塞；宿主禁止引用未固定工作树。
 - 真实 ShareLink/ShareSheet 在系统分享扩展中的读取行为尚未人工实测；文件级与宿主测试不能替代该结论。
@@ -194,10 +197,10 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 
 ## 未提交改动
 
-- 无未提交改动（本次提交包含单元证据与计划更新；UI 证据仍被模拟器 preflight 阻断）。
+- 无未提交改动（本轮工具/配置/文档已提交；正式证据待 clean 提交上生成）。
 
 ## 下一步
 
-1. 单元证据已随本次提交入库；UI 待模拟器 preflight 恢复后运行 `make evidence-ui WRITE=1`，当前保持未验证。
-2. B6 freshness 负向自检已接入 `make evidence-chain-check`；下一步完成 B7 CI 实际运行（UI CI 未开启时保持未验证）。
-3. 完成双 Agent 实测与 P0 最终复核；提交、push 与发版仍需单独确认。
+1. 在 clean 提交上运行 `APM_TEAM=<Team ID> make evidence-unit WRITE=1` 与 `make evidence-ui-device WRITE=1`，生成新 unit/UI 证据。
+2. 将 legacy unit/ui/device 证据 `git mv` 到 `_archive`，在新证据 `supersedes` 中声明接管；再跑 `make verify-all` / `make release-check`。
+3. B7 CI 实际运行与双 Agent 实测；提交、push 与发版仍需单独确认。

@@ -72,8 +72,8 @@
       "baseline": "harness/test-baseline.json",
       "floor": "unit.floor",
       "expectedSkipped": "expectedSkipped.unit",
-      "requireArtifact": false,
-      "requireManifest": false,
+      "requireArtifact": true,
+      "requireManifest": true,
       "expectedTarget": {
         "project": "Duiyi.xcodeproj",
         "scheme": "Duiyi",
@@ -90,8 +90,9 @@
       "baseline": "harness/test-baseline.json",
       "floor": "ui.passedFloor",
       "expectedSkipped": "expectedSkipped.ui",
-      "requireArtifact": false,
-      "requireManifest": false,
+      "required": false,
+      "requireArtifact": true,
+      "requireManifest": true,
       "expectedTarget": {
         "project": "Duiyi.xcodeproj",
         "scheme": "Duiyi",
@@ -103,12 +104,37 @@
       "command": "make test-ui"
     },
     {
+      "name": "ui-device-tests-pass",
+      "type": "test-count",
+      "baseline": "harness/test-baseline.json",
+      "floor": "ui.passedFloor",
+      "expectedSkipped": 0,
+      "requireArtifact": true,
+      "requireManifest": true,
+      "requiresSigning": true,
+      "sanitizeDeviceName": true,
+      "warmupOnlyTesting": "DuiyiTests/TaskStoreTests",
+      "environment": {
+        "id": "physical-device"
+      },
+      "expectedTarget": {
+        "project": "Duiyi.xcodeproj",
+        "scheme": "Duiyi",
+        "destination": "platform=iOS,arch=arm64",
+        "derivedDataPath": "/tmp/duiyi-build-device",
+        "onlyTesting": "DuiyiUITests"
+      },
+      "resultBundleRoot": "/tmp/duiyi-evidence-device",
+      "command": "APM_TEAM=<local-team> make evidence-ui-device"
+    },
+    {
       "name": "device-tests-pass",
       "type": "test-count",
       "baseline": "harness/test-baseline.json",
       "floor": "device.floor",
       "expectedSkipped": "expectedSkipped.device",
-      "requireArtifact": false,
+      "required": false,
+      "requireArtifact": true,
       "command": "harness/tools/device-test.sh"
     },
     {
@@ -120,6 +146,7 @@
   "freshness": {
     "unit-tests-pass": ["**/*.swift", "DuiyiTests/**", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
     "ui-tests-pass": ["**/*.swift", "DuiyiUITests/**", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
+    "ui-device-tests-pass": ["**/*.swift", "DuiyiUITests/**", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
     "device-tests-pass": ["**/*.swift", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
     "docs-pass": ["docs/**", "references/**", "AGENTS.md", "HARNESS.md"]
   },

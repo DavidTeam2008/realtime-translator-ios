@@ -6,14 +6,14 @@
 
 | 命令 | 用途 |
 |---|---|
-| `make test` | 模拟器单元（`DuiyiTests`） |
-| `make test-ui` | 模拟器 UI（语音用例 skip） |
-| `make evidence-unit` / `make evidence-ui` | 测试→JUnit+manifest；`WRITE=1` 写证据 |
+| `make test` | 模拟器单元 |
+| `make test-ui` | 模拟器 UI（语音 skip） |
+| `make evidence-unit` / `evidence-ui` / `evidence-ui-device` | 测试→JUnit+manifest；`WRITE=1` 写证据；真机需 `APM_TEAM` |
 | `make device-test` | 真机全套（预热 + 131 单元 + 3 UI） |
 | `make device-test-ui` | 真机 UI（预热后） |
 | `make device-test-one TEST=...` | 真机单用例 |
 | `APM_DEVICE=<CoreDevice ID> make device-test` | 换设备 |
-| `make check` / `make check-tests` | 静态门禁 / 测试计数与 skip 机检 |
+| `make check` / `check-tests` | 静态门禁 / 计数与 skip |
 
 真机脚本依赖 `mobilebuildmcp`；测量另需 `idevicesyslog`、`timeout`。默认 iPhone 17 Pro Max / iOS 26.4.1，`SIM_OS=` 可覆盖。
 

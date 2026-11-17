@@ -86,6 +86,11 @@
   `make evidence-unit` / `make evidence-ui` 运行 xcodebuild 并生成 JUnit + manifest；
   加 `WRITE=1` 在 clean 工作树上写入证据（artifact 在 `harness/evidence/artifacts/`）。
   转换失败、计数不符或路径复用都会非零退出，不生成半成品证据。
+- 真机 UI 使用 `APM_TEAM=<Team ID> make evidence-ui-device`：先以
+  `DuiyiTests/TaskStoreTests` 预热 testmanagerd，再跑 `DuiyiUITests`；claim
+  `ui-device-tests-pass` 绑定 `physical-device`、`platform=iOS,arch=arm64` 与 0 skip，
+  manifest 中的 deviceId/deviceName 以 `$DEVICE_ID`/`$DEVICE_NAME` 脱敏。该 claim
+  不进入默认 CI，未连接真机时保持未验证。
 - 旧 JUnit 入口仍可用：`python3 tools/evidence_from_junit.py --xml <glob> --command "<测试命令>" --output /tmp/evidence.json`；它不提供 run manifest，不能用于 `requireManifest=true` 的 claim。
 - 全量校验：`make check-evidence`（或 `python3 tools/evidence.py validate`）。
 - 三值判定：`make verify-claim`（经 `tools/verify_claim_chain.py` 追加 manifest/严格 JUnit 校验）；无当前证据 = UNVERIFIED，环境不可复核 = UNVERIFIED。

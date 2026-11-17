@@ -12,6 +12,7 @@ import hashlib
 import importlib
 import importlib.util
 import json
+import os
 import platform
 import re
 import shlex
@@ -409,10 +410,42 @@ def _parse_environment(pairs: list[str]) -> dict[str, str]:
     return values
 
 
-def _run_xcodebuild(root: Path, argv: list[str], timeout: int) -> None:
-    print("[INFO] " + shlex.join(argv))
+def _signing_arguments(claim: dict) -> list[str]:
+    if claim.get("requiresSigning") is not True:
+        return []
+    team = (os.environ.get("APM_TEAM") or os.environ.get("DEVELOPMENT_TEAM") or "").strip()
+    if not team:
+        raise EvidenceChainError(
+            f"claim {claim.get('name')!r} 需要真机签名；请设置 APM_TEAM=<Team ID>"
+        )
+    return ["-allowProvisioningUpdates", f"DEVELOPMENT_TEAM={team}"]
+
+
+def _warmup_argv(target: dict, only_testing: str) -> list[str]:
+    return [
+        "xcodebuild",
+        "test",
+        "-project",
+        target["project"],
+        "-scheme",
+        target["scheme"],
+        "-destination",
+        target["destination"],
+        "-derivedDataPath",
+        target["derivedDataPath"],
+        "-only-testing:" + only_testing,
+    ]
+
+
+def _run_xcodebuild(
+    root: Path, argv: list[str], timeout: int, extra_argv: list[str] | None = None
+) -> None:
+    extra_argv = extra_argv or []
+    print("[INFO] " + shlex.join(argv) + ("（含本机签名参数，未写入证据）" if extra_argv else ""))
     try:
-        completed = subprocess.run(argv, cwd=str(root), capture_output=True, text=True, timeout=timeout)
+        completed = subprocess.run(
+            [*argv, *extra_argv], cwd=str(root), capture_output=True, text=True, timeout=timeout
+        )
     except subprocess.TimeoutExpired:
         raise EvidenceChainError(f"xcodebuild 超时（{timeout}s）") from None
     except OSError as exc:
@@ -477,8 +510,14 @@ def cmd_run(root: Path, args: argparse.Namespace) -> int:
     target = dict(target_static)
     target["resultBundlePath"] = str(bundle_path)
     modules = load_toolchain(root)
+    signing = _signing_arguments(claim)
+    warmup = claim.get("warmupOnlyTesting")
+    if warmup is not None:
+        if not isinstance(warmup, str) or not warmup.strip():
+            raise EvidenceChainError("warmupOnlyTesting 必须是非空字符串")
+        _run_xcodebuild(root, _warmup_argv(target_static, warmup.strip()), args.timeout, signing)
     argv = modules.manifest.canonical_command(target)
-    _run_xcodebuild(root, argv, args.timeout)
+    _run_xcodebuild(root, argv, args.timeout, signing)
     if not bundle_path.is_dir():
         raise EvidenceChainError(f"xcodebuild 成功但 xcresult 不存在：{bundle_path}")
     conversion = modules.xcresult.convert_bundle(
@@ -489,6 +528,8 @@ def cmd_run(root: Path, args: argparse.Namespace) -> int:
     )
     device = dict(conversion.devices[0])
     device["deviceId"] = "$DEVICE_ID"
+    if claim.get("sanitizeDeviceName") is True:
+        device["deviceName"] = "$DEVICE_NAME"
     conversion = dataclasses.replace(conversion, devices=(device,))
     environment = _detect_environment()
     environment.update(_parse_environment(args.environment))

@@ -19,7 +19,7 @@ export PYTHONDONTWRITEBYTECODE := 1
 	adapters-check adapters-sync verify-static verify-claim verify-all release-check doctor doctor-ios plan \
 	selftest upgrade-check scorecard check-arch check-tests check-docs check-harness check-plan \
 	resume end verify-claim-fresh check-agents check-all evidence hooks-install kit-check kit-prompts \
-	kit-publish kit-drift measure-launch harness-audit evidence-chain-check evidence-unit evidence-ui
+	kit-publish kit-drift measure-launch harness-audit evidence-chain-check evidence-unit evidence-ui evidence-ui-device
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -136,6 +136,12 @@ evidence-unit: ## 单元测试 → xcresult/JUnit/manifest（WRITE=1 写入证�
 
 evidence-ui: ## UI 测试 → xcresult/JUnit/manifest（WRITE=1 写入证据）
 	python3 tools/evidence_chain.py run --claim ui-tests-pass \
+		$(if $(filter 1,$(WRITE)),--write-evidence) $(if $(RUN_ID),--run-id $(RUN_ID)) \
+		$(if $(TIMEOUT),--timeout $(TIMEOUT))
+
+evidence-ui-device: ## 真机 UI（需 APM_TEAM；预热 + xcresult/JUnit/manifest）
+	@test -n "$(APM_TEAM)" || { echo "用法：APM_TEAM=<Team ID> make evidence-ui-device [WRITE=1]"; exit 2; }
+	APM_TEAM="$(APM_TEAM)" python3 tools/evidence_chain.py run --claim ui-device-tests-pass \
 		$(if $(filter 1,$(WRITE)),--write-evidence) $(if $(RUN_ID),--run-id $(RUN_ID)) \
 		$(if $(TIMEOUT),--timeout $(TIMEOUT))
 
