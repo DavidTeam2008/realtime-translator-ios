@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "claim": "unit-tests-pass",
+  "command": "xcodebuild test -project Duiyi.xcodeproj -scheme Duiyi -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4.1' -derivedDataPath /tmp/duiyi-build -resultBundlePath /tmp/duiyi-evidence/83d2f329-be19-4885-b868-242169da8642/unit-tests-pass.xcresult -only-testing:DuiyiTests OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO",
+  "environment": {
+    "host": "macOS 27.0.1",
+    "xcode": "Xcode 27.1 / Build version 27A9275",
+    "xcresulttool": "xcresulttool version 25115, schema version: 0.4.0 (legacy commands format version: 3.60)",
+    "id": "local-simulator"
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "passed": 131,
+    "failed": 0,
+    "skipped": 0,
+    "durationSec": 10.091,
+    "artifacts": [
+      "harness/evidence/artifacts/20261117T230731Z-unit-tests-pass-83d2f329/unit-tests-pass.xml",
+      "harness/evidence/artifacts/20261117T230731Z-unit-tests-pass-83d2f329/unit-tests-pass.manifest.json"
+    ],
+    "artifactMode": "sanitized-copy",
+    "junit": "harness/evidence/artifacts/20261117T230731Z-unit-tests-pass-83d2f329/unit-tests-pass.xml",
+    "manifest": "harness/evidence/artifacts/20261117T230731Z-unit-tests-pass-83d2f329/unit-tests-pass.manifest.json",
+    "runId": "83d2f329-be19-4885-b868-242169da8642"
+  },
+  "verdict": "PASS",
+  "verifier": "tools/evidence.py@0.5.4",
+  "notes": "xcresult -> strict JUnit -> manifest; runId=83d2f329-be19-4885-b868-242169da8642",
+  "id": "20261117T230800Z-unit-tests-pass",
+  "createdAt": "2026-11-17T23:08:00Z",
+  "supersedes": [
+    "20261117T071412Z-unit-tests-pass"
+  ],
+  "git": {
+    "commit": "cf3f5050efd4",
+    "dirty": false
+  }
+}

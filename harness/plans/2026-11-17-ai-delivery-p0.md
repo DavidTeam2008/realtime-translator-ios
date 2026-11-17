@@ -115,11 +115,11 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 - [x] 新增导出回归测试在修复前复现失败，修复后通过；既有测试与断言不修改。
 - [x] 每次准备分享得到稳定且不可被后续导出破坏的快照；清理不再删除全部 `Duiyi-*.txt`。
 - [x] 详情页任务 ID 不变但译文、摘要或导出语言变化时，导出内容仍反映最新可观察内容。
-- [ ] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；旧 `20261117T071412Z-unit-tests-pass` / `20261117T071338Z-ui-tests-pass` 因配置与工具变更已 STALE；修正多构建设置后将重新生成并 supersede。
+- [x] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；最新单元证据 `20261117T230800Z-unit-tests-pass`、UI 证据 `20261117T230942Z-ui-tests-pass` 均来自 clean 提交 `cf3f505`；旧证据已归档并由新证据 `supersedes`。
 - [x] 缺失或损坏 xcresult、XML 计数不一致、无 artifact 的自报 PASS 均有负向测试并非零退出（`make evidence-chain-check` 8 cases）。
 - [x] GitHub Actions `verify` run `44109728673` 在 `b0b1995` 实际运行：static job PASS；两个 macOS job 未开启变量而 skipped，CI 动态链明确保持未验证。
 - [ ] QoderCN 与 Claude Code 的同流程实测记录包含开始/结束耗时、人工干预、返工、门禁与证据 ID。
-- [ ] 最终 `make verify-static`、`make verify-all`、`make release-check` 在包含 `harness/config.json` / Makefile / 证据工具变更后的 clean 提交上 PASS；旧 unit/UI 证据 STALE，新证据待生成。
+- [x] 最终 `make verify-static`、`make verify-all`、`make release-check` 在包含 `harness/config.json` / Makefile / 证据工具变更后的提交上 PASS；新 unit/UI 证据 fresh/strict 重算通过。
 
 ## 改动范围
 
@@ -169,7 +169,8 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 - [x] GitHub Actions run `44109728673` @ `b0b1995`：static success；macOS unit/UI skipped，动态 CI 仍未验证。
 - [x] 定位 Xcode 宏失败根因：macOS 26+ 嵌套沙箱拒绝 `sandbox_apply`；`evidence_chain.py` 增加显式 `--xcodebuild-arg`，Makefile 增加本机 `XCODEBUILD_BUILD_ARGS`，不写死工程设置。无写入验证 unit 131/131、UI 2 passed + 1 expected skip 通过。
 - [x] 首轮正式证据生成后发现 Xcode 自动改写 `project.pbxproj`，导致新证据立即 STALE；已丢弃未提交证据，并在本机构建参数增加 `CODE_SIGNING_ALLOWED=NO` 防止工程文件被改写。
-- [ ] Makefile 多构建设置修正入库后，在 clean 提交重新生成 unit/UI 正式证据并 supersede 旧证据。
+- [x] 多构建设置修正提交 `cf3f505` 后，在 clean 提交生成最终证据 `20261117T230800Z-unit-tests-pass`（131/131，runId `83d2f329-be19-4885-b868-242169da8642`）与 `20261117T230942Z-ui-tests-pass`（2 passed + 1 expected skip，runId `d9eb11f4-b7c0-4cdd-bc03-191124d0d1ac`）；旧证据归档并 supersede。
+- [x] `make release-check` PASS：新证据 fresh/strict 为 3 PASS / 0 UNVERIFIED，330 kit tests 与 scorecard 通过。
 - [ ] 双 Agent 实测待 QoderCN 入口。
 
 ## 验证证据
@@ -214,6 +215,8 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 | `make evidence-unit WRITE=1`（`b0b1995` clean 提交，两次） | FAIL（环境）：清理 `/tmp/duiyi-build` 后仍复现；`swift-plugin-server produced malformed response`，Preview/State/Model 宏全部无法展开，xcodebuild exit 65，未生成证据 | 本机 macOS；Xcode 27.1（外置卷）；iOS 26.4.1 模拟器 | —（未验证：Xcode 宏插件服务） |
 | `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO' make evidence-unit`（无写入） | PASS：131/131、0 skipped；宏服务正常且测试后 `project.pbxproj` 保持 clean | 本机 macOS 27.0.1；Xcode 27.1；iPhone 17 Pro Max / iOS 26.4.1 | —（过程记录：宏沙箱 + 禁签名验证） |
 | `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO' make evidence-ui`（无写入） | PASS：2 passed / 0 failed / 1 expected skipped；工程文件保持 clean | 同上 | —（过程记录：宏沙箱 + 禁签名验证；首次因三台模拟器争用被终止，关闭额外模拟器后通过） |
+| `XCODEBUILD_BUILD_ARGS=... make evidence-unit WRITE=1`（clean `cf3f505`） | PASS：131/131、0 skip；strict JUnit + manifest；fresh/strict 重算通过 | 本机 macOS 27.0.1；Xcode 27.1；iOS 26.4.1 模拟器 | `20261117T230800Z-unit-tests-pass` |
+| `XCODEBUILD_BUILD_ARGS=... make evidence-ui WRITE=1`（clean `cf3f505`） | PASS：2 passed / 1 expected skipped；strict JUnit + manifest；fresh/strict 重算通过 | 同上 | `20261117T230942Z-ui-tests-pass` |
 | GitHub Actions `verify` run `44109728673`（`b0b1995`） | PASS（partial）：static gates success；macOS unit/UI jobs skipped，不能作为动态 CI 证据 | GitHub Actions；ubuntu-latest；run attempt 1 | —（过程记录：CI 实际运行） |
 | Claude Code 同流程实测 | 未运行 | — | —（未验证） |
 
@@ -221,7 +224,7 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 
 - B1/B2 宿主严格链已完成：unit 131/131 与 UI 2 passed + 1 expected skip 均来自 clean 提交 `e3f5779`；legacy unit/ui 证据由 `supersedes` 接管，旧 device 证据归档为历史（无同名新 claim）。
 - 真机 UI 正式证据未生成：设备已连接且未锁定，但 iOS 报 Developer App 证书/profile 未显式信任；`ui-device-tests-pass` 为 `required:false`，保持未验证且不阻断聚合。模拟器 UI 已在恢复环境后通过，不能据此宣称真机 UI 已验证。用户已于 2026-11-17 批准书面豁免。
-- B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；旧 unit/UI 证据因后续变更 STALE，正式新证据待多构建设置修复入库后生成。B7 workflow 已于 run `44109728673` 实际运行 static；macOS unit/UI 因变量未开启 skipped，动态 CI 保持未验证。
+- B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；新 unit/UI 证据来自 clean `cf3f505`，旧证据已归档。B7 workflow 已于 run `44109728673` 实际运行 static；macOS unit/UI 因变量未开启 skipped，动态 CI 保持未验证。
 - B8 已由 `v0.1.0` pin 解除阻塞；宿主禁止引用未固定工作树。
 - 真实 ShareLink/ShareSheet 在系统分享扩展中的读取行为尚未人工实测；文件级与宿主测试不能替代该结论。用户已于 2026-11-17 批准书面豁免，仍不得声称系统分享扩展行为已验证。
 - Claude Code 是否可用及同流程结果尚未验证；不能以 QoderCN 结果代替。
@@ -237,7 +240,7 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 
 ## 未提交改动
 
-- 无未提交改动；多构建设置修正与证据重建说明随本次提交入库。
+- 无未提交改动；最终 unit/UI 证据、旧证据归档与 gate 记录随本次提交入库。
 
 ## 下一步
 
