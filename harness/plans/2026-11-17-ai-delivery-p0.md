@@ -7,6 +7,8 @@ updated: 2026-11-17
 scope:
   allow:
     - docs/decisions.md
+    - docs/README.md
+    - docs/case-native-openspec-delivery.md
     - docs/04-roadmap.md
     - references/verification.md
     - openspec/
@@ -45,7 +47,7 @@ verify:
 
 # 2026-11-17-ai-delivery-p0 · AI Coding 交付链单仓试点（L2）
 
-> 决策唯一来源：[`docs/decisions.md`](../../docs/decisions.md) D-AI1–D-AI10。
+> 决策唯一来源：[`docs/decisions.md`](../../docs/decisions.md) D-AI1–D-AI11。
 > 通用治理内核仍是 `harness-kit`；独立 `ai-delivery-toolchain` 仓拥有通用集成资产。本计划只授权当前宿主仓改动，不授权修改两个外部仓。
 > 旧开源标杆计划已作为历史快照归档到 `_archive/2026-11-06-benchmark-opensource.md`，未验证限制没有改写成完成。
 
@@ -68,6 +70,17 @@ verify:
 | iOS 业务规则、测试、CI、证据 | 当前宿主仓 | 不进入公共通用层 |
 
 OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适配文件，不得复制任务状态或验收进度。PDF 所述 `superpowers-bridge` 尚未核实，未完成兼容性 spike 前不得成为依赖。
+
+## 目标态交接：原生 OpenSpec（2026-11-17）
+
+D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为唯一执行计划**，由 Superpowers 执行、Harness 记录 scope/验收/证据。完整方案、兼容性证据、归档门禁与迁移阶段见 [`docs/case-native-openspec-delivery.md`](../../docs/case-native-openspec-delivery.md)。
+
+- **P0 不追溯改写**：本计划仍是 P0 的唯一执行计划；旧验收条款继续有效，不按目标态重判。
+- **不建第二 active**：本阶段不创建新的原生 Change 计划；P0 收口后再建立首个原生 L2 Change。
+- **2026-11-17 复核决策**：用户接受“有条件通过”及阻断项修正；允许 ShareSheet 人工实测与真机 UI 使用书面豁免；P0 验收完成后归档当前 `fix-transcript-export`，archive 动作届时仍单独确认。
+- **关键兼容结论**：`status.isComplete` 只表示工件齐全，0/N 任务时也可为 true；当前指针型文件更实测为 `total=0 / remaining=0 / state=blocked`，因此归档门禁必须同时要求 `total>0`、`complete==total`、`remaining==0`、`state=all_done`，不得只检查 `remaining==0`。
+- **任务形态**：每个 `### Task N:` 只允许一个 `- [ ]`，步骤与 Contract 用普通列表；OpenSpec 的 `total` 必须等于 Task 标题数。`archive --yes` 可绕过未完成任务，默认 JSON 无 `--yes` 会阻断；任何 archive 都必须先过交付门禁。
+- **执行边界**：L2 不使用 `superpowers:writing-plans`，不调用 `/openspec-apply-change` 驱动实现。原版 `executing-plans`/SDD 会把 ledger 用于恢复判定，且 `task-done` 不同步 tasks；完成状态适配与冲突负向测试落地前，首个原生 Change 只采用 TDD / debugging / verification 纪律。
 
 ## 兼容性 spike 结论（2026-11-17）
 
@@ -150,6 +163,8 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 - [x] 新增 `ui-device-tests-pass` claim 与 `make evidence-ui-device`：预热 testmanagerd、本机 Team 签名、device destination、deviceId/deviceName 脱敏；`required:false`，不阻断无真机环境。
 - [x] 新 unit/ui 证据入库、迁移 legacy claims 并收紧 `requireArtifact/requireManifest`：unit/ui 均为严格链；旧 unit/ui 证据由新证据 `supersedes` 接管，旧 device 证据归档为历史（无同名新 claim）。
 - [x] clean 提交 `83af376` 上 `make verify-static` / `make verify-all` / `make release-check` 全部 PASS：330 kit tests、严格计划、3 条当前证据 PASS、0 UNVERIFIED；首次 release-check 因 `/tmp` 磁盘满失败，清理本次构建临时目录后重跑通过。
+- [x] 完成原生 OpenSpec 目标态方案与交接：D-AI11、`docs/case-native-openspec-delivery.md`、任务/归档兼容性 spike；未创建第二 active 计划，P0 旧契约保留。
+- [x] 2026-11-17 用户接受“有条件通过”；已修正 0/0 门禁、嵌套计数、Base scope、证据 HEAD 绑定、Superpowers ledger 双状态、迁移与回滚表述，并写入真机/ShareSheet 书面豁免。
 - [ ] 双 Agent 实测、成本记录与最终复核。
 
 ## 验证证据
@@ -177,32 +192,47 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 | `APM_TEAM=... make evidence-ui-device WRITE=1`（clean 提交 `e3f5779`） | FAIL（环境）：预热 `DuiyiTests/TaskStoreTests` 退出 65；`Developer App Certificate is not trusted` / profile 未显式信任；设备已连接、未锁定，签名 Team 为 `VV865TW6B3`；按规则停止重试，无正式真机证据 | iPhone 13 / iOS 27.0.1 真机；Xcode 27.1；Debug | —（未验证：真机 UI 证书信任） |
 | `make evidence-ui WRITE=1`（clean 提交 `e3f5779`） | PASS：恢复目标模拟器后 3 tests / 2 passed / 0 failed / 1 expected skipped；strict JUnit + manifest；runId `e1fdc475-d12f-410d-951d-759d50674f28` | iPhone 17 Pro Max / iOS 26.4.1 模拟器；Xcode 27.1；Debug | `20261117T071338Z-ui-tests-pass` |
 | `make evidence-unit WRITE=1`（clean 提交 `e3f5779`） | PASS：131 tests / 131 passed / 0 failed / 0 skipped；strict JUnit + manifest；runId `dc4c7d5d-802b-4f52-89a0-06a7ab9e8e5d` | 同上 | `20261117T071412Z-unit-tests-pass` |
+| `openspec validate fix-transcript-export --type change --strict --json`（原生 tasks.md 夹具） | PASS：`valid=true`、`failed=0`；Delivery Contract + 5 个任务通过严格校验 | 临时夹具；OpenSpec 2.1.0 | —（过程记录：原生计划可行性） |
+| `openspec instructions apply --change fix-transcript-export --json`（原生 tasks.md 夹具） | PASS：`state=ready`、`total=5`、`complete=0`、`remaining=5`；任务级复选框可被识别 | 临时夹具；OpenSpec 2.1.0 | —（过程记录：原生计划进度视图） |
+| `openspec status --change fix-transcript-export --json`（原生 tasks.md 夹具） | 观察：`isPlanningComplete=true`、`isComplete=true`，但任务仍 0/5；未据此判定交付完成 | 临时夹具；OpenSpec 2.1.0 | —（过程记录：语义陷阱） |
+| `openspec archive fix-transcript-export --yes --json`（原生 tasks.md 夹具） | 观察：退出 0、`specsUpdated=true`，任务仍 0/5；确认归档不能替代完成门禁 | 临时夹具；OpenSpec 2.1.0 | —（过程记录：归档缺口） |
+| `openspec validate --archived --json`（原生 tasks.md 夹具） | FAIL（预期）：`5 incomplete tasks (0/5 completed)`；只能做事后复核 | 临时夹具；OpenSpec 2.1.0 | —（过程记录：归档后复核） |
+| `openspec instructions apply`（嵌套复选框夹具） | 观察：`total=6`，3 个步骤被计成 3 个任务；确认必须使用任务级单复选框 | 临时夹具；OpenSpec 2.1.0 | —（过程记录：任务计数风险） |
+| `executing-plans/scripts/task-start ... 1`（原生 tasks.md 夹具） | PASS：成功抽取 `### Task 1` brief 并记录 BASE；`Task N` 标题可被 Superpowers 消费 | 临时夹具；Superpowers v7.0.2 | —（过程记录：执行器兼容） |
 | `ruby -e 'YAML.load_file(".github/workflows/verify.yml")'` | PASS：workflow YAML 语法；`make evidence-unit/ui`、必需 JUnit `if-no-files-found: error`、run/attempt artifact 命名已写入；GitHub Actions 未实际运行 | 本机 macOS；Ruby | —（未验证：CI 动态链） |
 | `python3 tools/verify_claim_chain.py --all`（迁移前） | FAIL（历史）：旧 unit/device 证据 passed 低于新 floor；未重算 legacy；unit/ui 已由新链证据接管，device 旧证据归档为历史 | 本机 macOS；python3 | —（过程记录：迁移前红灯） |
 | `make verify-static` / `make verify-all` / `make release-check`（clean 提交 `83af376`） | PASS：330 kit tests、严格计划、3 条当前证据 PASS、0 FAIL / 0 UNVERIFIED；首次 release-check 因 `/tmp` 磁盘满失败，清理本次构建临时目录后重跑通过 | 本机 macOS；Xcode 27.1；python3 | —（过程记录：最终门禁汇总） |
+| `make check` / `make verify-static` / `git diff --check`（目标态方案落盘） | PASS：check-docs、check_agents、330 kit tests、strict plan、3 条证据、0 error；4 个 WARN 均为归档历史或未验证提示 | 本机 macOS；python3；Xcode 27.1 | —（过程记录：目标态方案门禁） |
+| `openspec validate/instructions/status` 当前宿主只读复核 + `python3 tools/check_docs.py` + `git diff --check`（有条件通过纠偏后） | PASS：validate valid=true；指针 tasks 实测 total=0/remaining=0/state=blocked；文档与格式检查通过 | 本机 macOS；OpenSpec 2.1.0；python3 | —（过程记录：目标态有条件通过复核） |
+| `make check-evidence check-host evidence-chain-check && make kit-check`（纠偏后） | PASS：3 条当前证据 schema 通过；pin 与 8/5 个负向 selftest 通过；330 kit tests OK | 本机 macOS；python3 | —（过程记录：证据链结构复核） |
+| `python3 tools/verify_claim_chain.py --all --fresh --strict`（纠偏后） | UNVERIFIED（预期）：docs PASS；unit/UI 因证据后修改 `harness/config.json` 与 `.xcodeproj` 判 STALE，须最终 clean 提交后重跑 | 本机 macOS；python3 | —（未验证：动态证据待最终 clean 提交） |
 | Claude Code 同流程实测 | 未运行 | — | —（未验证） |
 
 ## 未验证项
 
 - B1/B2 宿主严格链已完成：unit 131/131 与 UI 2 passed + 1 expected skip 均来自 clean 提交 `e3f5779`；legacy unit/ui 证据由 `supersedes` 接管，旧 device 证据归档为历史（无同名新 claim）。
-- 真机 UI 正式证据未生成：设备已连接且未锁定、App 签名 Team 为 `VV865TW6B3`，但 iOS 报 Developer App 证书/profile 未显式信任；`ui-device-tests-pass` 为 `required:false`，保持未验证且不阻断聚合。模拟器 UI 已在恢复环境后通过，不能据此宣称真机 UI 已验证。
+- 真机 UI 正式证据未生成：设备已连接且未锁定，但 iOS 报 Developer App 证书/profile 未显式信任；`ui-device-tests-pass` 为 `required:false`，保持未验证且不阻断聚合。模拟器 UI 已在恢复环境后通过，不能据此宣称真机 UI 已验证。用户已于 2026-11-17 批准书面豁免。
 - B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；最终 `make release-check` 仍待新证据。B7 workflow 已接入唯一产物与必需 JUnit，但尚未在 GitHub Actions 实际运行；UI CI 默认关闭时保持未验证。
 - B8 已由 `v0.1.0` pin 解除阻塞；宿主禁止引用未固定工作树。
-- 真实 ShareLink/ShareSheet 在系统分享扩展中的读取行为尚未人工实测；文件级与宿主测试不能替代该结论。
+- 真实 ShareLink/ShareSheet 在系统分享扩展中的读取行为尚未人工实测；文件级与宿主测试不能替代该结论。用户已于 2026-11-17 批准书面豁免，仍不得声称系统分享扩展行为已验证。
 - Claude Code 是否可用及同流程结果尚未验证；不能以 QoderCN 结果代替。
 
 ## 未验证豁免（done 前有未验证项时必须填）
 
-> 当前为 active，不豁免上述核心验收；若环境阻塞，保持 active/blocked 并报告，不以豁免伪造 P0 完成。
+> 仅豁免用户明确批准的真机 UI 与 ShareSheet 人工实测；CI、双 Agent 实测、最终 fresh/strict 门禁不豁免，未完成前不得收口。
 
 | 项目 | 理由 | 负责人 | 到期日 |
 | --- | --- | --- | --- |
+| 真机 UI 正式证据 | 用户于 2026-11-17 批准书面豁免；证书信任属本机环境，模拟器严格证据不能冒充真机结果，后续补测 | david | 2026-12-31 |
+| 真实 ShareLink/ShareSheet 系统分享扩展人工实测 | 用户于 2026-11-17 批准书面豁免；文件级与宿主测试已覆盖快照边界，外部扩展读取行为仍待人工验收 | david | 2026-12-31 |
 
 ## 未提交改动
 
-- 无未提交改动（unit/ui 正式证据、legacy 归档与计划更新随本次提交入库）。
+- 无未提交改动；本次复核纠偏、D-AI11 同步、案例登记与豁免记录随本次提交入库。
 
 ## 下一步
 
-1. 处理真机 Developer App 证书信任后再运行 `APM_TEAM=<Team ID> make evidence-ui-device WRITE=1`；该 claim 保持可选，未完成不阻断 P0。
-2. B7 CI 实际运行与双 Agent 实测；提交、push 与发版仍需单独确认。
+1. 真机 UI 与 ShareSheet 使用上述书面豁免；后续环境具备时仍应补测，不把豁免写成已验证。
+2. 完成 B7 CI 实际运行与双 Agent 实测；提交、push 与发版仍需单独确认。
+3. P0 验收完成后，经单独确认归档当前 `fix-transcript-export`；不得把其指针型 tasks 改写成新契约。
+4. P0 收口后先在 `ai-delivery-toolchain` 实现并测试 `delivery-check` 与宿主适配，再按 D-AI11 创建新的首个原生 L2 Change。目标态方案见 [`docs/case-native-openspec-delivery.md`](../../docs/case-native-openspec-delivery.md)。

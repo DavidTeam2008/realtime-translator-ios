@@ -39,6 +39,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [`case-startup-performance.md`](case-startup-performance.md) | 启动 200ms 目标证伪：口径区分、真机 A/B、空壳对照、分段归因与可复核线索；启动微优化已暂停 |
+| [`case-native-openspec-delivery.md`](case-native-openspec-delivery.md) | 原生 OpenSpec `tasks.md` 作为唯一计划的可行性、Harness 证据权威、Superpowers 执行适配与迁移门禁 |
 
 ## 文档目录规则
 

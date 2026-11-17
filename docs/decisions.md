@@ -47,3 +47,4 @@
 | D-AI8 | iOS 证据 | 新产生的测试 PASS 必须具有可独立重算的 artifact，否则为 UNVERIFIED；历史 `requireArtifact:false` 仅作 legacy 保留，不复制到新目标项目 |
 | D-AI9 | 工具与组织边界 | P0 只验证 QoderCN 与 Claude Code；外部工具固定版本，桥接能力先 spike；公共通用层与公司私有 Organization Overlay 分离，P1 前确认模型、源码与凭证合规 |
 | D-AI10 | 评价与计划 | P0 只评价机制有效性、证据完整性与流程成本，不承诺效率提升；先收口或归档当前开源标杆化 active 计划，再建立独立 P0 L2 计划 |
+| D-AI11 | 原生 OpenSpec 执行模式 | 自 P0 收口后的下一个 L2 Change 起，OpenSpec `tasks.md` 为唯一执行计划与任务状态；必须携带 Delivery Contract（base/scope/acceptance/verify/evidence/review/archive gate）。Superpowers 负责执行纪律，Harness 负责 scope、验收、证据与完成判定；ECC 仅为固定版本可选素材。不得同时存在 Harness 任务清单、Superpowers `plan.md` 或可独立决定状态的 ledger。首个原生 Change 前必须先落地 delivery-check、Change Record 单一真源与回滚路径；`status.isComplete` 和仅 `remaining==0` 均不能判定完成。P0 旧 Change 不追溯改写，验收后单独确认归档 |

@@ -48,6 +48,7 @@
       "docs/04-roadmap.md",
       "docs/decisions.md",
       "docs/case-startup-performance.md",
+      "docs/case-native-openspec-delivery.md",
       "docs/harness-scorecard.md"
     ],
     "publicBudget": 10,
