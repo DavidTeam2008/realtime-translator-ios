@@ -35,6 +35,15 @@
 - 必需：`schemaVersion` / `id` / `claim` / `createdAt` / `git{commit,dirty}` / `command` / `environment` / `result` / `verdict` / `verifier`。
 - `verdict` 只能是 PASS / FAIL / UNVERIFIED；`git.dirty` 必须为 false 才代表可复核的提交态。
 - **test-count 的 PASS 证据必须带 `result.artifacts`（JUnit XML，仓库相对路径）**：`verify-claim` 会从 XML 独立重算 counts，与自报值不一致即 FAIL；缺 artifact 或只有 xcresult 等不可重算产物 → UNVERIFIED。
+- **`requireManifest=true` 的新链**（当前为 unit/ui 迁移目标）还必须带 `result.junit` 与
+  `result.manifest`（两者都列入 `result.artifacts`，且位于
+  `<paths.evidence>/artifacts/`）。manifest 绑定 claim、target、结构化命令、run ID、
+  xcresult summary/tests 摘要、JUnit 摘要/字节数/计数/用例集合摘要；`make verify-claim`
+  通过 `tools/verify_claim_chain.py` 追加严格校验，缺 manifest、目标错配、run ID 复用、
+  计数或用例集合不一致均 FAIL。
+- 转换器按 `v0.1.0` 固定在 `tools/vendor/ai_delivery_toolchain/`，`PIN.json` 记录 tag/
+  commit/文件 sha256；`make evidence-chain-check` 校验 pin 并跑负向 fixture。不要手改
+  vendored 文件，升级需重新固定版本并更新 PIN。
 - `result.artifactMode` 标明 artifact 来源：`sanitized-copy`（默认脱敏复制）/ `raw`（`--keep-raw` 旧行为）。
 - **artifact 也必须被 git 跟踪**（存在 + `git ls-files --error-unmatch`）；否则 UNVERIFIED
   （`--allow-untracked` 只 WARN，`--strict` 下强制 UNVERIFIED）。本地能跑、CI 不可复核的
@@ -73,9 +82,14 @@
   - 输入或产物 >5MiB 直接拒绝；输入 JUnit 不能是符号链接。
   - `--keep-raw` 保留旧行为（不脱敏不复制）；仓库外输入必须同时 `--allow-outside-root`，否则报错并提示默认模式。即使允许，也会 WARN：artifact 是绝对路径，`verify_claim` 会判 UNVERIFIED（并在 `notes` 里写明）。
   - 环境声明用 `--environment id=server --environment os=linux` 传入；claim 需要 `requires` 覆盖时同理。值命中 IP、本机路径或 hostname 形态时 WARN（它会写入证据 JSON，注意隐私）。
-- xcresult 请先转 JUnit XML；不计数的原始产物不要入库。
+- xcresult 新链推荐直接用宿主适配器（固定版本转换器 + 单次运行 manifest）：
+  `make evidence-unit` / `make evidence-ui` 运行 xcodebuild 并生成 JUnit + manifest；
+  加 `WRITE=1` 在 clean 工作树上写入证据（artifact 在 `harness/evidence/artifacts/`）。
+  转换失败、计数不符或路径复用都会非零退出，不生成半成品证据。
+- 旧 JUnit 入口仍可用：`python3 tools/evidence_from_junit.py --xml <glob> --command "<测试命令>" --output /tmp/evidence.json`；它不提供 run manifest，不能用于 `requireManifest=true` 的 claim。
 - 全量校验：`make check-evidence`（或 `python3 tools/evidence.py validate`）。
-- 三值判定：`make verify-claim`（或 `python3 tools/verify_claim.py --all`）；无当前证据 = UNVERIFIED，环境不可复核 = UNVERIFIED。
+- 三值判定：`make verify-claim`（经 `tools/verify_claim_chain.py` 追加 manifest/严格 JUnit 校验）；无当前证据 = UNVERIFIED，环境不可复核 = UNVERIFIED。
+- 证据链自检：`make evidence-chain-check`（pin + 7 类 manifest 负向 + 4 类 freshness 负向）。
 - **写入前工作树必须 clean，但证据目录例外**：`write` 会自动豁免
   `<paths.evidence>/` 下的未跟踪/已修改文件（JUnit artifact 与待写 JSON 本身就是待提交产物），
   只输出 WARN 提示；其他目录的改动仍需先提交/清理。显式豁免其他目录用

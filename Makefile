@@ -19,7 +19,7 @@ export PYTHONDONTWRITEBYTECODE := 1
 	adapters-check adapters-sync verify-static verify-claim verify-all release-check doctor doctor-ios plan \
 	selftest upgrade-check scorecard check-arch check-tests check-docs check-harness check-plan \
 	resume end verify-claim-fresh check-agents check-all evidence hooks-install kit-check kit-prompts \
-	kit-publish kit-drift measure-launch harness-audit
+	kit-publish kit-drift measure-launch harness-audit evidence-chain-check evidence-unit evidence-ui
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -91,10 +91,10 @@ adapters-sync: ## 同步 .dsh/skills → .claude/skills（本机生成物）
 	python3 tools/adapters.py sync
 
 verify-claim: ## 证据三值判定：make verify-claim [CLAIM=harness/evidence/xxx.json]
-	python3 tools/verify_claim.py $(if $(CLAIM),$(CLAIM),--all)
+	python3 tools/verify_claim_chain.py $(if $(CLAIM),$(CLAIM),--all)
 
 verify-claim-fresh: ## 证据时效检查（STALE 告警，不阻断）
-	python3 tools/verify_claim.py --all --fresh
+	python3 tools/verify_claim_chain.py --all --fresh
 
 verify-all: verify-static verify-claim ## 完整本地验证（静态门禁 + 证据三值判定）
 	@echo "[INFO] verify-all 通过：静态门禁 + 证据三值判定"
@@ -123,6 +123,21 @@ scorecard: ## 生成/刷新评分卡草稿（harness/reviews/<date>-scorecard.md
 
 evidence: ## 列出已入库证据
 	python3 tools/evidence.py ls
+
+evidence-chain-check: ## 证据链 pin + manifest/freshness 负向自检
+	python3 tools/evidence_chain.py check-pin
+	python3 tools/evidence_chain.py selftest
+	python3 tools/evidence_chain.py freshness-selftest
+
+evidence-unit: ## 单元测试 → xcresult/JUnit/manifest（WRITE=1 写入证据）
+	python3 tools/evidence_chain.py run --claim unit-tests-pass \
+		$(if $(filter 1,$(WRITE)),--write-evidence) $(if $(RUN_ID),--run-id $(RUN_ID)) \
+		$(if $(TIMEOUT),--timeout $(TIMEOUT))
+
+evidence-ui: ## UI 测试 → xcresult/JUnit/manifest（WRITE=1 写入证据）
+	python3 tools/evidence_chain.py run --claim ui-tests-pass \
+		$(if $(filter 1,$(WRITE)),--write-evidence) $(if $(RUN_ID),--run-id $(RUN_ID)) \
+		$(if $(TIMEOUT),--timeout $(TIMEOUT))
 
 resume: ## 接手：active 计划 + git 状态 + 下一步（status 别名）
 	python3 tools/harness.py status
@@ -163,13 +178,13 @@ check-agents: ## 校验团队基线（无模板仓时 SKIP）
 
 check-all: verify-static check-agents ## 本地门禁 + 团队基线
 
-verify-static: check check-plan-strict check-evidence check-host kit-check ## 本地静态门禁（计划严格 + 证据 schema + 宿主 + kit 验收；不含证据三值判定）
+verify-static: check check-plan-strict check-evidence check-host evidence-chain-check kit-check ## 本地静态门禁（计划严格 + 证据 schema + 宿主 + 证据链 pin + kit 验收；不含证据三值判定）
 	@bash -n harness/tools/*.sh tools/*.sh .githooks/pre-push
 	@echo "[INFO] verify-static 不含证据三值判定；完成声明 / PR 前请运行 make verify-claim 或 make verify-all"
 
 release-check: verify-static ## 发布前门禁：证据时效 strict + 评分卡有效期
 	@python3 tools/scorecard.py --check-stale --strict
-	@python3 tools/verify_claim.py --all --fresh --strict
+	@python3 tools/verify_claim_chain.py --all --fresh --strict
 
 hooks-install: ## 安装 git hooks（pre-push 跑 verify-static）
 	@git config core.hooksPath .githooks

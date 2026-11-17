@@ -32,3 +32,18 @@
 | D-B11 | 多 Agent 适配 | 单源 AGENTS + skills 同步 + Claude Code hooks 示例 |
 | D-B12 | 模板抽取 | 抽出独立 `harness-kit`（profiles + 脚手架 + 外部试点） |
 | D-B13 | 证据 schema v2 | 增加可选 `agent` / `model` / `harnessVersion` 字段 |
+
+## 2026-11 AI Coding 交付改造决策（状态：已确认 2026-11-17）
+
+| ID | 决策点 | 结论 |
+| --- | --- | --- |
+| D-AI1 | 项目边界 | 保留 `harness-kit` 为仓库级治理内核；新建独立 `ai-delivery-toolchain` 集成 OpenSpec / Superpowers / ECC 与移动端适配；宿主拥有业务规则、契约、CI 与证据，不另造 Harness 内核 |
+| D-AI2 | 工件真源 | L0/L1 走 Harness 轻量流程；L2 由 OpenSpec 管行为契约、Harness 管执行/范围/证据、Superpowers 管执行纪律；L3 拆为 L2；ECC 仅为固定版本且经审查的可选素材 |
+| D-AI3 | 交付形态 | 第一阶段只交付仓库文件、CLI、skills 与 CI 模板；复用现有 Git/CI，不做 Dashboard、RBAC、审批、Agent 调度或独立后端 |
+| D-AI4 | 试点路径 | P0 在 Duiyi 验证单仓流程与 iOS 证据链；P1 在真实 OC + 自研 RN 多仓架构跑通跨仓变更；P2 复制到第二个业务团队后才声称可推广 |
+| D-AI5 | 多仓协同 | Change Set 由业务或平台责任仓持有，关联受影响仓库、兼容基线、契约、集成顺序与总验收；各仓保留 Harness 计划与证据，工具链只提供 schema 和校验 |
+| D-AI6 | 契约分层 | OpenSpec 只描述外部可观察行为；OC/RN 桥接、原生模块与组件 API 使用版本化技术契约、兼容策略和契约测试，不为每个内部方法编写 Scenario |
+| D-AI7 | P0 范围 | 产品切片选择 P1-2 导出竞态与内容不刷新；基础设施切片选择 `xcresult → JUnit → Harness evidence`；只渐进迁移导出模块，不自动生成全 APP OpenSpec 基线 |
+| D-AI8 | iOS 证据 | 新产生的测试 PASS 必须具有可独立重算的 artifact，否则为 UNVERIFIED；历史 `requireArtifact:false` 仅作 legacy 保留，不复制到新目标项目 |
+| D-AI9 | 工具与组织边界 | P0 只验证 QoderCN 与 Claude Code；外部工具固定版本，桥接能力先 spike；公共通用层与公司私有 Organization Overlay 分离，P1 前确认模型、源码与凭证合规 |
+| D-AI10 | 评价与计划 | P0 只评价机制有效性、证据完整性与流程成本，不承诺效率提升；先收口或归档当前开源标杆化 active 计划，再建立独立 P0 L2 计划 |

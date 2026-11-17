@@ -73,6 +73,15 @@
       "floor": "unit.floor",
       "expectedSkipped": "expectedSkipped.unit",
       "requireArtifact": false,
+      "requireManifest": false,
+      "expectedTarget": {
+        "project": "Duiyi.xcodeproj",
+        "scheme": "Duiyi",
+        "destination": "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4.1",
+        "derivedDataPath": "/tmp/duiyi-build",
+        "onlyTesting": "DuiyiTests"
+      },
+      "resultBundleRoot": "/tmp/duiyi-evidence",
       "command": "make test"
     },
     {
@@ -82,6 +91,15 @@
       "floor": "ui.passedFloor",
       "expectedSkipped": "expectedSkipped.ui",
       "requireArtifact": false,
+      "requireManifest": false,
+      "expectedTarget": {
+        "project": "Duiyi.xcodeproj",
+        "scheme": "Duiyi",
+        "destination": "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4.1",
+        "derivedDataPath": "/tmp/duiyi-build",
+        "onlyTesting": "DuiyiUITests"
+      },
+      "resultBundleRoot": "/tmp/duiyi-evidence",
       "command": "make test-ui"
     },
     {
@@ -100,9 +118,9 @@
     }
   ],
   "freshness": {
-    "unit-tests-pass": ["**/*.swift", "DuiyiTests/**"],
-    "ui-tests-pass": ["**/*.swift", "DuiyiUITests/**"],
-    "device-tests-pass": ["**/*.swift"],
+    "unit-tests-pass": ["**/*.swift", "DuiyiTests/**", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
+    "ui-tests-pass": ["**/*.swift", "DuiyiUITests/**", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
+    "device-tests-pass": ["**/*.swift", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
     "docs-pass": ["docs/**", "references/**", "AGENTS.md", "HARNESS.md"]
   },
   "scorecard": {

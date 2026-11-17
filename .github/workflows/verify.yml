@@ -1,22 +1,31 @@
 name: verify
 
-# Phase 1 CI 门禁（两层）：
-#   static      ubuntu-latest，纯 Python 标准库 + make，跑 `make verify-static`（约 3–5s，无 macOS 依赖）
-#   unit-tests  self-hosted macOS，跑 `make test`（DuiyiTests 模拟器单测），默认跳过
+# Phase 1 CI 门禁（三层）：
+#   static      ubuntu-latest，纯 Python 标准库 + make，跑 `make verify-static`（约 1 分钟，无 macOS 依赖）
+#   unit-tests  self-hosted macOS，跑 `make evidence-unit`（DuiyiTests → strict JUnit + manifest），默认跳过
+#   ui-tests    self-hosted macOS，跑 `make evidence-ui`（DuiyiUITests → strict JUnit + manifest），默认跳过
 #
-# unit-tests 默认跳过逻辑：
-#   job 级 `if: ${{ vars.MACOS_CI_ENABLED == 'true' }}`
-#   仓库 Settings → Secrets and variables → Actions → Variables 新建 `MACOS_CI_ENABLED=true` 才启用；
+# macOS job 默认跳过逻辑：
+#   unit: `if: ${{ vars.MACOS_CI_ENABLED == 'true' }}`
+#   ui:   `if: ${{ vars.MACOS_UI_CI_ENABLED == 'true' }}`
+#   仓库 Settings → Secrets and variables → Actions → Variables 新建对应变量才启用；
 #   未设置时变量为空字符串 → 表达式 false → job skipped（不会因未注册 runner 一直排队）。
+#   UI CI 默认关闭时，UI 动态验证保持未验证，不得以静态门禁冒充通过。
 #
-# 启用 unit-tests 需要的 runner（本机开发机即候选）：
+# 启用 macOS job 需要的 runner（本机开发机即候选）：
 #   1) macOS 机器装 Xcode 26.4+/27.x 与 iOS 26.4 Simulator runtime，注册 GitHub self-hosted runner；
 #   2) runner labels 至少包含 GitHub 默认的 `self-hosted` 与 `macOS` 两个（本 workflow 用
 #      runs-on: [self-hosted, macOS]）；建议再打自定义 label（如 `duiyi-ios`）便于以后区分；
 #   3) runner 用户能跑模拟器（首次 `xcodebuild test` 可能触发 runtime 安装/授权，先手动跑一次）。
 #   GitHub 托管 macOS（macos-14/15）镜像是否有 iOS 26.4 runtime 未验证，且分钟成本高，故默认自托管。
 #
-# 安全：self-hosted runner 不应用来跑不可信代码。若仓库接受外部 PR，请保持 MACOS_CI_ENABLED 关闭，
+# 证据约束：
+#   - unit/ui 都走固定版本 `tools/vendor/ai_delivery_toolchain`，xcresult 路径含唯一 run UUID；
+#   - artifact 名含 github.run_id / github.run_attempt，避免跨运行覆盖；
+#   - 必需 JUnit/manifest 上传 `if-no-files-found: error`，缺失即失败；
+#   - xcresult 单独上传且允许缺失，仅用于诊断，不作为 PASS 依据。
+#
+# 安全：self-hosted runner 不应用来跑不可信代码。若仓库接受外部 PR，请保持 macOS 变量关闭，
 #       或给该 job 加 Environment 人工批准；pull_request 拿不到 secrets，但自托管 runner 的
 #       文件系统/钥匙串仍需按不可信输入防护。
 #
@@ -101,7 +110,7 @@ jobs:
     if: ${{ vars.MACOS_CI_ENABLED == 'true' }}
     # 分层门禁：静态门禁先绿，再占用昂贵的自托管 macOS runner 跑单测。
     needs: static
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       # 与 Makefile 基线（SIM_OS）保持一致；runner runtime 不同时改这里或仓库变量。
       SIM_OS: "26.4.1"
@@ -114,20 +123,61 @@ jobs:
         # 环境自检失败只记录、不阻断单测：环境问题 ≠ 代码问题（doctor.py 约定 exit 2 = 动态验证不可用）。
         continue-on-error: true
         run: make doctor
-      - name: Unit tests (DuiyiTests)
-        env:
-          # derivedData 放 runner 临时目录，避免污染 WORKSPACE（Makefile 用 ?=，环境变量可覆盖）。
-          # 注意：job 级 env 不允许 runner context，必须放 step 级。
-          DERIVED: ${{ runner.temp }}/duiyi-ci
-        run: make test
-      - name: Upload xcresult / logs (always)
+      - name: Unit tests -> strict JUnit + manifest
+        run: make evidence-unit
+      - name: Upload required JUnit / manifest (always)
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          name: unit-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/duiyi-ci/**/*.xcresult
-            ${{ runner.temp }}/duiyi-ci/Logs/**/*.log
-            harness/runs/
+            harness/evidence/artifacts/**/*.xml
+            harness/evidence/artifacts/**/*.manifest.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload xcresult (always, diagnostic)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-xcresult-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/duiyi-evidence/**/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
+
+  ui-tests:
+    name: ui tests (self-hosted macOS)
+    runs-on: [self-hosted, macOS]
+    # 默认关闭；未开启时 UI 动态证据保持未验证。
+    if: ${{ vars.MACOS_UI_CI_ENABLED == 'true' }}
+    needs: static
+    timeout-minutes: 30
+    env:
+      SIM_OS: "26.4.1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Environment doctor (non-blocking)
+        continue-on-error: true
+        run: make doctor
+      - name: UI tests -> strict JUnit + manifest
+        run: make evidence-ui
+      - name: Upload required JUnit / manifest (always)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            harness/evidence/artifacts/**/*.xml
+            harness/evidence/artifacts/**/*.manifest.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload xcresult (always, diagnostic)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-xcresult-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/duiyi-evidence/**/*.xcresult
           if-no-files-found: ignore
           retention-days: 7

@@ -1,9 +1,9 @@
 ---
 id: 2026-11-06-benchmark-opensource
-status: active
+status: archived
 level: L2
 owner: david
-updated: 2026-11-16
+updated: 2026-11-17
 scope:
   allow:              # 本轮只做「公开面 + 文档 + 过程档案」收敛；不动业务代码
     - README.md
@@ -58,7 +58,8 @@ verify:
 
 # 标杆开源化与文档信息架构重构 · 执行计划（L2）
 
-> 状态：**执行中（Phase 2.5 整改；阶段进度见 §4）**　|　级别：L2　|　日期：2026-11-06
+> 状态：**已归档（历史快照，2026-11-17）**　|　级别：L2　|　日期：2026-11-06
+> 归档说明：Phase 1–5.30 主线已收口，历史未验证限制保留在本文，不以 `done` 掩盖；后续 AI Coding 交付试点由 `2026-11-17-ai-delivery-p0` 独立承接。
 > 上游：`harness/plans/2026-11-05-harness-engineering.md`（Phase 0/1 已完成并提交；Phase 2/3 未执行，见本文 §9 交接）
 > 定位：把「Harness Engineering 落地」升级为「可被陌生人看懂、复现、采用的开源标杆」；核心动作是**减法**，不是继续加机制。
 > 计划入库规则：不写本机绝对路径、密钥、设备 UDID；只写仓库相对路径。
@@ -711,7 +712,8 @@ Ongoing  月度 harness 审计 + 文档季度修剪 + 证据保留策略
 
 ## 未提交改动
 
-- 无未提交改动（kit v0.5.4 与宿主同步已入库：`d01ca45`（kit）/ `b3c75ca`（宿主）；发版证据与红队报告由本计划记录提交入库）。
+- `docs/decisions.md` / 运行中改动（harness verify 自动同步）
+- `harness/plans/2026-11-06-benchmark-opensource.md` / 运行中改动（harness verify 自动同步）
 
 ## 本批提交
 
