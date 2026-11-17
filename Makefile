@@ -10,9 +10,9 @@ TEAM_RULES ?= ../../agent/template
 # 独立模板仓（harness-kit 镜像）；`make kit-publish` 只往这里推
 KIT_REMOTE ?= git@github.com:DavidTeam2008/harness-engineering-kit.git
 N ?= 10
-# 仅本机证据构建参数；例如 macOS 26+ 嵌套沙箱环境传 OTHER_SWIFT_FLAGS=-disable-sandbox
+# 仅本机证据构建设置（空格分隔）；例如 macOS 26+ 嵌套沙箱 + 模拟器禁签名
 XCODEBUILD_BUILD_ARGS ?=
-XCODEBUILD_BUILD_FLAG = $(if $(strip $(XCODEBUILD_BUILD_ARGS)),--xcodebuild-arg '$(XCODEBUILD_BUILD_ARGS)')
+XCODEBUILD_BUILD_FLAG = $(foreach arg,$(XCODEBUILD_BUILD_ARGS),--xcodebuild-arg '$(arg)')
 
 # 门禁工具是 Python 标准库脚本：禁止写 __pycache__（运行卫生）
 export PYTHONDONTWRITEBYTECODE := 1

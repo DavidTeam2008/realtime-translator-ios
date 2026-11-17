@@ -115,11 +115,11 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 - [x] 新增导出回归测试在修复前复现失败，修复后通过；既有测试与断言不修改。
 - [x] 每次准备分享得到稳定且不可被后续导出破坏的快照；清理不再删除全部 `Duiyi-*.txt`。
 - [x] 详情页任务 ID 不变但译文、摘要或导出语言变化时，导出内容仍反映最新可观察内容。
-- [x] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；最终单元证据 `20261117T071412Z-unit-tests-pass`、UI 证据 `20261117T071338Z-ui-tests-pass` 均来自 clean 提交；旧 unit/ui 证据由 `supersedes` 接管，旧 device 证据归档为历史；unit/ui claims 已收紧 `requireArtifact/requireManifest`。
+- [ ] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；旧 `20261117T071412Z-unit-tests-pass` / `20261117T071338Z-ui-tests-pass` 因配置与工具变更已 STALE；修正多构建设置后将重新生成并 supersede。
 - [x] 缺失或损坏 xcresult、XML 计数不一致、无 artifact 的自报 PASS 均有负向测试并非零退出（`make evidence-chain-check` 8 cases）。
 - [x] GitHub Actions `verify` run `44109728673` 在 `b0b1995` 实际运行：static job PASS；两个 macOS job 未开启变量而 skipped，CI 动态链明确保持未验证。
 - [ ] QoderCN 与 Claude Code 的同流程实测记录包含开始/结束耗时、人工干预、返工、门禁与证据 ID。
-- [ ] 最终 `make verify-static`、`make verify-all`、`make release-check` 在包含 `harness/config.json` 变更后的 clean 提交上 PASS；当前 unit/UI 证据因配置变更 STALE，且本机 Xcode 宏插件服务故障导致重跑未生成新证据。
+- [ ] 最终 `make verify-static`、`make verify-all`、`make release-check` 在包含 `harness/config.json` / Makefile / 证据工具变更后的 clean 提交上 PASS；旧 unit/UI 证据 STALE，新证据待生成。
 
 ## 改动范围
 
@@ -168,7 +168,9 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 - [x] 恢复本地签名工程文件（补丁备份在 `/tmp/duiyi-handoff/pbxproj-20261117.patch`）；提交 `b0b1995` 已 push，`make verify-static` 与 pre-push 均 PASS。
 - [x] GitHub Actions run `44109728673` @ `b0b1995`：static success；macOS unit/UI skipped，动态 CI 仍未验证。
 - [x] 定位 Xcode 宏失败根因：macOS 26+ 嵌套沙箱拒绝 `sandbox_apply`；`evidence_chain.py` 增加显式 `--xcodebuild-arg`，Makefile 增加本机 `XCODEBUILD_BUILD_ARGS`，不写死工程设置。无写入验证 unit 131/131、UI 2 passed + 1 expected skip 通过。
-- [ ] 工具改动入库后，在 clean 提交上生成正式 unit/UI evidence；双 Agent 实测待 QoderCN 入口。
+- [x] 首轮正式证据生成后发现 Xcode 自动改写 `project.pbxproj`，导致新证据立即 STALE；已丢弃未提交证据，并在本机构建参数增加 `CODE_SIGNING_ALLOWED=NO` 防止工程文件被改写。
+- [ ] Makefile 多构建设置修正入库后，在 clean 提交重新生成 unit/UI 正式证据并 supersede 旧证据。
+- [ ] 双 Agent 实测待 QoderCN 入口。
 
 ## 验证证据
 
@@ -210,8 +212,8 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 | `make check-evidence check-host evidence-chain-check && make kit-check`（纠偏后） | PASS：3 条当前证据 schema 通过；pin 与 8/5 个负向 selftest 通过；330 kit tests OK | 本机 macOS；python3 | —（过程记录：证据链结构复核） |
 | `python3 tools/verify_claim_chain.py --all --fresh --strict`（纠偏后） | UNVERIFIED（预期）：docs PASS；unit/UI 因证据后修改 `harness/config.json` 判 STALE，须最终 clean 提交后重跑 | 本机 macOS；python3 | —（未验证：动态证据待最终 clean 提交） |
 | `make evidence-unit WRITE=1`（`b0b1995` clean 提交，两次） | FAIL（环境）：清理 `/tmp/duiyi-build` 后仍复现；`swift-plugin-server produced malformed response`，Preview/State/Model 宏全部无法展开，xcodebuild exit 65，未生成证据 | 本机 macOS；Xcode 27.1（外置卷）；iOS 26.4.1 模拟器 | —（未验证：Xcode 宏插件服务） |
-| `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox' make evidence-unit`（无写入） | PASS：131/131、0 failed、0 skipped；根因是 macOS 26+ 嵌套沙箱，构建命令显式记录参数 | 本机 macOS 27.0.1；Xcode 27.1；iPhone 17 Pro Max / iOS 26.4.1 | —（过程记录：宏沙箱修复验证） |
-| `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox' make evidence-ui`（无写入） | PASS：2 passed / 0 failed / 1 expected skipped；构建命令显式记录参数 | 同上 | —（过程记录：宏沙箱修复验证） |
+| `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO' make evidence-unit`（无写入） | PASS：131/131、0 skipped；宏服务正常且测试后 `project.pbxproj` 保持 clean | 本机 macOS 27.0.1；Xcode 27.1；iPhone 17 Pro Max / iOS 26.4.1 | —（过程记录：宏沙箱 + 禁签名验证） |
+| `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO' make evidence-ui`（无写入） | PASS：2 passed / 0 failed / 1 expected skipped；工程文件保持 clean | 同上 | —（过程记录：宏沙箱 + 禁签名验证；首次因三台模拟器争用被终止，关闭额外模拟器后通过） |
 | GitHub Actions `verify` run `44109728673`（`b0b1995`） | PASS（partial）：static gates success；macOS unit/UI jobs skipped，不能作为动态 CI 证据 | GitHub Actions；ubuntu-latest；run attempt 1 | —（过程记录：CI 实际运行） |
 | Claude Code 同流程实测 | 未运行 | — | —（未验证） |
 
@@ -219,8 +221,7 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 
 - B1/B2 宿主严格链已完成：unit 131/131 与 UI 2 passed + 1 expected skip 均来自 clean 提交 `e3f5779`；legacy unit/ui 证据由 `supersedes` 接管，旧 device 证据归档为历史（无同名新 claim）。
 - 真机 UI 正式证据未生成：设备已连接且未锁定，但 iOS 报 Developer App 证书/profile 未显式信任；`ui-device-tests-pass` 为 `required:false`，保持未验证且不阻断聚合。模拟器 UI 已在恢复环境后通过，不能据此宣称真机 UI 已验证。用户已于 2026-11-17 批准书面豁免。
-- B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；`harness/config.json` 在旧 unit/UI 证据之后变化，最终 `make release-check` 仍待新证据。B7 workflow 已于 run `44109728673` 实际运行 static；macOS unit/UI 因变量未开启 skipped，动态 CI 保持未验证。
-- 动态证据仍 STALE：`harness/config.json` 晚于 e3f5779 证据。已确认 macOS 26+ 嵌套沙箱会导致 `swift-plugin-server` 宏失败；本地以 `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox'` 无写入跑通 unit 131/131、UI 2+1 skip。正式 evidence 需工具改动入库后的 clean 提交生成，当前不得沿用旧 PASS。
+- B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；旧 unit/UI 证据因后续变更 STALE，正式新证据待多构建设置修复入库后生成。B7 workflow 已于 run `44109728673` 实际运行 static；macOS unit/UI 因变量未开启 skipped，动态 CI 保持未验证。
 - B8 已由 `v0.1.0` pin 解除阻塞；宿主禁止引用未固定工作树。
 - 真实 ShareLink/ShareSheet 在系统分享扩展中的读取行为尚未人工实测；文件级与宿主测试不能替代该结论。用户已于 2026-11-17 批准书面豁免，仍不得声称系统分享扩展行为已验证。
 - Claude Code 是否可用及同流程结果尚未验证；不能以 QoderCN 结果代替。
@@ -236,12 +237,12 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 
 ## 未提交改动
 
-- 无未提交改动；Xcode 宏沙箱修复与验证记录随本次提交入库。
+- 无未提交改动；多构建设置修正与证据重建说明随本次提交入库。
 
 ## 下一步
 
 1. 真机 UI 与 ShareSheet 使用上述书面豁免；后续环境具备时仍应补测，不把豁免写成已验证。
-2. 工具改动入库后，在 clean 提交用 `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox'` 生成 unit/UI 正式证据，再跑 `make verify-all` / `make release-check`；旧 e3f5779 证据不能再作为当前 PASS。
+2. 多构建设置修正入库后，在 clean 提交用 `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO'` 生成 unit/UI 正式证据，再跑 `make verify-all` / `make release-check`；旧证据不能再作为当前 PASS。
 3. 使用 QoderCN `2.x` 程序与 `~/.agents/skills/` 入口完成双 Agent 实测；Claude Code 同流程不得由当前会话或 DeepSeek Harness 冒充。
 4. P0 验收完成后，经单独确认归档当前 `fix-transcript-export`；不得把其指针型 tasks 改写成新契约。
 5. P0 收口后先在 `ai-delivery-toolchain` 实现并测试 `delivery-check` 与宿主适配，再按 D-AI11 创建新的首个原生 L2 Change。目标态方案见 [`docs/case-native-openspec-delivery.md`](../../docs/case-native-openspec-delivery.md)。
