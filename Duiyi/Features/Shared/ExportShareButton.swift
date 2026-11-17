@@ -24,6 +24,12 @@ struct ExportShareButton: View {
         .task(id: task.id) {
             prepare()
         }
+        .onChange(of: task) {
+            prepare()
+        }
+        .onChange(of: language) {
+            prepare()
+        }
     }
 
     private var label: some View {

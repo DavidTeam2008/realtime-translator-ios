@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-05",
+  "updatedAt": "2026-11-17",
   "unit": {
-    "floor": 120,
-    "files": 13
+    "floor": 131,
+    "files": 15
   },
   "ui": {
     "floor": 3,
@@ -26,6 +26,6 @@
     "v0.5.3 迁移：claims 使用 passedFloor/device.floor/expectedSkipped.{unit,ui,device}；旧 simulator/device 键保留给宿主脚本。"
   ],
   "device": {
-    "floor": 123
+    "floor": 134
   }
 }

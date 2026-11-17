@@ -8,14 +8,14 @@
 |---|---|
 | `make test` | 模拟器单元（`DuiyiTests`） |
 | `make test-ui` | 模拟器 UI（语音用例 skip） |
-| `make device-test` | 真机全套（预热 + 120 单元 + 3 UI） |
+| `make evidence-unit` / `make evidence-ui` | 测试→JUnit+manifest；`WRITE=1` 写证据 |
+| `make device-test` | 真机全套（预热 + 131 单元 + 3 UI） |
 | `make device-test-ui` | 真机 UI（预热后） |
 | `make device-test-one TEST=...` | 真机单用例 |
 | `APM_DEVICE=<CoreDevice ID> make device-test` | 换设备 |
-| `make check-docs` / `make check-agents` | 文档 / 团队基线 |
 | `make check` / `make check-tests` | 静态门禁 / 测试计数与 skip 机检 |
 
-真机脚本依赖 `mobilebuildmcp`；启动测量另需 `idevicesyslog`、`timeout`。模拟器默认 `iPhone 17 Pro Max` / iOS 26.4.1，runtime 不同用 `SIM_OS=` 覆盖。
+真机脚本依赖 `mobilebuildmcp`；测量另需 `idevicesyslog`、`timeout`。默认 iPhone 17 Pro Max / iOS 26.4.1，`SIM_OS=` 可覆盖。
 
 ## 验证矩阵
 
@@ -31,7 +31,7 @@
 
 ## 计数与预期
 
-- 基线 **120 单元 + 3 UI**；真机 **123**。只增不减；改计数同步本文件。
+- 基线 **131 单元 + 3 UI**；真机 **134**。只增不减；改计数同步本文件。
 - 计数与 skip 由 `make check-tests`（`tools/check-test-baseline.py` + `harness/test-baseline.json`）机检，删测试会红。
 - 模拟器 `testSimultaneousListeningPressure` skip（无 `SpeechTranscriber`）是预期，不要 mock。
 - 真机 UI 前必须预热 testmanagerd（脚本已强制）；iOS 15+ 还需过 `Enable UI Automation` 密码弹窗（见 `CONTRIBUTING.md`）。
