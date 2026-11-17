@@ -117,9 +117,9 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 - [x] 详情页任务 ID 不变但译文、摘要或导出语言变化时，导出内容仍反映最新可观察内容。
 - [x] 真实 unit/ui xcresult 转成 JUnit，证据计数由 XML 重算；最终单元证据 `20261117T071412Z-unit-tests-pass`、UI 证据 `20261117T071338Z-ui-tests-pass` 均来自 clean 提交；旧 unit/ui 证据由 `supersedes` 接管，旧 device 证据归档为历史；unit/ui claims 已收紧 `requireArtifact/requireManifest`。
 - [x] 缺失或损坏 xcresult、XML 计数不一致、无 artifact 的自报 PASS 均有负向测试并非零退出（`make evidence-chain-check` 8 cases）。
-- [ ] macOS CI 测试开启时使用同一转换路径并上传 JUnit；未开启时明确标记 CI 动态链未验证。
+- [x] GitHub Actions `verify` run `44109728673` 在 `b0b1995` 实际运行：static job PASS；两个 macOS job 未开启变量而 skipped，CI 动态链明确保持未验证。
 - [ ] QoderCN 与 Claude Code 的同流程实测记录包含开始/结束耗时、人工干预、返工、门禁与证据 ID。
-- [x] 最终 `make verify-static`、`make verify-all`、`make release-check` PASS；`make test` / `make test-ui` 已通过；新增动态 PASS 均有可重算 artifact，freshness 覆盖代码、命令、转换器和测试配置。
+- [ ] 最终 `make verify-static`、`make verify-all`、`make release-check` 在包含 `harness/config.json` 变更后的 clean 提交上 PASS；当前 unit/UI 证据因配置变更 STALE，且本机 Xcode 宏插件服务故障导致重跑未生成新证据。
 
 ## 改动范围
 
@@ -157,7 +157,7 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 - [x] `ai-delivery-toolchain` 实现、49 项测试、真实 8/8 转换与负向路径；固定 `v0.1.0`（tag `6a2a475`，实现 `8c45e96`）。
 - [x] 宿主 vendoring + pin 校验 + 严格 JUnit/manifest 适配与 7 类负向 fixture（`make evidence-chain-check`）。
 - [x] freshness 三类陈旧证据负向自检（Makefile / tools / xcodeproj）与过程目录豁免（4 类负向）。
-- [x] B7 CI 工作流改为 `make evidence-unit` / `make evidence-ui`，JUnit/manifest 缺失即 error，artifact 名含 run/attempt；尚未在 GitHub Actions 实际运行。
+- [x] B7 CI 工作流改为 `make evidence-unit` / `make evidence-ui`，JUnit/manifest 缺失即 error，artifact 名含 run/attempt；GitHub Actions run `44109728673` 已在 `b0b1995` 实际运行，static PASS，macOS unit/UI 因变量未开启 skipped。
 - [x] 单元真实 xcresult → strict JUnit + manifest 生成并独立重算通过；最终证据 `20261117T071412Z-unit-tests-pass`（131/131、0 skip，runId `dc4c7d5d-802b-4f52-89a0-06a7ab9e8e5d`）来自 clean 提交 `e3f5779`。
 - [x] UI 真实 xcresult：恢复模拟器环境后 `make evidence-ui WRITE=1` 通过，证据 `20261117T071338Z-ui-tests-pass`（2 passed / 1 expected skip，runId `e1fdc475-d12f-410d-951d-759d50674f28`）来自 clean 提交 `e3f5779`；真机 iPhone 13 非写入试跑 3/3、0 skip 通过，但正式 `ui-device-tests-pass` 被证书信任阻断，claim 保持可选未验证。
 - [x] 新增 `ui-device-tests-pass` claim 与 `make evidence-ui-device`：预热 testmanagerd、本机 Team 签名、device destination、deviceId/deviceName 脱敏；`required:false`，不阻断无真机环境。
@@ -165,7 +165,9 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 - [x] clean 提交 `83af376` 上 `make verify-static` / `make verify-all` / `make release-check` 全部 PASS：330 kit tests、严格计划、3 条当前证据 PASS、0 UNVERIFIED；首次 release-check 因 `/tmp` 磁盘满失败，清理本次构建临时目录后重跑通过。
 - [x] 完成原生 OpenSpec 目标态方案与交接：D-AI11、`docs/case-native-openspec-delivery.md`、任务/归档兼容性 spike；未创建第二 active 计划，P0 旧契约保留。
 - [x] 2026-11-17 用户接受“有条件通过”；已修正 0/0 门禁、嵌套计数、Base scope、证据 HEAD 绑定、Superpowers ledger 双状态、迁移与回滚表述，并写入真机/ShareSheet 书面豁免。
-- [ ] 双 Agent 实测、成本记录与最终复核。
+- [x] 恢复本地签名工程文件（补丁备份在 `/tmp/duiyi-handoff/pbxproj-20261117.patch`）；提交 `b0b1995` 已 push，`make verify-static` 与 pre-push 均 PASS。
+- [x] GitHub Actions run `44109728673` @ `b0b1995`：static success；macOS unit/UI skipped，动态 CI 仍未验证。
+- [ ] 最终动态证据重跑被 Xcode 宏插件服务阻断；双 Agent 实测待 QoderCN 入口。
 
 ## 验证证据
 
@@ -205,14 +207,17 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 | `make check` / `make verify-static` / `git diff --check`（目标态方案落盘） | PASS：check-docs、check_agents、330 kit tests、strict plan、3 条证据、0 error；4 个 WARN 均为归档历史或未验证提示 | 本机 macOS；python3；Xcode 27.1 | —（过程记录：目标态方案门禁） |
 | `openspec validate/instructions/status` 当前宿主只读复核 + `python3 tools/check_docs.py` + `git diff --check`（有条件通过纠偏后） | PASS：validate valid=true；指针 tasks 实测 total=0/remaining=0/state=blocked；文档与格式检查通过 | 本机 macOS；OpenSpec 2.1.0；python3 | —（过程记录：目标态有条件通过复核） |
 | `make check-evidence check-host evidence-chain-check && make kit-check`（纠偏后） | PASS：3 条当前证据 schema 通过；pin 与 8/5 个负向 selftest 通过；330 kit tests OK | 本机 macOS；python3 | —（过程记录：证据链结构复核） |
-| `python3 tools/verify_claim_chain.py --all --fresh --strict`（纠偏后） | UNVERIFIED（预期）：docs PASS；unit/UI 因证据后修改 `harness/config.json` 与 `.xcodeproj` 判 STALE，须最终 clean 提交后重跑 | 本机 macOS；python3 | —（未验证：动态证据待最终 clean 提交） |
+| `python3 tools/verify_claim_chain.py --all --fresh --strict`（纠偏后） | UNVERIFIED（预期）：docs PASS；unit/UI 因证据后修改 `harness/config.json` 判 STALE，须最终 clean 提交后重跑 | 本机 macOS；python3 | —（未验证：动态证据待最终 clean 提交） |
+| `make evidence-unit WRITE=1`（`b0b1995` clean 提交，两次） | FAIL（环境）：清理 `/tmp/duiyi-build` 后仍复现；`swift-plugin-server produced malformed response`，Preview/State/Model 宏全部无法展开，xcodebuild exit 65，未生成证据 | 本机 macOS；Xcode 27.1（外置卷）；iOS 26.4.1 模拟器 | —（未验证：Xcode 宏插件服务） |
+| GitHub Actions `verify` run `44109728673`（`b0b1995`） | PASS（partial）：static gates success；macOS unit/UI jobs skipped，不能作为动态 CI 证据 | GitHub Actions；ubuntu-latest；run attempt 1 | —（过程记录：CI 实际运行） |
 | Claude Code 同流程实测 | 未运行 | — | —（未验证） |
 
 ## 未验证项
 
 - B1/B2 宿主严格链已完成：unit 131/131 与 UI 2 passed + 1 expected skip 均来自 clean 提交 `e3f5779`；legacy unit/ui 证据由 `supersedes` 接管，旧 device 证据归档为历史（无同名新 claim）。
 - 真机 UI 正式证据未生成：设备已连接且未锁定，但 iOS 报 Developer App 证书/profile 未显式信任；`ui-device-tests-pass` 为 `required:false`，保持未验证且不阻断聚合。模拟器 UI 已在恢复环境后通过，不能据此宣称真机 UI 已验证。用户已于 2026-11-17 批准书面豁免。
-- B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；最终 `make release-check` 仍待新证据。B7 workflow 已接入唯一产物与必需 JUnit，但尚未在 GitHub Actions 实际运行；UI CI 默认关闭时保持未验证。
+- B6 freshness 已覆盖 Makefile/tools/工程配置，并完成三类陈旧证据与过程目录的负向自检；`harness/config.json` 在旧 unit/UI 证据之后变化，最终 `make release-check` 仍待新证据。B7 workflow 已于 run `44109728673` 实际运行 static；macOS unit/UI 因变量未开启 skipped，动态 CI 保持未验证。
+- 本机动态证据重跑被 Xcode 27.1 宏插件服务阻断：clean `b0b1995` 上两次 `make evidence-unit WRITE=1` 均以 `swift-plugin-server produced malformed response` 编译失败，未生成 UNIT/UI 新证据；不能沿用旧 PASS，也不以静态门禁替代。
 - B8 已由 `v0.1.0` pin 解除阻塞；宿主禁止引用未固定工作树。
 - 真实 ShareLink/ShareSheet 在系统分享扩展中的读取行为尚未人工实测；文件级与宿主测试不能替代该结论。用户已于 2026-11-17 批准书面豁免，仍不得声称系统分享扩展行为已验证。
 - Claude Code 是否可用及同流程结果尚未验证；不能以 QoderCN 结果代替。
@@ -228,11 +233,12 @@ D-AI11 已确认：**P0 收口后的下一个 L2 Change 起，`tasks.md` 成为�
 
 ## 未提交改动
 
-- 无未提交改动；本次复核纠偏、D-AI11 同步、案例登记与豁免记录随本次提交入库。
+- 无未提交改动；本次 CI 记录与动态证据阻塞已随本提交入库。
 
 ## 下一步
 
 1. 真机 UI 与 ShareSheet 使用上述书面豁免；后续环境具备时仍应补测，不把豁免写成已验证。
-2. 完成 B7 CI 实际运行与双 Agent 实测；提交、push 与发版仍需单独确认。
-3. P0 验收完成后，经单独确认归档当前 `fix-transcript-export`；不得把其指针型 tasks 改写成新契约。
-4. P0 收口后先在 `ai-delivery-toolchain` 实现并测试 `delivery-check` 与宿主适配，再按 D-AI11 创建新的首个原生 L2 Change。目标态方案见 [`docs/case-native-openspec-delivery.md`](../../docs/case-native-openspec-delivery.md)。
+2. 修复 Xcode 宏插件服务后，在 clean 提交上重跑 unit/UI 证据与 `make verify-all` / `make release-check`；旧 e3f5779 证据不能再作为当前 PASS。
+3. 提供 QoderCN 入口后完成双 Agent 实测；Claude Code 同流程不得由当前会话或 DeepSeek Harness 冒充。
+4. P0 验收完成后，经单独确认归档当前 `fix-transcript-export`；不得把其指针型 tasks 改写成新契约。
+5. P0 收口后先在 `ai-delivery-toolchain` 实现并测试 `delivery-check` 与宿主适配，再按 D-AI11 创建新的首个原生 L2 Change。目标态方案见 [`docs/case-native-openspec-delivery.md`](../../docs/case-native-openspec-delivery.md)。
