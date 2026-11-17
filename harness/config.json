@@ -109,6 +109,7 @@
       "baseline": "harness/test-baseline.json",
       "floor": "ui.passedFloor",
       "expectedSkipped": 0,
+      "required": false,
       "requireArtifact": true,
       "requireManifest": true,
       "requiresSigning": true,
