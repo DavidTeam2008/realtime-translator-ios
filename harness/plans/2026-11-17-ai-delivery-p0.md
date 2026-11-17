@@ -149,6 +149,7 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 - [x] UI 真实 xcresult：恢复模拟器环境后 `make evidence-ui WRITE=1` 通过，证据 `20261117T071338Z-ui-tests-pass`（2 passed / 1 expected skip，runId `e1fdc475-d12f-410d-951d-759d50674f28`）来自 clean 提交 `e3f5779`；真机 iPhone 13 非写入试跑 3/3、0 skip 通过，但正式 `ui-device-tests-pass` 被证书信任阻断，claim 保持可选未验证。
 - [x] 新增 `ui-device-tests-pass` claim 与 `make evidence-ui-device`：预热 testmanagerd、本机 Team 签名、device destination、deviceId/deviceName 脱敏；`required:false`，不阻断无真机环境。
 - [x] 新 unit/ui 证据入库、迁移 legacy claims 并收紧 `requireArtifact/requireManifest`：unit/ui 均为严格链，旧 unit/ui/device 证据归档并由新证据 `supersedes` 接管。
+- [x] clean 提交 `83af376` 上 `make verify-static` / `make verify-all` / `make release-check` 全部 PASS：330 kit tests、严格计划、3 条当前证据 PASS、0 UNVERIFIED；首次 release-check 因 `/tmp` 磁盘满失败，清理本次构建临时目录后重跑通过。
 - [ ] 双 Agent 实测、成本记录与最终复核。
 
 ## 验证证据
@@ -178,6 +179,7 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 | `make evidence-unit WRITE=1`（clean 提交 `e3f5779`） | PASS：131 tests / 131 passed / 0 failed / 0 skipped；strict JUnit + manifest；runId `dc4c7d5d-802b-4f52-89a0-06a7ab9e8e5d` | 同上 | `20261117T071412Z-unit-tests-pass` |
 | `ruby -e 'YAML.load_file(".github/workflows/verify.yml")'` | PASS：workflow YAML 语法；`make evidence-unit/ui`、必需 JUnit `if-no-files-found: error`、run/attempt artifact 命名已写入；GitHub Actions 未实际运行 | 本机 macOS；Ruby | —（未验证：CI 动态链） |
 | `python3 tools/verify_claim_chain.py --all`（迁移前） | FAIL（历史）：旧 unit/device 证据 passed 低于新 floor；未重算 legacy；新链证据已接管 | 本机 macOS；python3 | —（过程记录：迁移前红灯） |
+| `make verify-static` / `make verify-all` / `make release-check`（clean 提交 `83af376`） | PASS：330 kit tests、严格计划、3 条当前证据 PASS、0 FAIL / 0 UNVERIFIED；首次 release-check 因 `/tmp` 磁盘满失败，清理本次构建临时目录后重跑通过 | 本机 macOS；Xcode 27.1；python3 | —（过程记录：最终门禁汇总） |
 | Claude Code 同流程实测 | 未运行 | — | —（未验证） |
 
 ## 未验证项
@@ -202,6 +204,5 @@ OpenSpec 若强制生成 `tasks.md`，只允许保留指向本计划的最小适
 
 ## 下一步
 
-1. 在 clean 提交上运行 `make verify-static` / `make verify-all` / `make release-check`，确认严格证据链与 freshness 通过。
-2. 处理真机 Developer App 证书信任后再运行 `APM_TEAM=<Team ID> make evidence-ui-device WRITE=1`；该 claim 保持可选，未完成不阻断 P0。
-3. B7 CI 实际运行与双 Agent 实测；提交、push 与发版仍需单独确认。
+1. 处理真机 Developer App 证书信任后再运行 `APM_TEAM=<Team ID> make evidence-ui-device WRITE=1`；该 claim 保持可选，未完成不阻断 P0。
+2. B7 CI 实际运行与双 Agent 实测；提交、push 与发版仍需单独确认。
