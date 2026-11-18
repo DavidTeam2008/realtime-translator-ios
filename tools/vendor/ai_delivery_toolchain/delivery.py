@@ -572,6 +572,17 @@ def check_delivery(
         raise DeliveryError("OpenSpec validate change 不一致")
     check_scope(root, contract.base, contract.scope_allow, contract.scope_deny)
     evidence = check_evidence(root, contract, profile, head)
+    from .discipline import verify_discipline_receipts
+
+    receipts = verify_discipline_receipts(
+        root,
+        task_ids=tasks.task_ids,
+        change=contract.change,
+        base=contract.base,
+        head=head,
+        evidence_ids=evidence,
+        discipline=profile.get("discipline"),
+    )
     if contract.review.required:
         check_review(root, contract.review.path, contract.base, head, required=True)
     if ci is None:
@@ -586,4 +597,5 @@ def check_delivery(
         "head": head,
         "tasks": {"total": tasks.total, "complete": tasks.complete},
         "evidence": evidence,
+        "disciplineReceipts": [path.relative_to(root).as_posix() for path in receipts],
     }

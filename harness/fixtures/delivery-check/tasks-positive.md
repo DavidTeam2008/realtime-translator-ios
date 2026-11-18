@@ -3,9 +3,9 @@
 - Change: fixture-native
 - Level: L2
 - Owner: david
-- Base: 5ad38d1
-- Scope allow: Makefile, tools/, harness/, harness-kit/, docs/, references/, Duiyi/Services/AGENTS.md
-- Scope deny: openspec/specs/, Duiyi/Features/
+- Base: <base>
+- Scope allow: fixtures/
+- Scope deny: openspec/specs/
 - Acceptance: A1=schema fixture only (review)
 - Verify: make delivery-check-fixtures
 - Evidence: review (optional)
@@ -19,6 +19,6 @@
 
 - [x] Task 1: structure fixture is complete.
 
-**Files:** `harness/fixtures/delivery-check/tasks-positive.md`
+**Files:** `fixtures/tasks-positive.md`
 
 1. `Expected`: delivery-check parses the contract and task checkbox.

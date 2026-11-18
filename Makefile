@@ -143,6 +143,9 @@ delivery-check: ## 交付门禁：make delivery-check CHANGE=<id> [CI_JSON=<path
 delivery-check-fixtures: ## delivery-check 结构正/负 fixture
 	python3 tools/delivery_fixtures.py
 
+delivery-discipline-fixtures: ## discipline receipt 正/负 fixture（宿主 v0.3.1）
+	python3 tools/delivery_discipline_fixtures.py
+
 doctor-skills: ## 检查 Claude Code 的 openspec/superpowers 用户级软链
 	python3 tools/doctor_skills.py
 

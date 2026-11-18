@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import __version__
 from .junit_strict import StrictJUnitError, count_file
 from .manifest import (
     ManifestError,
@@ -18,7 +19,7 @@ from .manifest import (
 )
 from .xcresult import ConversionError, convert_bundle
 
-TOOLCHAIN_VERSION = "0.2.0"
+TOOLCHAIN_VERSION = __version__
 ENV_KEYS = ("id", "host", "xcode", "xcresulttool")
 TARGET_FLAGS = {
     "project": "project",

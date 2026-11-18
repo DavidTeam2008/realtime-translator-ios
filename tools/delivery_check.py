@@ -80,18 +80,20 @@ def build_profile(root: Path, change: str) -> dict:
         }
     delivery = config.get("delivery") if isinstance(config.get("delivery"), dict) else {}
     ci = delivery.get("ci") if isinstance(delivery.get("ci"), dict) else {}
+    discipline = delivery.get("discipline") if isinstance(delivery.get("discipline"), dict) else None
     return {
         "evidenceDir": (config.get("paths") or {}).get("evidence", "harness/evidence"),
         "claims": claims,
         "ci": ci,
         "requiredJobs": delivery.get("requiredJobs", []),
+        "discipline": discipline,
     }
 
 
 def _check_pin_metadata(root: Path) -> None:
     pin = json.loads((root / "tools" / "vendor" / "ai_delivery_toolchain" / "PIN.json").read_text(encoding="utf-8"))
-    if pin.get("version") != "0.2.0" or pin.get("tag") != "v0.2.0":
-        raise ValueError("PIN 必须固定 v0.2.0")
+    if pin.get("version") != "0.3.1" or pin.get("tag") != "v0.3.1":
+        raise ValueError("PIN 必须固定 v0.3.1")
     if pin.get("tagType") != "annotated":
         raise ValueError("PIN.tagType 必须是 annotated")
     for key in ("tagObject", "sourceTree"):
@@ -168,7 +170,7 @@ def main() -> int:
         if args.pin_only:
             _check_pin_metadata(root)
             load_pin(root)
-            print(f"PASS delivery pin v0.2.0 ({root / 'tools/vendor/ai_delivery_toolchain/PIN.json'})")
+            print(f"PASS delivery pin v0.3.1 ({root / 'tools/vendor/ai_delivery_toolchain/PIN.json'})")
             return 0
         if not args.change:
             raise ValueError("非 --pin-only 模式必须提供 --change")

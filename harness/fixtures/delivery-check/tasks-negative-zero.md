@@ -3,8 +3,8 @@
 - Change: fixture-native
 - Level: L2
 - Owner: david
-- Base: 5ad38d1
-- Scope allow: harness/
+- Base: <base>
+- Scope allow: fixtures/
 - Scope deny: openspec/specs/
 - Acceptance: A1=schema fixture only (review)
 - Verify: make delivery-check-fixtures

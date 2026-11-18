@@ -214,6 +214,10 @@
     },
     "requiredJobs": [
       "static gates (ubuntu)"
-    ]
+    ],
+    "discipline": {
+      "required": true,
+      "dir": "harness/evidence/discipline"
+    }
   }
 }
