@@ -34,7 +34,7 @@
 
 ## 5. 导出与产物
 
-- 导出（P1-2 未修前）不要删除全部 `Duiyi-*.txt`；文件名带 taskID + 时间戳；不改 `TranscriptExportService` 的共享语义。
+- 导出：快照按 task UUID + 完整内容 SHA-256 命名且不可变；只清理严格超过 7 天且未被本进程准备的本服务普通文件；不得删除全部 `Duiyi-*.txt`；不改共享语义。
 - 测试用临时目录；不写仓库内路径；不提交 build/trace/`harness/runs/`。
 
 ## 6. 完成判据

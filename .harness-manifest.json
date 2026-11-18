@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "kitVersion": "0.5.4",
+  "kitVersion": "0.5.5",
   "profile": "strict",
   "generatedAt": "2026-11-16T07:20:00Z",
   "options": {
@@ -117,7 +117,7 @@
     },
     {
       "path": "harness/config.json",
-      "sha256": "df3b13e8b27db1399b7a7795f53fce4de4bf4f595333931d3bc0afdcdbfcbd0f",
+      "sha256": "c1d656328a6cfd249528b548aab78ac49cfcba71c633e652e03c80dab33958bd",
       "src": "core/templates/harness/config.json.template",
       "render": true,
       "executable": false
@@ -236,7 +236,7 @@
     },
     {
       "path": "tools/check_plan.py",
-      "sha256": "71df7c70181ad686b7d48f5bee3aa3fa79cd479a62572393d220d684285ff72f",
+      "sha256": "1f838d25305dc5350d3d7866a8d723f3dfbb79f9ce4f33e13fed452ac6d8a6ad",
       "src": "core/tools/check_plan.py",
       "render": false,
       "executable": false

@@ -212,16 +212,21 @@ class Plan:
 
 def load_plans(root: Path, config: dict) -> list[Plan]:
     directory = config_path(root, config, "plans")
-    if not directory.is_dir():
-        return []
+    folders = [directory]
+    records = root / "harness" / "records"
+    if records.is_dir():
+        folders.append(records)
     plans: list[Plan] = []
-    for path in sorted(directory.glob("*.md")):
-        if path.name.startswith("_"):
+    for folder in folders:
+        if not folder.is_dir():
             continue
-        try:
-            plans.append(Plan(path, path.read_text(encoding="utf-8")))
-        except OSError:
-            continue
+        for path in sorted(folder.glob("*.md")):
+            if path.name.startswith("_") or path.name == "README.md":
+                continue
+            try:
+                plans.append(Plan(path, path.read_text(encoding="utf-8")))
+            except OSError:
+                continue
     return plans
 
 

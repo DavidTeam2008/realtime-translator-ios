@@ -18,7 +18,7 @@ from .manifest import (
 )
 from .xcresult import ConversionError, convert_bundle
 
-TOOLCHAIN_VERSION = "0.1.0"
+TOOLCHAIN_VERSION = "0.2.0"
 ENV_KEYS = ("id", "host", "xcode", "xcresulttool")
 TARGET_FLAGS = {
     "project": "project",

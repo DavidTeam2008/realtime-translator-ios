@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.5 — 2026-11-18
+
+> 修复 `check_plan` strict done 的“计划文件同批即拒”自引用误杀。submitted 审计改为使用父提交 scope；同批放宽 allow 与越界提交仍拒绝；新增证据 commit 不得同时修改计划文件的约束。
+
 ## 0.5.4 — 2026-11-16
 
 > 来源：用户决策（npx 成为一等入口）+ 两轮独立红队复核（见来源仓 `harness/reviews/2026-11-16-kit-0.5.4-npx-redteam.md`）。

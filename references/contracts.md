@@ -36,7 +36,7 @@ Features 只依赖 Domain + Services 协议；Domain 不 import SwiftUI/语音/�
 ## 8. 签名、导出与仓库卫生
 
 - Team / Bundle ID 属本地环境：clone 后按 `CONTRIBUTING.md` 设置自己的 Team 与唯一 Bundle ID；仓库内 `com.david.Duiyi` 只是示例，不提交别人的签名信息。
-- 导出（P1-2）：不要删全部 `Duiyi-*.txt`；文件名带 taskID + 时间戳。
+- 导出：快照按 task UUID + 完整内容 SHA-256 命名且不可变；只清理严格超过 7 天且未被本进程准备的本服务普通文件；不得删除全部 `Duiyi-*.txt`。
 - 不提交 `build/`、`harness/runs/`、trace、`xcuserdata/`。
 
 ## 9. 未定决策

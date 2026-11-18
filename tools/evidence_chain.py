@@ -311,6 +311,18 @@ def check_manifest_evidence(
     command = doc.get("command")
     if not isinstance(command, str) or "xcodebuild test" not in command:
         errors.append(f"{label}: command 必须记录 xcodebuild test")
+    settings = manifest.get("command", {}).get("buildSettings") if isinstance(manifest.get("command"), dict) else None
+    try:
+        _validate_build_settings(settings)
+    except EvidenceChainError as exc:
+        errors.append(f"{label}: {exc}")
+    else:
+        command_entries = _command_build_entries(command) if isinstance(command, str) else []
+        if command_entries:
+            if settings is None:
+                errors.append(f"{label}: manifest 缺少 command.buildSettings（不得只把构建参数留在 evidence.command）")
+            elif settings.get("entries") != command_entries:
+                errors.append(f"{label}: manifest.command.buildSettings 与 evidence.command 不一致")
     return errors
 
 
@@ -468,6 +480,71 @@ def _run_xcodebuild(
     raise EvidenceChainError(f"xcodebuild 退出 {completed.returncode}；未生成证据")
 
 
+BUILD_SETTING_ALLOWLIST = ("OTHER_SWIFT_FLAGS", "CODE_SIGNING_ALLOWED")
+
+
+def _build_settings(build_args: list[str]) -> dict:
+    entries: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in build_args:
+        if "=" not in item:
+            raise EvidenceChainError(f"构建参数必须是 KEY=VALUE：{item!r}")
+        key, value = item.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if key not in BUILD_SETTING_ALLOWLIST:
+            raise EvidenceChainError(f"构建参数不在脱敏 allowlist：{key!r}")
+        if key in seen:
+            raise EvidenceChainError(f"构建参数重复：{key}")
+        if not value or "\n" in value or "\r" in value:
+            raise EvidenceChainError(f"构建参数值非法：{key}")
+        seen.add(key)
+        entries.append({"key": key, "value": value})
+    document = {"schemaVersion": 1, "source": "XCODEBUILD_BUILD_ARGS", "entries": entries}
+    document["sha256"] = hashlib.sha256(
+        "\0".join(f"{item['key']}={item['value']}" for item in entries).encode("utf-8")
+    ).hexdigest()
+    return document
+
+
+def _validate_build_settings(document: object) -> None:
+    if document is None:
+        return
+    if not isinstance(document, dict):
+        raise EvidenceChainError("manifest.command.buildSettings 必须是 object")
+    if document.get("schemaVersion") != 1 or document.get("source") != "XCODEBUILD_BUILD_ARGS":
+        raise EvidenceChainError("manifest.command.buildSettings 元数据非法")
+    entries = document.get("entries")
+    if not isinstance(entries, list):
+        raise EvidenceChainError("manifest.command.buildSettings.entries 必须是数组")
+    seen: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise EvidenceChainError("buildSettings entry 必须是 object")
+        key, value = entry.get("key"), entry.get("value")
+        if key not in BUILD_SETTING_ALLOWLIST or not isinstance(value, str) or not value:
+            raise EvidenceChainError("buildSettings 含未允许或空值项")
+        if key in seen:
+            raise EvidenceChainError("buildSettings 重复 key")
+        seen.add(key)
+    expected = hashlib.sha256(
+        "\0".join(f"{entry['key']}={entry['value']}" for entry in entries).encode("utf-8")
+    ).hexdigest()
+    if document.get("sha256") != expected:
+        raise EvidenceChainError("manifest.command.buildSettings.sha256 不一致")
+
+
+def _command_build_entries(command: str) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    for token in shlex.split(command):
+        if "=" not in token:
+            continue
+        key, value = token.split("=", 1)
+        if key in BUILD_SETTING_ALLOWLIST:
+            entries.append({"key": key, "value": value})
+    return entries
+
+
 def _write_evidence(root: Path, payload: dict) -> None:
     tool = root / "tools" / "evidence.py"
     if not tool.is_file():
@@ -563,6 +640,8 @@ def cmd_run(root: Path, args: argparse.Namespace) -> int:
         run_id=run_id,
         created_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     )
+    if build_args:
+        manifest["command"]["buildSettings"] = _build_settings(build_args)
     modules.manifest.write_manifest(manifest_path, manifest)
     modules.manifest.verify_manifest(
         manifest,

@@ -185,10 +185,10 @@
 
 ### 7.2 导出
 
-- Caches 写 UTF-8 文本，`Duiyi-<feature>-yyyyMMdd-HHmm.txt`。
+- Caches 写 UTF-8 文本；快照按 task UUID 与完整内容 SHA-256 命名，已准备快照不可变。
 - 内容含标题、时间、方向、文字稿、可选摘要；会议每行带语种。
 - `ShareLink` 分享；不内嵌第三方 SDK、不猜 URL Scheme。
-- 当前每次导出删除全部 `Duiyi-*.txt`，存在分享竞态（P1-2）。
+- 清理只回收本服务生成、mtime 严格超过 7 天且未被本进程准备的文件；真实 ShareSheet 外部读取仍按书面豁免未验证。
 
 ---
 

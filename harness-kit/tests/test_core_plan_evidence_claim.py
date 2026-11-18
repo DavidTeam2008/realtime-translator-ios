@@ -974,6 +974,51 @@ class KitCoreTest(unittest.TestCase):
         self.commit_all("plan v2")
         self.assert_fail(self.check_plan("check"), "scope.allow/例外之外", "src/app.py")
 
+    def test_plan_and_in_scope_commit_same_batch_passes_with_parent_scope(self) -> None:
+        self.commit_all("fixtures")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(plan_front_allow(("harness/",)), plan_body(rows), "2026-01-01-demo")
+        self.commit_all("plan v1")
+        self.write_plan_id(plan_front_allow(("harness/",)), plan_body(rows), "2026-01-01-demo")
+        (self.root / "harness/notes.md").write_text("notes\n", encoding="utf-8")
+        (self.root / "harness/notes.md").parent.mkdir(parents=True, exist_ok=True)
+        self.commit_all("in-scope code + plan")
+        submitted = head_short(self.root, 12)
+        self.write_plan_id(
+            plan_front_allow(("harness/",), submitted=submitted),
+            plan_body(rows),
+            "2026-01-01-demo",
+        )
+        self.commit_all("mark submitted")
+        proc = self.check_plan("check", "--strict")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertNotIn("同批修改", proc.stdout)
+
+    def test_plan_and_out_of_scope_commit_same_batch_fails_with_parent_scope(self) -> None:
+        self.commit_all("fixtures")
+        rows = "| `make check` | 基线 | 本机 | —（过程记录） |"
+        self.write_plan_id(plan_front_allow(("harness/",)), plan_body(rows), "2026-01-01-demo")
+        self.commit_all("plan v1")
+        self.write_plan_id(
+            plan_front_allow(("harness/", "src/")),
+            plan_body(rows),
+            "2026-01-01-demo",
+        )
+        (self.root / "src").mkdir(exist_ok=True)
+        (self.root / "src/app.py").write_text("x = 1\n", encoding="utf-8")
+        self.commit_all("plan widened + out of scope")
+        submitted = head_short(self.root, 12)
+        self.write_plan_id(
+            plan_front_allow(("harness/", "src/"), submitted=submitted),
+            plan_body(rows),
+            "2026-01-01-demo",
+        )
+        self.commit_all("mark submitted")
+        proc = self.check_plan("check", "--strict")
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertIn("src/app.py", proc.stdout)
+        self.assertIn("submitted commit", proc.stdout)
+
     def test_submitted_scope_plan_created_after_commit_strict_fails(self) -> None:
         self.commit_all("fixtures")
         submitted = self.commit_change("src/app.py", "x = 1\n", "before plan")

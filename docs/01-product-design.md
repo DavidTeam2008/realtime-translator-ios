@@ -203,10 +203,10 @@ Apple 智能不可用或生成失败时，自动回退到本地 `digest`：按�
 
 ### 7.2 导出
 
-- 导出 UTF-8 纯文本到 Caches，文件名 `Duiyi-<feature>-yyyyMMdd-HHmm.txt`。
+- 导出 UTF-8 纯文本到 Caches；快照按 task UUID 与完整导出内容 SHA-256 命名，已准备快照不可变。
 - 内容：标题、时间范围、方向、文字稿、可选摘要；会议记录每行带语种徽标。
 - 使用系统 `ShareLink`，不深链第三方 App、不内嵌 SDK。
-- 当前实现每次导出前删除全部 `Duiyi-*.txt`，存在分享竞态，见 [`04-roadmap.md`](04-roadmap.md) P1-2。
+- 清理仅回收本服务生成的普通文件，且 mtime 严格超过 7 天、未被本进程准备；不会删除全部 `Duiyi-*.txt`。真实 ShareSheet 的外部扩展读取行为仍按书面豁免未验证。
 
 ---
 

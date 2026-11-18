@@ -437,7 +437,15 @@ def plan_files(root: Path, config: dict) -> list[Path]:
     plans_dir = config_path(root, config, "plans")
     if not plans_dir.is_dir():
         fail(f"计划目录不存在：{display(plans_dir)}（先运行 harness-init 生成）")
-    return sorted(path for path in plans_dir.glob("*.md") if path.name != "_template.md")
+    files = [path for path in plans_dir.glob("*.md") if path.name != "_template.md"]
+    records_dir = root / "harness" / "records"
+    if records_dir.is_dir():
+        files.extend(
+            path
+            for path in records_dir.glob("*.md")
+            if path.name not in ("README.md", "_template.md")
+        )
+    return sorted(files)
 
 
 def load_plans(root: Path, config: dict) -> list[Plan]:
@@ -722,33 +730,28 @@ def check_submitted_scope(
         if changed is None:
             warnings.append(f"submitted commit {token} 的改动无法读取（merge/root diff 失败），未做 scope 审计")
             continue
+        try:
+            plan_relative = plan.path.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            plan_relative = ""
+        plan_changed = bool(plan_relative and plan_relative in changed)
         historical = plan_at_commit(root, plan, token)
-        if historical is None:
+        # 计划与实现同批提交时，审计必须使用父提交的 allow；否则同批放宽 allow
+        # 会把越界文件洗成“允许”。这不是放宽，而是把审计时点前移一提交。
+        parent = plan_at_commit(root, plan, f"{token}^1") if plan_changed else None
+        scope_plan = parent if plan_changed else historical
+        if scope_plan is None:
             allow = meta_list(plan.meta, "scope.allow") + current_exceptions
             warnings.append(
                 f"submitted commit {token} 早于计划文件（或计划不在该提交中）；"
                 "用当前 scope 审计，存在提交后放宽 allow 的风险"
             )
         else:
-            allow = meta_list(historical.meta, "scope.allow")
-            hist_exceptions, hist_errors, hist_warnings = scope_exceptions(historical, config)
+            allow = meta_list(scope_plan.meta, "scope.allow")
+            hist_exceptions, hist_errors, hist_warnings = scope_exceptions(scope_plan, config)
             allow = allow + hist_exceptions
             errors.extend(hist_errors)
             warnings.extend(hist_warnings)
-            current_allow = sorted(meta_list(plan.meta, "scope.allow"))
-            if sorted(meta_list(historical.meta, "scope.allow")) != current_allow:
-                (errors if strict else warnings).append(
-                    f"计划 scope.allow 在提交 {token} 之后被修改（当前与提交时点不一致）；审计以提交时点为准"
-                )
-            if strict and plan.path.name and any(path.endswith(".md") for path in changed):
-                try:
-                    relative = plan.path.resolve().relative_to(root.resolve()).as_posix()
-                except ValueError:
-                    relative = ""
-                if relative and relative in changed:
-                    errors.append(
-                        f"submitted commit {token} 与计划文件同批修改（scope 可能被同批放宽）；strict 拒绝"
-                    )
         for path in changed:
             if in_allow(path, allow) or is_process_path(path, prefixes):
                 continue
@@ -1078,6 +1081,16 @@ def check_evidence(plan: Plan, root: Path, config: dict) -> tuple[list[str], lis
                 errors.append(f"证据 git.commit 非法（应为 7–40 位短 hash）：{evidence_id} = {commit!r}")
             elif not commit_bound(root, commit, done_tokens):
                 errors.append(f"证据 commit 未绑定 submitted/HEAD：{evidence_id}（commit={commit}）")
+            else:
+                try:
+                    plan_relative = plan.path.resolve().relative_to(root.resolve()).as_posix()
+                except ValueError:
+                    plan_relative = ""
+                changed = git_commit_files(root, commit) if plan_relative else None
+                if changed is not None and plan_relative in changed:
+                    errors.append(
+                        f"证据 commit 同时修改计划文件，不能作为 closure：{evidence_id}（commit={commit}）"
+                    )
         errors.extend(check_done_unverified(plan, config))
     return errors, warnings
 

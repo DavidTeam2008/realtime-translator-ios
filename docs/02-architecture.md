@@ -343,7 +343,7 @@ MeetingRecognition.languages(multilingual:pinned:display:)
 ## 8. 总结、导出、资源、权限
 
 - **总结**：`FoundationModelsSummarizer` 按 `SystemLanguageModel.availability` 分支；可用则 `LanguageModelSession`，失败/不可用回退 `digest`（按 speaker 分组）。
-- **导出**：`TranscriptExportService` 写 Caches，UTF-8 原子写；每次导出前删除全部 `Duiyi-*.txt`（P1-2 竞态）；`ShareLink` 分享。
+- **导出**：`TranscriptExportService` 写 Caches，UTF-8 原子写；快照按 task UUID 与完整内容 SHA-256 命名且不可变，仅清理严格超过 7 天且未被本进程准备的普通文件；`ShareLink` 分享。
 - **模型准备**：`SpeechAssetPreparer` 用 `SpeechTranscriber(preset: .progressiveTranscription)` 占位模块创建 `AssetInventory` 安装请求，200 ms 轮询进度。
 - **翻译可用性**：`TranslationAvailabilityService` 双向查 `LanguageAvailability` 并合并状态。
 - **权限**：`PermissionService` 映射麦克风/语音识别四态；`requestAccess` 先麦后音后重查。

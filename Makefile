@@ -132,6 +132,20 @@ evidence-chain-check: ## 证据链 pin + manifest/freshness 负向自检
 	python3 tools/evidence_chain.py selftest
 	python3 tools/evidence_chain.py freshness-selftest
 
+delivery-check-pin: ## 固定外部 delivery toolchain 版本与哈希
+	python3 tools/evidence_chain.py check-pin
+	python3 tools/delivery_check.py --pin-only
+
+delivery-check: ## 交付门禁：make delivery-check CHANGE=<id> [CI_JSON=<path>]
+	@test -n "$(CHANGE)" || { echo "用法：make delivery-check CHANGE=<id> [CI_JSON=<path>]"; exit 2; }
+	python3 tools/delivery_check.py --change "$(CHANGE)" $(if $(CI_JSON),--ci-json "$(CI_JSON)")
+
+delivery-check-fixtures: ## delivery-check 结构正/负 fixture
+	python3 tools/delivery_fixtures.py
+
+doctor-skills: ## 检查 Claude Code 的 openspec/superpowers 用户级软链
+	python3 tools/doctor_skills.py
+
 evidence-unit: ## 单元测试 → xcresult/JUnit/manifest（WRITE=1 写入证据）
 	python3 tools/evidence_chain.py run --claim unit-tests-pass \
 		$(if $(filter 1,$(WRITE)),--write-evidence) $(if $(RUN_ID),--run-id $(RUN_ID)) \

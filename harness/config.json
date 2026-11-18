@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.5.4",
+  "kitVersion": "0.5.5",
   "project": {
     "name": "Duiyi",
     "language": "swift"
@@ -12,7 +12,12 @@
     "evidence": "harness/evidence",
     "reviews": "harness/reviews",
     "tools": "tools",
-    "rootDocs": ["README.md", "AGENTS.md", "HARNESS.md", "CONTRIBUTING.md"]
+    "rootDocs": [
+      "README.md",
+      "AGENTS.md",
+      "HARNESS.md",
+      "CONTRIBUTING.md"
+    ]
   },
   "instructions": {
     "root": "AGENTS.md",
@@ -34,7 +39,10 @@
       "docs/README.md": 1000,
       "HARNESS.md": 1500
     },
-    "sensitivePatterns": ["/Users/", "sk-"]
+    "sensitivePatterns": [
+      "/Users/",
+      "sk-"
+    ]
   },
   "docs": {
     "publicWhitelist": [
@@ -146,11 +154,47 @@
     }
   ],
   "freshness": {
-    "unit-tests-pass": ["**/*.swift", "DuiyiTests/**", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
-    "ui-tests-pass": ["**/*.swift", "DuiyiUITests/**", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
-    "ui-device-tests-pass": ["**/*.swift", "DuiyiUITests/**", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
-    "device-tests-pass": ["**/*.swift", "Duiyi.xcodeproj/**", "Makefile", "tools/**", "harness/config.json", "harness/test-baseline.json"],
-    "docs-pass": ["docs/**", "references/**", "AGENTS.md", "HARNESS.md"]
+    "unit-tests-pass": [
+      "**/*.swift",
+      "DuiyiTests/**",
+      "Duiyi.xcodeproj/**",
+      "Makefile",
+      "tools/**",
+      "harness/config.json",
+      "harness/test-baseline.json"
+    ],
+    "ui-tests-pass": [
+      "**/*.swift",
+      "DuiyiUITests/**",
+      "Duiyi.xcodeproj/**",
+      "Makefile",
+      "tools/**",
+      "harness/config.json",
+      "harness/test-baseline.json"
+    ],
+    "ui-device-tests-pass": [
+      "**/*.swift",
+      "DuiyiUITests/**",
+      "Duiyi.xcodeproj/**",
+      "Makefile",
+      "tools/**",
+      "harness/config.json",
+      "harness/test-baseline.json"
+    ],
+    "device-tests-pass": [
+      "**/*.swift",
+      "Duiyi.xcodeproj/**",
+      "Makefile",
+      "tools/**",
+      "harness/config.json",
+      "harness/test-baseline.json"
+    ],
+    "docs-pass": [
+      "docs/**",
+      "references/**",
+      "AGENTS.md",
+      "HARNESS.md"
+    ]
   },
   "scorecard": {
     "maxAgeDays": 30,
@@ -161,5 +205,15 @@
       "skillsSource": ".dsh/skills",
       "skillsTarget": ".claude/skills"
     }
+  },
+  "delivery": {
+    "ci": {
+      "required": false,
+      "reason": "P0 2026-11-18 waiver: self-hosted macOS unit/UI not enabled",
+      "expires": "2026-12-31"
+    },
+    "requiredJobs": [
+      "static gates (ubuntu)"
+    ]
   }
 }

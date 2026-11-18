@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="2.1.0"
+PACKAGE="@fission-ai/openspec@${VERSION}"
+
+if ! command -v npx >/dev/null 2>&1; then
+  echo "[openspec] 缺少 npx（需要 Node.js）；请先安装 Node.js。" >&2
+  exit 127
+fi
+
+actual="$(npx -y "$PACKAGE" --version 2>/dev/null | tr -d '[:space:]')"
+if [[ "$actual" != "$VERSION" ]]; then
+  echo "[openspec] 版本校验失败：期望 $VERSION，实际 ${actual:-<empty>}" >&2
+  exit 1
+fi
+
+exec npx -y "$PACKAGE" "$@"
