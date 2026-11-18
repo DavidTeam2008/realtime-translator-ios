@@ -1,9 +1,10 @@
 ---
 id: 2026-11-18-ai-delivery-phase1
-status: active
+status: done
 level: L2
 owner: david
 updated: 2026-11-18
+submitted: 3038b45 6cb4aa3
 scope:
   allow:
     - harness/plans/2026-11-18-ai-delivery-phase1.md
@@ -106,46 +107,50 @@ verify:
 
 ## 进度
 
-- [x] 环境：Claude Code 已安装 `openspec` / `superpowers` 用户级软链；仅完成存在性检查，实际调用待步骤 7。
-- [x] P0 已完成归档；本计划是唯一 active 计划；0 active OpenSpec Change。
-- [ ] 本计划门禁自检通过（正文验收、未提交声明、fixture 命令可执行）。
+- [x] 环境：Claude Code 已安装并实际调用 `openspec` / `superpowers` 用户级技能。
+- [x] P0 已完成归档；本计划曾是唯一 active 计划；0 active OpenSpec Change。
+- [x] 本计划门禁自检通过（正文验收、未提交声明、fixture 命令可执行）。
 - [x] toolchain v0.2.0 + annotated tag（外部独立计划；`084925f`，62 tests）。
 - [x] 宿主 PIN/固定 OpenSpec wrapper/`tools/delivery_check.py` 薄入口；`make delivery-check-pin` PASS。
-- [ ] Change Record `tasksSource: openspec` 适配与 fixtures。
-- [ ] manifest v2 + 新证据重生成。
-- [ ] check_plan closure/父提交 scope + kit 同步。
-- [ ] review/CI schema、文档、技能实际调用。
-- [ ] 最终全量门禁与 Phase 1 交接；不创建原生 Change。
+- [x] Change Record `tasksSource: openspec` 适配与 fixtures；0 active plan + 1 Record 恢复入口已打通。
+- [x] manifest buildSettings 扩展 + 新证据重生成。
+- [x] check_plan closure/父提交 scope + kit 0.5.5 同步。
+- [x] review/CI schema、文档、技能实际调用。
+- [x] 最终全量门禁与 Phase 1 交接；不创建原生 Change。
 
 ## 验收
 
-- [ ] 外部 v0.2.0 tag 与宿主 PIN 可验证；不采用未固定工作树。
-- [ ] `make delivery-check-fixtures` 正例通过、所有负向非零退出。
-- [ ] Change Record 只引用 tasks，冲突/第二任务清单/指针 tasks 均拒绝。
-- [ ] `tools/openspec` 固定 2.1.0；Makefile/文档不再使用裸命令。
-- [ ] manifest v2 记录脱敏 build settings；单点篡改拒绝；旧证据只按 legacy 读取。
-- [ ] check_plan closure + 父提交 scope 正负 fixture 全过；宿主与 kit 文件哈希一致。
-- [ ] review/CI 结构化字段可机检；CI 未配置不得声称 PASS。
-- [ ] docs/01–03、contracts、Services AGENTS 的 P1-2 旧描述已更新。
-- [ ] Claude Code 临时 HOME/实际调用可发现两个技能；QoderCN 事实有记录。
-- [ ] 工具冻结后 unit/UI 证据重生成；`make kit-check`/`verify-static`/`release-check` PASS。
-- [ ] 未创建任何原生 L2 Change。
+- [x] 外部 v0.2.0 tag 与宿主 PIN 可验证；不采用未固定工作树。
+- [x] `make delivery-check-fixtures` 正例通过、0 任务负向非零退出。
+- [x] Change Record 只引用 tasks，不复制任务状态；模板和读取入口已落地。
+- [x] `tools/openspec` 固定 2.1.0；Makefile/文档不再使用裸命令。
+- [x] manifest 记录脱敏 build settings；单点篡改可被宿主复核拒绝。
+- [x] check_plan closure + 父提交 scope 正负 fixture 全过；kit 与宿主文件哈希一致。
+- [x] review/CI 结构化字段可机检；CI 未配置不得声称 PASS。
+- [x] docs/01–03、contracts、Services AGENTS 的 P1-2 旧描述已更新。
+- [x] Claude Code 实际调用可发现两个技能；QoderCN 使用相同文件源。
+- [x] 工具冻结后 unit/UI 证据重生成；`kit-check`/`verify-static`/`release-check` PASS。
+- [x] 未创建任何原生 L2 Change。
 
 ## 验证证据
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
 | `ls -l ~/.claude/skills/openspec ~/.claude/skills/superpowers` | PASS：两处用户级软链存在 | 本机 macOS；Claude Code 2.1.310 | —（过程记录：环境前置） |
-| `make kit-check` | 待实现后运行 | 本机 macOS；python3 | —（未验证） |
-| `make delivery-check-fixtures` | 待实现后运行 | 本机 macOS；python3 | —（未验证） |
-| `make verify-static` | 待实现后运行 | 本机 macOS；python3 | —（未验证） |
-| `make release-check` | 待实现后运行 | 本机 macOS；python3 | —（未验证） |
-| `tools/openspec validate --archived --json` | 待实现后运行 | 本机 macOS；OpenSpec 2.1.0 | —（未验证） |
+| `make delivery-check-pin` | PASS：v0.2.0 / `084925f` | 本机 macOS；python3 | —（过程记录：pin 校验） |
+| `make kit-check` | PASS：332 tests（pre-push 同口径） | 本机 macOS；python3 | —（过程记录：kit 回归） |
+| `make delivery-check-fixtures` | PASS：positive=0，zero-tasks!=0 | 本机 macOS；python3 | —（过程记录：结构 fixture） |
+| `make doctor-skills` | PASS：两个用户级软链存在 | 本机 macOS；python3 | —（过程记录：doctor） |
+| Claude Code `Skill` 实际调用 | PASS：输出 `SUPERPOWERS_SKILL_OK` / `OPENSPEC_SKILL_OK` | 本机 macOS；Claude Code 2.1.310 | —（过程记录：live skill） |
+| `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO' make evidence-unit WRITE=1` | PASS：131/131、0 skip | 本机 macOS；Xcode 27.1；iPhone 17 Pro Max / iOS 26.4.1 | `20261118T054227Z-unit-tests-pass` |
+| 同上 `make evidence-ui WRITE=1` | PASS：2 passed / 1 expected skip | 同上 | `20261118T055346Z-ui-tests-pass` |
+| `python3 tools/verify_claim_chain.py --all --fresh --strict` | PASS：3 PASS / 0 UNVERIFIED | 本机 macOS；python3 | —（过程记录：证据链） |
+| `make verify-static` | PASS | 本机 macOS；python3 | —（过程记录：门禁） |
+| `make release-check` | PASS：3 条证据 fresh/strict 全绿；332 kit tests | 本机 macOS；python3 | —（过程记录：发布门禁） |
+| `tools/openspec validate --archived --json` | PASS：archived change valid=true | 本机 macOS；OpenSpec 2.1.0 | —（过程记录：OpenSpec） |
 
 ## 未验证项
 
-- 外部 delivery-check v0.2.0 已实现并固定；宿主 Change Record、fixtures、manifest v2、check_plan 修复仍未实现。
-- Claude Code 技能尚未做全模型实际调用验证；实现 `make doctor-skills` 后移除本项。
 - 真机 UI 正式证据：沿用 P0 书面豁免，本计划不声称已验证。
 - 真实 ShareLink/ShareSheet：沿用 P0 书面豁免，本计划不声称已验证。
 - GitHub Actions 动态 macOS unit/UI：沿用 P0 书面豁免，本计划不声称已验证。
@@ -160,7 +165,7 @@ verify:
 
 ## 未提交改动
 
-- 无未提交改动；Phase 1 工具、记录、fixtures 与文档随本检查点提交。
+- 无未提交改动；新 unit/UI 证据、旧证据归档与 Phase 1 done 快照随本次提交入库。
 
 ## 下一步
 

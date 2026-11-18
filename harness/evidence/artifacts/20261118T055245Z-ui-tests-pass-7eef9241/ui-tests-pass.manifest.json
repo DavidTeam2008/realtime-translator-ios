@@ -1,0 +1,79 @@
+{
+  "claim": "ui-tests-pass",
+  "command": {
+    "argv": [
+      "xcodebuild",
+      "test",
+      "-project",
+      "Duiyi.xcodeproj",
+      "-scheme",
+      "Duiyi",
+      "-destination",
+      "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4.1",
+      "-derivedDataPath",
+      "/tmp/duiyi-build",
+      "-resultBundlePath",
+      "/tmp/duiyi-evidence/7eef9241-ccbb-4855-a68a-f8bbe72deeaf/ui-tests-pass.xcresult",
+      "-only-testing:DuiyiUITests"
+    ],
+    "buildSettings": {
+      "entries": [
+        {
+          "key": "OTHER_SWIFT_FLAGS",
+          "value": "-disable-sandbox"
+        },
+        {
+          "key": "CODE_SIGNING_ALLOWED",
+          "value": "NO"
+        }
+      ],
+      "schemaVersion": 1,
+      "sha256": "3b762c91f34d5555bfc7bc09d076893dece2964ad8f7c566c2c20fd55cd7882e",
+      "source": "XCODEBUILD_BUILD_ARGS"
+    },
+    "sha256": "96341ddefb59a4f93ec2a85ae15235716a89e6e210fb97c6c52c911257b4ef43"
+  },
+  "createdAt": "2026-11-18T05:53:46Z",
+  "environment": {
+    "device": {
+      "architecture": "arm64",
+      "deviceId": "$DEVICE_ID",
+      "deviceName": "iPhone 17 Pro Max",
+      "modelName": "iPhone 17 Pro Max",
+      "osVersion": "26.4.1"
+    },
+    "host": "macOS 27.0.1",
+    "id": "local-simulator",
+    "xcode": "Xcode 27.1 / Build version 27A9275",
+    "xcresulttool": "xcresulttool version 25115, schema version: 0.4.0 (legacy commands format version: 3.60)"
+  },
+  "junit": {
+    "bytes": 1263,
+    "caseIdsSha256": "cc3e40c826460fdf7a30407fe83e638003964f21e6fab11c8bd91ad8a37764c0",
+    "failed": 0,
+    "file": "ui-tests-pass.xml",
+    "passed": 2,
+    "sha256": "968a1e1cdfcd8ae69c035d11f74b6cd153a479b192bf67cbb9ccfb3ce135e2ce",
+    "skipped": 1,
+    "tests": 3
+  },
+  "kind": "xcresult-test-run",
+  "runId": "7eef9241-ccbb-4855-a68a-f8bbe72deeaf",
+  "schemaVersion": 1,
+  "status": "complete",
+  "target": {
+    "derivedDataPath": "/tmp/duiyi-build",
+    "destination": "platform=iOS Simulator,name=iPhone 17 Pro Max,OS=26.4.1",
+    "onlyTesting": "DuiyiUITests",
+    "project": "Duiyi.xcodeproj",
+    "resultBundlePath": "/tmp/duiyi-evidence/7eef9241-ccbb-4855-a68a-f8bbe72deeaf/ui-tests-pass.xcresult",
+    "scheme": "Duiyi"
+  },
+  "xcresult": {
+    "finishedAt": 1794981221.813,
+    "name": "ui-tests-pass.xcresult",
+    "startedAt": 1794981168.21,
+    "summarySha256": "f758ef7082143876b50e31fd7d0f241e56c410c7fa28230896abec6208af893f",
+    "testsSha256": "6e2eda81516f3c748bea3e864a6ffebf5f7e77bfceb924b720213fcbde537068"
+  }
+}
