@@ -42,7 +42,7 @@
 
 ### Task 3: Render catalog-derived disabled languages
 
-- [ ] Task 3: `LanguageChipGrid` can disable catalog-reported unsupported languages and Home settings supplies the catalog data.
+- [x] Task 3: `LanguageChipGrid` can disable catalog-reported unsupported languages and Home settings supplies the catalog data.
 
 **Files:** `Duiyi/Features/Shared/LanguageChipGrid.swift`, `Duiyi/Features/Home/HomeSettingsSheet.swift`, `Duiyi/App/AppEnvironment.swift`
 

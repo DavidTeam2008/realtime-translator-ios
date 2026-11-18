@@ -8,6 +8,7 @@ struct HomeSettingsSheet: View {
     @State private var isRedownloading = false
     @State private var speechProgress: Double = 0
     @State private var redownloadError: String?
+    @State private var unavailableLanguages: Set<AppLanguage> = []
 
     private var language: AppLanguage { environment.preferences.userLanguage }
 
@@ -18,7 +19,11 @@ struct HomeSettingsSheet: View {
                     Text(Copy.iReadSection(for: language))
                         .font(.footnote)
                         .foregroundStyle(Tokens.textSecondary)
-                    LanguageChipGrid(selected: language, languages: environment.languageCatalog.all) { selected in
+                    LanguageChipGrid(
+                        selected: language,
+                        languages: environment.languageCatalog.all,
+                        unavailableLanguages: unavailableLanguages
+                    ) { selected in
                         environment.preferences.userLanguage = selected
                     }
 
@@ -73,6 +78,10 @@ struct HomeSettingsSheet: View {
         }
         .preferredColorScheme(.dark)
         .presentationDetents([.medium, .large])
+        .task {
+            await environment.languageCatalog.refreshCapabilities()
+            unavailableLanguages = LanguageCatalogSelection.unavailableLanguages(from: environment.languageCatalog)
+        }
     }
 
     private func fontChip(_ title: String, _ size: CaptionFontSize) -> some View {

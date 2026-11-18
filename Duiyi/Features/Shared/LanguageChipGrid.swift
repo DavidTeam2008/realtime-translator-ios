@@ -3,6 +3,7 @@ import SwiftUI
 struct LanguageChipGrid: View {
     let selected: AppLanguage
     var languages: [AppLanguage] = AppLanguage.allCases
+    var unavailableLanguages: Set<AppLanguage> = []
     let onSelect: (AppLanguage) -> Void
 
     private let columns = [
@@ -14,6 +15,7 @@ struct LanguageChipGrid: View {
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {
             ForEach(languages, id: \.self) { language in
+                let isUnavailable = unavailableLanguages.contains(language)
                 Button {
                     onSelect(language)
                 } label: {
@@ -32,7 +34,10 @@ struct LanguageChipGrid: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .disabled(isUnavailable)
+                .opacity(isUnavailable ? 0.45 : 1)
                 .accessibilityIdentifier("langchip-\(language.rawValue)")
+                .accessibilityHint(isUnavailable ? "Unavailable language" : "")
             }
         }
     }

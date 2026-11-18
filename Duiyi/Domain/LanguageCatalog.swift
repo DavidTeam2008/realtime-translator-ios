@@ -14,6 +14,7 @@ protocol LanguageCataloging: Sendable {
     func capability(_ language: AppLanguage) -> LanguageCapability
     func speechSupported(_ language: AppLanguage) async -> Bool
     func translationPair(from: AppLanguage, to: AppLanguage) async -> TranslationPairStatus
+    func refreshCapabilities() async
 }
 
 struct StaticLanguageCatalog: LanguageCataloging {
@@ -36,6 +37,10 @@ struct StaticLanguageCatalog: LanguageCataloging {
 
     func translationPair(from: AppLanguage, to: AppLanguage) async -> TranslationPairStatus {
         from == to ? .unsupported : .supported
+    }
+
+    func refreshCapabilities() async {
+        // The static catalog has no system probes to refresh.
     }
 }
 
