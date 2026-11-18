@@ -4,12 +4,12 @@
 - Level: L2
 - Owner: david
 - Base: 1961368
-- Scope allow: openspec/changes/cache-language-capabilities/, harness/records/2026-11-18-cache-language-capabilities.md, Duiyi/Domain/LanguageCatalog.swift, Duiyi/Services/, Duiyi/App/AppEnvironment.swift, Duiyi/Features/Shared/LanguageChipGrid.swift, Duiyi/Features/Home/HomeSettingsSheet.swift, DuiyiTests/, references/verification.md, harness/test-baseline.json
+- Scope allow: openspec/changes/cache-language-capabilities/, harness/records/2026-11-18-cache-language-capabilities.md, harness/evidence/, harness/reviews/, Duiyi/Domain/LanguageCatalog.swift, Duiyi/Services/, Duiyi/App/AppEnvironment.swift, Duiyi/Features/Shared/LanguageChipGrid.swift, Duiyi/Features/Home/HomeSettingsSheet.swift, DuiyiTests/, references/verification.md, harness/test-baseline.json
 - Scope deny: Duiyi.xcodeproj/, Duiyi/Features/Speech/, Duiyi/Features/Translation/, .env, "*.p12", "*.mobileprovision"
 - Acceptance: A1=cached probes do not repeat (unit-tests-pass); A2=capability and pair mapping is correct (unit-tests-pass); A3=grid disables catalog-reported unsupported languages (unit-tests-pass); A4=current pre-refresh behavior preserved (unit-tests-pass)
 - Verify: make delivery-check CHANGE=cache-language-capabilities; make verify-static; make release-check
 - Evidence: unit-tests-pass (JUnit + manifest, required)
-- Review: required；path=harness/reviews/2026-11-18-cache-language-capabilities.md，覆盖 Base..Head，P0/P1 closed
+- Review: required；path=harness/reviews/2026-11-18-cache-language-capabilities.md; covers Base..Head; P0/P1 closed
 - Archive gate: all tasks checked + Harness PASS + required review closed
 - CI: not applicable (static CI is not asserted as delivery evidence)
 
@@ -53,7 +53,7 @@
 
 ### Task 4: Verify, evidence, and review
 
-- [ ] Task 4: focused/full gates, delivery-check, evidence, and required review pass.
+- [x] Task 4: focused/full gates, delivery-check, evidence, and required review pass.
 
 **Files:** `references/verification.md`, `harness/test-baseline.json`, `harness/reviews/2026-11-18-cache-language-capabilities.md`, `openspec/changes/cache-language-capabilities/tasks.md`
 
@@ -67,4 +67,4 @@
 
 | 任务 | 证据 ID | 结果 | 环境 |
 | --- | --- | --- | --- |
-| Task 1-3 | `unit-tests-pass` | 待生成 | 本机模拟器 |
+| Task 1-4 | `20261118T071150Z-unit-tests-pass` / `20261118T071256Z-ui-tests-pass` | PASS | 本机模拟器 |

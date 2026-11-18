@@ -62,7 +62,7 @@ verify:
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
-| `make delivery-check CHANGE=cache-language-capabilities` | 未运行 | 本机 | —（过程记录） |
+| `make delivery-check CHANGE=cache-language-capabilities` | PASS：4/4 tasks、fresh/strict evidence、review Base..Head | 本机；OpenSpec 2.1.0；toolchain v0.2.0 | —（过程记录） |
 
 ## 未验证项
 
