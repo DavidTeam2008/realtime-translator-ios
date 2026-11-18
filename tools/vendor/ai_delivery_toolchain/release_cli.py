@@ -43,6 +43,9 @@ def _manifest_files(root: Path) -> dict[str, str]:
     pyproject = root / "pyproject.toml"
     if pyproject.is_file():
         candidates.append(pyproject)
+    for path in sorted(root.glob("*.json")):
+        if path.is_file():
+            candidates.append(path)
     package = root / "src" / "ai_delivery_toolchain"
     if package.is_dir():
         for path in sorted(package.rglob("*")):

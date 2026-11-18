@@ -218,6 +218,19 @@
     "discipline": {
       "required": true,
       "dir": "harness/evidence/discipline"
+    },
+    "provenance": {
+      "required": true,
+      "dir": "harness/receipts/openspec"
+    },
+    "contractLint": {
+      "required": true,
+      "profile": "strict"
+    },
+    "skills": {
+      "required": false,
+      "manifest": "tools/vendor/ai_delivery_toolchain/skills.manifest.json",
+      "dir": "harness/receipts/skills"
     }
   }
 }

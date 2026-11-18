@@ -81,19 +81,44 @@ def build_profile(root: Path, change: str) -> dict:
     delivery = config.get("delivery") if isinstance(config.get("delivery"), dict) else {}
     ci = delivery.get("ci") if isinstance(delivery.get("ci"), dict) else {}
     discipline = delivery.get("discipline") if isinstance(delivery.get("discipline"), dict) else None
+    provenance = delivery.get("provenance")
+    if provenance is not None and not isinstance(provenance, dict):
+        raise ValueError("delivery.provenance 必须是 object")
+    contract_lint = delivery.get("contractLint")
+    if contract_lint is not None and not isinstance(contract_lint, dict):
+        raise ValueError("delivery.contractLint 必须是 object")
+    skills = delivery.get("skills")
+    if skills is not None and not isinstance(skills, dict):
+        raise ValueError("delivery.skills 必须是 object")
+    skills_profile = None
+    if skills is not None:
+        roots = skills.get("roots")
+        if roots is None:
+            roots_path = root / "harness" / "skills-roots.json"
+            roots = json.loads(roots_path.read_text(encoding="utf-8")) if roots_path.is_file() else {}
+        if not isinstance(roots, dict):
+            raise ValueError("delivery.skills.roots 必须是 object")
+        skills_profile = {**skills, "roots": roots}
+    provenance_profile = None
+    if provenance is not None:
+        provenance_profile = dict(provenance)
+        provenance_profile.setdefault("receiptsDir", provenance.get("dir", "harness/receipts/openspec"))
     return {
         "evidenceDir": (config.get("paths") or {}).get("evidence", "harness/evidence"),
         "claims": claims,
         "ci": ci,
         "requiredJobs": delivery.get("requiredJobs", []),
         "discipline": discipline,
+        "provenance": provenance_profile,
+        "contractLint": contract_lint,
+        "skills": skills_profile,
     }
 
 
 def _check_pin_metadata(root: Path) -> None:
     pin = json.loads((root / "tools" / "vendor" / "ai_delivery_toolchain" / "PIN.json").read_text(encoding="utf-8"))
-    if pin.get("version") != "0.3.1" or pin.get("tag") != "v0.3.1":
-        raise ValueError("PIN 必须固定 v0.3.1")
+    if pin.get("version") != "0.4.0" or pin.get("tag") != "v0.4.0":
+        raise ValueError("PIN 必须固定 v0.4.0")
     if pin.get("tagType") != "annotated":
         raise ValueError("PIN.tagType 必须是 annotated")
     for key in ("tagObject", "sourceTree"):
@@ -170,7 +195,7 @@ def main() -> int:
         if args.pin_only:
             _check_pin_metadata(root)
             load_pin(root)
-            print(f"PASS delivery pin v0.3.1 ({root / 'tools/vendor/ai_delivery_toolchain/PIN.json'})")
+            print(f"PASS delivery pin v0.4.0 ({root / 'tools/vendor/ai_delivery_toolchain/PIN.json'})")
             return 0
         if not args.change:
             raise ValueError("非 --pin-only 模式必须提供 --change")

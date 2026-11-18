@@ -542,6 +542,80 @@ def check_evidence(root: Path, contract: Contract, profile: dict, head: str | No
     return passed
 
 
+def _optional_profile_object(profile: dict, key: str) -> dict | None:
+    value = profile.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise DeliveryError(f"profile.{key} 必须是 object")
+    if "required" in value and not isinstance(value["required"], bool):
+        raise DeliveryError(f"profile.{key}.required 必须是布尔值")
+    return value
+
+
+def _check_optional_modules(root: Path, contract: Contract, profile: dict, tasks: Tasks, head: str) -> None:
+    provenance = _optional_profile_object(profile, "provenance")
+    if provenance is not None and provenance.get("required") is True:
+        from .provenance import verify_provenance
+
+        verify_provenance(
+            root,
+            contract.change,
+            receipts_dir=str(provenance.get("receiptsDir", "harness/receipts/openspec")),
+            change_dir=provenance.get("changeDir"),
+            schemas=tuple(provenance.get("schemas", ("spec-driven",))),
+            artifacts=tuple(provenance.get("artifacts", ("proposal", "design", "specs", "tasks"))),
+        )
+
+    contract_lint = _optional_profile_object(profile, "contractLint")
+    if contract_lint is not None and contract_lint.get("required") is True:
+        from .lint import lint_change
+
+        result = lint_change(root, contract.change, stage="delivery", profile=contract_lint)
+        if not result["ok"]:
+            messages = "; ".join(item["message"] for item in result["issues"] if item["level"] == "ERROR")
+            raise DeliveryError(f"contract lint 失败：{messages}")
+
+    skills = _optional_profile_object(profile, "skills")
+    if skills is not None and skills.get("required") is True:
+        manifest_rel = skills.get("manifest")
+        if not isinstance(manifest_rel, str) or not manifest_rel:
+            raise DeliveryError("profile.skills.manifest 必须是非空字符串")
+        roots = skills.get("roots")
+        if not isinstance(roots, dict) or not roots:
+            raise DeliveryError("profile.skills.roots 必须是非空 object")
+        receipt_root = root / str(skills.get("receiptsDir", "harness/receipts/skills")) / contract.change
+        if not receipt_root.is_dir():
+            raise DeliveryError(f"skill receipts 目录不存在：{receipt_root}")
+        from .skills import load_manifest, verify_skill_receipt
+
+        manifest_path = Path(manifest_rel)
+        if not manifest_path.is_absolute():
+            manifest_path = root / manifest_path
+        manifest = load_manifest(manifest_path)
+        host_roots = {str(key): Path(value) for key, value in roots.items()}
+        for task in tasks.task_ids:
+            candidates = []
+            for path in sorted(receipt_root.glob("*.json")):
+                try:
+                    doc = json.loads(path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                if doc.get("kind") == "skill-invoked" and doc.get("task") == task:
+                    candidates.append(path)
+            if not candidates:
+                raise DeliveryError(f"task {task} 缺少 skill receipt")
+            for path in candidates:
+                verify_skill_receipt(
+                    root,
+                    path,
+                    manifest,
+                    expected_change=contract.change,
+                    expected_task=task,
+                    roots=host_roots,
+                )
+
+
 def check_delivery(
     root: Path,
     tasks_path: str,
@@ -591,6 +665,7 @@ def check_delivery(
     for acceptance, (_, evidence_name) in contract.acceptance.items():
         if evidence_name and evidence_name not in contract.evidence and evidence_name not in {"manual", "review"}:
             raise DeliveryError(f"Acceptance {acceptance} 映射了未知 evidence：{evidence_name}")
+    _check_optional_modules(root, contract, profile, tasks, head)
     return {
         "change": contract.change,
         "base": contract.base,

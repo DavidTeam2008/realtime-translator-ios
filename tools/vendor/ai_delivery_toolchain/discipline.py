@@ -20,6 +20,7 @@ from .delivery import DeliveryError
 DisciplineError = DeliveryError
 
 SCHEMA_VERSION = 1
+SUPPORTED_SCHEMA_VERSIONS = (1, 2)
 RECEIPT_KIND = "superpowers-discipline-receipt"
 DISCIPLINE_NAME = "superpowers"
 DISCIPLINE_VERSION = "v7.0.2"
@@ -127,8 +128,9 @@ def verify_receipt(
         raise DeliveryError(f"discipline receipt 路径越界：{receipt_path}") from exc
     receipt = _read_json(receipt_path)
 
-    if receipt.get("schemaVersion") != SCHEMA_VERSION:
-        raise DeliveryError(f"discipline schemaVersion 必须是 {SCHEMA_VERSION}")
+    schema_version = receipt.get("schemaVersion")
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+        raise DeliveryError(f"discipline schemaVersion 必须是 {SUPPORTED_SCHEMA_VERSIONS}")
     if receipt.get("kind") != RECEIPT_KIND:
         raise DeliveryError("discipline receipt kind 非法")
     if receipt.get("change") != expected_change:
@@ -199,6 +201,32 @@ def verify_receipt(
         raise DeliveryError(
             f"verification.evidenceIds 必须属于当前 PASS evidence 集合：{ids!r}"
         )
+
+    if schema_version == 2:
+        red = _require_object(tdd.get("red"), "discipline tdd.red")
+        red_command = _require_str(receipt.get("redCommand"), "discipline redCommand")
+        if red_command != red.get("command"):
+            raise DeliveryError("redCommand 必须等于 tdd.red.command")
+        red_exit = _require_int(receipt.get("redExitCode"), "discipline redExitCode")
+        if red_exit != red.get("exitCode") or red_exit <= 0:
+            raise DeliveryError("redExitCode 必须等于 tdd.red.exitCode 且非零")
+        red_sha = _require_str(receipt.get("redOutputSha256"), "discipline redOutputSha256")
+        if red_sha != red.get("sha256"):
+            raise DeliveryError("redOutputSha256 必须等于 tdd.red.sha256")
+        green_evidence = _require_str(receipt.get("greenEvidenceId"), "discipline greenEvidenceId")
+        if green_evidence not in ids:
+            raise DeliveryError("greenEvidenceId 必须属于 verification.evidenceIds")
+        skills = receipt.get("skills")
+        if not isinstance(skills, list) or not skills or not all(isinstance(item, str) and item for item in skills):
+            raise DeliveryError("discipline v2 skills 必须是非空字符串数组")
+        for relative in skills:
+            path = _safe_repo_path(root, relative, "discipline skill receipt")
+            _require_tracked(root, relative)
+            skill_doc = _read_json(path)
+            if skill_doc.get("kind") != "skill-invoked":
+                raise DeliveryError(f"skill receipt kind 非法：{relative}")
+            if skill_doc.get("change") != expected_change or skill_doc.get("task") != expected_task:
+                raise DeliveryError(f"skill receipt change/task 不一致：{relative}")
 
 
 def verify_discipline_receipts(

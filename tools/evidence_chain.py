@@ -83,7 +83,7 @@ def load_pin(root: Path) -> dict:
     files = pin.get("files")
     if not isinstance(files, dict) or not files:
         raise EvidenceChainError("PIN.files 必须是非空 object")
-    actual = {path.name for path in vendor.glob("*.py")}
+    actual = {path.name for path in vendor.iterdir() if path.is_file() and path.name != "PIN.json"}
     expected = set(files)
     if actual != expected:
         raise EvidenceChainError(
