@@ -29,7 +29,7 @@
 
 ### Task 2: Implement cached system language catalog
 
-- [ ] Task 2: production catalog passes injected-boundary tests and preserves pre-refresh behavior.
+- [x] Task 2: production catalog passes injected-boundary tests and preserves pre-refresh behavior.
 
 **Files:** `Duiyi/Domain/LanguageCatalog.swift`, `Duiyi/Services/Language/SystemLanguageCatalog.swift`, `DuiyiTests/SystemLanguageCatalogTests.swift`
 

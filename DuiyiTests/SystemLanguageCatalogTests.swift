@@ -44,7 +44,7 @@ actor RecordingTranslationAvailability: TranslationAvailabilityChecking {
 
     func pairStatus(from: AppLanguage, to: AppLanguage) async -> TranslationPairStatus {
         callCount += 1
-        if from == to || unsupportedSources.contains(from) {
+        if from == to || unsupportedSources.contains(from) || unsupportedSources.contains(to) {
             return .unsupported
         }
         return .supported
@@ -59,7 +59,7 @@ struct SystemLanguageCatalogTests {
     func preRefreshCapabilitiesArePermissive() async {
         let catalog = SystemLanguageCatalog(
             speechChecker: RecordingSpeechLocaleChecker(supported: []),
-            translationChecker: RecordingTranslationAvailability(unsupportedSources: AppLanguage.allCases),
+            translationChecker: RecordingTranslationAvailability(unsupportedSources: Set(AppLanguage.allCases)),
             ttsChecker: RecordingTTSVoiceChecker(supported: [])
         )
         let capability = catalog.capability(.english)
@@ -174,7 +174,7 @@ struct SystemLanguageCatalogTests {
         let capabilities: [AppLanguage: LanguageCapability] = [
             .english: LanguageCapability(
                 speechLocale: "en_US",
-                translation: .english,
+                translation: Locale.Language(identifier: "en"),
                 ttsVoice: "en-US",
                 speech: true,
                 translate: true,
@@ -182,7 +182,7 @@ struct SystemLanguageCatalogTests {
             ),
             .thai: LanguageCapability(
                 speechLocale: "th_TH",
-                translation: .thai,
+                translation: Locale.Language(identifier: "th"),
                 ttsVoice: "th-TH",
                 speech: false,
                 translate: true,

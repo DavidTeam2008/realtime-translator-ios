@@ -38,3 +38,23 @@ struct StaticLanguageCatalog: LanguageCataloging {
         from == to ? .unsupported : .supported
     }
 }
+
+enum LanguageCatalogSelection {
+    static func unavailableLanguages(
+        capabilities: [AppLanguage: LanguageCapability]
+    ) -> Set<AppLanguage> {
+        Set(
+            capabilities.compactMap { language, capability in
+                capability.speech && capability.translate && capability.speak ? nil : language
+            }
+        )
+    }
+
+    static func unavailableLanguages(from catalog: any LanguageCataloging) -> Set<AppLanguage> {
+        unavailableLanguages(
+            capabilities: Dictionary(
+                uniqueKeysWithValues: catalog.all.map { ($0, catalog.capability($0)) }
+            )
+        )
+    }
+}

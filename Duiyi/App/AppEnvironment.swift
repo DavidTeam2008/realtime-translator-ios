@@ -26,7 +26,7 @@ final class AppEnvironment {
         synthesizer: any SpeechSynthesizing = SystemSpeechSynthesizer(),
         taskStore: (any TaskStore)? = nil,
         exporter: any ExportSharing = TranscriptExportService(),
-        languageCatalog: any LanguageCataloging = StaticLanguageCatalog()
+        languageCatalog: any LanguageCataloging = SystemLanguageCatalog()
     ) {
         self.preferences = preferences
         self.permissions = permissions
