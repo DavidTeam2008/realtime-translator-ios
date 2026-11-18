@@ -7,7 +7,7 @@
 > 当前范围：**单工作流接力与分工**；跨 Agent 交接演练与多 Agent 并行门禁在路线图（v0.4.x）；行为级 A/B 后置（v0.5.x），不在当前承诺内。
 
 - 仓库名 `harness-engineering-kit`（原名 `harness-kit`；目录、命令与 tag 前缀沿用短名）
-- 版本：`0.5.4`（见 [`VERSION`](VERSION)）
+- 版本：`0.5.5`（见 [`VERSION`](VERSION)）
 - **入口 skill（默认，装一次全局可用，npx 首选）**：`npx --yes skills@1.8.1 add DavidTeam2008/harness-engineering-kit --skill harness -g -a claude-code -a codex -y` ← 先装这个（Node ≥22.20；首次在未接入仓库使用时自动 clone kit 到缓存）；无 Node / 离线 / 项目级 pin 用 `<kit>/scripts/harness-skill install --scope user`
 - **[接入与日常使用（skill 优先）](docs/adoption.md)**：装一次 → 接入 → 按场景使用（接手/计划/实现/验证/评审/发布/交接/升级）；无 Agent 时看文末命令行手动接入
 - 命令行手动接入：[采用 playbook](docs/playbook.md)（新项目五步 / 存量七步）；宿主不支持 skills 时用 [提示词库（兜底）](docs/agent-prompts.md)
@@ -364,4 +364,4 @@ harness-kit 从 Duiyi 仓库的 harness 改造中提炼（案例与证据：<htt
 
 ## License
 
-与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.5.4`；向后兼容策略见 [SPEC §10](SPEC.md)。
+与 [LICENSE](LICENSE) 一致：**MIT**。kit 版本 `0.5.5`；向后兼容策略见 [SPEC §10](SPEC.md)。

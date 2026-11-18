@@ -3,7 +3,7 @@ name: harness
 description: Harness Engineering 项目管理入口（接入 / 升级 / 接手 / 计划 / 验证 / 评审 / 发布 / 交接 / 反馈 kit 问题）。未接入的仓库先走 adopt：定位 kit → 只读盘点 → dry-run → init；已接入先运行 python3 tools/harness.py status。触发：用 harness-kit 接入或改造存量项目、接手项目、建计划、完成前验证、发布前检查、交接、升级 kit、反馈 kit 缺陷或文档不一致。
 license: MIT
 compatibility: 已接入仓库用仓库内工具（tools/harness.py，离线可用）；未接入/升级用本 skill 的 scripts/kit-resolve.py：npx 安装时按固定 annotated tag 自动 clone kit 到 XDG 缓存，也可用 HARNESS_KIT_ROOT 或仓内/父目录 harness-kit/ 指定。
-metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.5.0, kit_version: 0.5.4, kit_repo: https://github.com/DavidTeam2008/harness-engineering-kit.git}
+metadata: {kit: harness-kit, entry: tools/harness.py, min_version: 0.5.0, kit_version: 0.5.5, kit_repo: https://github.com/DavidTeam2008/harness-engineering-kit.git}
 ---
 # harness · 项目入口
 
