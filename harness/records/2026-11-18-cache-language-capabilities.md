@@ -66,16 +66,14 @@ verify:
 | `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO' make evidence-unit WRITE=1` | PASS：139/139、0 skip | 本机模拟器 | `20261118T071150Z-unit-tests-pass` |
 | 同上 `make evidence-ui WRITE=1` | PASS：2 passed + 1 expected skip | 本机模拟器 | `20261118T071256Z-ui-tests-pass` |
 | `make delivery-check CHANGE=cache-language-capabilities` | PASS：4/4 tasks、fresh/strict evidence、review Base..Head | 本机；OpenSpec 2.1.0；toolchain v0.2.0 | —（过程记录） |
+| 真机语言能力人工验收 | PASS：用户确认设备实际语言能力可用 | 真机 | —（过程记录：2026-11-18 用户人工验收） |
 
 ## 未验证项
-
-- 真机语言能力实查：单元测试只覆盖注入边界，不能证明设备实际可用资产。
 
 ## 未验证豁免
 
 | 项目 | 理由 | 负责人 | 到期日 |
 | --- | --- | --- | --- |
-| 真机语言能力实查 | 需要设备下载/安装资产；注入边界测试只证明映射与缓存语义 | david | 2026-12-31 |
 
 ## 未提交改动
 

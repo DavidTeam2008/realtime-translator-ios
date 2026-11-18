@@ -17,7 +17,7 @@
 | 死代码清理 | 2026-11-02 删除未引用函数/常量/本地化键（见 §5） |
 | 导出竞态与内容刷新 | 已修复（2026-11-17；P0 证据与回归范围见归档计划；计数见 `references/verification.md`） |
 | 语言切换清态 | 已修复；当前实现与回归覆盖见 Conversation/Interpretation ViewModel 测试 |
-| 语言目录实查 | 已修复（2026-11-18；OpenSpec `cache-language-capabilities`，证据见 Change Record） |
+| 语言目录实查 | 已修复并完成真机人工验收（2026-11-18；OpenSpec `cache-language-capabilities`，证据见 Change Record） |
 | 测试基线 | 只增不减；当前口径见 [`../references/verification.md`](../references/verification.md) |
 
 ---
