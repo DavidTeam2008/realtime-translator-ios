@@ -17,7 +17,7 @@
 
 ### Task 1: Add red tests for cache and mapping
 
-- [ ] Task 1: catalog cache, mapping, same-language and selection-derivation tests fail against the current implementation.
+- [x] Task 1: catalog cache, mapping, same-language and selection-derivation tests fail against the current implementation.
 
 **Files:** `DuiyiTests/SystemLanguageCatalogTests.swift`, `harness/test-baseline.json`, `references/verification.md`
 
