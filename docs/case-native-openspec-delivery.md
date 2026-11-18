@@ -200,6 +200,8 @@ python3 tools/delivery_check.py archive-gate --change <change-id>
 
 归档后仍运行 `openspec validate --archived --json` 作为事后复核；它不能替代归档前门禁。archive 本身是独立写操作，即使门禁通过也必须再次获得用户确认。
 
+**Legacy 例外**：P0 的 `fix-transcript-export` 使用指向 Harness 计划的指针型 `tasks.md`，不满足 native `total>0`。该 Change 只允许在 P0 Harness 计划验收完成、OpenSpec `validate --strict` 通过、最终 `release-check` 通过且用户单独确认后，以人工 legacy 门禁归档；不得套用 native archive-gate，也不得为过门禁伪造任务清单。该例外只适用于 P0 迁移基线。
+
 ## 7. Harness 的角色变化
 
 ### 7.1 目标态
@@ -295,6 +297,8 @@ ECC 是**可选、固定版本、经审查的素材层**，不是第四个真源
   - 校验 acceptance 映射、review 范围、仓库 CI 策略；
   - 提供 archive gate 与全部负向 fixture。
 - 增加宿主 Change Record 适配：tasks 是唯一契约与状态，记录只引用；不支持时 fail-closed。
+- 增加仓库固定 OpenSpec wrapper（固定 2.1.0 并校验版本），文档不再依赖裸命令。
+- 把 `XCODEBUILD_BUILD_ARGS` 等本机构建参数写入 manifest 的可复核字段或明确完整命令口径。
 - 在宿主 Makefile 增加薄入口（例如 `make delivery-check CHANGE=...`）。
 - 只用隔离夹具和工具仓测试 dry run；不在宿主创建第二个 active。
 
@@ -383,7 +387,7 @@ ECC 是**可选、固定版本、经审查的素材层**，不是第四个真源
 ## 15. 相关文件
 
 - [`decisions.md`](decisions.md)：D-AI11 决策。
-- [`../harness/plans/2026-11-17-ai-delivery-p0.md`](../harness/plans/2026-11-17-ai-delivery-p0.md)：当前唯一 active 计划。
+- [`../harness/plans/_archive/2026-11-17-ai-delivery-p0.md`](../harness/plans/_archive/2026-11-17-ai-delivery-p0.md)：已完成的 P0 快照。
 - [`../references/workflow.md`](../references/workflow.md)：L0/L1/L2 与红队协议。
 - [`../references/verification.md`](../references/verification.md)：验证矩阵与测试计数。
 - [`../openspec/changes/fix-transcript-export/tasks.md`](../openspec/changes/fix-transcript-export/tasks.md)：当前 P0 的指针型 tasks.md；P0 验收后归档，绝不改写成目标态任务清单。
