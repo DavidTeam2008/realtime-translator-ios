@@ -390,4 +390,4 @@ ECC 是**可选、固定版本、经审查的素材层**，不是第四个真源
 - [`../harness/plans/_archive/2026-11-17-ai-delivery-p0.md`](../harness/plans/_archive/2026-11-17-ai-delivery-p0.md)：已完成的 P0 快照。
 - [`../references/workflow.md`](../references/workflow.md)：L0/L1/L2 与红队协议。
 - [`../references/verification.md`](../references/verification.md)：验证矩阵与测试计数。
-- [`../openspec/changes/fix-transcript-export/tasks.md`](../openspec/changes/fix-transcript-export/tasks.md)：当前 P0 的指针型 tasks.md；P0 验收后归档，绝不改写成目标态任务清单。
+- [`../openspec/changes/archive/2026-11-18-fix-transcript-export/tasks.md`](../openspec/changes/archive/2026-11-18-fix-transcript-export/tasks.md)：P0 的指针型 tasks.md 历史快照；未改写成目标态任务清单。
