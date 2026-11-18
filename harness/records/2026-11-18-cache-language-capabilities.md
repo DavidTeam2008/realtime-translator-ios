@@ -1,13 +1,14 @@
 ---
 id: 2026-11-18-cache-language-capabilities
-status: active
+status: done
 level: L2
 owner: david
 updated: 2026-11-18
+submitted: ae409a6
 tasksSource: openspec
 change: cache-language-capabilities
 base: 1961368
-tasks: openspec/changes/cache-language-capabilities/tasks.md
+tasks: openspec/changes/archive/2026-11-18-cache-language-capabilities/tasks.md
 scope:
   allow:
     - openspec/changes/cache-language-capabilities/
@@ -62,6 +63,8 @@ verify:
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
+| `XCODEBUILD_BUILD_ARGS='OTHER_SWIFT_FLAGS=-disable-sandbox CODE_SIGNING_ALLOWED=NO' make evidence-unit WRITE=1` | PASS：139/139、0 skip | 本机模拟器 | `20261118T071150Z-unit-tests-pass` |
+| 同上 `make evidence-ui WRITE=1` | PASS：2 passed + 1 expected skip | 本机模拟器 | `20261118T071256Z-ui-tests-pass` |
 | `make delivery-check CHANGE=cache-language-capabilities` | PASS：4/4 tasks、fresh/strict evidence、review Base..Head | 本机；OpenSpec 2.1.0；toolchain v0.2.0 | —（过程记录） |
 
 ## 未验证项
