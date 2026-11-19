@@ -15,46 +15,41 @@
 
 ## Tasks
 
-### Task 1: Add red unit tests for edge-swipe policy
+### Task 1: Add red unit tests and implement edge-swipe policy
 
-- [ ] Task 1: policy tests fail before implementation.
+- [x] Task 1: policy unit tests fail first, then the pure policy makes them pass.
 
-**Files:** `DuiyiTests/EdgeSwipeBackPolicyTests.swift`
+**Files:** `DuiyiTests/EdgeSwipeBackPolicyTests.swift`, `Duiyi/Features/Shared/EdgeSwipeBackPolicy.swift`
 
-1. Add acceptance and rejection matrix tests for the not-yet-existing `EdgeSwipeBackPolicy`.
-   - Expected: focused unit test command fails because the policy type does not exist.
+1. Add the acceptance/rejection matrix tests before the policy type exists.
+   - Expected: focused unit test command fails because `EdgeSwipeBackPolicy` is missing.
+   - Covers: R1/S1.1/A1
+2. Add the pure policy with the documented thresholds.
+   - Expected: focused unit test command passes.
    - Covers: R1/S1.1/A1
 
-### Task 2: Add red UI test for swipe-back navigation
+### Task 2: Add red UI test and implement root edge gesture
 
-- [ ] Task 2: UI test fails before the gesture is implemented.
+- [x] Task 2: UI test fails first, then the root gesture returns to home.
 
-**Files:** `DuiyiUITests/SimultaneousFlowTests.swift`
+**Files:** `DuiyiUITests/SimultaneousFlowTests.swift`, `Duiyi/App/RootView.swift`
 
-1. Add a UI test that enters a module page and performs a leading-edge right swipe.
-2. Assert the app returns to home; keep the existing navigation test intact.
-   - Expected: UI test fails against the current app because the edge swipe does not navigate.
-   - Covers: R1/S1.1/R3/S3.1/A2
+1. Add a UI test that enters the face-to-face module and performs a leading-edge right swipe.
+   - Expected: UI test fails against the current app because no back gesture exists.
+   - Covers: R1/S1.1/S1.2/R2/S2.1/S2.2/R3/S3.1/A2
+2. Attach the simultaneous leading-edge drag gesture and pop once when the policy allows.
+   - Expected: UI test passes; existing `nav-home` navigation test still passes.
+   - Covers: R1/S1.1/R2/S2.1/R3/S3.1/A2
 
-### Task 3: Implement policy and root gesture
+### Task 3: Update baseline and verification counts
 
-- [ ] Task 3: production behavior passes the policy and UI tests.
-
-**Files:** `Duiyi/Features/Shared/EdgeSwipeBackPolicy.swift`, `Duiyi/App/RootView.swift`
-
-1. Add the pure policy with the documented thresholds.
-2. Attach a simultaneous leading-edge drag gesture to the navigation stack and pop once when eligible.
-3. Preserve existing button navigation and task lifecycle behavior.
-   - Expected: unit and UI tests pass; manual simulator swipe returns one level.
-   - Covers: R1/S1.1/S1.2/R2/S2.1/S2.2/A1/A2
-
-### Task 4: Update test baseline and verification counts
-
-- [ ] Task 4: baseline and docs match the new test totals.
+- [x] Task 3: baseline check fails first, then baseline/docs match the new totals.
 
 **Files:** `harness/test-baseline.json`, `references/verification.md`
 
-1. Raise unit/UI floors and update documented counts only by the tests actually added.
-2. Run baseline and docs checks.
-   - Expected: `make check-tests` and `make check-docs` pass with the new counts.
+1. Run `make check-tests` after adding tests but before updating the baseline.
+   - Expected: baseline check fails because the documented counts are stale.
+   - Covers: A3
+2. Raise unit/UI floors and update documented counts only by the tests actually added.
+   - Expected: `make check-tests` passes with 144 unit + 4 UI and device 148.
    - Covers: A3

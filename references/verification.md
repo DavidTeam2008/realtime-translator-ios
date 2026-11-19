@@ -9,7 +9,7 @@
 | `make test` | 模拟器单元 |
 | `make test-ui` | 模拟器 UI（语音 skip） |
 | `make evidence-unit` / `evidence-ui` / `evidence-ui-device` | 测试→JUnit+manifest；`WRITE=1` 写证据；真机需 `APM_TEAM` |
-| `make device-test` | 真机全套（预热 + 139 单元 + 3 UI） |
+| `make device-test` | 真机全套（预热 + 144 单元 + 4 UI） |
 | `make device-test-ui` | 真机 UI（预热后） |
 | `make device-test-one TEST=...` | 真机单用例 |
 | `APM_DEVICE=<CoreDevice ID> make device-test` | 换设备 |
@@ -31,7 +31,7 @@
 
 ## 计数与预期
 
-- 基线 **139 单元 + 3 UI**；真机 **142**。只增不减；改计数同步本文件。
+- 基线 **144 单元 + 4 UI**；真机 **148**。只增不减；改计数同步本文件。
 - 计数与 skip 由 `make check-tests`（`tools/check-test-baseline.py` + `harness/test-baseline.json`）机检，删测试会红。
 - 模拟器 `testSimultaneousListeningPressure` skip（无 `SpeechTranscriber`）是预期，不要 mock。
 - 真机 UI 前必须预热 testmanagerd（脚本已强制）；iOS 15+ 还需过 `Enable UI Automation` 密码弹窗（见 `CONTRIBUTING.md`）。
