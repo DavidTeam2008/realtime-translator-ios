@@ -137,7 +137,8 @@ verify:
 - [x] 步骤 5 门禁全部 PASS：`make verify-claim`（3 PASS / 0 FAIL / 0 UNVERIFIED）与 `make release-check` 在 clean commit `f3f3336` 上 PASS（2026-11-19）。
 - [ ] 一个真实 L2 试点 + 后续增量登记。
   - [x] 试点 Change `add-swipe-back-gesture` 已 scaffold；proposal/design/spec/tasks 已写，validate + lint 完成（2026-11-19）。
-  - [ ] 试点实现、证据、独立 review、archive（等用户确认 Change/设计后执行）。
+  - [x] 试点实现完成：`EdgeSwipeBackPolicy` + RootView 左边缘手势；5 个单元测试 + 1 个 UI 测试；unit 144 / UI 4（2026-11-19）。
+  - [ ] 试点独立 review、delivery-check、archive（archive 单独确认）。
 
 ## 验证证据
 
@@ -159,6 +160,8 @@ verify:
 | `make verify-static` | PASS：332 kit tests + 宿主静态门禁（2026-11-19） | 本机 macOS；Python 3.14 | —（过程记录） |
 | `make evidence-unit WRITE=1` | PASS：139 passed / 0 failed / 0 skipped；证据 `20261119T042907Z-unit-tests-pass`，artifact+manifest tracked | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T042907Z-unit-tests-pass |
 | `make evidence-ui WRITE=1` | PASS：2 passed / 0 failed / 1 skipped；证据 `20261119T043007Z-ui-tests-pass`，artifact+manifest tracked | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T043007Z-ui-tests-pass |
+| `make evidence-unit WRITE=1`（试点） | PASS：144 passed / 0 failed / 0 skipped；证据 `20261119T051131Z-unit-tests-pass` | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T051131Z-unit-tests-pass |
+| `make evidence-ui WRITE=1`（试点） | PASS：3 passed / 0 failed / 1 skipped（4 tests）；证据 `20261119T051240Z-ui-tests-pass` | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T051240Z-ui-tests-pass |
 | `make verify-claim` | PASS：3 条当前证据（docs/unit/UI）全部 PASS；UI 证据 `20261119T043007Z-ui-tests-pass`；归档 16 条 SUPERSEDED；0 FAIL / 0 UNVERIFIED（2026-11-19） | 本机 macOS；Python 3.14 | 20261119T042907Z-unit-tests-pass |
 | `make release-check` | PASS：verify-static + verify-claim + scorecard + plan strict（commit `f3f3336`，2026-11-19） | 本机 macOS；Python 3.14 | —（过程记录） |
 | 契约格式兼容验证（scratch） | PASS：Delivery Contract + `### Task N:` 复选框通过 `validate --strict`；全量 lint issues=[]；apply 全勾选后 state=all_done | 本机 macOS；OpenSpec 2.1.0 + v0.4.0 lint | —（过程记录） |
@@ -210,7 +213,7 @@ verify:
 
 ## 未提交改动
 
-- 无（试点 Change 脚手架与计划已提交；实现阶段变更按批次声明/提交）。
+- 无（试点实现与 fixture 已提交；证据/回执在 clean commit 上重跑后提交）。
 
 ## 下一步
 
