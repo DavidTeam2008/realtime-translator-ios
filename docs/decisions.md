@@ -51,3 +51,4 @@
 | D-AI12 | 原生工具参与与 provenance | OpenSpec 工件必须由 `openspec new change` 创建并留下 scaffold/instructions/validate 回执；Superpowers 必须显式调用并留 skill receipt；回执由 delivery-check fail-closed 复算。本地回执只证明“声明/版本/哈希/顺序”，不证明 Agent 真实遵守，最终由 Git 历史 + 独立 review + CI 兜底 |
 | D-AI13 | 可移植工具链 | 外部 `ai-delivery-toolchain` 以 annotated tag + PIN（tag/commit/tree/逐文件哈希）固定；宿主只保留配置与薄适配；P3 迁移到全局 CLI + lock + cache，保留 vendored hermetic 选项 |
 | D-AI14 | 术语/ADR 落点 | 暂不引入 `GLOSSARY.md` / `docs/adr`；P3 评估 `grill-with-docs` 前先决定术语表与 ADR 的唯一落点；当前持久决策仍只写 `docs/decisions.md` |
+| D-AI15 | Review 独立性 | L2 独立 review 必须双轴隔离上下文（默认 mattpocock code-review 的并行 sub-agents），两份 axis 报告与独立 gate-runner 报告 tracked；单上下文只能作自检，不能通过交付。`review_guard` + `delivery-check` fail-closed 校验 `review_mode/executor/axes/standards_report/spec_report/gate_report/gate_runner` 与 P1 修复复看字段；发现偏差以新 commit 追加 correction，不改写已发布历史 |

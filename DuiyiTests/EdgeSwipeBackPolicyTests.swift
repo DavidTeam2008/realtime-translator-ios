@@ -2,7 +2,6 @@ import CoreGraphics
 import Testing
 @testable import Duiyi
 
-@MainActor
 struct EdgeSwipeBackPolicyTests {
     private let startY: CGFloat = 400
 
@@ -13,6 +12,13 @@ struct EdgeSwipeBackPolicyTests {
                 hasPreviousPage: true,
                 startLocation: CGPoint(x: 12, y: startY),
                 translation: CGSize(width: 120, height: 20)
+            )
+        )
+        #expect(
+            EdgeSwipeBackPolicy.shouldPop(
+                hasPreviousPage: true,
+                startLocation: CGPoint(x: 12, y: startY),
+                translation: CGSize(width: 120, height: 80)
             )
         )
     }
@@ -57,6 +63,13 @@ struct EdgeSwipeBackPolicyTests {
                 hasPreviousPage: true,
                 startLocation: CGPoint(x: 12, y: startY),
                 translation: CGSize(width: 60, height: 79)
+            )
+        )
+        #expect(
+            !EdgeSwipeBackPolicy.shouldPop(
+                hasPreviousPage: true,
+                startLocation: CGPoint(x: 12, y: startY),
+                translation: CGSize(width: 120, height: 90)
             )
         )
         #expect(

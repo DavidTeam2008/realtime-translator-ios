@@ -87,13 +87,52 @@ final class SimultaneousFlowTests: XCTestCase {
         f2f.tap()
         XCTAssertTrue(app.buttons["nav-home"].waitForExistence(timeout: timeout), "module page did not open")
 
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
-        start.press(forDuration: 0.05, thenDragTo: end)
+        swipeBackFromLeadingEdge(in: app)
 
         XCTAssertTrue(
             app.buttons["home-module-simultaneous"].waitForExistence(timeout: timeout),
             "edge swipe did not return to home"
+        )
+        XCTAssertTrue(
+            waitForDisappearance(app.buttons["nav-home"]),
+            "pushed page chrome did not disappear after swipe back"
+        )
+    }
+
+    /// 首页没有可返回页面；边缘右滑必须保持首页不变。
+    func testHomeEdgeSwipeDoesNotNavigate() throws {
+        let app = launchApp()
+        let homeModule = app.buttons["home-module-faceToFace"]
+        XCTAssertTrue(homeModule.waitForExistence(timeout: timeout), "home module missing")
+
+        swipeBackFromLeadingEdge(in: app)
+
+        XCTAssertTrue(homeModule.exists, "home page changed after edge swipe")
+        XCTAssertFalse(app.buttons["nav-home"].exists, "edge swipe pushed a page from home")
+    }
+
+    /// 历史页是已推入页面；边缘右滑应返回首页。
+    func testHistorySwipeBack() throws {
+        let app = launchApp()
+        let history = app.buttons["home-history"]
+        if !history.waitForExistence(timeout: 5) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(history.waitForExistence(timeout: timeout), "home history entry missing")
+        history.tap()
+
+        let historyHome = app.buttons["nav-home"]
+        XCTAssertTrue(historyHome.waitForExistence(timeout: timeout), "history page did not open")
+
+        swipeBackFromLeadingEdge(in: app)
+
+        XCTAssertTrue(
+            app.buttons["home-module-simultaneous"].waitForExistence(timeout: timeout),
+            "history edge swipe did not return to home"
+        )
+        XCTAssertTrue(
+            waitForDisappearance(historyHome),
+            "history page chrome did not disappear after swipe back"
         )
     }
 
@@ -270,5 +309,19 @@ final class SimultaneousFlowTests: XCTestCase {
         let other = app.otherElements["listening-control"]
         XCTAssertTrue(other.waitForExistence(timeout: timeout), "listening control missing")
         other.tap()
+    }
+    /// Leading-edge right swipe used by the back-gesture UI tests.
+    private func swipeBackFromLeadingEdge(in app: XCUIApplication) {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end)
+    }
+
+    private func waitForDisappearance(_ element: XCUIElement) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }

@@ -22,7 +22,7 @@ export PYTHONDONTWRITEBYTECODE := 1
 	adapters-check adapters-sync verify-static verify-claim verify-all release-check doctor doctor-ios plan \
 	selftest upgrade-check scorecard check-arch check-tests check-docs check-harness check-plan \
 	resume end verify-claim-fresh check-agents check-all evidence hooks-install kit-check kit-prompts \
-	kit-publish kit-drift measure-launch harness-audit evidence-chain-check evidence-unit evidence-ui evidence-ui-device 	change-lint change-lint-delivery delivery-skills-fixtures
+	kit-publish kit-drift measure-launch harness-audit evidence-chain-check evidence-unit evidence-ui evidence-ui-device 	change-lint change-lint-delivery delivery-skills-fixtures review-guard-fixtures review-check
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -181,6 +181,13 @@ delivery-receipts-fixtures: ## scaffold/instructions/validate 回执 + provenanc
 
 delivery-skills-fixtures: ## skill receipt + overlay 正/负例 fixture（宿主 v0.4.0）
 	python3 tools/delivery_skills_fixtures.py
+
+review-guard-fixtures: ## 双轴独立 review 结构正/负例 fixture
+	python3 tools/review_guard_fixtures.py
+
+review-check: ## 校验 review bundle 结构：make review-check CHANGE=<id>
+	@test -n "$(CHANGE)" || { echo "用法：make review-check CHANGE=<id>"; exit 2; }
+	python3 tools/review_guard.py check --change "$(CHANGE)"
 
 doctor-skills: ## 检查 Claude Code 的 openspec/superpowers 用户级软链
 	python3 tools/doctor_skills.py

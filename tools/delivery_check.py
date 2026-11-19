@@ -21,6 +21,7 @@ OVERLAY = Path("harness") / "superpowers-overlay.md"
 sys.path.insert(0, str(TOOLS))
 
 from evidence_chain import load_pin  # noqa: E402
+from review_guard import ReviewGuardError, check_for_change  # noqa: E402
 
 
 def _load(path: Path) -> dict:
@@ -168,6 +169,11 @@ def run(
     load_pin(root)
     _check_pin_metadata(root)
     check_skill_overlays(root, change)
+    try:
+        check_for_change(root, change)
+    except ReviewGuardError as exc:
+        print(f"[FAIL] review bundle：{exc}", file=sys.stderr)
+        return 1
     profile = build_profile(root, change)
     tasks_path = tasks or f"openspec/changes/{change}/tasks.md"
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as handle:

@@ -228,6 +228,15 @@
       "required": true,
       "profile": "strict"
     },
+    "review": {
+      "required": true,
+      "mode": "dual-context",
+      "requireGateRunner": true,
+      "requiredGateCommands": [
+        "make verify-static",
+        "python3 tools/check-test-baseline.py"
+      ]
+    },
     "skills": {
       "required": true,
       "manifest": "tools/vendor/ai_delivery_toolchain/skills.manifest.json",

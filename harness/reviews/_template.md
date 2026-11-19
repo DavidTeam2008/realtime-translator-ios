@@ -6,10 +6,18 @@ p0: <closed|open>
 p1: <closed|open>
 p2: <closed|open>
 verdict: <pass|conditional|fail>
-# 可选：review 方法溯源（不参与 delivery-check 门禁）
-review_method: <mattpocock-code-review | custom>
-review_method_commit: <commit>
+# 双轴独立 review 的可机检结构（v2，强制）
+review_mode: dual-context
+executor: <mattpocock-code-review | custom-dual-context>
 axes: standards,spec
+standards_report: harness/reviews/<date>-<topic>-standards.md
+spec_report: harness/reviews/<date>-<topic>-spec.md
+gate_report: harness/reviews/<date>-<topic>-gates.md
+gate_runner: <independent gate-runner>
+p1_opened: 0
+# 存在 P1 时必填：
+# p1_fix_review: harness/reviews/<date>-<topic>-p1-fix.md
+# p1_fix_reviewed_head: <commit>
 ---
 
 # 独立审查 · <topic>
