@@ -113,7 +113,7 @@ verify:
 | `python3 tools/review_guard.py check --change _wrapper-smoke` | PASS：真实 execution/gate receipt 被 guard 接受 | 本机 macOS | —（过程记录：临时 smoke，已清理） |
 | 同 bundle 改 `executor: custom-single-context` | FAIL：`review.executor 必须是 claude-code-code-review-skill` | 本机 macOS | 负例探针 |
 | `make verify-static` | PASS | 本机 macOS | —（过程记录） |
-| `make release-check` | PASS：3 PASS / 0 FAIL / 0 UNVERIFIED；新证据 tracked 且 supersedes 旧证据 | 本机 macOS | 20261119T145759Z-unit-tests-pass / 20261119T145927Z-ui-tests-pass |
+| `make release-check` | PASS：3 PASS / 0 FAIL / 0 UNVERIFIED；新证据 tracked 且 supersedes 旧证据 | 本机 macOS | 20261119T145759Z-unit-tests-pass |
 | `python3 tools/check_plan.py check --strict` | PASS（0 error / 51 warn） | 本机 macOS | —（过程记录） |
 | `make evidence-unit WRITE=1` | PASS：144 passed / 0 failed / 0 skipped | Xcode 27.1 / iPhone 17 Pro Max iOS 26.4.1 | 20261119T145759Z-unit-tests-pass |
 | `make evidence-ui WRITE=1` | PASS：5 passed / 0 failed / 1 skipped（6 tests） | Xcode 27.1 / iPhone 17 Pro Max iOS 26.4.1 | 20261119T145927Z-ui-tests-pass |
@@ -131,6 +131,10 @@ verify:
 | --- | --- | --- | --- |
 | 本地 receipt 不可密码学验证 | 无外部签名/CI；信任锚仍是 Git + review + 人工复核 | david | 2026-12-31 |
 | gate-runner 同机 | 独立进程但同一开发机；跨机器复算列入后续增量 | david | 2026-12-31 |
+| 本地 receipt 可被蓄意伪造 | 本地回执只能提高偏差成本；无外部签名/CI | david | 2026-12-31 |
+| gate-runner 与 reviewer 仍同机 | 独立进程但同机；跨机器/CI 复算列入后续增量 | david | 2026-12-31 |
+| wrapper 只在 docs-only smoke change 上真实跑过 | 下一处真实产品 L2 首次使用并留存 execution receipt | david | 2026-12-31 |
+| gate-runner 的 required commands 固定为 | focused tests/真实测试证据另行附 gate report；后续增量扩展 | david | 2026-12-31 |
 
 ## 未提交改动
 
