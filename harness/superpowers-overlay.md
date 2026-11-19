@@ -26,11 +26,11 @@
 - 完成声明前用 `verification-before-completion` 跑本轮真实命令；未运行 = UNVERIFIED。
 - 每个实现任务用 `make skill-receipt ...` 留下绑定 task/phase/source/hostSkill/overlay 的回执；回执不替代执行。
 
-## 4. Review 执行器（DD-7）
+## 4. Review 执行器（DD-7 / D-AI16）
 
-- 普通代码 / Spec review 默认 B（mattpocock `code-review` 两轴，宿主有 subagent 时并行）。
-- `tools/**`、`.githooks/**`、`.github/**`、`harness/config.json` 变更默认 A（自定义两轴 prompt）或独立 gate-runner。
-- 任一执行器都必须复跑关键门禁或明确写“未复跑”；两轴报告不替代验证。
+- L2 独立 review 固定 `claude-code-code-review-skill`：`make review-execute CHANGE=<id>` 显式调用 `/code-review`（Claude Code + Skill/Task，两个并行 sub-agent），落 `execution_receipt`。
+- gate-runner 用 `make review-gates CHANGE=<id>` 实际复跑 required commands，落 `gate_receipt`；reviewer 不得自证门禁。
+- 单上下文手写报告、手写 gate PASS、任意 executor 字符串均不通过 `delivery-check`。
 
 ## 5. 硬禁止
 

@@ -235,7 +235,24 @@
       "requiredGateCommands": [
         "make verify-static",
         "python3 tools/check-test-baseline.py"
-      ]
+      ],
+      "executor": {
+        "required": "claude-code-code-review-skill",
+        "minSubagents": 2,
+        "requiredTools": [
+          "Skill",
+          "Task"
+        ],
+        "deniedTools": [
+          "Write",
+          "Edit",
+          "NotebookEdit"
+        ]
+      },
+      "receipts": {
+        "required": true,
+        "dir": "harness/receipts/reviews"
+      }
     },
     "skills": {
       "required": true,

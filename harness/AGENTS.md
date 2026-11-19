@@ -28,6 +28,7 @@
 - 只读独立审查：输入任务 + 方案 + 仓库路径，不传起草历史与自评。
 - 输出结论 + P0/P1/P2 表 + 被挑战假设 + 缺失信息 + 最小验证清单；作者逐条回应。
 - 双轴独立 review 必须两个隔离上下文 + 独立 gate-runner；字段与 guard 见 [reviews/README.md](reviews/README.md)，单上下文只算自检。
+- 执行出处：L2 review 用 `make review-execute CHANGE=<id>`（显式 `/code-review`，Claude Code + Skill/Task），gate 用 `make review-gates CHANGE=<id>`；`execution_receipt` / `gate_receipt` 由 guard 校验，手写报告或自选 executor 不通过。
 - 报告保留证据链接，不写本机绝对路径、设备 ID 与密钥。
 
 ## 5. 写入卫生

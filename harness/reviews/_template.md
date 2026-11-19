@@ -8,12 +8,14 @@ p2: <closed|open>
 verdict: <pass|conditional|fail>
 # 双轴独立 review 的可机检结构（v2，强制）
 review_mode: dual-context
-executor: <mattpocock-code-review | custom-dual-context>
+executor: claude-code-code-review-skill
+execution_receipt: harness/receipts/reviews/<change>/<head7>-execution.json
 axes: standards,spec
 standards_report: harness/reviews/<date>-<topic>-standards.md
 spec_report: harness/reviews/<date>-<topic>-spec.md
 gate_report: harness/reviews/<date>-<topic>-gates.md
 gate_runner: <independent gate-runner>
+gate_receipt: harness/receipts/reviews/<change>/<head7>-gates.json
 p1_opened: 0
 # 存在 P1 时必填：
 # p1_fix_review: harness/reviews/<date>-<topic>-p1-fix.md
