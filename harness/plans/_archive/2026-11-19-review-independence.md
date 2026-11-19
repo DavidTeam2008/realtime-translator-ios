@@ -85,7 +85,7 @@ verify:
 - [x] pilot 双上下文纠正 review bundle 已 tracked（standards/spec/gates/dual/p1-fix 五文件）；原 review 的 P1 覆盖缺口已由新增 UI 测试关闭。
 - [x] 旧单上下文 review 标注纠正关系，不改历史 commit。
 - [x] README/模板/AGENTS/决策更新，明确 B 默认、双上下文、gate-runner 独立、P1 复看。
-- [x] `make review-guard-fixtures`、`make delivery-check-fixtures`、`make verify-static`、`make release-check` PASS（验证证据见下）。
+- [x] `make review-guard-fixtures`、`make delivery-check-fixtures`、`make verify-static`、`make release-check` PASS；guard 对真实双上下文 bundle 也 PASS（验证证据见下）。
 - [x] 不改业务 Swift/既有断言；新增仅 UI 测试与基线/证据；main/tag 未动。
 
 ## 进度
@@ -113,6 +113,7 @@ verify:
 | `make evidence-ui WRITE=1` | PASS：5 / 0 / 1（6 tests） | 同上 | 20261119T115531Z-ui-tests-pass |
 | `make verify-static` | PASS | 本机 macOS | —（过程记录） |
 | `make release-check` | PASS | 本机 macOS | —（过程记录） |
+| `python3 tools/review_guard.py check --change _guard-smoke` | PASS：真实双上下文 bundle（dual + axis + gates + p1-fix）被 guard 接受 | 本机 macOS | —（过程记录） |
 
 
 | 命令 | 结果 | 环境 | 证据ID |

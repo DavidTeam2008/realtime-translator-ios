@@ -16,7 +16,7 @@ gate_runner: gate-runner-lead
 p1_opened: 2
 p1_fix_review: harness/reviews/2026-11-19-add-swipe-back-gesture-p1-fix.md
 p1_fix_reviewed_head: 9f622266f58ce4d87dcc4d0076cd191fc50b320a
-----
+---
 
 # Dual Review — add-swipe-back-gesture
 
@@ -24,7 +24,7 @@ p1_fix_reviewed_head: 9f622266f58ce4d87dcc4d0076cd191fc50b320a
 - Code scope: `Duiyi/`, `DuiyiTests/`, `DuiyiUITests/` (docs/openspec/harness changes excluded from judgement)
 - Raw axes: [standards](2026-11-19-add-swipe-back-gesture-standards.md) · [spec](2026-11-19-add-swipe-back-gesture-spec.md) · [gates](2026-11-19-add-swipe-back-gesture-gates.md)
 
-**Verdict: PASS WITH FINDINGS.** No P0. The implementation faithfully matches the design (thresholds, mount point, pop call, animation) and no documented hard standard is broken. Two P1 verification gaps: the spec's own UI-verification obligations for S2.1 and S1.2 are not covered, while `tasks.md` claims they are. Gates are PARTIAL: the test-baseline gate passes, but Xcode is not installed on this host, so the focused unit/UI tests could not execute, and `make verify-static` is blocked by unrelated uncommitted worktree changes.
+**初始结论（reviewed head 354aeeb）**：PASS WITH FINDINGS，P1×2、gates PARTIAL。修复后重新运行 gate-runner 并补充 UI 覆盖；最终状态见 front matter、下方“作者响应与修复”和最终 gate 报告。
 
 ## Standards axis
 
@@ -72,28 +72,16 @@ Counts: **P0 = 0, P1 = 2, P2 = 8** raw findings (7 distinct; STD-1 and SPEC-3 ar
 
 ## Gate summary
 
-Raw: [gates](2026-11-19-add-swipe-back-gesture-gates.md). Overall: **PARTIAL**.
+最终 [gate-runner 报告](2026-11-19-add-swipe-back-gesture-gates.md)（head `9f62226`）：**PASS**。初次 review 时因 Xcode 未挂载，focused tests/UI 无法执行，gate 为 PARTIAL；修复轮恢复 Xcode 后已重跑：
 
 | Gate | Exit | Result |
 |---|---|---|
-| `python3 tools/check-test-baseline.py` | 0 | PASS — 144 unit / 4 UI / device 148; skip whitelist consistent |
-| `make test-one TEST=DuiyiTests/EdgeSwipeBackPolicyTests` | 2 | NOT RUN — Xcode not installed (`xcodebuild` unavailable); zero tests executed |
-| `make verify-static` | 2 | FAIL — blocked at `check-plan-strict` by unrelated uncommitted worktree changes; code checks before it PASS (arch R1–R6, baseline, docs, agents) |
-| `make test-ui` | 2 | NOT RUN — same Xcode-unavailable blocker |
+| `python3 tools/check-test-baseline.py` | 0 | PASS — 144 unit / 6 UI / device 150 |
+| `make test-one TEST=DuiyiTests/EdgeSwipeBackPolicyTests` | 0 | PASS (5/5) |
+| `make test-one .../testSwipeBackFromModule` | 0 | PASS |
+| `make test-one .../testHomeEdgeSwipeDoesNotNavigate` | 0 | PASS |
+| `make test-one .../testHistorySwipeBack` | 0 | PASS |
+| `make verify-static` | 0 | PASS |
+| `make evidence-unit/ui WRITE=1` | 0 | PASS — evidence `20261119T115317Z-unit-tests-pass` / `20261119T115531Z-ui-tests-pass` |
 
-Consequence: the new policy unit tests and UI test have **not** been re-verified on this host during this review. The repository's recorded evidence (`task-2-red`/`task-2-green`, `20261119T052843Z-ui-tests-pass`) shows they passed previously, but that is delivery evidence, not an independent gate run here.
-
-## Notes
-
-- The gate runner observed unrelated uncommitted changes during the review (`Makefile`, `harness/config.json`, `tools/delivery_check.py`, untracked `harness/plans/2026-11-19-review-independence.md`, `tools/review_guard.py`, `tools/review_guard_fixtures.py`). I did not create or revert them; the reviewed code is committed at HEAD.
-- No source files were edited and nothing was committed by this review.
-
-## 作者响应与修复（2026-11-19）
-
-- **P1 SPEC-1（首页边缘右滑不导航）已关闭**：新增 `testHomeEdgeSwipeDoesNotNavigate`；在首页底部空白区从左侧起手右滑，断言首页卡片仍在、无 `nav-home`。先前失败原因定位为测试起手点落在首页可点击卡片上（合成手势误触），已改起手区并加注释。
-- **P1 SPEC-2（历史页右滑返回）已关闭**：新增 `testHistorySwipeBack`；历史页边缘右滑返回首页，断言 `nav-home` 消失。
-- **P2 STD-1/SPEC-3 部分修复**：模块页与历史页用例均增加 `nav-home` 消失断言。
-- **P2 STD-3 部分修复**：单测增加 `120x80` 接受与 `120x90` 拒绝边界。
-- **P2 STD-4 已处理**：移除纯逻辑测试的 `@MainActor`。
-- 其余 P2 保持 scheduled；修复复核见 `2026-11-19-add-swipe-back-gesture-p1-fix.md`。
-- 修复后 unit 144 / UI 5 pass + 1 skip；证据 `20261119T115317Z-unit-tests-pass`、`20261119T115531Z-ui-tests-pass`。
+修复后 unit 144 / UI 5 pass + 1 skip；P1 覆盖缺口关闭。详见 [P1 fix verification](2026-11-19-add-swipe-back-gesture-p1-fix.md)。
