@@ -3,7 +3,7 @@
 > **类型**：设计输入 + 技术调研（不是 active 计划，不产生第二份任务状态）。
 > **日期**：2026-11-18（2026-11-19 更新） ｜ **作者**：lead（DSH） ｜ **状态**：设计已确认；执行以 Phase 2 计划与门禁为准。
 > **决策关联**：D-AI1…D-AI11（[decisions.md](../../docs/decisions.md)）；本设计建议新增 D-AI12（原生工具参与与 provenance）与 D-AI13（可移植工具链）。
-> **执行计划**：[2026-11-18-ai-delivery-phase2](../plans/2026-11-18-ai-delivery-phase2.md)（本设计获批后再执行）。
+> **执行计划**：[2026-11-18-ai-delivery-phase2](../plans/_archive/2026-11-18-ai-delivery-phase2.md)（本设计获批后再执行）。
 > **上游案例**：[case-native-openspec-delivery.md](../../docs/case-native-openspec-delivery.md)。
 
 ## 0. 需求、结论与边界
@@ -556,7 +556,7 @@ Superpowers 的 brainstorming 是需求阶段最强能力，不能只当“可�
 | --- | --- | --- | --- |
 | **P2A1 工具链 v0.3.1**（外部仓 L1/L2） | 版本卫生（pyproject/CLI/__version__ 一致）+ discipline pin + 确定性 release manifest | 全量测试 PASS；annotated tag `v0.3.1`；manifest 双跑一致 | 保留 v0.3.0 tag；只修元数据，不加新门禁 |
 | **P2A2 工具链 v0.4.0**（外部仓独立 L2） | provenance gate + contract lint + skill receipts + skills manifest + offline 边界 | 全量测试 PASS；annotated tag `v0.4.0`；发布清单哈希一致 | 保留 v0.3.1 tag；新门禁默认关闭 profile |
-| **P2B1 宿主最小接入**（本仓 L2，见 [phase2 计划](../plans/2026-11-18-ai-delivery-phase2.md)） | 修红基线、PIN v0.3.1/v0.4.0、profile、回执工具、全量 L1–L11 lint、traceability 语法、**一个真实 L2 试点** | fixtures 全绿、delivery-check 正负样例、试点全链 PASS、`verify-static`/`release-check` | 回退 PIN/adapter/schema/证据四件套 |
+| **P2B1 宿主最小接入**（本仓 L2，见 [phase2 计划](../plans/_archive/2026-11-18-ai-delivery-phase2.md)） | 修红基线、PIN v0.3.1/v0.4.0、profile、回执工具、全量 L1–L11 lint、traceability 语法、**一个真实 L2 试点** | fixtures 全绿、delivery-check 正负样例、试点全链 PASS、`verify-static`/`release-check` | 回退 PIN/adapter/schema/证据四件套 |
 | **P2B2 宿主增量**（后续） | Record v2、pre-commit、doctor、portfolio、lint WARN→ERROR 与 severity 对齐、CI job、模式落地 | 逐项 fixture/验收 | 保留 P2B1 能力 |
 | **P2C 首个原生 Change 试点** | 一个真实 L2：scaffold + instructions + lint + skill/TDD 回执 + evidence + review + archive gate | 全链 PASS + 度量记录；archive 前单独确认 | Change Record 改 blocked；保留 tasks 与补丁 |
 | **P3 工具链产品化** | `ai-delivery` CLI（init/adopt/pin/doctor/report/portfolio/mode）、lock/cache、host adapters、**交付强度模式（full / light-spec / light-agent）**、多来源 skill manifest、grilling 试运行 | 第二真实项目接入 PASS；light 模式默认门禁正确降级且 L2 不可静默绕过；跑 2–3 个高风险 Change 后决定 grilling 是否强制；D-AI14 术语/ADR 落点决策；本仓切换薄 CLI 后门禁等价 | 保留 vendored 模式 |
