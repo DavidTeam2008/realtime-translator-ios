@@ -1,9 +1,10 @@
 ---
 id: 2026-11-19-review-execution-provenance
-status: active
+status: done
 level: L2
 owner: david
 updated: 2026-11-19
+submitted: ac244e4 fa3a47a
 scope:
   allow:
     - harness/plans/
@@ -84,7 +85,7 @@ verify:
 - [x] 任意自造 executor 在真实 smoke bundle 上也被拒绝；无 receipt、单上下文两份报告、手写 gate PASS 均无法通过。
 - [x] wrapper 真实跑通一次 `/code-review`：headless Claude Code、2 个并行子代理、execution receipt + gate receipt 被 guard 接受。
 - [x] `make verify-static`、`check_plan --strict` PASS。
-- [ ] `make release-check` PASS：当前因未提交的 tools/config/Makefile 变更使既有 unit/UI 证据判 STALE；需提交后重跑 unit/UI evidence 再跑。
+- [x] `make release-check` PASS：3 PASS / 0 FAIL / 0 UNVERIFIED；新 unit/UI 证据 `20261119T145759Z-unit-tests-pass`、`20261119T145927Z-ui-tests-pass` 已 tracked，旧证据归档并声明 supersedes。
 - [x] 文档/决策/模板同步；未回写已发布历史。
 
 ## 改动范围
@@ -99,7 +100,7 @@ verify:
 - [x] guard 扩展与 fixtures：executor/execution receipt/gate receipt/权限/子代理/哈希校验；正例 + 13 负例。
 - [x] 文档/决策/Makefile：README/template/AGENTS/overlay/D-AI16；review-execute/review-gates 目标。
 - [x] 真实 `/code-review` smoke：headless 成功，2 个并行子代理，execution receipt、gate receipt 均被 guard 接受；临时 change 已清理。
-- [ ] 门禁收口与计划归档（待 `make verify-static` / `make release-check` / `check_plan --strict`）。
+- [x] 门禁收口与计划归档：`make verify-static`、`make release-check`、`check_plan --strict` 全 PASS；计划归档。
 
 ## 验证证据
 
@@ -112,8 +113,10 @@ verify:
 | `python3 tools/review_guard.py check --change _wrapper-smoke` | PASS：真实 execution/gate receipt 被 guard 接受 | 本机 macOS | —（过程记录：临时 smoke，已清理） |
 | 同 bundle 改 `executor: custom-single-context` | FAIL：`review.executor 必须是 claude-code-code-review-skill` | 本机 macOS | 负例探针 |
 | `make verify-static` | PASS | 本机 macOS | —（过程记录） |
-| `make release-check` | FAIL（exit 2）：既有 unit/UI 证据因未提交 tools/config/Makefile 变更判 STALE；提交后重跑 unit/UI evidence 再跑 | 本机 macOS | —（过程记录：预期，非代码失败） |
+| `make release-check` | PASS：3 PASS / 0 FAIL / 0 UNVERIFIED；新证据 tracked 且 supersedes 旧证据 | 本机 macOS | 20261119T145759Z-unit-tests-pass / 20261119T145927Z-ui-tests-pass |
 | `python3 tools/check_plan.py check --strict` | PASS（0 error / 51 warn） | 本机 macOS | —（过程记录） |
+| `make evidence-unit WRITE=1` | PASS：144 passed / 0 failed / 0 skipped | Xcode 27.1 / iPhone 17 Pro Max iOS 26.4.1 | 20261119T145759Z-unit-tests-pass |
+| `make evidence-ui WRITE=1` | PASS：5 passed / 0 failed / 1 skipped（6 tests） | Xcode 27.1 / iPhone 17 Pro Max iOS 26.4.1 | 20261119T145927Z-ui-tests-pass |
 
 ## 未验证项
 
@@ -121,7 +124,6 @@ verify:
 - gate-runner 与 reviewer 仍同机；真正的跨机器/CI 隔离未覆盖。
 - wrapper 只在 docs-only smoke change 上真实跑过；尚未在真实产品 L2 change 上首次使用。
 - gate-runner 的 required commands 固定为 `make verify-static` + baseline；focused tests/真实测试证据仍需另行附加到 gate report，guard 只强制 required 子集。
-- `make release-check` 未 PASS：需先提交本增量，再重跑 unit/UI evidence，否则 freshness 持续判 STALE。
 
 ## 未验证豁免
 
@@ -132,21 +134,10 @@ verify:
 
 ## 未提交改动
 
-- harness/plans/2026-11-19-review-execution-provenance.md：本计划
-- tools/review_guard.py：执行/gate 回执校验
-- tools/review_guard_fixtures.py：正负 fixtures
-- tools/run_dual_review.py：/code-review wrapper
-- tools/run_gate_runner.py：gate-runner wrapper
-- Makefile：review-execute / review-gates 目标
-- harness/config.json：executor 与回执要求
-- harness/AGENTS.md：执行出处规则
-- harness/superpowers-overlay.md：DD-7 执行器更新
-- harness/reviews/README.md：v3 字段与入口
-- harness/reviews/_template.md：v3 模板
-- docs/decisions.md：D-AI16
+- 无（本计划收口提交包含 evidence 刷新与计划归档）。
 
 ## 下一步
 
-1. 询问用户是否提交本增量（commit 需单独确认；不 push/tag）。
-2. 提交后重跑 `make evidence-unit WRITE=1` / `make evidence-ui WRITE=1` 刷新证据，再跑 `make release-check`。
-3. 下一处真实产品 L2 change 首次使用 `make review-execute` + `make review-gates`，作为真实交付证据。
+1. 本增量已本地提交（`ac244e4`、`fa3a47a`）；push/tag 仍待用户单独确认。
+2. 下一处真实产品 L2 change 首次使用 `make review-execute` + `make review-gates`，作为真实交付证据。
+3. 后续可评估：跨机器/CI gate-runner、P1 修复第二上下文复核、plan-based L2 的 review receipt。
