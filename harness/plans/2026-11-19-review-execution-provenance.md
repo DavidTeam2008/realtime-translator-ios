@@ -9,6 +9,7 @@ scope:
     - harness/plans/
     - harness/reviews/
     - harness/receipts/reviews/
+    - harness/evidence/
     - harness/AGENTS.md
     - harness/superpowers-overlay.md
     - harness/config.json
