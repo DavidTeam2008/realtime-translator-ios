@@ -122,7 +122,7 @@ verify:
 - [x] 外部 v0.4.0：provenance/lint/skills/offline（commit `b3a7098`，tag `v0.4.0`，2026-11-19）。
 - [x] 宿主回执生成器（scaffold/instructions/validate/clarification/skill-receipt）+ provenance 正/负 fixture（2026-11-19）。
 - [x] 全量 lint 接入（v0.4.0 L1–L11；ERROR 硬失败 / WARN advisory）+ OpenSpec config/overlay + skill/clarification 负例（2026-11-19）。
-- [x] 步骤 5 回执/lint/config/overlay 完成；收口门禁 fixtures / pin / receipts / skills / verify-static / check-plan-strict PASS；release-check 待提交后重跑 unit/UI 证据（2026-11-19）。
+- [x] 步骤 5 回执/lint/config/overlay 完成；收口门禁 fixtures / pin / receipts / skills / verify-static / check-plan-strict PASS；unit/UI 证据已在 clean commit 上重跑（2026-11-19）。
 - [ ] 一个真实 L2 试点 + 后续增量登记。
 
 ## 验证证据
@@ -143,7 +143,9 @@ verify:
 | `make delivery-check-pin` | PASS：v0.4.0 → `b3a7098`（2026-11-19 复跑） | 本机 macOS | —（过程记录） |
 | OpenSpec config 注入验证（scratch） | PASS：instructions proposal/tasks 均包含 context 与 artifact rules（2026-11-19） | 本机 macOS；OpenSpec 2.1.0 | —（过程记录） |
 | `make verify-static` | PASS：332 kit tests + 宿主静态门禁（2026-11-19） | 本机 macOS；Python 3.14 | —（过程记录） |
-| `make release-check` | UNVERIFIED：verify-static 部分 PASS；unit/UI 证据在 `tools/**` 改动后 STALE，需提交后 `WRITE=1` 重跑 | 本机 macOS | —（未验证） |
+| `make evidence-unit WRITE=1` | PASS：139 passed / 0 failed / 0 skipped；证据 `20261119T042907Z-unit-tests-pass`，artifact+manifest tracked | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T042907Z-unit-tests-pass |
+| `make evidence-ui WRITE=1` | PASS：2 passed / 0 failed / 1 skipped；证据 `20261119T043007Z-ui-tests-pass`，artifact+manifest tracked | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T043007Z-ui-tests-pass |
+| `make release-check` | 待提交后复跑（上轮因 unit/UI STALE 为 UNVERIFIED；本轮证据已刷新） | 本机 macOS | —（未验证） |
 | 契约格式兼容验证（scratch） | PASS：Delivery Contract + `### Task N:` 复选框通过 `validate --strict`；全量 lint issues=[]；apply 全勾选后 state=all_done | 本机 macOS；OpenSpec 2.1.0 + v0.4.0 lint | —（过程记录） |
 | `make change-lint` smoke（临时 change，已清理） | PASS：L1/L2/L4 ERROR + L11 WARN 输出；退出非零 | 本机 macOS；v0.4.0 lint | —（过程记录） |
 
@@ -193,32 +195,11 @@ verify:
 
 ## 未提交改动
 
-- `AGENTS.md`：§3 增加 Superpowers overlay 入口。
-- `harness/design/2026-11-18-ai-delivery-governance-target.md`：设计输入，入库。
-- `harness/plans/2026-11-18-ai-delivery-phase2.md`：本计划。
-- `docs/decisions.md`：D-AI12/13/14 落表。
-- `harness/superpowers-overlay.md`：Superpowers 仓库 overlay。
-- `.dsh/skills/superpowers-overlay/SKILL.md`：repo skill 入口。
-- `openspec/config.yaml`：OpenSpec context/rules/operations。
-- `harness/config.json`：delivery.mode + skills required/roots。
-- `harness/reviews/README.md`：两轴 review 说明。
-- `harness/reviews/_template.md`：两轴 review 模板。
-- `harness/reviews/2026-11-18-ai-delivery-phase2-redteam.md`：单轴红队报告。
-- `harness/reviews/2026-11-19-ai-delivery-phase2-twoaxis.md`：两轴试跑报告。
-- `harness/reviews/2026-11-19-executor-a-custom.md`：执行器 A 报告。
-- `harness/reviews/2026-11-19-executor-b-mattpocock.md`：执行器 B 报告。
-- `harness/reviews/2026-11-19-final-scheme-review.md`：最终方案评审。
-- `Makefile`：change-lint/change-*/skill-receipt/delivery-receipts-fixtures/delivery-skills-fixtures 目标。
-- `tools/delivery_check.py`：skills receiptsDir 透传 + overlay hash 复算。
-- `tools/delivery_fixtures.py`：新增 contract-lint failure fixture。
-- `tools/delivery_receipts.py`：回执生成器，skill receipt 绑定 overlay。
-- `tools/delivery_receipts_fixtures.py`：provenance 正负 + L11/L10 fixture。
-- `tools/delivery_skills_fixtures.py`：skill receipt + overlay 正负 fixture。
-- `.workbuddy/`：本地 agent 记忆，不入库。
+- 无（步骤 5 代码/配置/文档与 unit/UI 证据已提交；计划门禁复跑后收尾）。
 
 ## 下一步
 
-1. 用户确认提交步骤 5 改动后，运行 `make evidence-unit WRITE=1` / `make evidence-ui WRITE=1` 重跑 unit/UI 证据，再跑 `make release-check` 关闭门禁。
+1. 步骤 5 代码/配置/文档与 unit/UI 证据已提交；跑 `make release-check` 关闭门禁后进入试点。
 2. 用户选一个真实小行为变更作为 L2 试点，确认 Change 与执行计划后进入步骤 6。
 3. 试点按 scaffold/instructions/validate/lint/skill/TDD/evidence/review 全链执行；archive 单独确认。
 4. 登记后续增量（WARN→ERROR、pre-commit、Record v2、doctor、portfolio、CI、light）与负责人/时点。
