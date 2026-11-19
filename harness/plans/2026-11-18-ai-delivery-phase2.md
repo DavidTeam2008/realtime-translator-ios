@@ -140,6 +140,7 @@ verify:
   - [x] 试点 Change `add-swipe-back-gesture` 已 scaffold；proposal/design/spec/tasks 已写，validate + lint 完成（2026-11-19）。
   - [x] 试点实现完成：`EdgeSwipeBackPolicy` + RootView 左边缘手势；5 个单元测试 + 1 个 UI 测试；unit 144 / UI 4（2026-11-19）。
   - [x] 试点独立 review 完成（P0=0 / P1=1 已关闭 / P2 scheduled）；`make delivery-check` PASS（2026-11-19）。
+  - [x] 试点 `make verify-claim` / `make release-check` 全绿（head `5cc380e`）。
   - [ ] 试点 archive（等用户单独确认）与后续增量登记。
 
 ## 验证证据
@@ -167,6 +168,8 @@ verify:
 | `make evidence-unit WRITE=1`（试点，修复后） | PASS：144 passed / 0 failed / 0 skipped；证据 `20261119T052625Z-unit-tests-pass` | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T052625Z-unit-tests-pass |
 | `make delivery-check CHANGE=add-swipe-back-gesture` | PASS：3/3 tasks；evidence unit+UI；skill/discipline receipts；review P0=0/P1 closed（head `96e4e5f`，回执 staged） | 本机 macOS；PIN v0.4.0 | —（过程记录） |
 | 独立 review（Claude Code / DeepSeek） | 完成：P0=0 / P1=1（已修复）/ P2=7 scheduled；结论有条件 PASS → P1 关闭后 PASS | 本机 | —（外部） |
+| `make release-check`（试点后） | PASS：verify-static + verify-claim + scorecard 新鲜 + plan strict（head `5cc380e`，2026-11-19） | 本机 macOS；PIN v0.4.0 | —（过程记录） |
+| `make scorecard` | 生成 `harness/reviews/2026-11-19-scorecard.md` 草稿（自评/独立复评 TBD，不当作完成证据） | 本机 macOS | —（过程记录） |
 | `make verify-claim` | PASS：3 条当前证据（docs/unit/UI）全部 PASS；UI 证据 `20261119T043007Z-ui-tests-pass`；归档 16 条 SUPERSEDED；0 FAIL / 0 UNVERIFIED（2026-11-19） | 本机 macOS；Python 3.14 | 20261119T042907Z-unit-tests-pass |
 | `make release-check` | PASS：verify-static + verify-claim + scorecard + plan strict（commit `f3f3336`，2026-11-19） | 本机 macOS；Python 3.14 | —（过程记录） |
 | 契约格式兼容验证（scratch） | PASS：Delivery Contract + `### Task N:` 复选框通过 `validate --strict`；全量 lint issues=[]；apply 全勾选后 state=all_done | 本机 macOS；OpenSpec 2.1.0 + v0.4.0 lint | —（过程记录） |
@@ -207,9 +210,16 @@ verify:
 | CI job | 干净 checkout 复算 `verify-static` + delivery-check | lead | P2B2 |
 | light modes | full/light-spec/light-agent 与 L2 mode_waiver | lead | P3 |
 | 外部仓 push | v0.3.1/v0.4.0 tag 推送（外部仓暂无 remote） | lead | 用户提供 remote 后 |
+| receipt log 扩展名 | `delivery_receipts.py` 生成 `.log` 被 `.gitignore` 忽略；试点手工迁移为 `.txt`，生成器应改 `.txt` 并补 fixture | lead | P2B2 |
+| L11 读取 receipt | v0.4.0 的 L11 只读“无需澄清”文本，未读取 clarification receipt；建议把 receipt 存在性纳入 lint | lead | P3 前 |
+| discipline head 绑定 | v0.4.0 要求 receipt.head=当前 HEAD；回执需 staged 才能过，提交后重跑不成立。需明确 CI/干净 checkout 的 head 语义 | lead | P3 前 |
+| review P2 收口 | STD-1/2/3/4、SPEC-2/3/4/5（见试点 review 报告）：策略归位、greenEvidenceId、UI 覆盖、边缘 24pt 与历史筛选行重叠、任务保持断言 | lead | P2B2 |
 
 ## 未验证项
 
+- 试点返回手势只在模拟器验证；真机手势与「返回后任务仍进行中」未跑（review 标 UNVERIFIED）。
+- `delivery-check` 在 head `96e4e5f`、回执 staged 状态下 PASS；提交回执后 HEAD 变化时，v0.4.0 的 discipline head 绑定使其不能直接重跑，需后续增量明确 CI/clean-checkout 语义。
+- `harness/reviews/2026-11-19-scorecard.md` 是生成草稿，自评/独立复评为 TBD，不作完成证据。
 - P0-1 正式 evidence 未补（当前过程记录）。
 - 真实 L2 试点未开始；试点通过前不能声称全链已成立。
 - lint WARN 级（L3/L5 任务数/L6 Covers 缺失/L11）尚未升为 ERROR；当前由 change-lint 展示 + review 核对。
@@ -218,18 +228,18 @@ verify:
 
 ## 未提交改动
 
-- 无（试点交付提交后工作树 clean；archive 与收尾另行列计划）。
+- 无（试点交付、review 与收尾提交后工作树 clean）。
 
 ## 下一步
 
 1. 用户确认后 `openspec archive add-swipe-back-gesture` + archived validate；archive 单独确认。
-2. 试点收尾：登记 review P2 与 toolchain 增量（receipt log 生成、L11 读取 clarification receipt、discipline head 绑定）的最终负责人/时点。
-3. 冻结 PIN，push/tag 单独确认；Phase 2 计划转 done 并归档。
+2. archive 后把 Phase 2 计划转 done 并归档；冻结 PIN。
+3. 后续增量（review P2、receipt log、L11、discipline head）排期；push/tag 单独确认。
 
 ## 待确认
 
-- 试点 archive 是否现在执行（需要用户单独确认；archive 会更新主 specs）。
-- review P2（STD-1/2/3/4、SPEC-2/3/4/5）是否纳入下一增量排期。
+- 试点 archive 是否现在执行（用户单独确认；archive 会更新主 specs 并跑 archived validate）。
+- review P2（STD-1/2/3/4、SPEC-2/3/4/5）与 toolchain 增量的最终排期。
 - 外部仓 push（无 remote）、后续增量负责人/时点。
 - v0.3.1/v0.4.0 tag/push 时点与确认方式（外部仓暂无 remote）。
 - 后续增量（WARN→ERROR、pre-commit、Record v2、doctor、portfolio、CI、light）负责人与时点。
