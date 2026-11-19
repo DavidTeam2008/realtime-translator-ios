@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-18",
+  "updatedAt": "2026-11-19",
   "unit": {
-    "floor": 139,
-    "files": 16
+    "floor": 144,
+    "files": 17
   },
   "ui": {
-    "floor": 3,
+    "floor": 4,
     "files": 2,
-    "passedFloor": 2
+    "passedFloor": 3
   },
   "expectedSkipped": {
     "simulator": 1,
@@ -26,6 +26,6 @@
     "v0.5.3 迁移：claims 使用 passedFloor/device.floor/expectedSkipped.{unit,ui,device}；旧 simulator/device 键保留给宿主脚本。"
   ],
   "device": {
-    "floor": 142
+    "floor": 148
   }
 }

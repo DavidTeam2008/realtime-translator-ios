@@ -1,0 +1,3 @@
+command: python3 tools/check-test-baseline.py
+EXIT_CODE=1
+[FAIL] references/verification.md 计数与 baseline 不一致：文档 139 单元 + 3 UI ≠ baseline 144 单元 + 4 UI
