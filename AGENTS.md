@@ -29,6 +29,7 @@
 - 语音/翻译/音频/持久化/导出：`references/contracts.md`、`Duiyi/Services/AGENTS.md`、`Duiyi/Features/AGENTS.md`。
 - 测试/真机/性能：`references/verification.md`、`DuiyiTests/AGENTS.md`、`DuiyiUITests/AGENTS.md`。
 - 分级/红队/计划：`references/workflow.md`、`harness/AGENTS.md`；文档 `docs/AGENTS.md`；流程动作走 `.dsh/skills`。
+- 执行纪律：Superpowers 先读 [overlay](harness/superpowers-overlay.md)；brainstorming 不建第二份计划，`tasks.md` 唯一任务状态。
 
 ## 4. 铁律（理由 → `references/contracts.md`）
 

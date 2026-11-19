@@ -4,29 +4,50 @@ schema: spec-driven
 # Add only constraints that should guide OpenSpec artifacts and workflows.
 # Include constraints an agent cannot infer by reading the code.
 # Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+
+context: |
+  Duiyi 是端侧 iOS 实时翻译 App（iOS 26.4+ / Swift 6）。行为契约只写用户可观察行为，不写内部实现细节或流水账。
+  Harness 是执行真源：active 计划（harness/plans/）持有 scope、验收、证据与完成判定；OpenSpec 持有 L2 行为契约与唯一任务状态。
+  tasks.md 是唯一任务状态：每个 ### Task N: 块恰好一个任务级复选框；不得在 Harness 计划、docs/superpowers/plans、.superpowers/sdd 复制任务清单或完成状态。
+  L2 流程：make change-new → make change-instructions → 编写 → make change-validate → make change-lint → 执行（TDD / skill receipts）→ make delivery-check → 用户确认 archive。
+  Superpowers overlay：harness/superpowers-overlay.md（brainstorming 不建第二份计划；tasks.md 唯一状态）。
+  用户确认点：L2 方案/契约、archive、commit/push/tag 每次单独确认。
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always state what is out of scope
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+
+rules:
+  proposal:
+    - '必须包含 Why / What Changes / Out of Scope 三段且非空；Out of Scope 明确列出不做项。'
+    - '禁止 TBD / TODO / 待定 / 待补充 / 占位尖括号 / 省略号等占位内容。'
+    - '只写行为变化与理由，不复制 docs/01-product-design.md 等产品文档全文。'
+  design:
+    - '必须包含 Decisions / Risks / Verification 三段；Verification 写清可执行的命令或人工复核方式。'
+    - '至少记录 2 个备选方案与取舍；确实无备选时显式写“无备选”及理由。'
+    - '不写实现步骤流水账；实现顺序放 tasks.md，证据与验收放 Harness 计划。'
+  specs:
+    - 'change spec delta 使用 ## ADDED Requirements；每个需求用 ### Requirement: 且正文含 SHALL。'
+    - '每个 Requirement 至少一个 #### Scenario:；场景含 GIVEN / WHEN / THEN，并标注需求 ID（R1、R2…）与场景 ID（S1.1、S1.2…）。'
+    - '禁止含糊措辞（尽量 / 大概 / 合理 / 友好 / fast / enough 等）；可验证行为写可观察结果。'
+    - '只描述外部可观察行为；内部实现、性能优化细节和任务顺序不写进 spec。'
+  tasks:
+    - '必须包含 # Delivery Contract 与 ## Tasks；Delivery Contract 的 12 个字段齐全，且该段内不得出现复选框。'
+    - '每个 ### Task N: 块恰好一个任务级复选框 - [ ] Task N: ...；全文不得出现其他复选框。'
+    - '每个任务必须写 **Files:**、可执行的验证命令与 Expected；任务数 3–7。'
+    - '每个任务写 Covers: R#/S#/A#；A# 必须与 Delivery Contract 的 Acceptance ID 一致，且每个 Acceptance 至少被一个任务覆盖。'
+    - 'tasks.md 不记录证据、review 结论或完成百分比；证据归 Harness，review 归 harness/reviews。'
 
 # Per-operation guidance (optional)
 # Add advisory guidance for how apply and archive work should be conducted.
 # This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+
+operations:
+  apply:
+    guidance:
+      - '执行前读 Harness active 计划并确认 scope；越界先停并更新 scope。'
+      - '任务状态只改 tasks.md 复选框；不新建第二份计划、ledger 或完成状态。'
+      - '每个实现任务先写失败测试，再最小实现；完成前跑本次真实验证命令。'
+  archive:
+    guidance:
+      - 'archive 前 delivery archive-gate PASS，且用户单独确认；不把 archive 当验收。'
+      - '归档后运行 archived validate；失败保留 change 并记录阻塞。'

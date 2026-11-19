@@ -207,6 +207,7 @@
     }
   },
   "delivery": {
+    "mode": "full",
     "ci": {
       "required": false,
       "reason": "P0 2026-11-18 waiver: self-hosted macOS unit/UI not enabled",
@@ -228,9 +229,12 @@
       "profile": "strict"
     },
     "skills": {
-      "required": false,
+      "required": true,
       "manifest": "tools/vendor/ai_delivery_toolchain/skills.manifest.json",
-      "dir": "harness/receipts/skills"
+      "dir": "harness/receipts/skills",
+      "roots": {
+        "superpowers-cache": "~/.cache/ai-delivery-toolchain/superpowers/22f0b463e7a5e579904dd6211a520321035526f7"
+      }
     }
   }
 }

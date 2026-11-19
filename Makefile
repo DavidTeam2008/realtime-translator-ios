@@ -22,7 +22,7 @@ export PYTHONDONTWRITEBYTECODE := 1
 	adapters-check adapters-sync verify-static verify-claim verify-all release-check doctor doctor-ios plan \
 	selftest upgrade-check scorecard check-arch check-tests check-docs check-harness check-plan \
 	resume end verify-claim-fresh check-agents check-all evidence hooks-install kit-check kit-prompts \
-	kit-publish kit-drift measure-launch harness-audit evidence-chain-check evidence-unit evidence-ui evidence-ui-device
+	kit-publish kit-drift measure-launch harness-audit evidence-chain-check evidence-unit evidence-ui evidence-ui-device 	change-lint change-lint-delivery delivery-skills-fixtures
 
 help: ## 显示本帮助
 	@echo "对译 Duiyi · 可用命令（模拟器=$(SIM_NAME) / iOS $(SIM_OS)）"
@@ -145,6 +145,42 @@ delivery-check-fixtures: ## delivery-check 结构正/负 fixture
 
 delivery-discipline-fixtures: ## discipline receipt 正/负 fixture（宿主 v0.3.1）
 	python3 tools/delivery_discipline_fixtures.py
+
+change-new: ## 建 OpenSpec Change + scaffold receipt：make change-new CHANGE=<id>
+	@test -n "$(CHANGE)" || { echo "用法：make change-new CHANGE=<id>"; exit 2; }
+	python3 tools/delivery_receipts.py scaffold --change "$(CHANGE)"
+
+change-instructions: ## 抓 OpenSpec instructions + receipt：make change-instructions CHANGE=<id> ARTIFACT=<name>
+	@test -n "$(CHANGE)" || { echo "用法：make change-instructions CHANGE=<id> ARTIFACT=<name>"; exit 2; }
+	@test -n "$(ARTIFACT)" || { echo "缺少 ARTIFACT"; exit 2; }
+	python3 tools/delivery_receipts.py instructions --change "$(CHANGE)" --artifact "$(ARTIFACT)"
+
+change-validate: ## 校验 OpenSpec 工件 + validate receipt：make change-validate CHANGE=<id>
+	@test -n "$(CHANGE)" || { echo "用法：make change-validate CHANGE=<id>"; exit 2; }
+	python3 tools/delivery_receipts.py validate --change "$(CHANGE)"
+
+change-lint: ## 契约 lint（plan 阶段，含 L11 澄清 WARN）：make change-lint CHANGE=<id>
+	@test -n "$(CHANGE)" || { echo "用法：make change-lint CHANGE=<id>"; exit 2; }
+	PYTHONPATH=tools/vendor python3 -m ai_delivery_toolchain.lint_cli change --root . --change "$(CHANGE)" --stage plan
+
+change-lint-delivery: ## 契约 lint（delivery 阶段）：make change-lint-delivery CHANGE=<id>
+	@test -n "$(CHANGE)" || { echo "用法：make change-lint-delivery CHANGE=<id>"; exit 2; }
+	PYTHONPATH=tools/vendor python3 -m ai_delivery_toolchain.lint_cli change --root . --change "$(CHANGE)" --stage delivery
+
+change-clarify: ## 记录 clarification receipt：make change-clarify CHANGE=<id> SKILL=brainstorming [NOTES=<file>]
+	@test -n "$(CHANGE)" || { echo "用法：make change-clarify CHANGE=<id> SKILL=<skill>"; exit 2; }
+	@test -n "$(SKILL)" || { echo "缺少 SKILL"; exit 2; }
+	python3 tools/delivery_receipts.py clarification --change "$(CHANGE)" --skill "$(SKILL)" $(if $(NOTES),--notes "$(NOTES)")
+
+skill-receipt: ## 生成 skill invocation receipt：make skill-receipt CHANGE=<id> TASK=<n> PHASE=<phase> SKILL=<skill> ROOT_ID=<id> HOST_ROOT=<dir> HOST_FILE=<file>
+	@test -n "$(CHANGE)" -a -n "$(TASK)" -a -n "$(PHASE)" -a -n "$(SKILL)" -a -n "$(ROOT_ID)" -a -n "$(HOST_ROOT)" -a -n "$(HOST_FILE)" || { echo "缺少参数（见目标说明）"; exit 2; }
+	python3 tools/delivery_receipts.py skill-receipt --change "$(CHANGE)" --task "$(TASK)" --phase "$(PHASE)" --skill "$(SKILL)" --root-id "$(ROOT_ID)" --host-root "$(HOST_ROOT)" --host-file "$(HOST_FILE)"
+
+delivery-receipts-fixtures: ## scaffold/instructions/validate 回执 + provenance 正/负例 fixture
+	python3 tools/delivery_receipts_fixtures.py
+
+delivery-skills-fixtures: ## skill receipt + overlay 正/负例 fixture（宿主 v0.4.0）
+	python3 tools/delivery_skills_fixtures.py
 
 doctor-skills: ## 检查 Claude Code 的 openspec/superpowers 用户级软链
 	python3 tools/doctor_skills.py

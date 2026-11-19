@@ -48,3 +48,6 @@
 | D-AI9 | 工具与组织边界 | P0 只验证 QoderCN 与 Claude Code；外部工具固定版本，桥接能力先 spike；公共通用层与公司私有 Organization Overlay 分离，P1 前确认模型、源码与凭证合规 |
 | D-AI10 | 评价与计划 | P0 只评价机制有效性、证据完整性与流程成本，不承诺效率提升；先收口或归档当前开源标杆化 active 计划，再建立独立 P0 L2 计划 |
 | D-AI11 | 原生 OpenSpec 执行模式 | 自 P0 收口后的下一个 L2 Change 起，OpenSpec `tasks.md` 为唯一执行计划与任务状态；必须携带 Delivery Contract（base/scope/acceptance/verify/evidence/review/archive gate）。Superpowers 负责执行纪律，Harness 负责 scope、验收、证据与完成判定；ECC 仅为固定版本可选素材。不得同时存在 Harness 任务清单、Superpowers `plan.md` 或可独立决定状态的 ledger。首个原生 Change 前必须先落地 delivery-check、Change Record 单一真源与回滚路径；`status.isComplete` 和仅 `remaining==0` 均不能判定完成。P0 旧 Change 不追溯改写，验收后单独确认归档 |
+| D-AI12 | 原生工具参与与 provenance | OpenSpec 工件必须由 `openspec new change` 创建并留下 scaffold/instructions/validate 回执；Superpowers 必须显式调用并留 skill receipt；回执由 delivery-check fail-closed 复算。本地回执只证明“声明/版本/哈希/顺序”，不证明 Agent 真实遵守，最终由 Git 历史 + 独立 review + CI 兜底 |
+| D-AI13 | 可移植工具链 | 外部 `ai-delivery-toolchain` 以 annotated tag + PIN（tag/commit/tree/逐文件哈希）固定；宿主只保留配置与薄适配；P3 迁移到全局 CLI + lock + cache，保留 vendored hermetic 选项 |
+| D-AI14 | 术语/ADR 落点 | 暂不引入 `GLOSSARY.md` / `docs/adr`；P3 评估 `grill-with-docs` 前先决定术语表与 ADR 的唯一落点；当前持久决策仍只写 `docs/decisions.md` |

@@ -7,6 +7,7 @@ CLI. Task state remains in OpenSpec tasks.md; this script does not copy tasks.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -16,6 +17,7 @@ from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
 ROOT = TOOLS.parent
+OVERLAY = Path("harness") / "superpowers-overlay.md"
 sys.path.insert(0, str(TOOLS))
 
 from evidence_chain import load_pin  # noqa: E402
@@ -99,6 +101,7 @@ def build_profile(root: Path, change: str) -> dict:
         if not isinstance(roots, dict):
             raise ValueError("delivery.skills.roots 必须是 object")
         skills_profile = {**skills, "roots": roots}
+        skills_profile.setdefault("receiptsDir", skills.get("dir", "harness/receipts/skills"))
     provenance_profile = None
     if provenance is not None:
         provenance_profile = dict(provenance)
@@ -113,6 +116,31 @@ def build_profile(root: Path, change: str) -> dict:
         "contractLint": contract_lint,
         "skills": skills_profile,
     }
+
+
+def check_skill_overlays(root: Path, change: str) -> None:
+    """Every skill receipt must bind the current Superpowers overlay hash."""
+    if not change or "/" in change or ".." in Path(change).parts:
+        raise ValueError(f"change 非法：{change!r}")
+    receipt_dir = root / "harness" / "receipts" / "skills" / change
+    if not receipt_dir.is_dir():
+        return
+    overlay = root / OVERLAY
+    if not overlay.is_file():
+        raise ValueError(f"缺少 Superpowers overlay：{OVERLAY.as_posix()}")
+    digest = hashlib.sha256(overlay.read_bytes()).hexdigest()
+    for path in sorted(receipt_dir.glob("*.json")):
+        try:
+            document = _load(path)
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"skill receipt 读取失败：{path.name} ({exc})") from exc
+        if document.get("kind") != "skill-invoked":
+            continue
+        data = document.get("overlay")
+        if not isinstance(data, dict):
+            raise ValueError(f"skill receipt 缺少 overlay：{path.name}")
+        if data.get("path") != OVERLAY.as_posix() or data.get("sha256") != digest:
+            raise ValueError(f"skill receipt 的 overlay 哈希已失效：{path.name}")
 
 
 def _check_pin_metadata(root: Path) -> None:
@@ -139,6 +167,7 @@ def run(
 ) -> int:
     load_pin(root)
     _check_pin_metadata(root)
+    check_skill_overlays(root, change)
     profile = build_profile(root, change)
     tasks_path = tasks or f"openspec/changes/{change}/tasks.md"
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as handle:

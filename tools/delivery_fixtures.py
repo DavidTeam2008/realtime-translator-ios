@@ -34,10 +34,12 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def _profile(discipline_required: bool = False) -> dict:
+def _profile(discipline_required: bool = False, contract_lint_required: bool = False) -> dict:
     delivery = {"ci": {"required": False, "reason": "hermetic fixture"}}
     if discipline_required:
         delivery["discipline"] = {"required": True, "dir": "harness/evidence/discipline"}
+    if contract_lint_required:
+        delivery["contractLint"] = {"required": True, "profile": "strict"}
     return {
         "paths": {"evidence": "harness/evidence"},
         "claims": [],
@@ -45,15 +47,25 @@ def _profile(discipline_required: bool = False) -> dict:
     }
 
 
-def _prepare_repo(root: Path, discipline_required: bool = False) -> str:
+def _prepare_repo(
+    root: Path, discipline_required: bool = False, contract_lint_required: bool = False
+) -> str:
     shutil.copytree(VENDOR_SRC, root / "tools" / "vendor" / "ai_delivery_toolchain")
     for cache in (root / "tools" / "vendor").rglob("__pycache__"):
         shutil.rmtree(cache, ignore_errors=True)
     _write(root / "tools" / "openspec", "#!/bin/sh\nexit 1\n")
     (root / "tools" / "openspec").chmod(0o755)
-    _write(root / "harness" / "config.json", json.dumps(_profile(discipline_required), ensure_ascii=False, indent=2))
+    _write(
+        root / "harness" / "config.json",
+        json.dumps(_profile(discipline_required, contract_lint_required), ensure_ascii=False, indent=2),
+    )
     _write(root / "harness" / "test-baseline.json", "{}\n")
     (root / "harness" / "evidence").mkdir(parents=True, exist_ok=True)
+    change_dir = root / "openspec" / "changes" / "fixture-native"
+    _write(change_dir / "proposal.md", "# Proposal\n")
+    _write(change_dir / "design.md", "# Design\n")
+    _write(change_dir / "specs" / "core" / "spec.md", "# Spec\n")
+    _write(change_dir / "tasks.md", "# Delivery Contract\n")
 
     _git(root, "init", "-q")
     _git(root, "config", "user.email", "fixture@example.invalid")
@@ -64,10 +76,16 @@ def _prepare_repo(root: Path, discipline_required: bool = False) -> str:
     return _git(root, "rev-parse", "HEAD")
 
 
-def _run_case(name: str, expect_ok: bool, discipline_required: bool = False) -> None:
+def _run_case(
+    name: str,
+    expect_ok: bool,
+    discipline_required: bool = False,
+    contract_lint_required: bool = False,
+    expect_message: str | None = None,
+) -> None:
     with tempfile.TemporaryDirectory(prefix="delivery-fixture-") as tmp_raw:
         tmp = Path(tmp_raw)
-        base = _prepare_repo(tmp, discipline_required)
+        base = _prepare_repo(tmp, discipline_required, contract_lint_required)
         task_text = (FIXTURE / name).read_text(encoding="utf-8").replace("<base>", base)
         task_path = tmp / "fixtures" / name
         _write(task_path, task_text)
@@ -100,13 +118,22 @@ def _run_case(name: str, expect_ok: bool, discipline_required: bool = False) -> 
             print(completed.stdout)
             print(completed.stderr, file=sys.stderr)
             raise SystemExit(1)
+        if expect_message and expect_message not in (completed.stdout + completed.stderr):
+            print(f"[FAIL] fixture {name}: 输出缺少预期错误：{expect_message}")
+            print(completed.stdout)
+            print(completed.stderr, file=sys.stderr)
+            raise SystemExit(1)
 
 
 def main() -> int:
     _run_case("tasks-positive.md", True)
     _run_case("tasks-negative-zero.md", False)
-    _run_case("tasks-positive.md", False, discipline_required=True)
-    print("PASS delivery-check fixtures: positive=0, zero-tasks!=0, discipline-required-missing!=0 (hermetic repo)")
+    _run_case("tasks-positive.md", False, discipline_required=True, expect_message="discipline")
+    _run_case("tasks-positive.md", False, contract_lint_required=True, expect_message="contract lint")
+    print(
+        "PASS delivery-check fixtures: positive=0, zero-tasks!=0, "
+        "discipline-required-missing!=0, contract-lint-failure!=0 (hermetic repo)"
+    )
     return 0
 
 
