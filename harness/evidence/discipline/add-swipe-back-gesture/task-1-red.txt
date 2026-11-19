@@ -1,0 +1,3 @@
+command: make test-one TEST=DuiyiTests/EdgeSwipeBackPolicyTests
+EXIT_CODE=2
+Cannot find 'EdgeSwipeBackPolicy' in scope
