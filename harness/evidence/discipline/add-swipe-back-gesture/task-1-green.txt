@@ -1,0 +1,3 @@
+command: make test-one TEST=DuiyiTests/EdgeSwipeBackPolicyTests
+EXIT_CODE=0
+Test suite 'EdgeSwipeBackPolicyTests' passed: 5 tests
