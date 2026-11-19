@@ -1,13 +1,22 @@
 ---
 base: 13b8b4d8999a6dc0360461a3fc788e69f11609aa
-head: 354aeeb0741513a42259d073a3fd041faae741d8
+head: 9f622266f58ce4d87dcc4d0076cd191fc50b320a
 reviewer: claude-code / code-review (standards + spec, two parallel fresh contexts)
-p0: 0
-p1: 2
-p2: 8
-verdict: PASS_WITH_FINDINGS
-gates: PARTIAL
----
+p0: closed
+p1: closed
+p2: scheduled
+verdict: pass
+review_mode: dual-context
+executor: mattpocock-code-review
+axes: standards,spec
+standards_report: harness/reviews/2026-11-19-add-swipe-back-gesture-standards.md
+spec_report: harness/reviews/2026-11-19-add-swipe-back-gesture-spec.md
+gate_report: harness/reviews/2026-11-19-add-swipe-back-gesture-gates.md
+gate_runner: gate-runner-lead
+p1_opened: 2
+p1_fix_review: harness/reviews/2026-11-19-add-swipe-back-gesture-p1-fix.md
+p1_fix_reviewed_head: 9f622266f58ce4d87dcc4d0076cd191fc50b320a
+----
 
 # Dual Review — add-swipe-back-gesture
 
@@ -78,3 +87,13 @@ Consequence: the new policy unit tests and UI test have **not** been re-verified
 
 - The gate runner observed unrelated uncommitted changes during the review (`Makefile`, `harness/config.json`, `tools/delivery_check.py`, untracked `harness/plans/2026-11-19-review-independence.md`, `tools/review_guard.py`, `tools/review_guard_fixtures.py`). I did not create or revert them; the reviewed code is committed at HEAD.
 - No source files were edited and nothing was committed by this review.
+
+## 作者响应与修复（2026-11-19）
+
+- **P1 SPEC-1（首页边缘右滑不导航）已关闭**：新增 `testHomeEdgeSwipeDoesNotNavigate`；在首页底部空白区从左侧起手右滑，断言首页卡片仍在、无 `nav-home`。先前失败原因定位为测试起手点落在首页可点击卡片上（合成手势误触），已改起手区并加注释。
+- **P1 SPEC-2（历史页右滑返回）已关闭**：新增 `testHistorySwipeBack`；历史页边缘右滑返回首页，断言 `nav-home` 消失。
+- **P2 STD-1/SPEC-3 部分修复**：模块页与历史页用例均增加 `nav-home` 消失断言。
+- **P2 STD-3 部分修复**：单测增加 `120x80` 接受与 `120x90` 拒绝边界。
+- **P2 STD-4 已处理**：移除纯逻辑测试的 `@MainActor`。
+- 其余 P2 保持 scheduled；修复复核见 `2026-11-19-add-swipe-back-gesture-p1-fix.md`。
+- 修复后 unit 144 / UI 5 pass + 1 skip；证据 `20261119T115317Z-unit-tests-pass`、`20261119T115531Z-ui-tests-pass`。

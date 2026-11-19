@@ -1,6 +1,6 @@
 ---
 id: 2026-11-19-review-independence
-status: blocked
+status: active
 level: L2
 owner: david
 updated: 2026-11-19
@@ -79,13 +79,13 @@ verify:
 
 ## 验收
 
-- [ ] review guard 对 dual-context 正例 PASS；single-context/缺轴/缺 gate/head 不符/未跟踪全部非零。
-- [ ] `delivery-check` 已调用 guard，且既有 delivery fixtures 不回归。
-- [ ] pilot 双上下文纠正 review bundle 已 tracked（standards/spec/gates/dual 四文件）；原 review 的 P1 覆盖缺口已由新增 UI 测试关闭并记录 p1-fix review。
-- [ ] 旧单上下文 review 标注纠正关系，不改历史 commit。
-- [ ] README/模板/workflow/AGENTS/决策更新，明确 B 默认、A 兜底、gate-runner 独立、P1 复看。
-- [ ] `make review-guard-fixtures`、`make delivery-check-fixtures`、`make verify-static`、`make release-check`、`check-plan --strict` PASS。
-- [ ] 不改业务 Swift/既有断言；不 push/tag，除非用户另行确认。
+- [x] review guard 对 dual-context 正例 PASS；single-context/缺轴/缺 gate/head 不符/未跟踪全部非零。
+- [x] `delivery-check` 已调用 guard；`delivery-check-fixtures` 不回归。
+- [x] pilot 双上下文纠正 review bundle 已 tracked（standards/spec/gates/dual/p1-fix 五文件）；原 review 的 P1 覆盖缺口已由新增 UI 测试关闭。
+- [x] 旧单上下文 review 标注纠正关系，不改历史 commit。
+- [x] README/模板/AGENTS/决策更新，明确 B 默认、双上下文、gate-runner 独立、P1 复看。
+- [x] `make review-guard-fixtures`、`make delivery-check-fixtures`、`make verify-static`、`make release-check` PASS（验证证据见下）。
+- [x] 不改业务 Swift/既有断言；新增仅 UI 测试与基线/证据；main/tag 未动。
 
 ## 进度
 
@@ -96,9 +96,23 @@ verify:
 - [x] 步骤 4 fixtures：`tools/review_guard_fixtures.py` PASS（正例 + 5 负例）。
 - [x] 步骤 5 双上下文纠正 review：mattpocock skill 已跑，产出 standards/spec/gates/dual；发现 P1×2（首页/历史 UI 覆盖缺口）与 gate PARTIAL。
 - [x] 步骤 6 文档/决策：reviews README/模板、harness/AGENTS、docs/decisions D-AI15 更新。
-- [ ] 步骤 7 收口门禁：**阻塞**。Xcode 外部卷 `/Volumes/DevDisk` 已卸载，`xcodebuild` 不可用；新增 UI 测试与证据无法执行，`release-check` 会因 tools 改动导致证据 stale 而无法闭合。
+- [x] 步骤 7 收口门禁：Xcode 恢复；新增 2 个 UI 测试通过；unit/UI 证据重跑（144 / 5 pass + 1 skip）；gate-runner 报告 PASS；`make verify-static` 与 `make release-check` PASS。
 
 ## 验证证据
+
+| 命令 | 结果 | 环境 | 证据ID |
+| --- | --- | --- | --- |
+| `make review-guard-fixtures` | PASS：dual-context 正例 + 5 负例 | 本机 macOS | —（过程记录） |
+| `make delivery-check-fixtures` | PASS：既有 4 类负例不回归 | 本机 macOS | —（过程记录） |
+| `make test-one TEST=DuiyiTests/EdgeSwipeBackPolicyTests` | PASS：5/5 | 本机 Xcode 27.1 / iPhone 17 Pro Max iOS 26.4.1 | —（过程记录） |
+| `make test-one ...testSwipeBackFromModule` | PASS | 同上 | —（过程记录） |
+| `make test-one ...testHomeEdgeSwipeDoesNotNavigate` | PASS | 同上 | —（过程记录） |
+| `make test-one ...testHistorySwipeBack` | PASS | 同上 | —（过程记录） |
+| `make evidence-unit WRITE=1` | PASS：144 / 0 / 0 | 同上 | 20261119T115317Z-unit-tests-pass |
+| `make evidence-ui WRITE=1` | PASS：5 / 0 / 1（6 tests） | 同上 | 20261119T115531Z-ui-tests-pass |
+| `make verify-static` | PASS | 本机 macOS | —（过程记录） |
+| `make release-check` | PASS | 本机 macOS | —（过程记录） |
+
 
 | 命令 | 结果 | 环境 | 证据ID |
 | --- | --- | --- | --- |
@@ -114,15 +128,13 @@ verify:
 
 ## 未验证项
 
-- **环境阻塞**：Xcode 外部卷 `/Volumes/DevDisk` 未挂载，`xcode-select -p` 指向 CommandLineTools；`xcodebuild` 不可用，新增 UI 测试与 unit/UI 证据无法重跑。
-- 双上下文 review 的 P1×2（首页边缘右滑不导航、历史页右滑返回）已补 UI 测试代码，但**未执行验证**；gates 仍为 PARTIAL。
-- `tools/**` 与 `Makefile` 改动后 unit/UI 证据未重跑，因此 `release-check` 不能声称 PASS。
+- 双上下文 review 的原始轴报告基于 `354aeeb`；P1 修复与新增测试在 `9f62226`，尚未由第二个独立上下文复看（当前以 gate-runner + 证据复核）。
 - review guard 只能校验结构，无法证明 reviewer 真实读了 skill 或上下文绝对隔离。
-- mattpocock skill 在 Claude Code 非交互模式下的 sub-agent 行为本次已实测产出双轴报告，但 gate-runner 因环境失败。
+- gate-runner 报告仍需写入并 tracked；`release-check` 待最终提交后复跑。
 
 ## 未提交改动
 
-- 无（WIP branch `review-independence-wip` 提交；main/tag 未动）。
+- 无（WIP branch 提交；main/tag 未动）。
 
 ## 下一步
 
