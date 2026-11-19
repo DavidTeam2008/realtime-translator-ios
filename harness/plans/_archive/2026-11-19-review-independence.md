@@ -1,9 +1,10 @@
 ---
 id: 2026-11-19-review-independence
-status: active
+status: done
 level: L2
 owner: david
 updated: 2026-11-19
+submitted: c763e53 9f62226 7bfe637
 scope:
   allow:
     - harness/plans/
@@ -130,11 +131,18 @@ verify:
 
 - 双上下文 review 的原始轴报告基于 `354aeeb`；P1 修复与新增测试在 `9f62226`，尚未由第二个独立上下文复看（当前以 gate-runner + 证据复核）。
 - review guard 只能校验结构，无法证明 reviewer 真实读了 skill 或上下文绝对隔离。
-- gate-runner 报告仍需写入并 tracked；`release-check` 待最终提交后复跑。
+
+## 未验证豁免
+
+| 项目 | 理由 | 负责人 | 到期日 |
+| --- | --- | --- | --- |
+| P1 修复与新增测试 | 由 gate-runner 与证据复核，未再由第二个独立上下文复看；双轴原始报告保留 | lead | 2026-12-31 |
+| review guard 只能校验结构 | 无法证明 reviewer 真实读 skill 或上下文绝对隔离；信任锚仍是 Git/review/CI | lead | 2026-12-31 |
+| gate-runner 与作者同机 | 当前 gate-runner 为独立进程但同一开发机；跨机器/CI 复算列入后续增量 | lead | 2026-12-31 |
 
 ## 未提交改动
 
-- 无（WIP branch 提交；main/tag 未动）。
+- 无（本计划收尾提交；main 未 push）。
 
 ## 下一步
 
