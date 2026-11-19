@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "kind": "clarification",
+  "change": "add-swipe-back-gesture",
+  "skill": "brainstorming",
+  "createdAt": "2026-11-19T04:59:54Z",
+  "notesArtifact": "harness/receipts/clarification/add-swipe-back-gesture/notes.md",
+  "notesSha256": "a8088a6cd8b13575587f006999d99bb6cfa40528171ab7df6da1fbd2f23d4a89"
+}

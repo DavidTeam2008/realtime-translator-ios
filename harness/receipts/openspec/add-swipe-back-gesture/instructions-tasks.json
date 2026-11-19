@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "openspec-instructions",
+  "change": "add-swipe-back-gesture",
+  "artifact": "tasks",
+  "command": "openspec instructions tasks --change add-swipe-back-gesture --json",
+  "exitCode": 0,
+  "outputSha256": "225ef33a12750bc977826b553c06a87c7c59d160bc468087512d923745331eb1",
+  "outputArtifact": "harness/receipts/openspec/add-swipe-back-gesture/logs/tasks.log"
+}

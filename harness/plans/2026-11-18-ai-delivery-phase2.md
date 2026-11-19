@@ -13,6 +13,13 @@ scope:
     - harness/evidence/
     - harness/receipts/
     - harness/reviews/
+    - harness/test-baseline.json
+    - harness/records/
+    - openspec/changes/add-swipe-back-gesture/
+    - Duiyi/App/RootView.swift
+    - Duiyi/Features/Shared/
+    - DuiyiTests/
+    - DuiyiUITests/
     - harness/superpowers-overlay.md
     - harness/config.json
     - tools/
@@ -30,11 +37,7 @@ scope:
   deny:
     - harness/plans/_archive/
     - harness/evidence/_archive/
-    - openspec/changes/
     - openspec/specs/
-    - Duiyi/
-    - DuiyiTests/
-    - DuiyiUITests/
     - Duiyi.xcodeproj/
     - .githooks/
     - .github/workflows/
@@ -98,6 +101,14 @@ verify:
 6. **一个真实 L2 试点（Phase C）**：用户选小行为变更；按新流程走 scaffold/instructions/validate/lint/skill/TDD/evidence/review；记录首次门禁通过率、返工、回执覆盖率、人工干预；archive 单独确认；失败按 blocked 回滚。
 7. **收尾与增量登记**：更新证据/计划/决策；列出后续增量（pre-commit、Record v2、doctor、portfolio、剩余 7 条 lint、CI、light）与负责人/时点；冻结 PIN，提交/push 单独确认。
 
+## 试点记录：add-swipe-back-gesture（步骤 6）
+
+- **Change**：`openspec/changes/add-swipe-back-gesture/`；目标「已推入页面支持左边缘右滑返回上一级」。
+- **方案**：根级左边缘 `DragGesture` + 可单测 `EdgeSwipeBackPolicy`；不做 UIKit 原生手势 introspection，不做跟手转场。
+- **契约状态**：scaffold / instructions×4 / clarification / validate receipts 已生成；`validate --strict` 与 change-lint 通过（L11 仍为 WARN，v0.4.0 的 L11 未读取 clarification receipt，按 advisory 记录）。
+- **待确认**：proposal/design/spec/tasks 与实现方案需用户确认后，才进入 Task 1 红测试与代码实现。
+- **范围**：仅 `Duiyi/App/RootView.swift`、`Duiyi/Features/Shared/`、`DuiyiTests/`、`DuiyiUITests/`、测试基线/文档与试点回执；不改业务语义与既有断言。
+
 ## 验收
 
 - [x] 红基线修复：`delivery-check-fixtures` 正例 PASS、负例非零（hermetic 临时仓）；provenance fixtures 与 v0.4.0 在步骤 5 同步。
@@ -125,6 +136,8 @@ verify:
 - [x] 步骤 5 回执/lint/config/overlay 完成；收口门禁 fixtures / pin / receipts / skills / verify-static / check-plan-strict PASS；unit/UI 证据已在 clean commit 上重跑（2026-11-19）。
 - [x] 步骤 5 门禁全部 PASS：`make verify-claim`（3 PASS / 0 FAIL / 0 UNVERIFIED）与 `make release-check` 在 clean commit `f3f3336` 上 PASS（2026-11-19）。
 - [ ] 一个真实 L2 试点 + 后续增量登记。
+  - [x] 试点 Change `add-swipe-back-gesture` 已 scaffold；proposal/design/spec/tasks 已写，validate + lint 完成（2026-11-19）。
+  - [ ] 试点实现、证据、独立 review、archive（等用户确认 Change/设计后执行）。
 
 ## 验证证据
 
@@ -197,7 +210,7 @@ verify:
 
 ## 未提交改动
 
-- 无（2026-11-19 门禁收尾；本计划提交后工作树 clean）。
+- 无（试点 Change 脚手架与计划已提交；实现阶段变更按批次声明/提交）。
 
 ## 下一步
 
@@ -208,6 +221,7 @@ verify:
 
 ## 待确认
 
-- 真实试点选哪个小行为变更（建议用户指定；需用户确认 Change/计划）。
+- 试点 Change `add-swipe-back-gesture` 的 proposal/design/spec/tasks 与方案 B（根级左边缘手势）待用户确认；可选方案 A（原生交互式 pop）。
+- 是否接受试点返回手势从屏幕左边缘起手（iOS 标准）；若不接受，需要先调整触发条件。
 - v0.3.1/v0.4.0 tag/push 时点与确认方式（外部仓暂无 remote）。
 - 后续增量（WARN→ERROR、pre-commit、Record v2、doctor、portfolio、CI、light）负责人与时点。

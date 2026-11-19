@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "openspec-scaffold",
+  "change": "add-swipe-back-gesture",
+  "base": "13b8b4d8999a6dc0360461a3fc788e69f11609aa",
+  "command": "openspec new change add-swipe-back-gesture",
+  "exitCode": 0,
+  "createdAt": "2026-11-19T04:58:54Z",
+  "outputArtifact": "harness/receipts/openspec/add-swipe-back-gesture/logs/scaffold.log",
+  "outputSha256": "8173cd4c68032266cdb880dc54d520b3c242bf2d500a5c0ef95c4fae9e78c6ff",
+  "openspecYaml": "openspec/changes/add-swipe-back-gesture/.openspec.yaml",
+  "openspecYamlSha256": "4c809c0a23df2b5d2324425b77ae5ff9b6d93d0a0f8c42e9dc20695839cf2478"
+}
