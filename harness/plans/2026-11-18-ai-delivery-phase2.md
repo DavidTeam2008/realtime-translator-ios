@@ -108,9 +108,9 @@ verify:
 - [x] 全量 L1–L11 在 delivery-check 中启用；contract-lint failure fixture 非零；WARN 级（L3/L5 数量/L6 Covers 缺失/L11）为 advisory 并经 change-lint/review 核对（2026-11-19）。
 - [x] OpenSpec config rules/context + traceability 生效；Superpowers overlay 存在且 hash 入 skill receipt 并由宿主复算；dry-run 不生成 `docs/superpowers/plans`（2026-11-19）。
 - [ ] 一个真实 L2 试点全链 PASS（或 blocked + 回滚记录）；archive 单独确认。
-- [ ] 后续增量有清单、负责人、时点；不在本计划声称完成。
-- [ ] `delivery-check-fixtures`/`provenance-fixtures`/`delivery-check-pin`/`verify-static`/`release-check` 全绿；`check-plan --strict` PASS。
-- [ ] 不创建第二计划/ledger；不改历史工件；不 auto commit/push/tag。
+- [x] 后续增量有清单、建议负责人与时点；不在本计划声称完成（建议值待用户确认）。
+- [x] `delivery-check-fixtures`/`delivery-receipts-fixtures`/`delivery-skills-fixtures`/`delivery-check-pin`/`verify-static`/`release-check` 全绿；`check-plan --strict` PASS（2026-11-19）。
+- [x] 不创建第二计划/ledger；不改历史工件；commit 均经用户确认后执行，未 auto commit/push/tag。
 
 ## 进度
 
@@ -123,6 +123,7 @@ verify:
 - [x] 宿主回执生成器（scaffold/instructions/validate/clarification/skill-receipt）+ provenance 正/负 fixture（2026-11-19）。
 - [x] 全量 lint 接入（v0.4.0 L1–L11；ERROR 硬失败 / WARN advisory）+ OpenSpec config/overlay + skill/clarification 负例（2026-11-19）。
 - [x] 步骤 5 回执/lint/config/overlay 完成；收口门禁 fixtures / pin / receipts / skills / verify-static / check-plan-strict PASS；unit/UI 证据已在 clean commit 上重跑（2026-11-19）。
+- [x] 步骤 5 门禁全部 PASS：`make verify-claim`（3 PASS / 0 FAIL / 0 UNVERIFIED）与 `make release-check` 在 clean commit `f3f3336` 上 PASS（2026-11-19）。
 - [ ] 一个真实 L2 试点 + 后续增量登记。
 
 ## 验证证据
@@ -145,7 +146,8 @@ verify:
 | `make verify-static` | PASS：332 kit tests + 宿主静态门禁（2026-11-19） | 本机 macOS；Python 3.14 | —（过程记录） |
 | `make evidence-unit WRITE=1` | PASS：139 passed / 0 failed / 0 skipped；证据 `20261119T042907Z-unit-tests-pass`，artifact+manifest tracked | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T042907Z-unit-tests-pass |
 | `make evidence-ui WRITE=1` | PASS：2 passed / 0 failed / 1 skipped；证据 `20261119T043007Z-ui-tests-pass`，artifact+manifest tracked | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T043007Z-ui-tests-pass |
-| `make release-check` | 待提交后复跑（上轮因 unit/UI STALE 为 UNVERIFIED；本轮证据已刷新） | 本机 macOS | —（未验证） |
+| `make verify-claim` | PASS：3 条当前证据（docs/unit/UI）全部 PASS；归档 16 条 SUPERSEDED；0 FAIL / 0 UNVERIFIED（2026-11-19） | 本机 macOS；Python 3.14 | 20261119T042907Z-unit-tests-pass / 20261119T043007Z-ui-tests-pass |
+| `make release-check` | PASS：verify-static + verify-claim + scorecard + plan strict（commit `f3f3336`，2026-11-19） | 本机 macOS；Python 3.14 | —（过程记录） |
 | 契约格式兼容验证（scratch） | PASS：Delivery Contract + `### Task N:` 复选框通过 `validate --strict`；全量 lint issues=[]；apply 全勾选后 state=all_done | 本机 macOS；OpenSpec 2.1.0 + v0.4.0 lint | —（过程记录） |
 | `make change-lint` smoke（临时 change，已清理） | PASS：L1/L2/L4 ERROR + L11 WARN 输出；退出非零 | 本机 macOS；v0.4.0 lint | —（过程记录） |
 
@@ -195,15 +197,14 @@ verify:
 
 ## 未提交改动
 
-- 无（步骤 5 代码/配置/文档与 unit/UI 证据已提交；计划门禁复跑后收尾）。
+- 无（2026-11-19 门禁收尾；本计划提交后工作树 clean）。
 
 ## 下一步
 
-1. 步骤 5 代码/配置/文档与 unit/UI 证据已提交；跑 `make release-check` 关闭门禁后进入试点。
-2. 用户选一个真实小行为变更作为 L2 试点，确认 Change 与执行计划后进入步骤 6。
-3. 试点按 scaffold/instructions/validate/lint/skill/TDD/evidence/review 全链执行；archive 单独确认。
-4. 登记后续增量（WARN→ERROR、pre-commit、Record v2、doctor、portfolio、CI、light）与负责人/时点。
-5. 任何 commit/push/tag/archive 每次单独确认。
+1. 用户选一个真实小行为变更作为 L2 试点，确认 Change 与执行计划后进入步骤 6。
+2. 试点按 scaffold/instructions/validate/lint/skill/TDD/evidence/review 全链执行；archive 单独确认。
+3. 试点结束后登记后续增量（WARN→ERROR、pre-commit、Record v2、doctor、portfolio、CI、light）的最终负责人与时点。
+4. 任何 push/tag/archive 每次单独确认；commit 按改动批次确认。
 
 ## 待确认
 
