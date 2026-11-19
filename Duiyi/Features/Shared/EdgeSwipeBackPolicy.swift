@@ -14,6 +14,7 @@ enum EdgeSwipeBackPolicy {
         guard hasPreviousPage else { return false }
         guard startLocation.x >= 0, startLocation.x <= edgeWidth else { return false }
         guard translation.width >= minimumHorizontalTranslation else { return false }
+        guard abs(translation.height) < translation.width else { return false }
         guard abs(translation.height) <= maximumVerticalDrift else { return false }
         return true
     }

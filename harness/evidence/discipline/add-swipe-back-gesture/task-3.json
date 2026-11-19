@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "kind": "superpowers-discipline-receipt",
+  "change": "add-swipe-back-gesture",
+  "task": 3,
+  "base": "13b8b4d8999a6dc0360461a3fc788e69f11609aa",
+  "head": "7a938cdced056ce5a9185db8f96b79082e6c5a57",
+  "discipline": {
+    "name": "superpowers",
+    "version": "v7.0.2",
+    "commit": "22f0b463e7a5e579904dd6211a520321035526f7"
+  },
+  "tdd": {
+    "red": {
+      "commit": "700c4f9259f10f7012dac887aa3afb09d31fc2f8",
+      "command": "python3 tools/check-test-baseline.py",
+      "exitCode": 1,
+      "artifact": "harness/evidence/discipline/add-swipe-back-gesture/task-3-red.txt",
+      "sha256": "de83523b67165b0b7558ef6e4fe8b20a0e68ed2ac043994a93a1c306160d915c"
+    },
+    "green": {
+      "commit": "7a938cdced056ce5a9185db8f96b79082e6c5a57",
+      "command": "python3 tools/check-test-baseline.py",
+      "exitCode": 0,
+      "artifact": "harness/evidence/discipline/add-swipe-back-gesture/task-3-green.txt",
+      "sha256": "0514ccdd63c90602bda9acb1c8a80b196f7bfec62facea546ad5cc8a40289616"
+    }
+  },
+  "debugging": {
+    "rootCause": "Baseline and verification counts were stale after the new unit/UI tests were added."
+  },
+  "verification": {
+    "evidenceIds": [
+      "20261119T051131Z-unit-tests-pass",
+      "20261119T051240Z-ui-tests-pass"
+    ]
+  },
+  "redCommand": "python3 tools/check-test-baseline.py",
+  "redExitCode": 1,
+  "redOutputSha256": "de83523b67165b0b7558ef6e4fe8b20a0e68ed2ac043994a93a1c306160d915c",
+  "greenEvidenceId": "20261119T051131Z-unit-tests-pass",
+  "skills": [
+    "harness/receipts/skills/add-swipe-back-gesture/task-3-verification-before-completion.json"
+  ]
+}

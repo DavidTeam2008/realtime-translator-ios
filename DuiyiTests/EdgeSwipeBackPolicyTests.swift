@@ -56,6 +56,13 @@ struct EdgeSwipeBackPolicyTests {
             !EdgeSwipeBackPolicy.shouldPop(
                 hasPreviousPage: true,
                 startLocation: CGPoint(x: 12, y: startY),
+                translation: CGSize(width: 60, height: 79)
+            )
+        )
+        #expect(
+            !EdgeSwipeBackPolicy.shouldPop(
+                hasPreviousPage: true,
+                startLocation: CGPoint(x: 12, y: startY),
                 translation: CGSize(width: 120, height: 120)
             )
         )

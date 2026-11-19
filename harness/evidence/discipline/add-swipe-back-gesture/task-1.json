@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "kind": "superpowers-discipline-receipt",
+  "change": "add-swipe-back-gesture",
+  "task": 1,
+  "base": "13b8b4d8999a6dc0360461a3fc788e69f11609aa",
+  "head": "7a938cdced056ce5a9185db8f96b79082e6c5a57",
+  "discipline": {
+    "name": "superpowers",
+    "version": "v7.0.2",
+    "commit": "22f0b463e7a5e579904dd6211a520321035526f7"
+  },
+  "tdd": {
+    "red": {
+      "commit": "ee471a7b0e3588fa141ee18967ef1a58999cae51",
+      "command": "make test-one TEST=DuiyiTests/EdgeSwipeBackPolicyTests",
+      "exitCode": 2,
+      "artifact": "harness/evidence/discipline/add-swipe-back-gesture/task-1-red.txt",
+      "sha256": "b74e7a35c425840d80a34749e2fb295ece054344799a55292307aa02a60478bd"
+    },
+    "green": {
+      "commit": "8cae048531920c71c8a4dcf7475643e9b0a447ab",
+      "command": "make test-one TEST=DuiyiTests/EdgeSwipeBackPolicyTests",
+      "exitCode": 0,
+      "artifact": "harness/evidence/discipline/add-swipe-back-gesture/task-1-green.txt",
+      "sha256": "30020ec86bd902b12f95474fd285929c67e82e711553bee740986ac3108fa0f2"
+    }
+  },
+  "debugging": {
+    "rootCause": "EdgeSwipeBackPolicy did not exist before the red unit test."
+  },
+  "verification": {
+    "evidenceIds": [
+      "20261119T051131Z-unit-tests-pass",
+      "20261119T051240Z-ui-tests-pass"
+    ]
+  },
+  "redCommand": "make test-one TEST=DuiyiTests/EdgeSwipeBackPolicyTests",
+  "redExitCode": 2,
+  "redOutputSha256": "b74e7a35c425840d80a34749e2fb295ece054344799a55292307aa02a60478bd",
+  "greenEvidenceId": "20261119T051131Z-unit-tests-pass",
+  "skills": [
+    "harness/receipts/skills/add-swipe-back-gesture/task-1-test-driven-development.json"
+  ]
+}

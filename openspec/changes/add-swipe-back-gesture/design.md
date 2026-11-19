@@ -8,7 +8,7 @@
    - 导航栈非空；
    - 手势起点 `x` 不超过 24pt；
    - 横向位移不少于 60pt；
-   - 纵向漂移绝对值不超过 80pt。
+   - 纵向漂移绝对值小于横向位移，且不超过 80pt（避免「主要是纵向滑动」误触发）。
 3. **挂载方式：** 在 `RootView` 的 `NavigationStack` 上使用 `.simultaneousGesture`，避免阻断子视图按钮与滚动；策略不通过时不消费手势。
 4. **返回动画：** 在 `withAnimation(.easeInOut(duration: 0.2))` 中调用现有 `coordinator.pop()`，沿用 `NavigationStack` 的转场。
 5. **状态语义：** 返回路径不新增任务操作；模块页 `onDisappear` 继续负责停止听写，任务保持进行中，与点击「首页」一致。

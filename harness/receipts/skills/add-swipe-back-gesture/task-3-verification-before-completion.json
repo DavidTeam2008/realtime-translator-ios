@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-invoked",
+  "change": "add-swipe-back-gesture",
+  "task": 3,
+  "phase": "verification",
+  "skill": "verification-before-completion",
+  "source": {
+    "project": "superpowers",
+    "version": "v7.0.2",
+    "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+    "path": "skills/verification-before-completion/SKILL.md",
+    "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3"
+  },
+  "hostSkill": {
+    "root": "superpowers-cache",
+    "path": "skills/verification-before-completion/SKILL.md",
+    "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3"
+  },
+  "overlay": {
+    "path": "harness/superpowers-overlay.md",
+    "sha256": "c4dc26a013237f788a7a7b17126850c4fe28baec2379ce8477c1a19395d154e2"
+  },
+  "host": {
+    "name": "dsh",
+    "version": "unknown"
+  },
+  "invokedAt": "2026-11-19T05:12:58Z",
+  "head": "7a938cdced056ce5a9185db8f96b79082e6c5a57"
+}

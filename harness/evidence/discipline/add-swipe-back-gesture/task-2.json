@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "kind": "superpowers-discipline-receipt",
+  "change": "add-swipe-back-gesture",
+  "task": 2,
+  "base": "13b8b4d8999a6dc0360461a3fc788e69f11609aa",
+  "head": "7a938cdced056ce5a9185db8f96b79082e6c5a57",
+  "discipline": {
+    "name": "superpowers",
+    "version": "v7.0.2",
+    "commit": "22f0b463e7a5e579904dd6211a520321035526f7"
+  },
+  "tdd": {
+    "red": {
+      "commit": "27bfc6ff30a2e1ad9db977d2ed2a94bf7e83d10b",
+      "command": "make test-one TEST=DuiyiUITests/SimultaneousFlowTests/testSwipeBackFromModule",
+      "exitCode": 2,
+      "artifact": "harness/evidence/discipline/add-swipe-back-gesture/task-2-red.txt",
+      "sha256": "672936fdb4d4812af844fbec87559357158a9043423ce42ff0e937d6645db576"
+    },
+    "green": {
+      "commit": "88ea925de988e10c6e3abdb044143a649dc575b9",
+      "command": "make test-one TEST=DuiyiUITests/SimultaneousFlowTests/testSwipeBackFromModule",
+      "exitCode": 0,
+      "artifact": "harness/evidence/discipline/add-swipe-back-gesture/task-2-green.txt",
+      "sha256": "3c13916ce2a0e421f1d32e56a4d1b2b96b9806daccc2921533e56296de0825be"
+    }
+  },
+  "debugging": {
+    "rootCause": "RootView attached no leading-edge drag gesture; hiding the navigation bar disabled the system pop gesture."
+  },
+  "verification": {
+    "evidenceIds": [
+      "20261119T051131Z-unit-tests-pass",
+      "20261119T051240Z-ui-tests-pass"
+    ]
+  },
+  "redCommand": "make test-one TEST=DuiyiUITests/SimultaneousFlowTests/testSwipeBackFromModule",
+  "redExitCode": 2,
+  "redOutputSha256": "672936fdb4d4812af844fbec87559357158a9043423ce42ff0e937d6645db576",
+  "greenEvidenceId": "20261119T051131Z-unit-tests-pass",
+  "skills": [
+    "harness/receipts/skills/add-swipe-back-gesture/task-2-test-driven-development.json"
+  ]
+}
