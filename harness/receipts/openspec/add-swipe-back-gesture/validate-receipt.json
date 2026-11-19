@@ -5,11 +5,11 @@
   "command": "openspec validate add-swipe-back-gesture --type change --strict --json",
   "exitCode": 0,
   "artifactsSha256": {
-    "design.md": "c443d19d4d49e8b8eb201ed698a69fb9642db42bf8094509248a87f040fdefd9",
+    "design.md": "e674629e846ef29830f5a6d1f9f0697ebd2ab9c83a02c02b98b5fa3a9b80b940",
     "proposal.md": "4e9f1c6fe18dfdf7db30f750ea7950f97bebdf5f89a0c35b01c6878a6ddad6f9",
     "specs/navigation/spec.md": "4f983deb80774d8bd5b3a2c51f48efd2efd0a976ec7b14dc9d82fe7e094c0817",
     "tasks.md": "030dd0bf979fa041e2d9172654b286eab3a920e06756b4b2dc099389141f2bac"
   },
   "validateJson": "harness/receipts/openspec/add-swipe-back-gesture/validate.json",
-  "validateJsonSha256": "5a5c38e5639655b52b4efce4c0a9a0faaaae696a770598eb1c10b69192a91fac"
+  "validateJsonSha256": "3f3026f1e5dd8c4d68ec0ea4599efc3ca621ddf4051eb834cbe1e84777c910ce"
 }

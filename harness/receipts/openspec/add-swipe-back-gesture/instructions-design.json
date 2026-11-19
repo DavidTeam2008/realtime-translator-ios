@@ -6,5 +6,5 @@
   "command": "openspec instructions design --change add-swipe-back-gesture --json",
   "exitCode": 0,
   "outputSha256": "c2b95e85d1a39875ae5f7eacebabcd7641eb536c5b54d664f1b048dd9cbff2ea",
-  "outputArtifact": "harness/receipts/openspec/add-swipe-back-gesture/logs/design.log"
+  "outputArtifact": "harness/receipts/openspec/add-swipe-back-gesture/logs/design.txt"
 }

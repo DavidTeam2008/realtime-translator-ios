@@ -4,7 +4,7 @@
   "change": "add-swipe-back-gesture",
   "task": 3,
   "base": "13b8b4d8999a6dc0360461a3fc788e69f11609aa",
-  "head": "7a938cdced056ce5a9185db8f96b79082e6c5a57",
+  "head": "96e4e5f019942f32a20c902bb14904c0d726441c",
   "discipline": {
     "name": "superpowers",
     "version": "v7.0.2",
@@ -31,14 +31,14 @@
   },
   "verification": {
     "evidenceIds": [
-      "20261119T051131Z-unit-tests-pass",
-      "20261119T051240Z-ui-tests-pass"
+      "20261119T052625Z-unit-tests-pass",
+      "20261119T052843Z-ui-tests-pass"
     ]
   },
   "redCommand": "python3 tools/check-test-baseline.py",
   "redExitCode": 1,
   "redOutputSha256": "de83523b67165b0b7558ef6e4fe8b20a0e68ed2ac043994a93a1c306160d915c",
-  "greenEvidenceId": "20261119T051131Z-unit-tests-pass",
+  "greenEvidenceId": "20261119T052625Z-unit-tests-pass",
   "skills": [
     "harness/receipts/skills/add-swipe-back-gesture/task-3-verification-before-completion.json"
   ]

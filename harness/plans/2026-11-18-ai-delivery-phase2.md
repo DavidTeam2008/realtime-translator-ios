@@ -105,8 +105,9 @@ verify:
 
 - **Change**：`openspec/changes/add-swipe-back-gesture/`；目标「已推入页面支持左边缘右滑返回上一级」。
 - **方案**：根级左边缘 `DragGesture` + 可单测 `EdgeSwipeBackPolicy`；不做 UIKit 原生手势 introspection，不做跟手转场。
-- **契约状态**：scaffold / instructions×4 / clarification / validate receipts 已生成；`validate --strict` 与 change-lint 通过（L11 仍为 WARN，v0.4.0 的 L11 未读取 clarification receipt，按 advisory 记录）。
-- **待确认**：proposal/design/spec/tasks 与实现方案需用户确认后，才进入 Task 1 红测试与代码实现。
+- **契约状态**：scaffold / instructions×4 / clarification / validate receipts 已生成；`validate --strict` 与 change-lint 通过（L11 仍为 WARN，v0.4.0 的 L11 未读取 clarification receipt，按 advisory 记录）。回执 log 因 `harness/**/*.log` 被忽略，已迁移为 tracked `.txt`；生成器仍写 `.log`，登记后续增量。
+- **用户确认**：2026-11-19 确认方案 B、屏幕左边缘起手、进入实现。
+- **执行结果**：3 个任务 TDD 红/绿；P1（mostly-vertical 边界）由独立 review 发现并在 `156dddb` 修复；unit 144 / UI 4；delivery-check 在 head `96e4e5f`、回执 staged 状态下 PASS。
 - **范围**：仅 `Duiyi/App/RootView.swift`、`Duiyi/Features/Shared/`、`DuiyiTests/`、`DuiyiUITests/`、测试基线/文档与试点回执；不改业务语义与既有断言。
 
 ## 验收
@@ -118,7 +119,7 @@ verify:
 - [x] 五类回执 + discipline 校验可用；provenance 正负样例全绿；缺回执/哈希不符/validate 后改工件/错 task 非零（2026-11-19）。
 - [x] 全量 L1–L11 在 delivery-check 中启用；contract-lint failure fixture 非零；WARN 级（L3/L5 数量/L6 Covers 缺失/L11）为 advisory 并经 change-lint/review 核对（2026-11-19）。
 - [x] OpenSpec config rules/context + traceability 生效；Superpowers overlay 存在且 hash 入 skill receipt 并由宿主复算；dry-run 不生成 `docs/superpowers/plans`（2026-11-19）。
-- [ ] 一个真实 L2 试点全链 PASS（或 blocked + 回滚记录）；archive 单独确认。
+- [x] 一个真实 L2 试点全链 PASS：delivery-check PASS（3/3 tasks、unit+UI evidence、skill/discipline receipts、review P0=0/P1 closed）；archive 待用户单独确认（2026-11-19）。
 - [x] 后续增量有清单、建议负责人与时点；不在本计划声称完成（建议值待用户确认）。
 - [x] `delivery-check-fixtures`/`delivery-receipts-fixtures`/`delivery-skills-fixtures`/`delivery-check-pin`/`verify-static`/`release-check` 全绿；`check-plan --strict` PASS（2026-11-19）。
 - [x] 不创建第二计划/ledger；不改历史工件；commit 均经用户确认后执行，未 auto commit/push/tag。
@@ -138,7 +139,8 @@ verify:
 - [ ] 一个真实 L2 试点 + 后续增量登记。
   - [x] 试点 Change `add-swipe-back-gesture` 已 scaffold；proposal/design/spec/tasks 已写，validate + lint 完成（2026-11-19）。
   - [x] 试点实现完成：`EdgeSwipeBackPolicy` + RootView 左边缘手势；5 个单元测试 + 1 个 UI 测试；unit 144 / UI 4（2026-11-19）。
-  - [ ] 试点独立 review、delivery-check、archive（archive 单独确认）。
+  - [x] 试点独立 review 完成（P0=0 / P1=1 已关闭 / P2 scheduled）；`make delivery-check` PASS（2026-11-19）。
+  - [ ] 试点 archive（等用户单独确认）与后续增量登记。
 
 ## 验证证据
 
@@ -161,7 +163,10 @@ verify:
 | `make evidence-unit WRITE=1` | PASS：139 passed / 0 failed / 0 skipped；证据 `20261119T042907Z-unit-tests-pass`，artifact+manifest tracked | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T042907Z-unit-tests-pass |
 | `make evidence-ui WRITE=1` | PASS：2 passed / 0 failed / 1 skipped；证据 `20261119T043007Z-ui-tests-pass`，artifact+manifest tracked | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T043007Z-ui-tests-pass |
 | `make evidence-unit WRITE=1`（试点） | PASS：144 passed / 0 failed / 0 skipped；证据 `20261119T051131Z-unit-tests-pass` | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T051131Z-unit-tests-pass |
-| `make evidence-ui WRITE=1`（试点） | PASS：3 passed / 0 failed / 1 skipped（4 tests）；证据 `20261119T051240Z-ui-tests-pass` | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T051240Z-ui-tests-pass |
+| `make evidence-ui WRITE=1`（试点，修复后） | PASS：3 passed / 0 failed / 1 skipped（4 tests）；证据 `20261119T052843Z-ui-tests-pass` | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T052843Z-ui-tests-pass |
+| `make evidence-unit WRITE=1`（试点，修复后） | PASS：144 passed / 0 failed / 0 skipped；证据 `20261119T052625Z-unit-tests-pass` | 本机 macOS；iPhone 17 Pro Max / iOS 26.4.1 | 20261119T052625Z-unit-tests-pass |
+| `make delivery-check CHANGE=add-swipe-back-gesture` | PASS：3/3 tasks；evidence unit+UI；skill/discipline receipts；review P0=0/P1 closed（head `96e4e5f`，回执 staged） | 本机 macOS；PIN v0.4.0 | —（过程记录） |
+| 独立 review（Claude Code / DeepSeek） | 完成：P0=0 / P1=1（已修复）/ P2=7 scheduled；结论有条件 PASS → P1 关闭后 PASS | 本机 | —（外部） |
 | `make verify-claim` | PASS：3 条当前证据（docs/unit/UI）全部 PASS；UI 证据 `20261119T043007Z-ui-tests-pass`；归档 16 条 SUPERSEDED；0 FAIL / 0 UNVERIFIED（2026-11-19） | 本机 macOS；Python 3.14 | 20261119T042907Z-unit-tests-pass |
 | `make release-check` | PASS：verify-static + verify-claim + scorecard + plan strict（commit `f3f3336`，2026-11-19） | 本机 macOS；Python 3.14 | —（过程记录） |
 | 契约格式兼容验证（scratch） | PASS：Delivery Contract + `### Task N:` 复选框通过 `validate --strict`；全量 lint issues=[]；apply 全勾选后 state=all_done | 本机 macOS；OpenSpec 2.1.0 + v0.4.0 lint | —（过程记录） |
@@ -213,18 +218,18 @@ verify:
 
 ## 未提交改动
 
-- 无（试点实现与 fixture 已提交；证据/回执在 clean commit 上重跑后提交）。
+- 无（试点交付提交后工作树 clean；archive 与收尾另行列计划）。
 
 ## 下一步
 
-1. 用户选一个真实小行为变更作为 L2 试点，确认 Change 与执行计划后进入步骤 6。
-2. 试点按 scaffold/instructions/validate/lint/skill/TDD/evidence/review 全链执行；archive 单独确认。
-3. 试点结束后登记后续增量（WARN→ERROR、pre-commit、Record v2、doctor、portfolio、CI、light）的最终负责人与时点。
-4. 任何 push/tag/archive 每次单独确认；commit 按改动批次确认。
+1. 用户确认后 `openspec archive add-swipe-back-gesture` + archived validate；archive 单独确认。
+2. 试点收尾：登记 review P2 与 toolchain 增量（receipt log 生成、L11 读取 clarification receipt、discipline head 绑定）的最终负责人/时点。
+3. 冻结 PIN，push/tag 单独确认；Phase 2 计划转 done 并归档。
 
 ## 待确认
 
-- 试点 Change `add-swipe-back-gesture` 的 proposal/design/spec/tasks 与方案 B（根级左边缘手势）待用户确认；可选方案 A（原生交互式 pop）。
-- 是否接受试点返回手势从屏幕左边缘起手（iOS 标准）；若不接受，需要先调整触发条件。
+- 试点 archive 是否现在执行（需要用户单独确认；archive 会更新主 specs）。
+- review P2（STD-1/2/3/4、SPEC-2/3/4/5）是否纳入下一增量排期。
+- 外部仓 push（无 remote）、后续增量负责人/时点。
 - v0.3.1/v0.4.0 tag/push 时点与确认方式（外部仓暂无 remote）。
 - 后续增量（WARN→ERROR、pre-commit、Record v2、doctor、portfolio、CI、light）负责人与时点。

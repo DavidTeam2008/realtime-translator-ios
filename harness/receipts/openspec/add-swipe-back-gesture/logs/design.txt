@@ -1,0 +1,39 @@
+{
+  "changeName": "add-swipe-back-gesture",
+  "artifactId": "design",
+  "schemaName": "spec-driven",
+  "changeDir": "/Users/tanwei/Documents/code/ios/realtimeTranslatorOptimize/openspec/changes/add-swipe-back-gesture",
+  "planningHome": {
+    "kind": "repo",
+    "root": "/Users/tanwei/Documents/code/ios/realtimeTranslatorOptimize",
+    "changesDir": "/Users/tanwei/Documents/code/ios/realtimeTranslatorOptimize/openspec/changes",
+    "defaultSchema": "spec-driven"
+  },
+  "outputPath": "design.md",
+  "resolvedOutputPath": "/Users/tanwei/Documents/code/ios/realtimeTranslatorOptimize/openspec/changes/add-swipe-back-gesture/design.md",
+  "existingOutputPaths": [],
+  "description": "Technical design document with implementation details",
+  "instruction": "Create the design document that explains HOW to implement the change.\n\nWhen to include design.md (create only if any apply):\n- Cross-cutting change (multiple services/modules) or new architectural pattern\n- New external dependency or significant data model changes\n- Security, performance, or migration complexity\n- Ambiguity that benefits from technical decisions before coding\n\nSections:\n- **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., \"See proposal.md - Why\").\n- **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.\n- **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.\n- **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation\n- **Migration Plan**: Steps to deploy, rollback strategy (if applicable)\n- **Open Questions**: Unknowns that can safely be answered later without\n  changing the specs, the approach, or the task breakdown. Omit if none.\n\nOpen questions are for genuinely deferrable unknowns, not decisions you\nskipped. If a question would change the specs, the chosen approach, or\nthe task breakdown, resolve it now - ask the user instead of guessing.\n\nFocus on architecture and approach, not line-by-line implementation.\nThe proposal covers why and what; design covers how. Reference the\nproposal for motivation and, once written, the specs for requirements -\nif a section would only restate them, point to them instead.\n\nGood design docs explain the \"why\" behind technical decisions.\n",
+  "context": "Duiyi 是端侧 iOS 实时翻译 App（iOS 26.4+ / Swift 6）。行为契约只写用户可观察行为，不写内部实现细节或流水账。\nHarness 是执行真源：active 计划（harness/plans/）持有 scope、验收、证据与完成判定；OpenSpec 持有 L2 行为契约与唯一任务状态。\ntasks.md 是唯一任务状态：每个 ### Task N: 块恰好一个任务级复选框；不得在 Harness 计划、docs/superpowers/plans、.superpowers/sdd 复制任务清单或完成状态。\nL2 流程：make change-new → make change-instructions → 编写 → make change-validate → make change-lint → 执行（TDD / skill receipts）→ make delivery-check → 用户确认 archive。\nSuperpowers overlay：harness/superpowers-overlay.md（brainstorming 不建第二份计划；tasks.md 唯一状态）。\n用户确认点：L2 方案/契约、archive、commit/push/tag 每次单独确认。",
+  "rules": [
+    "必须包含 Decisions / Risks / Verification 三段；Verification 写清可执行的命令或人工复核方式。",
+    "至少记录 2 个备选方案与取舍；确实无备选时显式写“无备选”及理由。",
+    "不写实现步骤流水账；实现顺序放 tasks.md，证据与验收放 Harness 计划。"
+  ],
+  "template": "# Design\n\n## Context\n\n<!-- Current state and constraints that shape the approach. See proposal.md for motivation - don't restate it -->\n\n## Goals / Non-Goals\n\n**Goals:**\n<!-- What this design aims to achieve -->\n\n**Non-Goals:**\n<!-- What is explicitly out of scope -->\n\n## Decisions\n\n<!-- Key design decisions with rationale and alternatives considered -->\n\n## Risks / Trade-offs\n\n<!-- Known risks and trade-offs -->\n",
+  "dependencies": [
+    {
+      "id": "proposal",
+      "done": false,
+      "path": "proposal.md",
+      "description": "Initial proposal document outlining the change"
+    }
+  ],
+  "unlocks": [
+    "tasks"
+  ],
+  "root": {
+    "path": "/Users/tanwei/Documents/code/ios/realtimeTranslatorOptimize",
+    "source": "nearest"
+  }
+}

@@ -1,0 +1,4 @@
+Created change 'add-swipe-back-gesture' at openspec/changes/add-swipe-back-gesture/
+Schema: spec-driven
+Next: openspec status --change add-swipe-back-gesture
+- Creating change 'add-swipe-back-gesture' with schema 'spec-driven'...

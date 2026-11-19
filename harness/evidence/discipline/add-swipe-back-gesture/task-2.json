@@ -4,7 +4,7 @@
   "change": "add-swipe-back-gesture",
   "task": 2,
   "base": "13b8b4d8999a6dc0360461a3fc788e69f11609aa",
-  "head": "7a938cdced056ce5a9185db8f96b79082e6c5a57",
+  "head": "96e4e5f019942f32a20c902bb14904c0d726441c",
   "discipline": {
     "name": "superpowers",
     "version": "v7.0.2",
@@ -31,14 +31,14 @@
   },
   "verification": {
     "evidenceIds": [
-      "20261119T051131Z-unit-tests-pass",
-      "20261119T051240Z-ui-tests-pass"
+      "20261119T052625Z-unit-tests-pass",
+      "20261119T052843Z-ui-tests-pass"
     ]
   },
   "redCommand": "make test-one TEST=DuiyiUITests/SimultaneousFlowTests/testSwipeBackFromModule",
   "redExitCode": 2,
   "redOutputSha256": "672936fdb4d4812af844fbec87559357158a9043423ce42ff0e937d6645db576",
-  "greenEvidenceId": "20261119T051131Z-unit-tests-pass",
+  "greenEvidenceId": "20261119T052843Z-ui-tests-pass",
   "skills": [
     "harness/receipts/skills/add-swipe-back-gesture/task-2-test-driven-development.json"
   ]
