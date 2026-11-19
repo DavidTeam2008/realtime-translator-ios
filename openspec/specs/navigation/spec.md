@@ -1,0 +1,66 @@
+# navigation Specification
+
+## Purpose
+TBD - created by archiving change add-swipe-back-gesture. Update Purpose after archive.
+
+## Requirements
+
+### Requirement: 已推入页面支持左边缘右滑返回
+
+需求 ID：R1
+
+系统 SHALL 在任意已推入的导航页面（模块、历史、任务详情）上，当用户从屏幕左边缘开始右滑且满足触发阈值时，返回上一级页面。
+
+#### Scenario: 模块页右滑返回首页
+
+场景 ID：S1.1
+
+- **GIVEN** 用户从首页进入一个模块页
+- **WHEN** 用户从屏幕左边缘开始向右滑动并达到触发阈值
+- **THEN** 应用返回首页
+- **AND** 已有任务保持进行中，不被结束
+
+#### Scenario: 历史页右滑返回首页
+
+场景 ID：S1.2
+
+- **GIVEN** 用户从首页进入任务历史页
+- **WHEN** 用户从屏幕左边缘开始向右滑动并达到触发阈值
+- **THEN** 应用返回首页
+
+### Requirement: 首页与无效手势不触发返回
+
+需求 ID：R2
+
+系统 SHALL 仅在导航栈非空且手势满足触发阈值时执行返回；在首页或手势不满足阈值时 SHALL 保持当前页面不变。
+
+#### Scenario: 首页边缘右滑不导航
+
+场景 ID：S2.1
+
+- **GIVEN** 首页是当前页面且导航栈为空
+- **WHEN** 用户从屏幕左边缘向右滑动
+- **THEN** 当前页面保持不变
+
+#### Scenario: 短距离或纵向滑动不导航
+
+场景 ID：S2.2
+
+- **GIVEN** 当前页面为已推入的模块页
+- **WHEN** 用户从屏幕中部向右滑动、或从边缘滑动但距离过短、或主要是纵向滑动
+- **THEN** 当前页面保持不变
+
+### Requirement: 现有导航入口保持可用
+
+需求 ID：R3
+
+系统 SHALL 保留现有「首页」「历史」「结束任务」「新任务」入口及其行为。
+
+#### Scenario: 首页按钮仍可返回
+
+场景 ID：S3.1
+
+- **GIVEN** 当前页面为已推入的模块页
+- **WHEN** 用户点击自定义「首页」按钮
+- **THEN** 应用返回首页
+- **AND** 听写停止且任务保持进行中

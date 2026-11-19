@@ -1,9 +1,10 @@
 ---
 id: 2026-11-18-ai-delivery-phase2
-status: active
+status: done
 level: L2
 owner: david
 updated: 2026-11-19
+submitted: b0f6d4e 69738a9 bc7d819 60ff465 f3f3336 1508cdd 13b8b4d 93f6195 ee471a7 8cae048 27bfc6f 88ea925 700c4f9 7a938cd 156dddb 96e4e5f 83e35b3 5cc380e 7109b51
 scope:
   allow:
     - harness/design/
@@ -108,6 +109,7 @@ verify:
 - **契约状态**：scaffold / instructions×4 / clarification / validate receipts 已生成；`validate --strict` 与 change-lint 通过（L11 仍为 WARN，v0.4.0 的 L11 未读取 clarification receipt，按 advisory 记录）。回执 log 因 `harness/**/*.log` 被忽略，已迁移为 tracked `.txt`；生成器仍写 `.log`，登记后续增量。
 - **用户确认**：2026-11-19 确认方案 B、屏幕左边缘起手、进入实现。
 - **执行结果**：3 个任务 TDD 红/绿；P1（mostly-vertical 边界）由独立 review 发现并在 `156dddb` 修复；unit 144 / UI 4；delivery-check 在 head `96e4e5f`、回执 staged 状态下 PASS。
+- **归档**：2026-11-19 用户确认后执行 `openspec archive add-swipe-back-gesture --yes`，归档为 `2026-11-19-add-swipe-back-gesture`，主 spec `openspec/specs/navigation/spec.md` 已创建；`openspec validate --archived --json` 3/3 PASS。
 - **范围**：仅 `Duiyi/App/RootView.swift`、`Duiyi/Features/Shared/`、`DuiyiTests/`、`DuiyiUITests/`、测试基线/文档与试点回执；不改业务语义与既有断言。
 
 ## 验收
@@ -136,7 +138,7 @@ verify:
 - [x] 全量 lint 接入（v0.4.0 L1–L11；ERROR 硬失败 / WARN advisory）+ OpenSpec config/overlay + skill/clarification 负例（2026-11-19）。
 - [x] 步骤 5 回执/lint/config/overlay 完成；收口门禁 fixtures / pin / receipts / skills / verify-static / check-plan-strict PASS；unit/UI 证据已在 clean commit 上重跑（2026-11-19）。
 - [x] 步骤 5 门禁全部 PASS：`make verify-claim`（3 PASS / 0 FAIL / 0 UNVERIFIED）与 `make release-check` 在 clean commit `f3f3336` 上 PASS（2026-11-19）。
-- [ ] 一个真实 L2 试点 + 后续增量登记。
+- [x] 一个真实 L2 试点 + 后续增量登记；OpenSpec change 已 archive（2026-11-19-add-swipe-back-gesture），archived validate PASS。
   - [x] 试点 Change `add-swipe-back-gesture` 已 scaffold；proposal/design/spec/tasks 已写，validate + lint 完成（2026-11-19）。
   - [x] 试点实现完成：`EdgeSwipeBackPolicy` + RootView 左边缘手势；5 个单元测试 + 1 个 UI 测试；unit 144 / UI 4（2026-11-19）。
   - [x] 试点独立 review 完成（P0=0 / P1=1 已关闭 / P2 scheduled）；`make delivery-check` PASS（2026-11-19）。
@@ -221,20 +223,31 @@ verify:
 - `delivery-check` 在 head `96e4e5f`、回执 staged 状态下 PASS；提交回执后 HEAD 变化时，v0.4.0 的 discipline head 绑定使其不能直接重跑，需后续增量明确 CI/clean-checkout 语义。
 - `harness/reviews/2026-11-19-scorecard.md` 是生成草稿，自评/独立复评为 TBD，不作完成证据。
 - P0-1 正式 evidence 未补（当前过程记录）。
-- 真实 L2 试点未开始；试点通过前不能声称全链已成立。
 - lint WARN 级（L3/L5 任务数/L6 Covers 缺失/L11）尚未升为 ERROR；当前由 change-lint 展示 + review 核对。
 - CI/pre-commit/Record v2/doctor/portfolio/light 模式均后置未实现。
 - 真机/UI/性能不在本计划范围。
 
+## 未验证豁免
+
+| 项目 | 理由 | 负责人 | 到期日 |
+| --- | --- | --- | --- |
+| 试点返回手势只在模拟器验证 | 本机无可用真机；导航验收按项目矩阵以模拟器为准，真机手势与任务保持后续补验 | lead | 2026-12-31 |
+| delivery-check 在 head 96e4e5f | v0.4.0 discipline 回执要求 head=当前 HEAD，回执 staged 才能过；提交后不能直接重跑，需 toolchain 后续修正 | lead | 2026-12-31 |
+| 2026-11-19-scorecard.md | 生成器只产草稿，自评/独立复评 TBD；release-check 只校验新鲜度，不当作完成证据 | lead | 2026-12-31 |
+| P0-1 正式 evidence 未补 | 历史 P0-1 仍为过程记录；本轮试点证据已入库，P0-1 单独排期 | lead | 2026-12-31 |
+| lint WARN 级（L3/L5 任务数/L6 Covers 缺失/L11）尚未升为 ERROR | v0.4.0 仍为 advisory；升 ERROR 登记为后续增量 | lead | 2026-12-31 |
+| CI/pre-commit/Record v2/doctor/portfolio/light 模式均后置未实现 | 本期不做这些增量，已列入后续增量清单 | lead | 2026-12-31 |
+| 真机/UI/性能不在本计划范围 | 计划只覆盖机制接入与试点；真机/UI/性能按项目验证矩阵另行执行 | lead | 2026-12-31 |
+
 ## 未提交改动
 
-- 无（试点交付、review 与收尾提交后工作树 clean）。
+- 无（archive 与计划归档随本提交；Phase 2 收尾完成）。
 
 ## 下一步
 
-1. 用户确认后 `openspec archive add-swipe-back-gesture` + archived validate；archive 单独确认。
-2. archive 后把 Phase 2 计划转 done 并归档；冻结 PIN。
-3. 后续增量（review P2、receipt log、L11、discipline head）排期；push/tag 单独确认。
+1. Phase 2 计划转 done 并归档（本提交完成）；OpenSpec change 已 archive。
+2. 推送 main 与 tag；外部 toolchain 仓无 remote，v0.3.1/v0.4.0 仍无法 push。
+3. 后续增量（review P2、receipt log、L11、discipline head）排期。
 
 ## 待确认
 
