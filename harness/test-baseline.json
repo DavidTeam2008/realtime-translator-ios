@@ -6,9 +6,9 @@
     "files": 17
   },
   "ui": {
-    "floor": 4,
+    "floor": 6,
     "files": 2,
-    "passedFloor": 3
+    "passedFloor": 5
   },
   "expectedSkipped": {
     "simulator": 1,
@@ -26,6 +26,6 @@
     "v0.5.3 迁移：claims 使用 passedFloor/device.floor/expectedSkipped.{unit,ui,device}；旧 simulator/device 键保留给宿主脚本。"
   ],
   "device": {
-    "floor": 148
+    "floor": 150
   }
 }

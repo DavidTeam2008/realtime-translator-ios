@@ -105,7 +105,9 @@ final class SimultaneousFlowTests: XCTestCase {
         let homeModule = app.buttons["home-module-faceToFace"]
         XCTAssertTrue(homeModule.waitForExistence(timeout: timeout), "home module missing")
 
-        swipeBackFromLeadingEdge(in: app)
+        // 首页内容区几乎全是按钮卡片；从底部空白区起手，避免合成手势
+        // 被当成卡片点击（真实拖拽不会触发按钮）。
+        swipeBackFromLeadingEdge(in: app, y: 0.85)
 
         XCTAssertTrue(homeModule.exists, "home page changed after edge swipe")
         XCTAssertFalse(app.buttons["nav-home"].exists, "edge swipe pushed a page from home")
@@ -311,9 +313,9 @@ final class SimultaneousFlowTests: XCTestCase {
         other.tap()
     }
     /// Leading-edge right swipe used by the back-gesture UI tests.
-    private func swipeBackFromLeadingEdge(in app: XCUIApplication) {
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
+    private func swipeBackFromLeadingEdge(in app: XCUIApplication, y: CGFloat = 0.85) {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: y))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: y))
         start.press(forDuration: 0.05, thenDragTo: end)
     }
 
