@@ -19,6 +19,19 @@ struct RootView: View {
                     destination(for: route)
                 }
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                .onEnded { value in
+                    guard EdgeSwipeBackPolicy.shouldPop(
+                        hasPreviousPage: !coordinator.path.isEmpty,
+                        startLocation: value.startLocation,
+                        translation: value.translation
+                    ) else { return }
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        coordinator.pop()
+                    }
+                }
+        )
         .fullScreenCover(isPresented: onboardingPresented) {
             if let onboardingViewModel {
                 OnboardingView(viewModel: onboardingViewModel)
