@@ -1,0 +1,3 @@
+command: make test-one TEST=DuiyiUITests/SimultaneousFlowTests/testSwipeBackFromModule
+EXIT_CODE=2
+XCTAssertTrue failed - edge swipe did not return to home

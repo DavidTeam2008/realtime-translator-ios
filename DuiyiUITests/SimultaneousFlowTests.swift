@@ -79,6 +79,24 @@ final class SimultaneousFlowTests: XCTestCase {
         try assertHomeModuleNavigation(app)
     }
 
+    /// 已推入页面从屏幕左边缘右滑应返回上一级。
+    func testSwipeBackFromModule() throws {
+        let app = launchApp()
+        let f2f = app.buttons["home-module-faceToFace"]
+        XCTAssertTrue(f2f.waitForExistence(timeout: timeout), "home faceToFace entry missing")
+        f2f.tap()
+        XCTAssertTrue(app.buttons["nav-home"].waitForExistence(timeout: timeout), "module page did not open")
+
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end)
+
+        XCTAssertTrue(
+            app.buttons["home-module-simultaneous"].waitForExistence(timeout: timeout),
+            "edge swipe did not return to home"
+        )
+    }
+
     private func assertHomeModuleNavigation(_ app: XCUIApplication) throws {
         // 进出二级页面覆盖：面对面进出、历史进出
         let f2f = app.buttons["home-module-faceToFace"]
